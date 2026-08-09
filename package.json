@@ -1,0 +1,9 @@
+{
+  "name": "ludora",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev:api": "pnpm --filter @ludora/api run start",
+    "dev:mobile": "pnpm --filter @ludora/mobile run start"
+  }
+}

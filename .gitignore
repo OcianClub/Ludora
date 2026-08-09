@@ -1,0 +1,11 @@
+# monorepo
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.expo/
+*.log
+reorganizar-ludora.sh
+__pycache__/
+*.pyc

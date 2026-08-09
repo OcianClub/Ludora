@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://ocianclub-node.onrender.com';
+export const BASE_URL = 'https://ocianclub-node.onrender.com';
 
 export interface ClassificacaoItem {
   grupo: string;
