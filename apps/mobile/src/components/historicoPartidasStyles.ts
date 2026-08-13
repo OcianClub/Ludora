@@ -1,98 +1,91 @@
-import { StyleSheet } from "react-native";
-import { colors } from "@/src/theme/colors";
+import { StyleSheet } from 'react-native';
+import { colors, typography } from '@ludora/design-tokens';
 
 export const styles = StyleSheet.create({
   cardWrapper: {
     flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: 10,
     marginBottom: 12,
-  },
-  colorBorder: {
-    backgroundColor: colors.primary,
-    width: 8,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-    height: 120
+    overflow: 'hidden',
+    borderWidth: 1,
   },
   matchCard: {
     flex: 1,
-    height: 120,
-    backgroundColor: '#1a1a1a',
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
   },
-  escudoBackground: {
-    width: 46,
-    height: 46,
-    borderRadius: 100,
-    backgroundColor: '#101010',
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  escudoTime: {
-    height: 36,
-    width: 36,
-  },
+
+  // ── TIMES ──
   timeUm: {
     flex: 1,
     alignItems: 'center',
-    flexDirection: 'column',
-    gap: 6
-  },
-  txtTimeUm: {
-    color: colors.text,
-    fontSize: 14,
-    fontFamily: 'Creato-Medium',
-    textAlign: 'center'
+    gap: 8,
   },
   timeDois: {
     flex: 1,
     alignItems: 'center',
-    flexDirection: 'column',
-    gap: 6
+    gap: 8,
+  },
+  escudoBackground: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.cardSecundario,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  escudoTime: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
+  },
+  txtTimeUm: {
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: 11.5,
+    color: colors.texto,
+    textAlign: 'center',
   },
   txtTimeDois: {
-    color: 'gray',
-    fontSize: 14,
-    fontFamily: 'Creato-Medium',
-    textAlign: 'center'
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: 11.5,
+    color: colors.texto,
+    textAlign: 'center',
   },
+
+  // ── PLACAR E DATA ──
   placarContainer: {
+    flex: 1.2,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6
+    gap: 6,
   },
   dataJogo: {
-    color: '#666',
-    fontFamily: 'Creato-Medium',
-    fontSize: 12,
-    marginBottom: 4
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: 11.5,
+    color: colors.textoSecundario,
   },
   golsWrapper: {
     flexDirection: 'row',
-    gap: 4,
-    alignItems: 'center'
-  },
-  golBox: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6
+    alignItems: 'center',
+    gap: 8,
   },
   txtGol: {
-    fontFamily: 'Creato-Medium',
-    fontSize: 28,
-    color: colors.text_secondary,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.lg,
+    color: colors.texto,
   },
   traco: {
-    color: '#61C6FF',
-    fontSize: 28,
-    fontFamily: 'Creato-Medium'
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.sm,
+    color: colors.textoSecundario,
   },
+
+  // ── ÍCONE ESTATÍSTICA ──
   statsIcon: {
-    marginLeft: 4
+    paddingLeft: 8,
   }
 });

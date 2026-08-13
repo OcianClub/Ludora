@@ -1,8 +1,9 @@
 import { Tabs } from 'expo-router';
 import { View, Text } from 'react-native';
-import { colors } from '@/src/theme/colors'
+import { colors, typography } from '@ludora/design-tokens'
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fonts } from '@/src/theme/fonts';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -11,17 +12,17 @@ export default function TabsLayout() {
     <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: colors.text, 
-          tabBarInactiveTintColor: '#888888',
+          tabBarActiveTintColor: colors.primaria, 
+          tabBarInactiveTintColor: colors.textoSecundario,
           tabBarActiveBackgroundColor: 'transparent',
           tabBarInactiveBackgroundColor: 'transparent',
           tabBarStyle: {
-            backgroundColor: colors.background,
+            backgroundColor: colors.fundo,
             borderTopWidth: 0,
             elevation: 0,
-            height: 80 + insets.bottom,
+            height: 68 + insets.bottom,
             paddingBottom: 10 + insets.bottom,
-            paddingTop: 10,
+            paddingTop: 6,
           },
           tabBarItemStyle: {
             borderRadius: 10,
@@ -31,22 +32,12 @@ export default function TabsLayout() {
           tabBarLabel: ({ focused, color, children }) => (
             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ 
-                fontFamily: 'Creato-Bold', 
-                fontSize: 11.5, 
+                fontFamily: typography.fontFamily.corpo.semiBold, 
+                fontSize: 12, 
                 color: color 
               }}>
                 {children}
               </Text>
-              <View 
-                style={{
-                  position: 'absolute',
-                  bottom: -10,
-                  height: 3,
-                  width: '80%',
-                  backgroundColor: focused ? colors.primary : 'transparent',
-                  borderRadius: 2
-                }} 
-              />
             </View>
           )
         }}

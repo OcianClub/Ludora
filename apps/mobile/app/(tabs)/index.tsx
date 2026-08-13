@@ -1,7 +1,6 @@
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { styles } from '../../src/styles/indexStyles';
 import { Header } from '@/src/components/Header';
-import { colors } from '@/src/theme/colors';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Octicons from '@expo/vector-icons/Octicons';
@@ -83,10 +82,10 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, onVerDe
 
             <View style={styles.mainCard}>
               {carregando ? (
-                <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 40 }} />
+                <ActivityIndicator size="large" color="#0E78FF" style={{ marginVertical: 40 }} />
               ) : !proximoJogo ? (
                 <View style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
-                  <MaterialCommunityIcons name="calendar-remove-outline" size={40} color="#444" />
+                  <MaterialCommunityIcons name="calendar-remove-outline" size={40} color="#8B8D94" />
                   <Text style={{ fontFamily: 'Creato-Bold', color: '#666' }}>Nenhuma partida agendada</Text>
                 </View>
               ) : (
@@ -101,7 +100,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, onVerDe
                       </View>
                     </View>
                     <View>
-                      <FontAwesome5 name={proximoJogo.emCasa ? 'home' : 'bus'} size={22} color={colors.azulClaro} />
+                      <FontAwesome5 name={proximoJogo.emCasa ? 'home' : 'bus'} size={22} color="#0E78FF" />
                     </View>
                   </View>
 
@@ -110,7 +109,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, onVerDe
                   <View style={styles.rowSpaceBetween}>
                     <View style={styles.cardHoraData}>
                       <View style={styles.containerDataHora}>
-                        <FontAwesome5 name="calendar" size={18} color={colors.text} />
+                        <FontAwesome5 name="calendar" size={18} color="#8B8D94" />
                         <View style={styles.containerTextDataHora}>
                           <Text style={styles.titleDataHora}>Data</Text>
                           <Text style={styles.subTitleDataHora}>{formatarDataCard(proximoJogo.data)}</Text>
@@ -118,7 +117,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, onVerDe
                       </View>
 
                       <View style={styles.containerDataHora}>
-                        <FontAwesome5 name="clock" size={18} color={colors.text} />
+                        <FontAwesome5 name="clock" size={18} color="#8B8D94" />
                         <View style={styles.containerTextDataHora}>
                           <Text style={styles.titleDataHora}>Horário</Text>
                           <Text style={styles.subTitleDataHora}>{proximoJogo.horario || '--:--'}</Text>
@@ -127,7 +126,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, onVerDe
                     </View>
 
                     <View style={styles.containerLocalizacao}>
-                      <Octicons name="location" size={20} color={colors.azulClaro} />
+                      <Octicons name="location" size={20} color="#8B8D94" />
                       <Text style={styles.txtLocalizacao} numberOfLines={2}>
                         {proximoJogo.local || 'Local não definido'}
                       </Text>
@@ -149,7 +148,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, onVerDe
                     {carregando ? '...' : `${estatisticas.pontos}`}
                   </Text>
                   <Text style={styles.cardLabel}>Pontos ganhos</Text>
-                  <MaterialCommunityIcons name="trophy-outline" size={28} color={colors.amarelo} style={styles.iconRight} />
+                  <MaterialCommunityIcons name="trophy-outline" size={28} color="#0E78FF" style={styles.iconRight} />
                 </View>
               </View>
 
@@ -160,13 +159,13 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, onVerDe
                     {carregando ? '...' : `${estatisticas.vitorias}`}
                   </Text>
                   <Text style={styles.cardLabel}>Na temporada</Text>
-                  <MaterialCommunityIcons name="medal-outline" size={28} color={colors.azulClaro} style={styles.iconRight} />
+                  <MaterialCommunityIcons name="medal-outline" size={28} color="#F0B84E" style={styles.iconRight} />
                 </View>
               </View>
             </View>
 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Últimas partidas</Text>
+              <Text style={styles.sectionTitle}>ÚLTIMAS PARTIDAS</Text>
               <TouchableOpacity activeOpacity={0.6}>
               <Link href="/jogos/jogos">
                 <Text style={styles.seeAllButton} >VER TUDO</Text>
@@ -176,7 +175,12 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, onVerDe
  
           </View>
         )}
-        renderItem={({ item }) => <HistoricoPartidas partida={item} />}
+        renderItem={({ item }) => (
+          // Adicionando o wrapper de padding aqui!
+          <View style={{ paddingHorizontal: 20 }}>
+            <HistoricoPartidas partida={item} />
+          </View>
+        )}
       />
     </View>
   );

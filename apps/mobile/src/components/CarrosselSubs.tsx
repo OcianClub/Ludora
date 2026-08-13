@@ -1,8 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { View, FlatList, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '@/src/theme/colors';
+import { colors, typography } from '@ludora/design-tokens';
 
 const { width: windowWidth } = Dimensions.get('window');
 const MARGEM_CONTEUDO = 20;
@@ -14,7 +13,6 @@ const ITEM_INTERVAL = LARGURA_ITEM + GAP_ITEM;
 const LARGURA_BOTAO = 32;
 const PADDING_H = 8;
 const LARGURA_TRACK = LARGURA_DISPONIVEL - LARGURA_BOTAO * 2 - PADDING_H * 2;
-
 const PADDING_CENTRALIZADOR = (LARGURA_TRACK - LARGURA_ITEM) / 2;
 
 export const SUBS_INICIACAO = [
@@ -22,13 +20,6 @@ export const SUBS_INICIACAO = [
   { id: '2', title: 'SUB-8' },
   { id: '3', title: 'SUB-9' },
   { id: '4', title: 'SUB-10' },
-];
-
-export const SUBS = [
-  { id: '1', title: 'SUB 12' },
-  { id: '2', title: 'SUB 14' },
-  { id: '3', title: 'SUB 16' },
-  { id: '4', title: 'SUB 18' },
 ];
 
 export const SUBS_BASE = [
@@ -44,51 +35,6 @@ interface CarrosselSubsProps {
   indexAtual: number;
   onChangeIndex: (index: number) => void;
 }
-
-function DotIndicator({
-  total,
-  current,
-  onPress,
-}: {
-  total: number;
-  current: number;
-  onPress: (i: number) => void;
-}) {
-  return (
-    <View style={dotStyles.row}>
-      {Array.from({ length: total }).map((_, i) => (
-        <TouchableOpacity
-          key={i}
-          onPress={() => onPress(i)}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-        >
-          <View style={[dotStyles.dot, i === current && dotStyles.dotActive]} />
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
-const dotStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    marginTop: 8,
-  },
-  dot: {
-    width: 5,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: '#252525',
-  },
-  dotActive: {
-    width: 18,
-    backgroundColor: colors.primary,
-  },
-});
 
 export function CarrosselSubs({
   tipoFiltro,
@@ -119,25 +65,22 @@ export function CarrosselSubs({
     if (indexAtual < dadosAtuais.length - 1) onChangeIndex(indexAtual + 1);
   };
 
-  const handleTrocarFase = (tipo: 'INICIACAO' | 'BASE') => {
-    if (tipo !== tipoFiltro) {
-      onTrocarTipo(tipo);
-      onChangeIndex(0);
-    }
-  };
-
   const isPrevDisabled = indexAtual === 0;
   const isNextDisabled = indexAtual === dadosAtuais.length - 1;
 
   return (
     <View style={styles.wrapper}>
-
       <View style={styles.tipoSwitchContainer}>
         {(['INICIACAO', 'BASE'] as const).map(tipo => (
           <TouchableOpacity
             key={tipo}
             style={[styles.tipoSwitchBtn, tipoFiltro === tipo && styles.tipoSwitchBtnAtivo]}
-            onPress={() => handleTrocarFase(tipo)}
+            onPress={() => {
+              if (tipo !== tipoFiltro) {
+                onTrocarTipo(tipo);
+                onChangeIndex(0);
+              }
+            }}
             activeOpacity={0.8}
           >
             <Text style={[styles.tipoSwitchTxt, tipoFiltro === tipo && styles.tipoSwitchTxtAtivo]}>
@@ -147,7 +90,6 @@ export function CarrosselSubs({
         ))}
       </View>
 
-      {/* ── CARROSSEL ── */}
       <View style={styles.internal}>
         <TouchableOpacity
           onPress={irParaAnterior}
@@ -158,7 +100,7 @@ export function CarrosselSubs({
           <MaterialCommunityIcons
             name="chevron-left"
             size={24}
-            color={isPrevDisabled ? '#2a2a2a' : '#FFF'}
+            color={isPrevDisabled ? colors.borda : colors.textoSecundario}
           />
         </TouchableOpacity>
 
@@ -182,14 +124,9 @@ export function CarrosselSubs({
 
             if (isActive) {
               return (
-                <LinearGradient
-                  colors={['#006AFF', '#009FFF']}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.itemAtivo}
-                >
+                <View style={styles.itemAtivo}>
                   <Text style={styles.textoAtivo}>{item.title}</Text>
-                </LinearGradient>
+                </View>
               );
             }
 
@@ -214,16 +151,10 @@ export function CarrosselSubs({
           <MaterialCommunityIcons
             name="chevron-right"
             size={24}
-            color={isNextDisabled ? '#2a2a2a' : '#FFF'}
+            color={isNextDisabled ? colors.borda : colors.textoSecundario}
           />
         </TouchableOpacity>
       </View>
-
-      <DotIndicator
-        total={dadosAtuais.length}
-        current={indexAtual}
-        onPress={onChangeIndex}
-      />
     </View>
   );
 }
@@ -233,18 +164,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: MARGEM_CONTEUDO,
     marginTop: 10,
-    paddingBottom: 10,
+    paddingBottom: 20,
   },
-
   tipoSwitchContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.card,
     borderRadius: 10,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    padding: 6,
     width: '100%',
-    marginBottom: 10,
+    marginBottom: 16,
   },
   tipoSwitchBtn: {
     flex: 1,
@@ -253,29 +181,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tipoSwitchBtnAtivo: {
-    backgroundColor: colors.primary + '22',
+    backgroundColor: colors.cardSecundario,
   },
   tipoSwitchTxt: {
-    fontFamily: 'Creato-Bold',
-    color: colors.text_secondary,
-    fontSize: 12,
-    letterSpacing: 0.6,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.textoSecundario,
+    fontSize: typography.fontSize.xs,
+    letterSpacing: 0.5,
   },
   tipoSwitchTxtAtivo: {
-    color: colors.primary,
+    color: colors.texto,
   },
-
-  // ── CARROSSEL ──
   internal: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: PADDING_H,
     width: '100%',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
   },
   botao: {
     width: LARGURA_BOTAO,
@@ -299,19 +223,18 @@ const styles = StyleSheet.create({
     height: 34,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 8,
     marginHorizontal: GAP_ITEM / 2,
+    backgroundColor: colors.primaria,
   },
   texto: {
-    fontFamily: 'Creato-Bold',
-    color: '#444',
-    fontSize: 14,
-    letterSpacing: 0.5,
+    fontFamily: typography.fontFamily.corpo.medium,
+    color: colors.textoSecundario,
+    fontSize: typography.fontSize.sm,
   },
   textoAtivo: {
-    fontFamily: 'Creato-Bold',
-    color: '#FFF',
-    fontSize: 14,
-    letterSpacing: 1,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.texto,
+    fontSize: typography.fontSize.sm,
   },
 });

@@ -1,104 +1,68 @@
-import { StyleSheet } from "react-native";
-import { colors } from "@/src/theme/colors";
-
-const MARGEM_CONTEUDO = 20;
+import { StyleSheet } from 'react-native';
+import { colors, typography } from '@ludora/design-tokens';
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background, 
-  },
-  content: {
-    paddingTop: 10,
+    backgroundColor: colors.fundo,
   },
   
-  // --- FILTROS (MÊS E STATUS LADO A LADO) ---
+  // ── FILTRO PRINCIPAL (TELA JOGOS) ──
   filtersContainer: {
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    gap: 16,
   },
-  filterRow: {
-    flexDirection: 'row',
-    paddingHorizontal: MARGEM_CONTEUDO,
-    marginBottom: 16,
-    gap: 12,
-  },
-  filterBtn: {
-    flex: 1,
+  singleFilterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1a1a1a', 
-    paddingVertical: 12,
+    backgroundColor: colors.card,
+    borderRadius: 10,
     paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    paddingVertical: 14,
   },
   filterBtnText: {
-    fontFamily: 'Creato-Bold',
-    color: colors.text,
-    fontSize: 14,
+    flex: 1,
+    fontFamily: typography.fontFamily.corpo.medium,
+    color: colors.texto,
+    fontSize: typography.fontSize.sm,
+    marginLeft: 16,
   },
   
-  tipoSwitchContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#1A1A1A',
-    borderRadius: 10,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    marginHorizontal: MARGEM_CONTEUDO,
-    marginBottom: 16,
+  // ── LISTA DE PARTIDAS ──
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
   },
-  tipoSwitchBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  tipoSwitchBtnAtivo: {
-    backgroundColor: colors.primary + '22',
-  },
-  tipoSwitchTxt: {
-    fontFamily: 'Creato-Bold',
-    color: colors.text_secondary,
-    fontSize: 12,
-    letterSpacing: 0.6,
-  },
-  tipoSwitchTxtAtivo: {
-    color: colors.primary,
-  },
-
-  // --- LISTAGEM E DATAS ---
   daySection: {
-    paddingHorizontal: MARGEM_CONTEUDO,
-    marginBottom: 10,
+    marginBottom: 24,
   },
   dateHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
+    gap: 8,
+    marginTop: 16,
   },
   dateBar: {
-    width: 4,
-    height: 24,
-    backgroundColor: colors.primary, 
-    marginRight: 10,
+    width: 3,
+    height: 20,
+    backgroundColor: colors.primaria,
     borderRadius: 2,
   },
   dateText: {
-    fontFamily: 'Creato-Bold',
-    fontSize: 16,
-    color: colors.text,
-    letterSpacing: 0.8,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.texto,
+    fontSize: typography.fontSize.sm,
+    textTransform: 'uppercase',
   },
 
-  // --- CARDS DE PARTIDA ---
+  // ── CARD DA PARTIDA ──
   matchCard: {
-    backgroundColor: '#1a1a1a', 
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.card,
+    borderRadius: 10,
     marginBottom: 16,
+    padding: 16,
   },
   cardTop: {
     flexDirection: 'row',
@@ -112,34 +76,37 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   timeText: {
-    fontFamily: 'Creato-Medium',
-    color: colors.text,
-    fontSize: 14,
+    fontFamily: typography.fontFamily.corpo.regular,
+    color: colors.texto,
+    fontSize: typography.fontSize.sm,
   },
   separator: {
     width: 1,
-    height: 14,
-    backgroundColor: colors.text_secondary, 
+    height: 12,
+    backgroundColor: colors.borda,
   },
   catText: {
-    fontFamily: 'Creato-Bold',
-    color: colors.text,
-    fontSize: 14,
+    fontFamily: typography.fontFamily.corpo.regular,
+    color: colors.texto,
+    fontSize: typography.fontSize.sm,
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.secondary, 
+    backgroundColor: colors.primaria,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    paddingHorizontal: 8,
     borderRadius: 6,
-    gap: 4,
+    gap: 10,
   },
   badgeText: {
-    fontFamily: 'Creato-Bold',
-    color: colors.text,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.texto,
     fontSize: 10,
+    letterSpacing: 0.5,
   },
+
+  // CORPO DO CARD (TIMES E PLACAR)
   cardBody: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -148,138 +115,199 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   teamCol: {
+    flex: 1,
     alignItems: 'center',
-    width: 90,
-    gap: 8,
+    gap: 10,
   },
   teamLogo: {
-    width: 50,
-    height: 50,
+    width: 46,
+    height: 46,
     resizeMode: 'contain',
-    backgroundColor: colors.background,
-    borderRadius: 8,
+  },
+  fundoImg: {
+    backgroundColor: colors.cardSecundario,
+    borderRadius: 10,
+    padding: 4
   },
   teamName: {
-    fontFamily: 'Creato-Bold',
-    color: colors.text,
-    fontSize: 12,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.texto,
+    fontSize: typography.fontSize.sm,
     textAlign: 'center',
     textTransform: 'uppercase',
   },
-  versusText: {
-    fontFamily: 'Creato-Bold',
-    fontSize: 20,
-    color: colors.text,
+  placarCentral: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 60,
+  },
+  placarText: {
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.texto,
+    fontSize: typography.fontSize.xl,
+  },
+  vsText: {
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.textoSecundario,
+    fontSize: typography.fontSize.sm,
+  },
+
+  // RODAPÉ DO CARD
+  cardFooterDivider: {
+    height: 1,
+    backgroundColor: colors.linha,
+    marginBottom: 12,
+    marginHorizontal: -16, 
   },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    borderTopWidth: 1,
-    borderTopColor: colors.background,
-    paddingTop: 12,
+    gap: 8,
   },
   locationText: {
-    fontFamily: 'Creato-Regular',
-    color: colors.text_secondary,
-    fontSize: 13,
+    fontFamily: typography.fontFamily.corpo.regular,
+    color: colors.texto,
+    fontSize: typography.fontSize.xs,
   },
 
-  // --- BOTÃO FLUTUANTE (FAB) ---
-  fab: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  fabGradient: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // --- MODAIS SELETORES (GENÉRICO) ---
+  // ── MODAL DE FILTROS ──
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)', 
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
   },
   modalContent: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    padding: 24,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   modalTitle: {
-    fontFamily: 'Creato-Bold',
-    fontSize: 18,
-    color: colors.text,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.texto,
+    fontSize: typography.fontSize.lg,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.cardSecundario,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterSectionLabel: {
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.textoSecundario,
+    fontSize: typography.fontSize.sm,
+    marginBottom: 12,
+    textTransform: 'uppercase',
   },
   
-  // --- LISTA DO MODAL DE STATUS ---
+  // SELETOR DE DATA
+  dateSelectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardClaro,
+    borderWidth: 1,
+    borderColor: colors.borda,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 24,
+  },
+  dateSelectorText: {
+    flex: 1,
+    fontFamily: typography.fontFamily.corpo.medium,
+    color: colors.texto,
+    fontSize: typography.fontSize.sm,
+    marginLeft: 12,
+  },
+  monthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 24,
+  },
+  monthGridItem: {
+    width: '23%', 
+    paddingVertical: 10,
+    backgroundColor: colors.fundo,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borda,
+    alignItems: 'center',
+  },
+  monthGridItemActive: {
+    borderColor: colors.primaria,
+    backgroundColor: colors.fundoBotao,
+  },
+  monthGridText: {
+    fontFamily: typography.fontFamily.corpo.medium,
+    color: colors.textoSecundario,
+    fontSize: typography.fontSize.sm,
+  },
+  monthGridTextActive: {
+    color: colors.primaria,
+  },
+
+  // OPÇÕES DE STATUS
+  statusOptionsContainer: {
+    gap: 12,
+    marginBottom: 32,
+  },
   statusItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
+    backgroundColor: colors.cardClaro,
+    borderWidth: 1,
+    borderColor: colors.borda,
     borderRadius: 10,
-    marginBottom: 6,
+    padding: 14,
   },
   statusItemActive: {
-    backgroundColor: colors.primary + '18',
+    borderColor: colors.primaria,
   },
   statusItemText: {
-    fontFamily: 'Creato-Medium',
-    color: colors.text_secondary,
-    fontSize: 15,
+    fontFamily: typography.fontFamily.corpo.medium,
+    color: colors.texto,
+    fontSize: typography.fontSize.sm,
   },
-  statusItemTextActive: {
-    color: colors.text,
-    fontFamily: 'Creato-Bold',
+  
+  // BOTÃO APLICAR
+  applyBtn: {
+    backgroundColor: colors.primaria,
+    borderRadius: 10,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  applyBtnText: {
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.texto,
+    fontSize: typography.fontSize.sm,
   },
 
-  // --- GRID DO MODAL DE MÊS ---
-  monthGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'space-between',
+  // FAB
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    shadowColor: colors.primaria,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  monthGridItem: {
-    width: '30%', 
-    backgroundColor: '#1a1a1a',
-    paddingVertical: 12,
-    borderRadius: 8,
+  fabGradient: {
+    width: 60,
+    height: 60,
+    borderRadius: 10, 
+    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2a2a2a'
-  },
-  monthGridItemActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  monthGridText: {
-    fontFamily: 'Creato-Medium',
-    color: colors.text_secondary,
-    fontSize: 14,
-  },
-  monthGridTextActive: {
-    color: colors.text,
-    fontFamily: 'Creato-Bold',
-  },
+  }
 });

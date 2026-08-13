@@ -1,6 +1,7 @@
 import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { styles } from './historicoPartidasStyles';
+import { colors } from '@ludora/design-tokens';
 
 interface Time { id: number; nome: string; escudo: string | null; }
 interface Partida {
@@ -31,7 +32,6 @@ export function HistoricoPartidas({ partida }: HistoricoPartidasProps) {
 
   return (
     <View style={styles.cardWrapper}>
-      <View style={styles.colorBorder} />
       <View style={styles.matchCard}>
         
         <View style={styles.timeUm}>
@@ -43,7 +43,7 @@ export function HistoricoPartidas({ partida }: HistoricoPartidasProps) {
             )}
           </View> 
           <Text 
-            style={[styles.txtTimeUm, (!vitoriaMandante && !empate) && { color: 'gray' }]} 
+            style={[styles.txtTimeUm, (!vitoriaMandante && !empate) && { color: colors.textoSecundario }]} 
             numberOfLines={2}
           >
             {partida.mandante.nome}
@@ -53,13 +53,9 @@ export function HistoricoPartidas({ partida }: HistoricoPartidasProps) {
         <View style={styles.placarContainer}>
           <Text style={styles.dataJogo}>{formatarData(partida.data)}</Text>
           <View style={styles.golsWrapper}>
-            <View style={styles.golBox}>
-              <Text style={styles.txtGol}>{partida.gols_mandante}</Text>
-            </View>
+            <Text style={styles.txtGol}>{partida.gols_mandante}</Text>
             <Text style={styles.traco}>-</Text>
-            <View style={styles.golBox}>
-              <Text style={styles.txtGol}>{partida.gols_visitante}</Text>
-            </View>
+            <Text style={styles.txtGol}>{partida.gols_visitante}</Text>
           </View>
         </View>
 
@@ -72,16 +68,13 @@ export function HistoricoPartidas({ partida }: HistoricoPartidasProps) {
             )}
           </View> 
           <Text 
-            style={[styles.txtTimeDois, (vitoriaVisitante || empate) && { color: '#FFF' }]} 
+            style={[styles.txtTimeDois, (!vitoriaVisitante && !empate) && { color: colors.textoSecundario }]} 
             numberOfLines={2}
           >
             {partida.visitante.nome}
           </Text>
         </View>
-        
-        <TouchableOpacity>
-          <MaterialCommunityIcons name="chart-box-outline" size={30} color="#575757" style={styles.statsIcon} />
-        </TouchableOpacity>
+
       </View>
     </View>
   );

@@ -1,0 +1,7 @@
+{
+  "name": "@ludora/icons",
+  "version": "1.0.0",
+  "exports": {
+    "./*": "./src/svg/*"
+  }
+}
