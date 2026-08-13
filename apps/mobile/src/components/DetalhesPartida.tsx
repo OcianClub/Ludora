@@ -16,7 +16,6 @@ import EscalacaoPartida, { JogadorEscalado } from '@/src/components/EscalacaoPar
 import TeamSelectorCard from '@/src/components/TeamSelectorCard';
 import MandoCampo from '@/src/components/mandoCampo';
 import InputDataHora from '@/src/components/InputDataHora';
-import EscudoTime from '@/src/components/EscudoTime';
 
 // ── Serviços ──
 import {
@@ -66,7 +65,7 @@ function getPeriodos(nomeCategoria: string | undefined): string[] {
   return ['1º Tempo', '2º Tempo', '3º Tempo', '4º Tempo'];
 }
 
-function LogoTime({ uri, size = 64 }: { uri: string | null; size?: number }) {
+function LogoTime({ uri, size = 72 }: { uri: string | null; size?: number }) {
   if (uri) return <Image source={{ uri }} style={styles.logoTimeImg} />;
   return (
     <View style={styles.logoTimeWrap}>
@@ -75,15 +74,15 @@ function LogoTime({ uri, size = 64 }: { uri: string | null; size?: number }) {
   );
 }
 
-function EventoIcon({ tipo, size = 16 }: { tipo: TipoEvento; size?: number }) {
+function EventoIcon({ tipo, size = 18 }: { tipo: TipoEvento; size?: number }) {
   switch (tipo) {
-    case 'GOL': return <MaterialCommunityIcons name="soccer" size={size} color={colors.primaria} />;
+    case 'GOL': return <MaterialCommunityIcons name="soccer" size={size} color={colors.texto} />;
     case 'CARTAO_AMARELO': return <View style={{ width: size * 0.65, height: size, borderRadius: 2, backgroundColor: '#F5C518' }} />;
     case 'CARTAO_VERMELHO': return <View style={{ width: size * 0.65, height: size, borderRadius: 2, backgroundColor: colors.vermelho }} />;
     case 'CARTAO_AZUL': return <View style={{ width: size * 0.65, height: size, borderRadius: 2, backgroundColor: '#3A9EFF' }} />;
-    case 'FALTA': return <MaterialCommunityIcons name="whistle" size={size} color={colors.textoSecundario} />;
-    case 'DEFESA': return <MaterialCommunityIcons name="shield-check" size={size} color={colors.primaria} />;
-    case 'ASSISTENCIA': return <MaterialCommunityIcons name="shoe-cleat" size={size} color={colors.primaria} />;
+    case 'FALTA': return <MaterialCommunityIcons name="whistle" size={size} color={colors.texto} />;
+    case 'DEFESA': return <MaterialCommunityIcons name="shield-check" size={size} color={colors.texto} />;
+    case 'ASSISTENCIA': return <MaterialCommunityIcons name="shoe-cleat" size={size} color={colors.texto} />;
     default: return null;
   }
 }
@@ -110,7 +109,7 @@ function calcularStats(eventos: Evento[], jogador_id: number) {
 function StatBadge({ icon, value, color }: { icon: React.ReactNode; value: number; color: string }) {
   if (value === 0) return null;
   return (
-    <View style={[styles.statBadgeWrap, { backgroundColor: color + '20', borderColor: color + '44' }]}>
+    <View style={styles.statsBadgesWrap}>
       {icon}
       <Text style={[styles.statBadgeText, { color }]}>{value}</Text>
     </View>
@@ -124,13 +123,13 @@ function MiniStats({ eventos, jogadorId }: { eventos: Evento[]; jogadorId: numbe
   
   return (
     <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-      <StatBadge icon={<MaterialCommunityIcons name="soccer" size={9} color={colors.primaria} />} value={s.gols} color={colors.primaria} />
-      <StatBadge icon={<MaterialCommunityIcons name="shoe-cleat" size={9} color={colors.primaria} />} value={s.assistencias} color={colors.primaria} />
-      <StatBadge icon={<MaterialCommunityIcons name="shield-check" size={9} color={colors.primaria} />} value={s.defesas} color={colors.primaria} />
-      <StatBadge icon={<MaterialCommunityIcons name="whistle" size={9} color="#aaa" />} value={s.faltas} color="#888" />
-      <StatBadge icon={<View style={{ width: 6, height: 9, borderRadius: 1, backgroundColor: '#F5C518' }} />} value={s.amarelos} color="#F5C518" />
-      <StatBadge icon={<View style={{ width: 6, height: 9, borderRadius: 1, backgroundColor: '#3A9EFF' }} />} value={s.azuis} color="#3A9EFF" />
-      <StatBadge icon={<View style={{ width: 6, height: 9, borderRadius: 1, backgroundColor: colors.vermelho }} />} value={s.vermelhos} color={colors.vermelho} />
+      <StatBadge icon={<MaterialCommunityIcons name="soccer" size={12} color={colors.primaria} />} value={s.gols} color={colors.primaria} />
+      <StatBadge icon={<MaterialCommunityIcons name="shoe-cleat" size={12} color={colors.primaria} />} value={s.assistencias} color={colors.primaria} />
+      <StatBadge icon={<MaterialCommunityIcons name="shield-check" size={12} color={colors.primaria} />} value={s.defesas} color={colors.primaria} />
+      <StatBadge icon={<MaterialCommunityIcons name="whistle" size={12} color={colors.textoSecundario} />} value={s.faltas} color={colors.textoSecundario} />
+      <StatBadge icon={<View style={{ width: 6, height: 10, borderRadius: 1, backgroundColor: '#F5C518' }} />} value={s.amarelos} color="#F5C518" />
+      <StatBadge icon={<View style={{ width: 6, height: 10, borderRadius: 1, backgroundColor: '#3A9EFF' }} />} value={s.azuis} color="#3A9EFF" />
+      <StatBadge icon={<View style={{ width: 6, height: 10, borderRadius: 1, backgroundColor: colors.vermelho }} />} value={s.vermelhos} color={colors.vermelho} />
     </View>
   );
 }
@@ -153,6 +152,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
   const [modalGol, setModalGol] = useState<{ lado: 'mandante' | 'visitante'; delta: 1 | -1 } | null>(null);
   const [jogadorGol, setJogadorGol] = useState<JogadorEscalado | null>(null);
   const [eventoGolRemover, setEventoGolRemover] = useState<Evento | null>(null);
+  const [buscaJogadorGol, setBuscaJogadorGol] = useState('');
 
   // Eventos
   const [eventos, setEventos] = useState<Evento[]>([]);
@@ -185,6 +185,10 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
     t.nome.toLowerCase().includes(buscaTime.toLowerCase())
   );
 
+  const jogadoresFiltradosGol = escalacao.filter(j => 
+    j.jogador.nome.toLowerCase().includes(buscaJogadorGol.toLowerCase())
+  );
+
   // ── Handlers ───────────────────────────────────────────────────────────────
   const carregarEventos = useCallback(async () => {
     if (partida.status === 'AGENDADA') return;
@@ -201,7 +205,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
 
   const onPlusLado = (lado: 'mandante' | 'visitante') => {
     const ocianEsseLado = (lado === 'mandante' && ocianEhMandante) || (lado === 'visitante' && !ocianEhMandante);
-    if (ocianEsseLado) { setModalGol({ lado, delta: 1 }); } 
+    if (ocianEsseLado) { setModalGol({ lado, delta: 1 }); setBuscaJogadorGol(''); } 
     else {
       const novoM = lado === 'mandante' ? golsMandante + 1 : golsMandante;
       const novoV = lado === 'visitante' ? golsVisitante + 1 : golsVisitante;
@@ -219,13 +223,22 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
     }
   };
 
+  // ── CORREÇÃO DO GOL CONTRA AQUI ──
   const confirmarGolOcian = async (jogador: JogadorEscalado | null, isGolContra: boolean) => {
     if (!modalGol) return;
     setSalvandoEvento(true);
     try {
       await criarEvento(partida.id, { tipo: 'GOL', minuto: null, periodo: periodoIdx + 1, jogador_id: isGolContra ? null : jogador?.jogador_id ?? null, doOcian: true });
-      const novoM = modalGol.lado === 'mandante' ? golsMandante + 1 : golsMandante;
-      const novoV = modalGol.lado === 'visitante' ? golsVisitante + 1 : golsVisitante;
+      
+      // Lógica corrigida para somar o gol no placar oposto se for gol contra.
+      let ladoQueMarcou = modalGol.lado;
+      if (isGolContra) {
+          ladoQueMarcou = modalGol.lado === 'mandante' ? 'visitante' : 'mandante';
+      }
+
+      const novoM = ladoQueMarcou === 'mandante' ? golsMandante + 1 : golsMandante;
+      const novoV = ladoQueMarcou === 'visitante' ? golsVisitante + 1 : golsVisitante;
+      
       setGolsMandante(novoM); setGolsVisitante(novoV); await atualizarPlacarPartida(partida.id, novoM, novoV);
       setModalGol(null); setJogadorGol(null); await carregarEventos();
     } catch { Alert.alert('Erro', 'Não foi possível registrar o gol.'); } finally { setSalvandoEvento(false); }
@@ -236,8 +249,19 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
     setDeletandoEvento(evento.id);
     try {
       await deletarEvento(evento.id);
-      const novoM = modalGol.lado === 'mandante' ? Math.max(0, golsMandante - 1) : golsMandante;
-      const novoV = modalGol.lado === 'visitante' ? Math.max(0, golsVisitante - 1) : golsVisitante;
+      
+      // O evento não armazena explicitamente se foi gol contra na view, 
+      // mas se não tem jogador atrelado em um gol gerado pelo painel do Ocian, é contra.
+      const isGolContra = evento.tipo === 'GOL' && !evento.jogador;
+      
+      let ladoParaRemover = modalGol.lado;
+      if(isGolContra){
+           ladoParaRemover = modalGol.lado === 'mandante' ? 'visitante' : 'mandante';
+      }
+
+      const novoM = ladoParaRemover === 'mandante' ? Math.max(0, golsMandante - 1) : golsMandante;
+      const novoV = ladoParaRemover === 'visitante' ? Math.max(0, golsVisitante - 1) : golsVisitante;
+      
       setGolsMandante(novoM); setGolsVisitante(novoV); await atualizarPlacarPartida(partida.id, novoM, novoV);
       setModalGol(null); setEventoGolRemover(null); await carregarEventos();
     } catch { Alert.alert('Erro', 'Não foi possível remover o gol.'); } finally { setDeletandoEvento(null); }
@@ -379,7 +403,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
           </View>
           <View style={styles.heroTeamsRow}>
             <View style={styles.heroTeamCol}>
-              <LogoTime uri={partida.mandante.escudo} size={64} />
+              <LogoTime uri={partida.mandante.escudo} size={72} />
               <Text style={styles.heroTeamName} numberOfLines={2}>{partida.mandante.nome}</Text>
             </View>
 
@@ -390,29 +414,35 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
                   <View style={styles.scheduledBadge}><Text style={styles.scheduledBadgeText}>{partida.horario ?? 'AGENDADO'}</Text></View>
                 </>
               ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={styles.liveScoreRow}>
                   {isInterativo ? (
-                    <View style={{ alignItems: 'center', gap: 6 }}>
-                      <TouchableOpacity style={styles.stepBtn} onPress={() => onPlusLado('mandante')}><MaterialCommunityIcons name="plus" size={18} color={colors.texto} /></TouchableOpacity>
+                    <View style={styles.scoreColumn}>
+                      <TouchableOpacity style={styles.stepBtn} onPress={() => onPlusLado('mandante')}><MaterialCommunityIcons name="plus" size={16} color="#FFF" /></TouchableOpacity>
                       <Text style={styles.heroScoreText}>{golsMandante}</Text>
-                      <TouchableOpacity style={[styles.stepBtn, styles.stepBtnMinus, { opacity: golsMandante === 0 ? 0.3 : 1 }]} onPress={() => { if (golsMandante > 0) onMinusLado('mandante'); }} disabled={golsMandante === 0}><MaterialCommunityIcons name="minus" size={18} color={colors.textoSecundario} /></TouchableOpacity>
+                      <TouchableOpacity style={[styles.stepBtn, styles.stepBtnMinus, { opacity: golsMandante === 0 ? 0.3 : 1 }]} onPress={() => { if (golsMandante > 0) onMinusLado('mandante'); }} disabled={golsMandante === 0}><MaterialCommunityIcons name="minus" size={16} color={colors.textoSecundario} /></TouchableOpacity>
                     </View>
                   ) : ( <Text style={styles.heroScoreText}>{golsMandante}</Text> )}
                   
-                  <View style={styles.heroScoreSeparator} />
+                  <View style={styles.heroScoreSeparatorDot} />
 
                   {isInterativo ? (
-                    <View style={{ alignItems: 'center', gap: 6 }}>
-                      <TouchableOpacity style={styles.stepBtn} onPress={() => onPlusLado('visitante')}><MaterialCommunityIcons name="plus" size={18} color={colors.texto} /></TouchableOpacity>
+                    <View style={styles.scoreColumn}>
+                      <TouchableOpacity style={styles.stepBtn} onPress={() => onPlusLado('visitante')}><MaterialCommunityIcons name="plus" size={16} color="#FFF" /></TouchableOpacity>
                       <Text style={styles.heroScoreText}>{golsVisitante}</Text>
-                      <TouchableOpacity style={[styles.stepBtn, styles.stepBtnMinus, { opacity: golsVisitante === 0 ? 0.3 : 1 }]} onPress={() => { if (golsVisitante > 0) onMinusLado('visitante'); }} disabled={golsVisitante === 0}><MaterialCommunityIcons name="minus" size={18} color={colors.textoSecundario} /></TouchableOpacity>
+                      <TouchableOpacity style={[styles.stepBtn, styles.stepBtnMinus, { opacity: golsVisitante === 0 ? 0.3 : 1 }]} onPress={() => { if (golsVisitante > 0) onMinusLado('visitante'); }} disabled={golsVisitante === 0}><MaterialCommunityIcons name="minus" size={16} color={colors.textoSecundario} /></TouchableOpacity>
                     </View>
                   ) : ( <Text style={styles.heroScoreText}>{golsVisitante}</Text> )}
                 </View>
               )}
+              {partida.status === 'AO_VIVO' && (
+                <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveBadgeText}>AO VIVO</Text></View>
+              )}
+              {partida.status === 'FINALIZADA' && (
+                <View style={styles.finishedBadge}><Text style={styles.finishedBadgeText}>ENCERRADO</Text></View>
+              )}
             </View>
             <View style={styles.heroTeamCol}>
-              <LogoTime uri={partida.visitante.escudo} size={64} />
+              <LogoTime uri={partida.visitante.escudo} size={72} />
               <Text style={styles.heroTeamName} numberOfLines={2}>{partida.visitante.nome}</Text>
             </View>
           </View>
@@ -451,11 +481,6 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
           </View>
         )}
 
-        {/* ESCALAÇÃO (Espaçamento horizontal arrumado) */}
-        <View style={{ marginBottom: 24 }}>
-          <EscalacaoPartida partidaId={partida.id} categoriaId={partida.categoria?.id ?? null} competicaoId={partida.competicao_id ?? partida.competicao?.id ?? null} isAdmin={isAdmin} partidaStatus={partida.status} onEscalacaoAtualizada={setEscalacao} />
-        </View>
-
         {/* CONTROLE DE PERIODO */}
         {isInterativo && (
           <View style={styles.section}>
@@ -464,14 +489,14 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
             </View>
             <View style={styles.periodWrap}>
               <TouchableOpacity style={[styles.periodBtn, periodoIdx === 0 && styles.periodBtnDisabled]} onPress={() => setPeriodoIdx(i => Math.max(0, i - 1))} disabled={periodoIdx === 0}>
-                <MaterialCommunityIcons name="chevron-left" size={22} color={periodoIdx === 0 ? colors.textoSecundario : colors.primaria} />
+                <MaterialCommunityIcons name="chevron-left" size={22} color={colors.textoSecundario} />
               </TouchableOpacity>
               <View style={styles.periodCenter}>
                 <Text style={styles.periodTitle}>{periodos[periodoIdx]?.toUpperCase()}</Text>
                 <Text style={styles.periodSub}>{periodoIdx + 1} / {periodos.length}</Text>
               </View>
               <TouchableOpacity style={[styles.periodBtn, periodoIdx === periodos.length - 1 && styles.periodBtnDisabled]} onPress={() => setPeriodoIdx(i => Math.min(periodos.length - 1, i + 1))} disabled={periodoIdx === periodos.length - 1}>
-                <MaterialCommunityIcons name="chevron-right" size={22} color={periodoIdx === periodos.length - 1 ? colors.textoSecundario : colors.primaria} />
+                <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textoSecundario} />
               </TouchableOpacity>
             </View>
           </View>
@@ -516,15 +541,17 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
               </View>
             ) : eventos.map(evento => (
               <View key={evento.id} style={styles.rowCard}>
-                <View style={styles.rowIconBox}><EventoIcon tipo={evento.tipo} size={16} /></View>
+                <View style={styles.rowIconBox}><EventoIcon tipo={evento.tipo} size={18} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowTitle}>{EVENTO_LABEL[evento.tipo]}</Text>
-                  {evento.jogador ? <Text style={styles.rowSub}>{evento.jogador.nome}</Text> : evento.tipo === 'GOL' ? <Text style={styles.rowSub}>Gol Contra</Text> : null}
+                  <Text style={styles.rowSub}>
+                    {evento.jogador ? `${evento.jogador.nome} (${partida.categoria?.nome})` : evento.tipo === 'GOL' ? 'Gol Contra' : ''}
+                  </Text>
                 </View>
-                {evento.periodo && <Text style={styles.rowSub}>{evento.periodo}º T</Text>}
+                {evento.periodo && <Text style={styles.rowSub}>{evento.periodo}º TEMPO</Text>}
                 {isInterativo && (
                   deletandoEvento === evento.id ? <ActivityIndicator size="small" color={colors.vermelho} />
-                  : <TouchableOpacity onPress={() => handleDeletarEvento(evento)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.vermelho} /></TouchableOpacity>
+                  : <TouchableOpacity style={{ padding: 4, marginLeft: 8 }} onPress={() => handleDeletarEvento(evento)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.vermelho} /></TouchableOpacity>
                 )}
               </View>
             ))}
@@ -543,34 +570,31 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
               if (!tem) return null;
               return (
                 <View key={j.id} style={styles.rowCard}>
-                  <View style={[styles.rowIconBox, { borderRadius: 7 }]}>
-                    <Text style={{ fontFamily: typography.fontFamily.corpo.semiBold, color: colors.texto, fontSize: 11 }}>{j.numCamisa}</Text>
+                  <View style={[styles.rowIconBox, { borderRadius: 8, backgroundColor: colors.primaria }]}>
+                    <Text style={{ fontFamily: typography.fontFamily.corpo.semiBold, color: '#FFF', fontSize: 13 }}>{j.numCamisa}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle} numberOfLines={1}>{j.jogador.nome}</Text>
                     <Text style={styles.rowSub}>{j.titular ? 'Titular' : 'Banco'}</Text>
                   </View>
-                  <View style={styles.statsBadgesWrap}>
-                    <StatBadge icon={<MaterialCommunityIcons name="soccer" size={10} color={colors.primaria} />} value={s.gols} color={colors.primaria} />
-                    <StatBadge icon={<MaterialCommunityIcons name="shoe-cleat" size={10} color={colors.primaria} />} value={s.assistencias} color={colors.primaria} />
-                    <StatBadge icon={<MaterialCommunityIcons name="shield-check" size={10} color={colors.primaria} />} value={s.defesas} color={colors.primaria} />
-                    <StatBadge icon={<MaterialCommunityIcons name="whistle" size={10} color={colors.textoSecundario} />} value={s.faltas} color={colors.textoSecundario} />
-                    <StatBadge icon={<View style={{ width: 7, height: 10, borderRadius: 1.5, backgroundColor: '#F5C518' }} />} value={s.amarelos} color="#F5C518" />
-                    <StatBadge icon={<View style={{ width: 7, height: 10, borderRadius: 1.5, backgroundColor: '#3A9EFF' }} />} value={s.azuis} color="#3A9EFF" />
-                    <StatBadge icon={<View style={{ width: 7, height: 10, borderRadius: 1.5, backgroundColor: colors.vermelho }} />} value={s.vermelhos} color={colors.vermelho} />
-                  </View>
+                  <MiniStats eventos={eventos} jogadorId={j.jogador_id} />
                 </View>
               );
             })}
           </View>
         )}
 
+        {/* ESCALAÇÃO COMPONENTE */}
+        <View style={{ marginBottom: 24 }}>
+          <EscalacaoPartida partidaId={partida.id} categoriaId={partida.categoria?.id ?? null} competicaoId={partida.competicao_id ?? partida.competicao?.id ?? null} isAdmin={isAdmin} partidaStatus={partida.status} onEscalacaoAtualizada={setEscalacao} />
+        </View>
+
         {partida.status === 'AO_VIVO' && isAdmin && (
           <View style={styles.finalizarSection}>
             <TouchableOpacity style={[styles.finalizarBtn, {backgroundColor: colors.fundoErro, borderColor: colors.bordaErro, borderWidth: 1}]} onPress={() => setModalFinalizar(true)}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <MaterialCommunityIcons name="flag-checkered" size={20} color={colors.vermelho} />
-                <Text style={[styles.finalizarBtnText, {color: colors.vermelho}]}>FINALIZAR PARTIDA</Text>
+                <MaterialCommunityIcons name="flag-variant" size={20} color={colors.tituloErro} />
+                <Text style={[styles.finalizarBtnText, {color: colors.tituloErro}]}>FINALIZAR PARTIDA</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -581,7 +605,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
       {/* ── MODAIS (GOL / EVENTO / FINALIZAR / EDITAR) ── */}
       
       {/* MODAL GOL */}
-      <Modal visible={!!modalGol} transparent animationType="slide" onRequestClose={() => { setModalGol(null); setJogadorGol(null); setEventoGolRemover(null); }}>
+      <Modal visible={!!modalGol} transparent animationType="slide" onRequestClose={() => { setModalGol(null); setJogadorGol(null); setEventoGolRemover(null); setBuscaJogadorGol(''); }}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { maxHeight: '88%' }]}>
             <View style={styles.modalHandle} />
@@ -589,39 +613,53 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
               !jogadorGol ? (
                 <>
                   <Text style={styles.modalTitleText}>Quem marcou o gol?</Text>
-                  <Text style={styles.modalPeriodText}>{periodos[periodoIdx]}</Text>
+                  <Text style={styles.modalPeriodText}>{periodos[periodoIdx]?.toUpperCase()}</Text>
 
-                  <TouchableOpacity style={styles.deletePartidaBtn} onPress={() => confirmarGolOcian(null, true)} disabled={salvandoEvento}>
-                    <MaterialCommunityIcons name="soccer" size={20} color={colors.vermelho} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.deletePartidaTxt}>Gol Contra (adversário)</Text>
-                      <Text style={styles.rowSub}>Nenhum jogador envolvido</Text>
+                  <View style={styles.modalSearchBox}>
+                    <MaterialCommunityIcons name="magnify" size={20} color={colors.textoSecundario} />
+                    <TextInput
+                      style={styles.modalSearchInput}
+                      placeholder="Buscar jogador..."
+                      placeholderTextColor={colors.textoSecundario}
+                      value={buscaJogadorGol}
+                      onChangeText={setBuscaJogadorGol}
+                    />
+                  </View>
+
+                  <TouchableOpacity style={styles.golContraBtn} onPress={() => confirmarGolOcian(null, true)} disabled={salvandoEvento}>
+                    <View style={styles.golContraIconWrap}>
+                      <MaterialCommunityIcons name="soccer" size={24} color="#F5C518" />
                     </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.golContraTitle}>Gol contra (adversário)</Text>
+                      <Text style={styles.golContraSub}>Nenhum jogador envolvido</Text>
+                    </View>
+                    <MaterialCommunityIcons name="chevron-right" size={22} color="#F5C518" />
                   </TouchableOpacity>
                   
-                  <View style={styles.divider} />
-                  <Text style={[styles.modalSubText, { marginBottom: 10 }]}>Selecione o jogador que marcou:</Text>
+                  <Text style={styles.modalSectionLabel}>Selecione o jogador que marcou</Text>
                   
-                  {escalacao.length === 0 ? (
+                  {jogadoresFiltradosGol.length === 0 ? (
                     <View style={styles.emptyStateBox}>
                       <MaterialCommunityIcons name="account-off-outline" size={40} color={colors.textoSecundario} />
-                      <Text style={styles.emptyStateText}>Defina a escalação primeiro.</Text>
+                      <Text style={styles.emptyStateText}>
+                        {escalacao.length === 0 ? "Defina a escalação primeiro." : "Nenhum jogador encontrado."}
+                      </Text>
                     </View>
                   ) : (
-                    <FlatList data={escalacao} keyExtractor={item => String(item.id)} style={{ maxHeight: 360 }} renderItem={({ item }) => (
+                    <FlatList data={jogadoresFiltradosGol} keyExtractor={item => String(item.id)} style={{ maxHeight: 360 }} renderItem={({ item }) => (
                         <TouchableOpacity style={styles.jogadorSelectRow} onPress={() => setJogadorGol(item)}>
-                          <View style={[styles.jogadorNumero, { width: 32, height: 32, borderRadius: 8 }]}><Text style={styles.jogadorNumeroText}>{item.numCamisa}</Text></View>
+                          <View style={styles.jogadorNumeroBox}><Text style={styles.jogadorNumeroTxt}>{item.numCamisa}</Text></View>
                           <View style={{ flex: 1 }}>
                             <Text style={styles.jogadorSelectNome}>{item.jogador.nome}</Text>
-                            <Text style={styles.jogadorSelectPos}>{item.jogador.posicao}{item.titular ? '' : ' (Banco)'}</Text>
-                            <MiniStats eventos={eventos} jogadorId={item.jogador_id} />
+                            <Text style={styles.jogadorSelectPos}>{item.jogador.posicao}</Text>
                           </View>
                           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textoSecundario} />
                         </TouchableOpacity>
                       )}
                     />
                   )}
-                  <TouchableOpacity style={styles.cancelLinkBtn} onPress={() => setModalGol(null)}><Text style={styles.cancelLinkText}>CANCELAR</Text></TouchableOpacity>
+                  <TouchableOpacity style={styles.cancelLinkBtn} onPress={() => { setModalGol(null); setBuscaJogadorGol(''); }}><Text style={styles.cancelLinkText}>CANCELAR</Text></TouchableOpacity>
                 </>
               ) : (
                 <>
@@ -639,6 +677,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
                         <StatBadge icon={<MaterialCommunityIcons name="soccer" size={10} color={colors.primaria} />} value={s.gols} color={colors.primaria} />
                         <StatBadge icon={<MaterialCommunityIcons name="shoe-cleat" size={10} color={colors.primaria} />} value={s.assistencias} color={colors.primaria} />
                         <StatBadge icon={<MaterialCommunityIcons name="shield-check" size={10} color={colors.primaria} />} value={s.defesas} color={colors.primaria} />
+                        <StatBadge icon={<MaterialCommunityIcons name="whistle" size={10} color={colors.textoSecundario} />} value={s.faltas} color={colors.textoSecundario} />
                         <StatBadge icon={<View style={{ width: 7, height: 10, borderRadius: 1.5, backgroundColor: '#F5C518' }} />} value={s.amarelos} color="#F5C518" />
                         <StatBadge icon={<View style={{ width: 7, height: 10, borderRadius: 1.5, backgroundColor: '#3A9EFF' }} />} value={s.azuis} color="#3A9EFF" />
                         <StatBadge icon={<View style={{ width: 7, height: 10, borderRadius: 1.5, backgroundColor: colors.vermelho }} />} value={s.vermelhos} color={colors.vermelho} />
@@ -695,7 +734,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
               <>
                 <Text style={styles.modalTitleText}>{modalEvento?.label}</Text>
                 <Text style={[styles.modalSubText, { marginBottom: 4 }]}>Quem fez?</Text>
-                <Text style={styles.modalPeriodText}>{periodos[periodoIdx]}</Text>
+                <Text style={styles.modalPeriodText}>{periodos[periodoIdx]?.toUpperCase()}</Text>
                 
                 {escalacao.length === 0 ? (
                   <View style={styles.emptyStateBox}>
@@ -705,11 +744,10 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
                 ) : (
                   <FlatList data={escalacao} keyExtractor={item => String(item.id)} style={{ maxHeight: 400 }} renderItem={({ item }) => (
                       <TouchableOpacity style={styles.jogadorSelectRow} onPress={() => setJogadorEvento(item)}>
-                        <View style={[styles.jogadorNumero, { width: 32, height: 32, borderRadius: 8 }]}><Text style={styles.jogadorNumeroText}>{item.numCamisa}</Text></View>
+                        <View style={styles.jogadorNumeroBox}><Text style={styles.jogadorNumeroTxt}>{item.numCamisa}</Text></View>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.jogadorSelectNome}>{item.jogador.nome}</Text>
-                          <Text style={styles.jogadorSelectPos}>{item.jogador.posicao}{item.titular ? '' : ' (Banco)'}</Text>
-                          <MiniStats eventos={eventos} jogadorId={item.jogador_id} />
+                          <Text style={styles.jogadorSelectPos}>{item.jogador.posicao}</Text>
                         </View>
                         <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textoSecundario} />
                       </TouchableOpacity>
@@ -760,12 +798,18 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
       <Modal visible={modalFinalizar} transparent animationType="fade" onRequestClose={() => setModalFinalizar(false)}>
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmBox}>
-            <View style={styles.confirmIcon}><MaterialCommunityIcons name="flag-checkered" size={28} color={colors.vermelho} /></View>
-            <Text style={styles.confirmTitle}>Finalizar Partida?</Text>
-            <Text style={styles.confirmDesc}>Os dados serão salvos e o Scout de IA será atualizado com os eventos desta partida.</Text>
+            <View style={styles.confirmIconWrap}>
+              <MaterialCommunityIcons name="flag-variant" size={28} color={colors.tituloErro} />
+            </View>
+            <Text style={styles.confirmTitle}>Finalizar partida?</Text>
+            <Text style={styles.confirmDesc}>Os dados serão salvos e o Scout de IA será atualizado com os eventos desta partida</Text>
             <View style={styles.confirmBtnRow}>
-              <TouchableOpacity style={styles.confirmCancel} onPress={() => setModalFinalizar(false)}><Text style={styles.confirmCancelText}>CANCELAR</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.confirmOk} onPress={finalizarPartida}><Text style={styles.confirmOkText}>FINALIZAR</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setModalFinalizar(false)}>
+                <Text style={styles.confirmCancelTxt}>CANCELAR</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmOkBtn} onPress={finalizarPartida}>
+                <Text style={styles.confirmOkTxt}>FINALIZAR</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -896,13 +940,15 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
       <Modal visible={modalDeletar} transparent animationType="fade" onRequestClose={() => setModalDeletar(false)}>
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmBox}>
-            <View style={styles.confirmIcon}><MaterialCommunityIcons name="trash-can-outline" size={28} color={colors.vermelho} /></View>
+            <View style={styles.confirmIconWrap}>
+              <MaterialCommunityIcons name="trash-can-outline" size={28} color={colors.vermelho} />
+            </View>
             <Text style={styles.confirmTitle}>Deletar Partida?</Text>
             <Text style={styles.confirmDesc}>Esta ação é irreversível. Todos os eventos e a escalação desta partida serão apagados permanentemente.</Text>
             <View style={styles.confirmBtnRow}>
-              <TouchableOpacity style={styles.confirmCancel} onPress={() => setModalDeletar(false)} disabled={deletandoPartida}><Text style={styles.confirmCancelText}>CANCELAR</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.confirmOk} onPress={deletarPartida} disabled={deletandoPartida}>
-                {deletandoPartida ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.confirmOkText}>DELETAR</Text>}
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setModalDeletar(false)} disabled={deletandoPartida}><Text style={styles.confirmCancelTxt}>CANCELAR</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.confirmOkBtn} onPress={deletarPartida} disabled={deletandoPartida}>
+                {deletandoPartida ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.confirmOkTxt}>DELETAR</Text>}
               </TouchableOpacity>
             </View>
           </View>
