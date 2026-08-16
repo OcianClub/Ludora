@@ -68,13 +68,7 @@ export const styles = StyleSheet.create({
     width: 64,
   },
   clubeAtalhoLogo: {
-    width: 56,
-    height: 56,
-    backgroundColor: colors.primaria,
-    borderRadius: 10,
     marginBottom: 8,
-    justifyContent: 'center',
-    alignItems: 'center'
   },
   clubeAtalhoNome: {
     fontFamily: typography.fontFamily.corpo.semiBold,
@@ -97,7 +91,7 @@ export const styles = StyleSheet.create({
   // ── Lista de Clubes (Vertical) ──
   listaContainer: {
     paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingBottom: 12,
   },
   locationHeader: {
     flexDirection: 'row',
@@ -122,28 +116,24 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
   },
   clubeCardLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
     marginRight: 16,
-    backgroundColor: colors.primaria
   },
  clubeCardInfo: {
     flex: 1,
     justifyContent: 'center',
-    marginRight: 10, // Dá um respiro antes do botão de seguir
+    marginRight: 10,
   },
   clubeCardNomeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
-    gap: 2, // Espaçamento moderno entre nome, verificação e badge
+    gap: 2,
   },
   clubeCardNome: {
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: typography.fontSize.sm,
     color: colors.texto,
-    flexShrink: 1, // OBRIGATÓRIO: Impede que o nome empurre os itens ao lado
+    flexShrink: 1,
   },
   badgeTecnico: {
     backgroundColor: colors.fundoAtencao,

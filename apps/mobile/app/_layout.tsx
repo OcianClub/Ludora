@@ -12,6 +12,7 @@ import {
   Oswald_600SemiBold, 
   Oswald_700Bold 
 } from '@expo-google-fonts/oswald';
+import { ClubeAtivoProvider } from '@/src/contexts/ClubeAtivoContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,13 +38,15 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      {/* O index decide pra onde o cara vai */}
-      <Stack.Screen name="index" /> 
-      {/* Telas de login/cadastro */}
-      <Stack.Screen name="(auth)" />
-      {/* Telas principais do app */}
-      <Stack.Screen name="(tabs)" />
-    </Stack>
+    <ClubeAtivoProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        {/* O index decide pra onde o cara vai */}
+        <Stack.Screen name="index" /> 
+        {/* Telas de login/cadastro */}
+        <Stack.Screen name="(auth)" />
+        {/* Telas principais do app */}
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+    </ClubeAtivoProvider>
   );
 }

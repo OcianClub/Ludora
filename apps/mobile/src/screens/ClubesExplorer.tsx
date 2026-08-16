@@ -17,7 +17,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Image,
   ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,6 +27,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { Header } from '@/src/components/Header';
+import { EscudoClube } from '@/src/components/EscudoClube';
 import {
   fetchClubes,
   seguirClube,
@@ -284,8 +284,9 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
                       onPress={() => acessarClube(clube)}
                       disabled={processandoId === clube.id}
                     >
-                      <Image
-                        source={clube.escudo ? { uri: clube.escudo } : require('@/assets/images/SóPreto.png')}
+                      <EscudoClube
+                        uri={clube.escudo}
+                        tamanho="lg"
                         style={styles.clubeAtalhoLogo}
                       />
                       <Text style={styles.clubeAtalhoNome} numberOfLines={1}>
@@ -322,8 +323,9 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
                   onPress={() => acessarClube(clube)}
                   disabled={processandoId === clube.id}
                 >
-                  <Image
-                    source={clube.escudo ? { uri: clube.escudo } : require('@/assets/images/SóPreto.png')}
+                  <EscudoClube
+                    uri={clube.escudo}
+                    tamanho="md"
                     style={styles.clubeCardLogo}
                   />
 
@@ -372,8 +374,9 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
                     onPress={() => acessarClube(clube)}
                     disabled={processandoId === clube.id}
                   >
-                    <Image
-                      source={clube.escudo ? { uri: clube.escudo } : require('@/assets/images/SóPreto.png')}
+                    <EscudoClube
+                      uri={clube.escudo}
+                      tamanho="md"
                       style={styles.clubeCardLogo}
                     />
 

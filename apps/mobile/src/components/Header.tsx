@@ -46,19 +46,29 @@ export function Header({
           </TouchableOpacity>
         )}
         {showLogo && (
-          <LinearGradient
-            colors={[colors.primaria, '#0055FF']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.logoContainer}
-          >
-            <Image 
-              // LÓGICA DINÂMICA: Tenta carregar a URL externa, se não tiver, usa o local como fallback
-              source={logoUrl ? { uri: logoUrl } : require('@/assets/images/SóPreto.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </LinearGradient>
+          logoUrl ? (
+            // Tem escudo de clube de verdade: fundo NEUTRO — evita o
+            // choque de cor entre o azul do app e a paleta do time
+            // (ex: Corinthians preto/branco/vermelho em cima de azul).
+            <View style={styles.logoContainerNeutro}>
+              <Image source={{ uri: logoUrl }} style={styles.logo} resizeMode="contain" />
+            </View>
+          ) : (
+            // Sem escudo ainda (placeholder do app): mantém o gradiente
+            // azul, que é o que dá contraste pro mark preto do app.
+            <LinearGradient
+              colors={[colors.primaria, '#0055FF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.logoContainer}
+            >
+              <Image
+                source={require('@/assets/images/SóPreto.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </LinearGradient>
+          )
         )} 
         {icon && (
           <TouchableOpacity onPress={onPressIcon} activeOpacity={0.6}>
@@ -113,13 +123,26 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 10,
+    padding: 6,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoContainerNeutro: {
+    width: 45,
+    height: 45,
+    borderRadius: 10,
+    padding: 6,
+    backgroundColor: colors.cardSecundario,
+    borderWidth: 1,
+    borderColor: colors.borda,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
   },
   logo: {
-    width: 40,
-    height: 40,
+    width: '100%',
+    height: '100%',
   },
   title: {
     fontFamily: typography.fontFamily.corpo.semiBold,
