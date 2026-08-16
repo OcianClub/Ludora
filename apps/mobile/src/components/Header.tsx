@@ -10,6 +10,7 @@ interface HeaderProps {
   btnVoltar?: keyof typeof MaterialCommunityIcons.glyphMap;
   btnNotificacao?: keyof typeof MaterialCommunityIcons.glyphMap;
   showLogo?: boolean;
+  logoUrl?: string | null;
   icon?: keyof typeof MaterialCommunityIcons.glyphMap;
   onPressIcon?: () => void;
   showProfile?: boolean;
@@ -17,7 +18,18 @@ interface HeaderProps {
   semSafeArea?: boolean; 
 }
 
-export function Header({ title, btnVoltar, btnNotificacao, showLogo, onPressIcon, icon, showProfile, onBtnVoltar, semSafeArea }: HeaderProps) {
+export function Header({ 
+  title, 
+  btnVoltar, 
+  btnNotificacao, 
+  showLogo, 
+  logoUrl, // RECEBENDO AQUI
+  onPressIcon, 
+  icon, 
+  showProfile, 
+  onBtnVoltar, 
+  semSafeArea 
+}: HeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -35,13 +47,14 @@ export function Header({ title, btnVoltar, btnNotificacao, showLogo, onPressIcon
         )}
         {showLogo && (
           <LinearGradient
-            colors={[colors.primaria, '#0055FF']} // Ajuste de gradiente usando a primária
+            colors={[colors.primaria, '#0055FF']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.logoContainer}
           >
             <Image 
-              source={require('@/assets/images/SóPreto.png')}
+              // LÓGICA DINÂMICA: Tenta carregar a URL externa, se não tiver, usa o local como fallback
+              source={logoUrl ? { uri: logoUrl } : require('@/assets/images/SóPreto.png')}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -52,7 +65,11 @@ export function Header({ title, btnVoltar, btnNotificacao, showLogo, onPressIcon
             <MaterialCommunityIcons name={icon} size={44} color={colors.primaria} />
           </TouchableOpacity>
         )}
-        <Text style={styles.title}>{title}</Text>
+        {/* O TITLE JÁ ERA DINÂMICO E CONTINUA AQUI — agora com numberOfLines pra truncar
+            em vez de empurrar os botões da direita pra fora da tela */}
+        <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+          {title}
+        </Text>
       </View>
 
       <View style={styles.rightContent}>
@@ -88,6 +105,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
+    minWidth: 0,
+    maxWidth: '65%',
   },
   logoContainer: {
     width: 45,
@@ -106,11 +126,14 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.lmd,
     color: colors.texto,
     textTransform: 'uppercase',
+    flexShrink: 1,
+    flex: 1,
   },
   rightContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14, 
+    gap: 14,
+    flexShrink: 0,
   },
   actionButton: {
     width: 46,

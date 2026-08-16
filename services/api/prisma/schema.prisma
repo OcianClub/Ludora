@@ -8,25 +8,96 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ── NOVOS MODELOS MULTI-TENANT ──
+
+model Clube {
+  id          Int            @id @default(autoincrement())
+  nome        String
+  escudo      String?
+  cidade      String?
+  estado      String?
+  plano       String         @default("FREE")
+  criado_em   DateTime       @default(now())
+  
+  usuarios    UsuarioClube[]
+  categorias  Categoria[]
+  competicoes Competicao[]
+}
+
+model UsuarioClube {
+  id         Int          @id @default(autoincrement())
+  usuario_id Int
+  clube_id   Int
+  papel      PapelUsuario @default(TORCEDOR)
+  
+  usuario    Usuario      @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  clube      Clube        @relation(fields: [clube_id], references: [id], onDelete: Cascade)
+
+  // Garante que o mesmo usuário não crie vínculos duplicados no mesmo clube
+  @@unique([usuario_id, clube_id])
+  @@index([clube_id])
+}
+
+// ── MODELOS ATUALIZADOS ──
+
 model Usuario {
-  id       Int      @id @default(autoincrement())
+  id       Int            @id @default(autoincrement())
   nome     String
-  email    String   @unique
+  email    String         @unique
   senha    String
-  criadoEm DateTime @default(now())
-  role     Role     @default(USER)
+  criadoEm DateTime       @default(now())
+  
+  clubes   UsuarioClube[]
 }
 
 model Categoria {
   id          Int           @id @default(autoincrement())
-  nome        String        @unique
+  clube_id    Int
+  nome        String
   faixaIdade  Int           @default(0)
   tipo        TipoCategoria
+  
+  clube       Clube         @relation(fields: [clube_id], references: [id], onDelete: Cascade)
   jogadores   Jogador[]
   partidas    Partida[]
   times       Time[]        @relation("TimeCategorias")
   competicoes Competicao[]  @relation("CompeticaoCategorias")
+
+  // Agora permite categorias com nomes iguais, desde que em clubes diferentes
+  @@unique([nome, clube_id])
+  @@index([clube_id])
 }
+
+model Competicao {
+  id                  Int                 @id @default(autoincrement())
+  clube_id            Int
+  nome                String
+  ano                 Int
+  tipo                TipoCompeticao
+  
+  clube               Clube               @relation(fields: [clube_id], references: [id], onDelete: Cascade)
+  jogadores_inscritos CompeticaoJogador[]
+  times_inscritos     CompeticaoTime[]
+  partidas            Partida[]
+  categorias          Categoria[]         @relation("CompeticaoCategorias")
+
+  @@index([clube_id])
+}
+
+model Evento {
+  id         Int        @id @default(autoincrement())
+  partida_id Int
+  tipo       TipoEvento
+  periodo    Int
+  minuto     Int?
+  jogador_id Int?
+  jogador    Jogador?   @relation(fields: [jogador_id], references: [id])
+  partida    Partida    @relation(fields: [partida_id], references: [id], onDelete: Cascade)
+
+  @@index([partida_id])
+}
+
+// ── MODELOS INALTERADOS ESTRUTURALMENTE ──
 
 model Time {
   id                 Int              @id @default(autoincrement())
@@ -40,17 +111,6 @@ model Time {
 
   @@unique([nome, categoria_id])
   @@index([categoria_id])
-}
-
-model Competicao {
-  id                  Int                 @id @default(autoincrement())
-  nome                String
-  ano                 Int
-  tipo                TipoCompeticao
-  jogadores_inscritos CompeticaoJogador[]
-  times_inscritos     CompeticaoTime[]
-  partidas            Partida[]
-  categorias          Categoria[]         @relation("CompeticaoCategorias")
 }
 
 model Jogador {
@@ -98,20 +158,6 @@ model Partida {
   @@index([data])
   @@index([categoria_id])
   @@index([competicao_id])
-}
-
-model Evento {
-  id         Int        @id @default(autoincrement())
-  partida_id Int
-  tipo       TipoEvento
-  periodo    Int
-  minuto     Int?
-  doOcian    Boolean    @default(true)
-  jogador_id Int?
-  jogador    Jogador?   @relation(fields: [jogador_id], references: [id])
-  partida    Partida    @relation(fields: [partida_id], references: [id], onDelete: Cascade)
-
-  @@index([partida_id])
 }
 
 model CompeticaoTime {
@@ -178,9 +224,13 @@ model CampeonatoClassificacao {
   @@index([temporada, titulo, divisao, categoria, tipoTabela])
 }
 
-enum Role {
+// ── ENUMS ATUALIZADOS ──
+
+enum PapelUsuario {
   ADMIN
-  USER
+  MESARIO
+  TECNICO
+  TORCEDOR
 }
 
 enum TipoCategoria {

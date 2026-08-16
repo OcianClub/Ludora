@@ -1,162 +1,150 @@
 import { StyleSheet } from 'react-native';
-import { colors } from '@/src/theme/colors';
+import { colors, typography } from '@ludora/design-tokens';
 
 export const styles = StyleSheet.create({
-  scrollContainer: {
-    flexGrow: 1,
-    backgroundColor: colors.background,
-  },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: colors.fundo,
+    justifyContent: 'flex-start',
     paddingHorizontal: 28,
-    paddingVertical: 60,
+    paddingTop: 80,
+    paddingBottom: 40,
   },
 
+  // ── Botão Voltar ──
   btnVoltar: {
     position: 'absolute',
     top: 56,
     left: 20,
     width: 42,
     height: 42,
-    borderRadius: 12,
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderRadius: 10,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
   },
 
+  // ── Cabeçalho e Títulos ──
+  header: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 32,
+  },
   logoContainer: {
     width: 70,
     height: 70,
-    borderRadius: 20,
-    backgroundColor: colors.primary + '18',
-    borderWidth: 1.5,
-    borderColor: colors.primary + '50',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
-
   titulo: {
-    fontFamily: 'Creato-Bold',
+    fontFamily: typography.fontFamily.titulo.bold,
     fontSize: 26,
-    color: colors.text,
+    color: colors.texto,
     marginBottom: 6,
-    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   subtitulo: {
-    fontFamily: 'Creato-Regular',
-    fontSize: 14,
-    color: colors.text_secondary,
-    marginBottom: 32,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.sm,
+    color: colors.textoSecundario,
     textAlign: 'center',
+    lineHeight: typography.lineHeight.normal * typography.fontSize.sm,
   },
 
+  // ── Formulário e Inputs ──
   form: {
     width: '100%',
-    gap: 12,
+    gap: 16, 
   },
-
+  spacer: {
+    flex: 1,
+  },
+  footer: {
+    width: '100%',
+  },
   inputLabel: {
-    fontFamily: 'Creato-Bold',
+    fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: 10,
-    color: colors.text_secondary,
+    color: colors.textoSecundario,
     letterSpacing: 1.2,
-    marginBottom: 4,
+    marginBottom: 6,
+    textTransform: 'uppercase',
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.card,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: colors.borda,
     gap: 12,
   },
   inputRowFocado: {
-    borderColor: colors.primary + '80',
-    backgroundColor: colors.primary + '08',
+    borderColor: colors.primaria + '80',
+    backgroundColor: colors.primaria + '08',
   },
-  inputRowErro: {
-    borderColor: colors.vermelho + '60',
+  olho: {
+    padding: 6,
   },
   input: {
     flex: 1,
-    fontFamily: 'Creato-Regular',
-    color: colors.text,
+    fontFamily: typography.fontFamily.corpo.regular,
+    color: colors.texto,
     fontSize: 15,
   },
 
-  requisitos: {
-    gap: 4,
-    paddingHorizontal: 4,
-  },
-  requisitoItem: {
+  // ── Alertas de Erro ──
+  erroContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    backgroundColor: colors.fundoErro,
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.bordaErro,
   },
-  requisitoTxt: {
-    fontFamily: 'Creato-Regular',
-    fontSize: 11,
-    color: '#444',
-  },
-  requisitoOk: {
-    color: '#22c55e',
+  erroTxt: {
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.tituloErro,
+    fontSize: 13,
+    flex: 1,
   },
 
+  // ── Botões e Rodapé ──
   btnEntrar: {
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
+    backgroundColor: colors.primaria,
+    borderRadius: 10,
+    paddingVertical: 18,
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 8,
   },
   btnEntrarDisabled: {
     opacity: 0.5,
   },
   txtBtnEntrar: {
-    fontFamily: 'Creato-Bold',
+    fontFamily: typography.fontFamily.corpo.semiBold,
     color: '#FFF',
     fontSize: 14,
-    letterSpacing: 1.2,
   },
-
-  btnCadastro: {
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  txtCadastro: {
-    fontFamily: 'Creato-Regular',
-    color: colors.text_secondary,
-    fontSize: 14,
-  },
-  txtCadastroDestaque: {
-    fontFamily: 'Creato-Bold',
-    color: colors.azulClaro,
-  },
-
-  erroContainer: {
+  linhaCadastro: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.vermelho + '15',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.vermelho + '40',
+    justifyContent: 'center',
+    marginTop: 24,
   },
-  erroTxt: {
-    fontFamily: 'Creato-Bold',
-    color: colors.vermelho,
-    fontSize: 13,
-    flex: 1,
+  textoCinza: {
+    fontFamily: typography.fontFamily.corpo.regular,
+    color: colors.textoSecundario,
+    fontSize: typography.fontSize.sm,
+  },
+  textoAzul: {
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.primaria,
+    fontSize: typography.fontSize.sm,
   },
 });

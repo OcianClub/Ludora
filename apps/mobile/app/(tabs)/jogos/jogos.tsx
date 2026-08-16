@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, Image, ScrollView,
   Modal, Pressable, ActivityIndicator, RefreshControl,
@@ -25,6 +25,13 @@ const STATUS_OPTIONS: { label: string; value: StatusFiltro, icon: any, iconColor
   { label: 'Agendadas',      value: 'AGENDADA', icon: 'calendar-clock', iconColor: colors.textoSecundario },
   { label: 'Finalizadas',    value: 'FINALIZADA', icon: 'check', iconColor: colors.primaria },
 ];
+
+// Papel é por CLUBE (ADMIN/MESARIO/TECNICO/TORCEDOR), não mais um "userRole"
+// global — o mesmo usuário pode ser TECNICO num clube e TORCEDOR em outro.
+// Cobre tudo que não é torcedor puro: criar/editar/apagar partida, apontar
+// placar, registrar eventos etc. (mesmo comportamento que "isAdmin" tinha
+// antes no DetalhesPartida — só que agora calculado por clube).
+const PAPEIS_GESTORES = ['ADMIN', 'TECNICO', 'MESARIO'];
 
 interface Time { id: number; nome: string; escudo: string | null; }
 interface Partida {
@@ -71,7 +78,14 @@ export default function Jogos() {
   const pagerRef = useRef<PagerView>(null);
 
   const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+
+  // "podeGerenciar" = papel do usuário NO CLUBE ATIVO é ADMIN/TECNICO/MESARIO.
+  const [podeGerenciar, setPodeGerenciar] = useState(false);
+
+  // Clube ativo (dinâmico) — antes era fixo "CFA OCIAN" no Header.
+  // Lido do mesmo SecureStore que o ClubesExplorer grava ao acessar um clube.
+  const [nomeClubeAtivo, setNomeClubeAtivo] = useState('MEU CLUBE');
+  const [escudoClubeAtivo, setEscudoClubeAtivo] = useState<string | null>(null);
   
   // Estados Reais (aplicados)
   const [mesAtivo, setMesAtivo] = useState(new Date().getMonth() + 1);
@@ -90,10 +104,6 @@ export default function Jogos() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalOrganizar, setModalOrganizar] = useState(false);
 
-  useEffect(() => {
-    SecureStore.getItemAsync('userRole').then(role => setIsAdmin(role === 'ADMIN'));
-  }, []);
-
   const carregarPartidas = useCallback(async () => {
     try {
       const params: any = { mes: mesAtivo };
@@ -110,8 +120,24 @@ export default function Jogos() {
 
   useFocusEffect(
     useCallback(() => {
+      let ativo = true;
+      (async () => {
+        // Recarrega o clube ativo (e o papel do usuário nele) a cada foco,
+        // pra pegar troca de clube feita na aba "Clubes".
+        const [nome, escudo, papel] = await Promise.all([
+          SecureStore.getItemAsync('clubeAtivoNome'),
+          SecureStore.getItemAsync('clubeAtivoEscudo'),
+          SecureStore.getItemAsync('clubeAtivoPapel'),
+        ]);
+        if (ativo && nome) setNomeClubeAtivo(nome);
+        if (ativo) setEscudoClubeAtivo(escudo || null);
+        if (ativo) setPodeGerenciar(!!papel && PAPEIS_GESTORES.includes(papel));
+      })();
       setCarregando(true);
       carregarPartidas();
+      return () => {
+        ativo = false;
+      };
     }, [carregarPartidas])
   );
 
@@ -158,7 +184,13 @@ export default function Jogos() {
 
   return (
     <View style={styles.container}>
-      <Header title="CFA OCIAN" btnNotificacao="bell" showLogo={true} showProfile={true} />
+      <Header
+        title={nomeClubeAtivo}
+        logoUrl={escudoClubeAtivo}
+        btnNotificacao="bell"
+        showLogo={true}
+        showProfile={true}
+      />
 
       {/* 1. Mova o CarrosselSubs para FORA do filtersContainer para não dobrar o padding */}
       <CarrosselSubs
@@ -285,7 +317,7 @@ export default function Jogos() {
       </PagerView>
 
       {/* FAB ICON */}
-      {isAdmin && (
+      {podeGerenciar && (
         <TouchableOpacity activeOpacity={0.8} style={styles.fab} onPress={() => setModalOrganizar(true)}>
           <LinearGradient colors={[colors.primaria, '#0055FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabGradient}>
             <MaterialCommunityIcons name="plus" size={32} color={colors.texto} />
@@ -371,7 +403,7 @@ export default function Jogos() {
         >
           <DetalhesPartida
             partida={partidaSelecionada as PartidaDetalhes}
-            isAdmin={isAdmin}
+            isAdmin={podeGerenciar}
             onBack={() => { setPartidaSelecionada(null); carregarPartidas(); }}
           />
         </Modal>

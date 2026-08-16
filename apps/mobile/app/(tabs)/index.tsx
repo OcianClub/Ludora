@@ -13,9 +13,6 @@ import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/Carro
 import DetalhesPartida, { Partida as PartidaDetalhes } from '@/src/components/DetalhesPartida';
 import * as SecureStore from 'expo-secure-store';
 
-const NOME_CLUBE = 'OCIAN';
-const isOcian = (nome: string) => nome.toUpperCase().includes(NOME_CLUBE);
-
 interface Time { id: number; nome: string; escudo: string | null; }
 interface Partida {
   id: number;
@@ -42,6 +39,7 @@ interface PageContentProps {
   proximoJogo: Partida | null;
   estatisticas: Estatisticas;
   historico: Partida[];
+  nomeClubeAtivo: string;
   onVerDetalhes: (partida: Partida) => void;
 }
 
@@ -51,9 +49,14 @@ const formatarDataCard = (dataStr: string) => {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
 };
 
-const PageContent = ({ carregando, proximoJogo, estatisticas, historico, onVerDetalhes }: PageContentProps) => {
+const isClubeAtivo = (nomeTime: string, nomeClube: string) => {
+  if (!nomeClube) return false;
+  return nomeTime.toUpperCase().includes(nomeClube.toUpperCase());
+};
+
+const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClubeAtivo, onVerDetalhes }: PageContentProps) => {
   const adversario = proximoJogo 
-    ? (isOcian(proximoJogo.mandante.nome) ? proximoJogo.visitante.nome : proximoJogo.mandante.nome) 
+    ? (isClubeAtivo(proximoJogo.mandante.nome, nomeClubeAtivo) ? proximoJogo.visitante.nome : proximoJogo.mandante.nome) 
     : '—';
 
   return (
@@ -176,7 +179,6 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, onVerDe
           </View>
         )}
         renderItem={({ item }) => (
-          // Adicionando o wrapper de padding aqui!
           <View style={{ paddingHorizontal: 20 }}>
             <HistoricoPartidas partida={item} />
           </View>
@@ -197,19 +199,49 @@ export default function Home() {
   const [partidasGlobais, setPartidasGlobais] = useState<Partida[]>([]);
   const [carregando, setCarregando] = useState(true);
 
-  const subsAtuais = faseAtiva === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
+  // Estados para gerenciar o nome e o escudo dinâmico do clube
+  const [nomeClube, setNomeClube] = useState('CARREGANDO...');
+  const [escudoClube, setEscudoClube] = useState<string | null>(null);
 
-  useEffect(() => {
-    SecureStore.getItemAsync('userRole').then(role => setIsAdmin(role === 'ADMIN'));
-  }, []);
+  const subsAtuais = faseAtiva === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
 
   useFocusEffect(
     useCallback(() => {
-      setCarregando(true);
-      fetchPartidas({})
-        .then(setPartidasGlobais)
-        .catch(console.error)
-        .finally(() => setCarregando(false));
+      const carregarDadosDoClube = async () => {
+        try {
+          setCarregando(true);
+          
+          const nomeSalvo = await SecureStore.getItemAsync('clubeAtivoNome');
+          const escudoSalvo = await SecureStore.getItemAsync('clubeAtivoEscudo');
+          const clubeAtivoId = await SecureStore.getItemAsync('clubeAtivoId');
+
+          if (nomeSalvo) {
+            setNomeClube(nomeSalvo);
+            setEscudoClube(escudoSalvo || null);
+          } else {
+            setNomeClube('MEU CLUBE');
+          }
+
+          const dadosUserString = await SecureStore.getItemAsync('userData');
+          if (dadosUserString && clubeAtivoId) {
+            const userData = JSON.parse(dadosUserString);
+            const vinculo = userData.clubes?.find((c: any) => String(c.clube_id) === String(clubeAtivoId));
+            if (vinculo) {
+              setIsAdmin(vinculo.papel === 'ADMIN' || vinculo.papel === 'TECNICO');
+            }
+          }
+
+          const partidas = await fetchPartidas({});
+          setPartidasGlobais(partidas);
+        } catch (error) {
+          console.error('Erro ao carregar Home:', error);
+          setNomeClube('ERRO AO CARREGAR');
+        } finally {
+          setCarregando(false);
+        }
+      };
+
+      carregarDadosDoClube();
     }, [])
   );
 
@@ -230,7 +262,13 @@ export default function Home() {
 
   return (
     <View style={styles.container}>
-      <Header title="CFA OCIAN" btnNotificacao="bell" showLogo={true} showProfile={true} />
+      <Header 
+        title={nomeClube} 
+        logoUrl={escudoClube} 
+        btnNotificacao="bell" 
+        showLogo={true} 
+        showProfile={true} 
+      />
 
       <CarrosselSubs 
         tipoFiltro={faseAtiva}
@@ -249,7 +287,7 @@ export default function Home() {
         {subsAtuais.map((sub) => {
           const partidasDoSub = partidasGlobais.filter(p => 
             p.categoria?.nome.replace(' ', '-').toUpperCase() === sub.title &&
-            (isOcian(p.mandante.nome) || isOcian(p.visitante.nome))
+            (isClubeAtivo(p.mandante.nome, nomeClube) || isClubeAtivo(p.visitante.nome, nomeClube))
           );
 
           const agendadas = partidasDoSub
@@ -266,14 +304,14 @@ export default function Home() {
           let pontos = 0;
           let vitorias = 0;
           finalizadas.forEach(p => {
-            const ocianEhMandante = isOcian(p.mandante.nome);
-            const golsOcian = ocianEhMandante ? p.gols_mandante : p.gols_visitante;
-            const golsAdv = ocianEhMandante ? p.gols_visitante : p.gols_mandante;
+            const clubeAtivoMandante = isClubeAtivo(p.mandante.nome, nomeClube);
+            const golsClubeAtivo = clubeAtivoMandante ? p.gols_mandante : p.gols_visitante;
+            const golsAdv = clubeAtivoMandante ? p.gols_visitante : p.gols_mandante;
 
-            if (golsOcian > golsAdv) {
+            if (golsClubeAtivo > golsAdv) {
               pontos += 3;
               vitorias += 1;
-            } else if (golsOcian === golsAdv) {
+            } else if (golsClubeAtivo === golsAdv) {
               pontos += 1;
             }
           });
@@ -285,6 +323,7 @@ export default function Home() {
                 proximoJogo={proximoJogo}
                 estatisticas={{ pontos, vitorias }}
                 historico={historicoRecente}
+                nomeClubeAtivo={nomeClube}
                 onVerDetalhes={setPartidaSelecionada}
               />
             </View>

@@ -20,9 +20,7 @@ export default function TabsLayout() {
             backgroundColor: colors.fundo,
             borderTopWidth: 0,
             elevation: 0,
-            height: 68 + insets.bottom,
-            paddingBottom: 10 + insets.bottom,
-            paddingTop: 6,
+            height: 60 + insets.bottom,
           },
           tabBarItemStyle: {
             borderRadius: 10,
@@ -61,11 +59,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="placar/placar"
+        name="clubes/clubes"
         options={{
-          title: 'Placar',
+          title: 'Clubes',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="trophy-outline" size={size} color={color} />
+            <MaterialCommunityIcons name="shield-outline" size={size} color={color} />
           ),
         }}
       />

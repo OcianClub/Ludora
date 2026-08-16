@@ -29,13 +29,17 @@ cron.schedule('*/30 * * * *', () => {
   sincronizarTodos().catch(console.error);
 });
 
-const JWT_SECRET = process.env.JWT_SECRET;
 const PYTHON_AI_URL = process.env.PYTHON_AI_URL;
 
-if (!JWT_SECRET) {
+if (!process.env.JWT_SECRET) {
   console.error('ERRO FATAL: A variável JWT_SECRET não foi encontrada no arquivo .env!');
   process.exit(1);
 }
+
+// Depois do guard acima, o processo já teria sido encerrado se JWT_SECRET não existisse.
+// O "as string" só deixa isso explícito pro TypeScript (que não enxerga esse tipo de
+// narrowing entre módulos/closures), evitando repetir esse cast em cada rota.
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 if (!PYTHON_AI_URL) {
   console.warn('⚠️  PYTHON_AI_URL não definida — Scout IA desativado.');
@@ -45,25 +49,133 @@ if (!PYTHON_AI_URL) {
 // 1. AUTENTICAÇÃO
 // ==========================================
 
+// Extrai o id do usuário logado a partir do token, sem lançar erro se não houver token
+// (algumas rotas, como listar clubes, funcionam tanto logado quanto deslogado)
+function getUsuarioId(req: express.Request): number | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return null;
+  try {
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET) as unknown as { id: number };
+    return decoded.id;
+  } catch {
+    return null;
+  }
+}
+
+// ==========================================
+// MIDDLEWARE DE PERMISSÃO (multi-tenant)
+// ==========================================
+// Papel é por CLUBE (UsuarioClube.papel), não mais global no usuário.
+// TORCEDOR só pode ver dados; ADMIN/TECNICO/MESARIO podem gerenciar partidas
+// (criar, editar, apontar placar/eventos etc.) dentro do clube em que atuam.
+//
+// Este middleware:
+//  1. Confere o token (401 se ausente/inválido)
+//  2. Confere o header x-clube-id (400 se ausente — mesmo padrão já usado
+//     nas rotas GET deste arquivo)
+//  3. Busca o vínculo UsuarioClube do usuário logado com esse clube
+//  4. Bloqueia (403) se não houver vínculo, ou se o papel for TORCEDOR
+//  5. Anexa req.usuarioId / req.clubeId / req.papelUsuario pra rota usar
+const PAPEIS_GESTORES = ['ADMIN', 'TECNICO', 'MESARIO'] as const;
+
+function exigirGestorDoClube(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const usuarioId = getUsuarioId(req);
+  if (!usuarioId) return res.status(401).json({ error: 'Token inválido ou não enviado' });
+
+  const clube_id = Number(req.headers['x-clube-id']);
+  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+
+  prisma.usuarioClube
+    .findUnique({ where: { usuario_id_clube_id: { usuario_id: usuarioId, clube_id } } })
+    .then((vinculo) => {
+      if (!vinculo) {
+        return res.status(403).json({ error: 'Você não tem vínculo com este clube' });
+      }
+      if (!PAPEIS_GESTORES.includes(vinculo.papel as any)) {
+        return res.status(403).json({ error: 'Apenas administradores, técnicos ou mesários podem gerenciar partidas' });
+      }
+      (req as any).usuarioId = usuarioId;
+      (req as any).clubeId = clube_id;
+      (req as any).papelUsuario = vinculo.papel;
+      next();
+    })
+    .catch(() => res.status(500).json({ error: 'Erro ao verificar permissão do clube' }));
+}
+
+// Além de exigir papel de gestor, confere que a PARTIDA em questão (:id na URL)
+// realmente pertence ao clube ativo (req.clubeId) — evita que um gestor do
+// Clube A edite/apague uma partida do Clube B só trocando o header x-clube-id.
+async function partidaPertenceAoClube(partidaId: number, clubeId: number): Promise<boolean> {
+  const partida = await prisma.partida.findUnique({
+    where: { id: partidaId },
+    include: { categoria: { select: { clube_id: true } } },
+  });
+  return !!partida && partida.categoria?.clube_id === clubeId;
+}
+
+function exigirPartidaDoClube(idParam: (req: express.Request) => number) {
+  return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const partidaId = idParam(req);
+    const clubeId = (req as any).clubeId as number;
+    const pertence = await partidaPertenceAoClube(partidaId, clubeId).catch(() => false);
+    if (!pertence) {
+      return res.status(403).json({ error: 'Esta partida não pertence ao clube ativo' });
+    }
+    next();
+  };
+}
+
 app.post('/auth/registrar', async (req, res) => {
-  const { email, senha, nome, role } = req.body;
+  // Removemos o 'role' daqui, pois novos usuários nascem sem vínculo ou vinculam-se depois
+  const { email, senha, nome } = req.body; 
   try {
     const hashSenha = await bcrypt.hash(senha, 10);
     const usuario = await prisma.usuario.create({
-      data: { email, senha: hashSenha, nome, role }
+      data: { email, senha: hashSenha, nome }
     });
     res.status(201).json({ mensagem: 'Usuário criado', id: usuario.id });
-  } catch (error: any) { res.status(400).json({ error: 'Erro ao criar usuário' }); }
+  } catch (error: any) { 
+    res.status(400).json({ error: 'Erro ao criar usuário' }); 
+  }
 });
 
 app.post('/auth/login', async (req, res) => {
   const { email, senha } = req.body;
-  const usuario = await prisma.usuario.findUnique({ where: { email } });
+  
+  // Agora buscamos o usuário E também a lista de clubes que ele faz parte
+  const usuario = await prisma.usuario.findUnique({ 
+    where: { email },
+    include: {
+      clubes: {
+        include: { clube: true }
+      }
+    }
+  });
+  
   if (!usuario) return res.status(401).json({ error: 'Usuário não encontrado' });
+  
   const senhaValida = await bcrypt.compare(senha, usuario.senha);
   if (!senhaValida) return res.status(401).json({ error: 'Senha incorreta' });
-  const token = jwt.sign({ id: usuario.id, role: usuario.role }, JWT_SECRET, { expiresIn: '8h' });
-  res.json({ token, role: usuario.role, nome: usuario.nome, criadoEm: usuario.criadoEm, email: usuario.email });
+  
+  // O JWT não carrega mais a "role" global, apenas o ID do usuário
+  const token = jwt.sign({ id: usuario.id }, JWT_SECRET, { expiresIn: '8h' });
+  
+  // Formatamos os clubes para o app mobile montar a tela "Seus Clubes"
+  const clubesDoUsuario = usuario.clubes.map(vinculo => ({
+    clube_id: vinculo.clube.id,
+    nome: vinculo.clube.nome,
+    escudo: vinculo.clube.escudo,
+    papel: vinculo.papel
+  }));
+
+  res.json({ 
+    token, 
+    nome: usuario.nome, 
+    criadoEm: usuario.criadoEm, 
+    email: usuario.email,
+    clubes: clubesDoUsuario // <-- Lista de clubes enviada direto no login!
+  });
 });
 
 app.patch('/usuarios/me', async (req, res) => {
@@ -72,7 +184,7 @@ app.patch('/usuarios/me', async (req, res) => {
   if (!authHeader) return res.status(401).json({ error: 'Token não enviado' });
   try {
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
+    const decoded = jwt.verify(token, JWT_SECRET) as unknown as { id: number };
     const data: any = { nome, email };
     if (senha && senha.length >= 6) data.senha = await bcrypt.hash(senha, 10);
     const usuario = await prisma.usuario.update({ where: { id: decoded.id }, data });
@@ -85,10 +197,93 @@ app.delete('/usuarios/me', async (req, res) => {
   if (!authHeader) return res.status(401).json({ error: 'Token não enviado' });
   try {
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
+    const decoded = jwt.verify(token, JWT_SECRET) as unknown as { id: number };
     await prisma.usuario.delete({ where: { id: decoded.id } });
     res.json({ mensagem: 'Conta excluída com sucesso' });
   } catch (error: any) { res.status(401).json({ error: 'Token inválido ou usuário não encontrado' }); }
+});
+// ==========================================
+// 1.1 CLUBES (descoberta + seguir)
+// ==========================================
+// OBS: "seguir" um clube = criar um vínculo UsuarioClube com papel TORCEDOR.
+// Isso reaproveita o modelo que já existe (não precisou de migration nova).
+// ADMIN/MESARIO/TECNICO continuam contando como "segue" também (isSeguindo=true),
+// mas só quem é TORCEDOR pode "deixar de seguir" por aqui.
+
+app.get('/clubes', async (req, res) => {
+  const usuarioId = getUsuarioId(req);
+  const busca = String(req.query.busca || '').trim();
+
+  try {
+    const clubes = await prisma.clube.findMany({
+      where: busca ? { nome: { contains: busca, mode: 'insensitive' } } : undefined,
+      orderBy: { nome: 'asc' },
+      include: {
+        usuarios: usuarioId ? { where: { usuario_id: usuarioId } } : false,
+        _count: { select: { usuarios: true } },
+      },
+    });
+
+    const formatados = clubes.map((c: any) => ({
+      id: c.id,
+      nome: c.nome,
+      escudo: c.escudo,
+      cidade: c.cidade,
+      estado: c.estado,
+      seguidores: c._count.usuarios,
+      isSeguindo: usuarioId ? c.usuarios.length > 0 : false,
+      papel: usuarioId && c.usuarios.length > 0 ? c.usuarios[0].papel : null,
+    }));
+
+    res.json(formatados);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao buscar clubes' });
+  }
+});
+
+app.post('/clubes/:id/seguir', async (req, res) => {
+  const usuarioId = getUsuarioId(req);
+  if (!usuarioId) return res.status(401).json({ error: 'Token inválido ou não enviado' });
+
+  const clube_id = Number(req.params.id);
+  try {
+    const vinculo = await prisma.usuarioClube.upsert({
+      where: { usuario_id_clube_id: { usuario_id: usuarioId, clube_id } },
+      update: {},
+      create: { usuario_id: usuarioId, clube_id, papel: 'TORCEDOR' },
+      include: { clube: true },
+    });
+    res.status(201).json({
+      clube_id: vinculo.clube.id,
+      nome: vinculo.clube.nome,
+      escudo: vinculo.clube.escudo,
+      papel: vinculo.papel,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao seguir clube' });
+  }
+});
+
+app.delete('/clubes/:id/seguir', async (req, res) => {
+  const usuarioId = getUsuarioId(req);
+  if (!usuarioId) return res.status(401).json({ error: 'Token inválido ou não enviado' });
+
+  const clube_id = Number(req.params.id);
+  try {
+    const vinculo = await prisma.usuarioClube.findUnique({
+      where: { usuario_id_clube_id: { usuario_id: usuarioId, clube_id } },
+    });
+    if (!vinculo) return res.status(404).json({ error: 'Você não segue este clube' });
+    if (vinculo.papel !== 'TORCEDOR') {
+      return res.status(403).json({
+        error: 'Apenas torcedores podem deixar de seguir por aqui. Admins/técnicos precisam transferir o cargo antes.',
+      });
+    }
+    await prisma.usuarioClube.delete({ where: { id: vinculo.id } });
+    res.json({ ok: true });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao deixar de seguir clube' });
+  }
 });
 
 // ==========================================
@@ -119,8 +314,12 @@ app.patch('/times/:id', async (req, res) => {
 });
 
 app.get('/times', async (req, res) => {
+  const clube_id = Number(req.headers['x-clube-id']);
+  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+
   try {
     const times = await prisma.time.findMany({
+      where: { categoria: { clube_id } }, // Filtra apenas times do clube logado
       orderBy: { nome: 'asc' },
       include: { categoria: true }
     });
@@ -138,9 +337,15 @@ app.delete('/times/:id', async (req, res) => {
 });
 
 app.post('/competicoes', async (req, res) => {
+  const clube_id = Number(req.headers['x-clube-id']);
+  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+
   const { nome, ano, tipo } = req.body;
   try {
-    const competicao = await prisma.competicao.create({ data: { nome, ano: Number(ano), tipo } });
+    // RESOLVIDO: Passando o clube_id para a criação
+    const competicao = await prisma.competicao.create({ 
+      data: { nome, ano: Number(ano), tipo, clube_id } 
+    });
     res.status(201).json(competicao);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao criar competição' }); }
 });
@@ -157,8 +362,14 @@ app.patch('/competicoes/:id', async (req, res) => {
 });
 
 app.get('/competicoes', async (req, res) => {
+  const clube_id = Number(req.headers['x-clube-id']);
+  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+
   try {
-    const competicoes = await prisma.competicao.findMany({ orderBy: { nome: 'asc' } });
+    const competicoes = await prisma.competicao.findMany({ 
+      where: { clube_id },
+      orderBy: { nome: 'asc' } 
+    });
     res.json(competicoes);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar competições' }); }
 });
@@ -234,8 +445,14 @@ app.put('/competicoes/:id/jogadores', async (req, res) => {
 });
 
 app.get('/categorias', async (req, res) => {
+  const clube_id = Number(req.headers['x-clube-id']);
+  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+
   try {
-    const categorias = await prisma.categoria.findMany({ orderBy: { nome: 'asc' } });
+    const categorias = await prisma.categoria.findMany({ 
+      where: { clube_id },
+      orderBy: { nome: 'asc' } 
+    });
     res.json(categorias);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar categorias' }); }
 });
@@ -245,6 +462,9 @@ app.get('/categorias', async (req, res) => {
 // ==========================================
 
 app.post('/jogadores', async (req, res) => {
+  const clube_id = Number(req.headers['x-clube-id']);
+  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+
   const { nome, cpf, dtNasc, posicao, numCamisa } = req.body;
   if (!nome || !cpf || !dtNasc) return res.status(400).json({ error: 'Nome, CPF e data de nascimento obrigatórios' });
   try {
@@ -263,9 +483,10 @@ app.post('/jogadores', async (req, res) => {
     if (!categoriaAdequada) return res.status(403).json({ error: 'Idade fora das categorias permitidas.' });
 
     const categoria = await prisma.categoria.findFirst({
-      where: { nome: { equals: categoriaAdequada.nome, mode: 'insensitive' } }
+      where: { nome: categoriaAdequada.nome, clube_id }
     });
-    if (!categoria) return res.status(404).json({ error: `Categoria ${categoriaAdequada.nome} não encontrada no banco.` });
+    
+    if (!categoria) return res.status(404).json({ error: `Categoria ${categoriaAdequada.nome} não encontrada no banco do clube.` });
 
     if (numCamisa) {
       const camisaEmUso = await prisma.jogador.findFirst({
@@ -289,16 +510,22 @@ app.post('/jogadores', async (req, res) => {
 });
 
 app.get('/jogadores/perfis', async (req, res) => {
+  const clube_id = Number(req.headers['x-clube-id']);
   const { categoria_id } = req.query;
+  
+  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+
   try {
     const jogadores = await prisma.jogador.findMany({
       where: {
         ativo: true,
+        categoria: { clube_id },
         ...(categoria_id ? { categoria_id: Number(categoria_id) } : {}),
       },
       include: { eventos: true, categoria: true, escalacoes: true },
       orderBy: { nota_geral: 'desc' },
     });
+    
     const formatados = jogadores.map(j => {
       const stats = j.eventos.reduce((acc: any, ev) => {
         acc[ev.tipo] = (acc[ev.tipo] || 0) + 1;
@@ -317,7 +544,7 @@ app.get('/jogadores/perfis', async (req, res) => {
         categoria:         j.categoria.nome,
         categoria_tipo:    j.categoria.tipo,
         categoria_id:      j.categoria_id,
-        time:              'CFA Ocian',
+        time:              'Clube', // Pode ser ajustado futuramente para buscar o nome do clube
         jogos_disputados:  jogos,
         gols:              stats['GOL']             || 0,
         assistencias:      stats['ASSISTENCIA']     || 0,
@@ -335,9 +562,15 @@ app.get('/jogadores/perfis', async (req, res) => {
 });
 
 app.get('/jogadores', async (req, res) => {
+  const clube_id = Number(req.headers['x-clube-id']);
+  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+
   try {
     const jogadores = await prisma.jogador.findMany({
-      where: { ativo: true },
+      where: { 
+        ativo: true,
+        categoria: { clube_id }
+      },
       orderBy: { nome: 'asc' },
     });
     res.json(jogadores);
@@ -345,6 +578,7 @@ app.get('/jogadores', async (req, res) => {
 });
 
 app.patch('/jogadores/:id', async (req, res) => {
+  const clube_id = Number(req.headers['x-clube-id']);
   const { nome, dtNasc, posicao, numCamisa } = req.body;
   try {
     let dados: any = { nome, posicao, numCamisa: numCamisa ? Number(numCamisa) : null };
@@ -360,7 +594,7 @@ app.patch('/jogadores/:id', async (req, res) => {
       const catAdequada = regras.find(r => idade <= r.limite);
       if (catAdequada) {
         const cat = await prisma.categoria.findFirst({
-          where: { nome: { equals: catAdequada.nome, mode: 'insensitive' } }
+          where: { nome: catAdequada.nome, clube_id }
         });
         if (cat) { dados.dtNasc = new Date(dtNasc); dados.categoria_id = cat.id; }
       }
@@ -386,6 +620,9 @@ app.delete('/jogadores/:id', async (req, res) => {
 // ==========================================
 
 app.patch('/admin/atualizar-idades', async (req, res) => {
+  const clube_id = Number(req.headers['x-clube-id']);
+  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+
   try {
     const anoAtual = new Date().getFullYear();
     const regras = [
@@ -395,9 +632,13 @@ app.patch('/admin/atualizar-idades', async (req, res) => {
       { limite: 16, nome: 'sub-16' }, { limite: 18, nome: 'sub-18' },
     ];
     const [jogadores, categorias] = await Promise.all([
-      prisma.jogador.findMany({ select: { id: true, dtNasc: true, categoria_id: true, ativo: true } }),
-      prisma.categoria.findMany(),
+      prisma.jogador.findMany({ 
+        where: { categoria: { clube_id } },
+        select: { id: true, dtNasc: true, categoria_id: true, ativo: true } 
+      }),
+      prisma.categoria.findMany({ where: { clube_id } }),
     ]);
+    
     let atualizados = 0, desativados = 0;
     for (const j of jogadores) {
       const idade = anoAtual - new Date(j.dtNasc).getFullYear();
@@ -420,13 +661,19 @@ app.patch('/admin/atualizar-idades', async (req, res) => {
 // 3. PARTIDAS E EVENTOS
 // ==========================================
 
-app.post('/partidas', async (req, res) => {
+app.post('/partidas', exigirGestorDoClube, async (req, res) => {
   const { mandante_id, visitante_id, data, horario, local, emCasa, categoria_id, competicao_id, rodada, grupo } = req.body;
   try {
-    console.log('BODY RECEBIDO:', JSON.stringify(req.body, null, 2));
     const dataFormatada = data ? new Date(`${data}T00:00:00Z`) : new Date();
     const catId  = Number(categoria_id);
     const compId = competicao_id ? Number(competicao_id) : null;
+
+    // Garante que a categoria escolhida pertence mesmo ao clube ativo
+    // (evita criar partida "vazando" pra categoria de outro clube).
+    const categoria = await prisma.categoria.findUnique({ where: { id: catId } });
+    if (!categoria || categoria.clube_id !== (req as any).clubeId) {
+      return res.status(403).json({ error: 'Categoria não pertence ao clube ativo' });
+    }
 
     if (horario) {
       const choqueHorario = await prisma.partida.findFirst({
@@ -447,16 +694,18 @@ app.post('/partidas', async (req, res) => {
     });
     res.status(201).json(partida);
   } catch (error: any) {
-    console.error('ERRO AO CRIAR PARTIDA:', error);
     console.error('Erro ao criar partida:', error.message || error);
     res.status(500).json({ error: 'Erro ao criar partida' });
   }
 });
 
 app.get('/partidas', async (req, res) => {
+  const clube_id = Number(req.headers['x-clube-id']);
+  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+
   const { categoria_id, mes, status, competicao_id } = req.query;
   try {
-    const where: any = {};
+    const where: any = { categoria: { clube_id } }; // Garante restrição do tenant
     if (categoria_id)  where.categoria_id  = Number(categoria_id);
     if (status)        where.status        = status;
     if (competicao_id) where.competicao_id = Number(competicao_id);
@@ -476,64 +725,83 @@ app.get('/partidas', async (req, res) => {
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar partidas' }); }
 });
 
-app.patch('/partidas/:id', async (req, res) => {
-  const { mandante_id, visitante_id, data, horario, local, emCasa, rodada, grupo, categoria_id } = req.body;
-  try {
-    const partida = await prisma.partida.update({
-      where: { id: Number(req.params.id) },
-      data: {
-        mandante_id:  mandante_id  ? Number(mandante_id)  : undefined,
-        visitante_id: visitante_id ? Number(visitante_id) : undefined,
-        data:         data ? new Date(`${data}T00:00:00Z`) : undefined,
-        horario, local, emCasa,
-        rodada:       rodada     ? Number(rodada)     : undefined,
-        grupo:        grupo ?? null,
-        categoria_id: categoria_id ? Number(categoria_id) : undefined,
-      },
-      include: { mandante: true, visitante: true, categoria: true },
-    });
-    res.json(partida);
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/partidas/:id', async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    await prisma.evento.deleteMany({ where: { partida_id: id } });
-    await prisma.escalacaoPartida.deleteMany({ where: { partida_id: id } });
-    await prisma.partida.delete({ where: { id } });
-    res.json({ ok: true });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message ?? 'Erro ao excluir partida' });
-  }
-});
-
-app.patch('/partidas/:id/placar', async (req, res) => {
-  const { gols_mandante, gols_visitante } = req.body;
-  try {
-    const partida = await prisma.partida.update({
-      where: { id: Number(req.params.id) },
-      data: { gols_mandante: Number(gols_mandante), gols_visitante: Number(gols_visitante) },
-    });
-    io.emit('placar_atualizado', partida);
-    res.json(partida);
-  } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar placar' }); }
-});
-
-app.patch('/partidas/:id/status', async (req, res) => {
-  const partidaId = parseInt(req.params.id);
-  const { status } = req.body;
-  try {
-    const partida = await prisma.partida.update({ where: { id: partidaId }, data: { status } });
-    // ✅ CORRIGIDO: dispara em background sem bloquear a resposta
-    if (status === 'FINALIZADA') {
-      setImmediate(() => {
-        processarMachineLearning().catch(err => console.error('Erro na IA:', err));
+app.patch<{ id: string }>(
+  '/partidas/:id',
+  exigirGestorDoClube,
+  exigirPartidaDoClube((req) => Number(req.params.id)),
+  async (req, res) => {
+    const { mandante_id, visitante_id, data, horario, local, emCasa, rodada, grupo, categoria_id } = req.body;
+    try {
+      const partida = await prisma.partida.update({
+        where: { id: Number(req.params.id) },
+        data: {
+          mandante_id:  mandante_id  ? Number(mandante_id)  : undefined,
+          visitante_id: visitante_id ? Number(visitante_id) : undefined,
+          data:         data ? new Date(`${data}T00:00:00Z`) : undefined,
+          horario, local, emCasa,
+          rodada:       rodada     ? Number(rodada)     : undefined,
+          grupo:        grupo ?? null,
+          categoria_id: categoria_id ? Number(categoria_id) : undefined,
+        },
+        include: { mandante: true, visitante: true, categoria: true },
       });
+      res.json(partida);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+);
+
+app.delete<{ id: string }>(
+  '/partidas/:id',
+  exigirGestorDoClube,
+  exigirPartidaDoClube((req) => Number(req.params.id)),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      await prisma.evento.deleteMany({ where: { partida_id: id } });
+      await prisma.escalacaoPartida.deleteMany({ where: { partida_id: id } });
+      await prisma.partida.delete({ where: { id } });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message ?? 'Erro ao excluir partida' });
     }
-    res.json(partida);
-  } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar status' }); }
-});
+  }
+);
+
+app.patch<{ id: string }>(
+  '/partidas/:id/placar',
+  exigirGestorDoClube,
+  exigirPartidaDoClube((req) => Number(req.params.id)),
+  async (req, res) => {
+    const { gols_mandante, gols_visitante } = req.body;
+    try {
+      const partida = await prisma.partida.update({
+        where: { id: Number(req.params.id) },
+        data: { gols_mandante: Number(gols_mandante), gols_visitante: Number(gols_visitante) },
+      });
+      io.emit('placar_atualizado', partida);
+      res.json(partida);
+    } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar placar' }); }
+  }
+);
+
+app.patch<{ id: string }>(
+  '/partidas/:id/status',
+  exigirGestorDoClube,
+  exigirPartidaDoClube((req) => Number(req.params.id)),
+  async (req, res) => {
+    const partidaId = Number(req.params.id);
+    const { status } = req.body;
+    try {
+      const partida = await prisma.partida.update({ where: { id: partidaId }, data: { status } });
+      if (status === 'FINALIZADA') {
+        setImmediate(() => {
+          processarMachineLearning().catch(err => console.error('Erro na IA:', err));
+        });
+      }
+      res.json(partida);
+    } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar status' }); }
+  }
+);
 
 app.get('/jogadores/:id/estatisticas', async (req, res) => {
   const jogadorId = parseInt(req.params.id);
@@ -549,40 +817,45 @@ app.get('/jogadores/:id/estatisticas', async (req, res) => {
   res.json({ jogador_id: jogadorId, estatisticas: formatado });
 });
 
-app.post('/partidas/:id/eventos', async (req, res) => {
-  const partidaId = parseInt(req.params.id);
-  const { jogador_id, doOcian, tipo, minuto, periodo } = req.body;
-  try {
-    const evento = await prisma.evento.create({
-      data: {
-        partida_id: partidaId,
-        jogador_id: jogador_id ? Number(jogador_id) : null,
-        doOcian:    doOcian !== undefined ? Boolean(doOcian) : true,
-        tipo,
-        minuto:  minuto  != null ? Number(minuto)  : null,
-        periodo: periodo != null ? Number(periodo)  : 1,
-      } as any,
-    });
-
-    let nomeJogador = 'Adversário';
-    if (evento.jogador_id) {
-      const jog = await prisma.jogador.findUnique({
-        where: { id: evento.jogador_id },
-        select: { nome: true },
+app.post<{ id: string }>(
+  '/partidas/:id/eventos',
+  exigirGestorDoClube,
+  exigirPartidaDoClube((req) => Number(req.params.id)),
+  async (req, res) => {
+    const partidaId = Number(req.params.id);
+    // RESOLVIDO: Removendo o doOcian do payload, ele não existe mais!
+    const { jogador_id, tipo, minuto, periodo } = req.body;
+    try {
+      const evento = await prisma.evento.create({
+        data: {
+          partida_id: partidaId,
+          jogador_id: jogador_id ? Number(jogador_id) : null,
+          tipo,
+          minuto:  minuto  != null ? Number(minuto)  : null,
+          periodo: periodo != null ? Number(periodo)  : 1,
+        },
       });
-      nomeJogador = jog?.nome ?? 'Adversário';
-    }
 
-    io.emit('evento_partida', {
-      tipo:       evento.tipo,
-      jogador:    nomeJogador,
-      minuto:     evento.minuto,
-      partida_id: partidaId,
-    });
+      let nomeJogador = 'Adversário';
+      if (evento.jogador_id) {
+        const jog = await prisma.jogador.findUnique({
+          where: { id: evento.jogador_id },
+          select: { nome: true },
+        });
+        nomeJogador = jog?.nome ?? 'Adversário';
+      }
 
-    res.status(201).json({ ...evento, jogador: nomeJogador ? { nome: nomeJogador } : null });
-  } catch (error: any) { res.status(500).json({ error: 'Erro ao salvar evento' }); }
-});
+      io.emit('evento_partida', {
+        tipo:       evento.tipo,
+        jogador:    nomeJogador,
+        minuto:     evento.minuto,
+        partida_id: partidaId,
+      });
+
+      res.status(201).json({ ...evento, jogador: nomeJogador ? { nome: nomeJogador } : null });
+    } catch (error: any) { res.status(500).json({ error: 'Erro ao salvar evento' }); }
+  }
+);
 
 app.get('/partidas/:id/eventos', async (req, res) => {
   try {
@@ -595,8 +868,14 @@ app.get('/partidas/:id/eventos', async (req, res) => {
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar eventos' }); }
 });
 
-app.delete('/eventos/:id', async (req, res) => {
+app.delete<{ id: string }>('/eventos/:id', exigirGestorDoClube, async (req, res) => {
   try {
+    const evento = await prisma.evento.findUnique({ where: { id: Number(req.params.id) } });
+    if (!evento) return res.status(404).json({ error: 'Evento não encontrado' });
+
+    const pertence = await partidaPertenceAoClube(evento.partida_id, (req as any).clubeId);
+    if (!pertence) return res.status(403).json({ error: 'Este evento não pertence ao clube ativo' });
+
     await prisma.evento.delete({ where: { id: Number(req.params.id) } });
     res.json({ mensagem: 'Evento deletado' });
   } catch (error: any) { res.status(500).json({ error: 'Erro ao deletar evento' }); }
@@ -612,6 +891,8 @@ async function processarMachineLearning() {
     return;
   }
 
+  // Como o processamento de IA roda em background e é pesado, ele vai varrer 
+  // todos os jogadores ativos do banco independentemente do clube. O Python devolve pelo ID do jogador.
   const jogadores = await prisma.jogador.findMany({
     include: { eventos: true, escalacoes: true }
   });
@@ -644,7 +925,6 @@ async function processarMachineLearning() {
 
   try {
     console.log(`Scout IA: Enviando ${payload.length} jogadores para o Python...`);
-    // ✅ CORRIGIDO: timeout de 2 minutos para o Render acordar do modo sleep
     const resposta = await axios.post(
       `${PYTHON_AI_URL}/internal/ml/treinar-perfis`,
       payload,
@@ -686,35 +966,40 @@ app.get('/partidas/:id/escalacao', async (req, res) => {
   }
 });
 
-app.put('/partidas/:id/escalacao', async (req, res) => {
-  const partidaId = Number(req.params.id);
-  const { jogadores } = req.body as {
-    jogadores: { jogador_id: number; numCamisa: number; titular: boolean }[];
-  };
-  if (!Array.isArray(jogadores)) {
-    return res.status(400).json({ error: 'jogadores deve ser um array' });
+app.put<{ id: string }>(
+  '/partidas/:id/escalacao',
+  exigirGestorDoClube,
+  exigirPartidaDoClube((req) => Number(req.params.id)),
+  async (req, res) => {
+    const partidaId = Number(req.params.id);
+    const { jogadores } = req.body as {
+      jogadores: { jogador_id: number; numCamisa: number; titular: boolean }[];
+    };
+    if (!Array.isArray(jogadores)) {
+      return res.status(400).json({ error: 'jogadores deve ser um array' });
+    }
+    try {
+      await prisma.escalacaoPartida.deleteMany({ where: { partida_id: partidaId } });
+      await prisma.escalacaoPartida.createMany({
+        data: jogadores.map(j => ({
+          partida_id: partidaId,
+          jogador_id: Number(j.jogador_id),
+          numCamisa:  Number(j.numCamisa),
+          titular:    Boolean(j.titular),
+        })),
+      });
+      const nova = await prisma.escalacaoPartida.findMany({
+        where: { partida_id: partidaId },
+        include: { jogador: { select: { nome: true, posicao: true, numCamisa: true } } },
+        orderBy: [{ titular: 'desc' }, { numCamisa: 'asc' }],
+      });
+      res.json(nova);
+    } catch (error: any) {
+      console.error('Erro ao salvar escalação:', error.message);
+      res.status(500).json({ error: error.message || 'Erro ao salvar escalação' });
+    }
   }
-  try {
-    await prisma.escalacaoPartida.deleteMany({ where: { partida_id: partidaId } });
-    await prisma.escalacaoPartida.createMany({
-      data: jogadores.map(j => ({
-        partida_id: partidaId,
-        jogador_id: Number(j.jogador_id),
-        numCamisa:  Number(j.numCamisa),
-        titular:    Boolean(j.titular),
-      })),
-    });
-    const nova = await prisma.escalacaoPartida.findMany({
-      where: { partida_id: partidaId },
-      include: { jogador: { select: { nome: true, posicao: true, numCamisa: true } } },
-      orderBy: [{ titular: 'desc' }, { numCamisa: 'asc' }],
-    });
-    res.json(nova);
-  } catch (error: any) {
-    console.error('Erro ao salvar escalação:', error.message);
-    res.status(500).json({ error: error.message || 'Erro ao salvar escalação' });
-  }
-});
+);
 
 app.post('/admin/reprocessar-scout', async (req, res) => {
   if (!PYTHON_AI_URL) {

@@ -1,28 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BASE_URL } from '@/src/services/api';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { styles } from '../../src/styles/cadastroStyles';
-import { colors } from '@/src/theme/colors';
+import { SvgProps } from 'react-native-svg';
+import { styles } from '@/src/styles/cadastroStyles'
+import { colors } from '@ludora/design-tokens';
 
-function Requisito({ ok, texto }: { ok: boolean; texto: string }) {
-  return (
-    <View style={styles.requisitoItem}>
-      <MaterialCommunityIcons
-        name={ok ? 'check-circle' : 'circle-outline'}
-        size={13}
-        color={ok ? '#22c55e' : '#444'}
-      />
-      <Text style={[styles.requisitoTxt, ok && styles.requisitoOk]}>{texto}</Text>
-    </View>
-  );
-}
+import LogoArquivo from '@/assets/logo.svg'; 
+
+const Logo = LogoArquivo as unknown as React.FC<SvgProps>;
 
 export default function Cadastro() {
   const router = useRouter();
 
-  const [nome,           setNome]           = useState('');
   const [email,          setEmail]          = useState('');
   const [senha,          setSenha]          = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
@@ -31,16 +22,15 @@ export default function Cadastro() {
   const [carregando,     setCarregando]     = useState(false);
   const [erro,           setErro]           = useState('');
 
-  const [nomeFocado,    setNomeFocado]    = useState(false);
   const [emailFocado,   setEmailFocado]   = useState(false);
   const [senhaFocada,   setSenhaFocada]   = useState(false);
   const [confirmFocado, setConfirmFocado] = useState(false);
 
-  const senhaMin6    = senha.length >= 6;
+  const senhaMin6      = senha.length >= 6;
   const senhaCoincidem = senha === confirmarSenha && confirmarSenha.length > 0;
-  const emailValido  = /\S+@\S+\.\S+/.test(email);
+  const emailValido    = /\S+@\S+\.\S+/.test(email);
 
-  const formValido = nome.trim() && emailValido && senhaMin6 && senhaCoincidem;
+  const formValido = emailValido && senhaMin6 && senhaCoincidem;
 
   const handleCadastro = async () => {
     setErro('');
@@ -50,13 +40,21 @@ export default function Cadastro() {
     }
     setCarregando(true);
     try {
+      const nomeFallback = email.split('@')[0];
+
       const resposta = await fetch(`${BASE_URL}/auth/registrar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), senha, nome: nome.trim(), role: 'USER' }),
+        body: JSON.stringify({ 
+          email: email.trim().toLowerCase(), 
+          senha, 
+          nome: nomeFallback, 
+          role: 'USER' 
+        }),
       });
       const dados = await resposta.json();
       if (!resposta.ok) throw new Error(dados.error || 'Erro ao criar conta.');
+      
       router.replace('/(auth)/login');
     } catch (e: any) {
       setErro(e.message);
@@ -68,16 +66,20 @@ export default function Cadastro() {
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
       <View style={styles.container}>
+        
         <TouchableOpacity style={styles.btnVoltar} onPress={() => router.back()}>
-          <MaterialCommunityIcons name="arrow-left" size={22} color={colors.text} />
+          <MaterialCommunityIcons name="arrow-left" size={22} color={colors.texto} />
         </TouchableOpacity>
 
-        <View style={styles.logoContainer}>
-          <MaterialCommunityIcons name="account-plus-outline" size={34} color={colors.primary} />
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Logo width={60} height={60} />
+          </View>
+          <Text style={styles.titulo}>CRIE SUA CONTA</Text>
+          <Text style={styles.subtitulo}>
+            Leva menos de um minuto e você{'\n'}já pode seguir os clubes que quiser.
+          </Text>
         </View>
-
-        <Text style={styles.titulo}>Criar Conta</Text>
-        <Text style={styles.subtitulo}>Junte-se ao CFA Ocian</Text>
 
         <View style={styles.form}>
           {erro !== '' && (
@@ -88,30 +90,13 @@ export default function Cadastro() {
           )}
 
           <View>
-            <Text style={styles.inputLabel}>NOME COMPLETO</Text>
-            <View style={[styles.inputRow, nomeFocado && styles.inputRowFocado]}>
-              <MaterialCommunityIcons name="account-outline" size={18} color={nomeFocado ? colors.primary : colors.text_secondary} />
-              <TextInput
-                style={styles.input}
-                placeholder="Seu nome"
-                placeholderTextColor="#444"
-                autoCapitalize="words"
-                value={nome}
-                onChangeText={v => { setNome(v); setErro(''); }}
-                onFocus={() => setNomeFocado(true)}
-                onBlur={() => setNomeFocado(false)}
-              />
-            </View>
-          </View>
-
-          <View>
-            <Text style={styles.inputLabel}>E-MAIL</Text>
+            <Text style={styles.inputLabel}>EMAIL</Text>
             <View style={[styles.inputRow, emailFocado && styles.inputRowFocado, email && !emailValido && styles.inputRowErro]}>
-              <MaterialCommunityIcons name="email-outline" size={18} color={emailFocado ? colors.primary : colors.text_secondary} />
+              <MaterialCommunityIcons name="email-outline" size={20} color={emailFocado ? colors.primaria : colors.textoSecundario} />
               <TextInput
                 style={styles.input}
-                placeholder="seu@email.com"
-                placeholderTextColor="#444"
+                placeholder="email@exemplo.com"
+                placeholderTextColor={colors.textoSecundario}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
@@ -119,78 +104,76 @@ export default function Cadastro() {
                 onFocus={() => setEmailFocado(true)}
                 onBlur={() => setEmailFocado(false)}
               />
-              {emailValido && (
-                <MaterialCommunityIcons name="check-circle" size={16} color="#22c55e" />
-              )}
             </View>
           </View>
 
           <View>
             <Text style={styles.inputLabel}>SENHA</Text>
             <View style={[styles.inputRow, senhaFocada && styles.inputRowFocado]}>
-              <MaterialCommunityIcons name="lock-outline" size={18} color={senhaFocada ? colors.primary : colors.text_secondary} />
+              <MaterialCommunityIcons name="dots-horizontal" size={20} color={senhaFocada ? colors.primaria : colors.textoSecundario} />
               <TextInput
                 style={styles.input}
-                placeholder="Mínimo 6 caracteres"
-                placeholderTextColor="#444"
+                placeholder="Digite sua senha"
+                placeholderTextColor={colors.textoSecundario}
                 secureTextEntry={!mostrarSenha}
                 value={senha}
                 onChangeText={v => { setSenha(v); setErro(''); }}
                 onFocus={() => setSenhaFocada(true)}
                 onBlur={() => setSenhaFocada(false)}
               />
-              <TouchableOpacity onPress={() => setMostrarSenha(v => !v)} activeOpacity={0.7}>
-                <MaterialCommunityIcons name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.text_secondary} />
+              <TouchableOpacity onPress={() => setMostrarSenha(v => !v)} activeOpacity={0.7} style={styles.olho}>
+                <MaterialCommunityIcons name={mostrarSenha ? 'eye-outline' : 'eye-off-outline'} size={22} color={colors.textoSecundario} />
               </TouchableOpacity>
             </View>
           </View>
 
           <View>
-            <Text style={styles.inputLabel}>CONFIRMAR SENHA</Text>
+            <Text style={styles.inputLabel}>CONFIRME A SENHA</Text>
             <View style={[styles.inputRow, confirmFocado && styles.inputRowFocado, confirmarSenha && !senhaCoincidem && styles.inputRowErro]}>
-              <MaterialCommunityIcons name="lock-check-outline" size={18} color={confirmFocado ? colors.primary : colors.text_secondary} />
+              <MaterialCommunityIcons name="dots-horizontal" size={20} color={confirmFocado ? colors.primaria : colors.textoSecundario} />
               <TextInput
                 style={styles.input}
-                placeholder="Repita a senha"
-                placeholderTextColor="#444"
+                placeholder="Digite sua senha"
+                placeholderTextColor={colors.textoSecundario}
                 secureTextEntry={!mostrarConfirm}
                 value={confirmarSenha}
                 onChangeText={v => { setConfirmarSenha(v); setErro(''); }}
                 onFocus={() => setConfirmFocado(true)}
                 onBlur={() => setConfirmFocado(false)}
               />
-              <TouchableOpacity onPress={() => setMostrarConfirm(v => !v)} activeOpacity={0.7}>
-                <MaterialCommunityIcons name={mostrarConfirm ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.text_secondary} />
+              <TouchableOpacity onPress={() => setMostrarConfirm(v => !v)} activeOpacity={0.7} style={styles.olho}>
+                <MaterialCommunityIcons name={mostrarConfirm ? 'eye-outline' : 'eye-off-outline'} size={22} color={colors.textoSecundario} />
               </TouchableOpacity>
             </View>
           </View>
+        </View>
 
-          {senha.length > 0 && (
-            <View style={styles.requisitos}>
-              <Requisito ok={senhaMin6} texto="Mínimo 6 caracteres" />
-              <Requisito ok={senhaCoincidem} texto="Senhas coincidem" />
-            </View>
-          )}
+        <View style={{ flex: 1 }} />
 
+        <View style={styles.bottomSection}>
           <TouchableOpacity
-            style={[styles.btnEntrar, !formValido && styles.btnEntrarDisabled]}
+            style={[styles.btnContinuar, !formValido && styles.btnContinuarDisabled]}
             onPress={handleCadastro}
             disabled={!formValido || carregando}
             activeOpacity={0.85}
           >
             {carregando
               ? <ActivityIndicator color="#FFF" />
-              : <Text style={styles.txtBtnEntrar}>CRIAR CONTA</Text>
+              : <Text style={styles.txtBtnContinuar}>CONTINUAR</Text>
             }
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.btnCadastro} onPress={() => router.back()} activeOpacity={0.7}>
-            <Text style={styles.txtCadastro}>
-              Já tem uma conta?{' '}
-              <Text style={styles.txtCadastroDestaque}>Faça login</Text>
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.rodape}>
+            <View style={styles.linhaSeparadora} />
+            <View style={styles.linhaRodape}>
+              <Text style={styles.textoCinzaRodape}>É técnico ou administrador? </Text>
+              <TouchableOpacity onPress={() => console.log('Ir para convite')}>
+                <Text style={styles.textoAzulRodape}>Entrar com código de convite</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
+
       </View>
     </ScrollView>
   );

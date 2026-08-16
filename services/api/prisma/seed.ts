@@ -1,4 +1,4 @@
-import { PrismaClient, TipoCategoria, Role, TipoEvento, StatusPartida, TipoCompeticao } from "@prisma/client";
+import { PrismaClient, TipoCategoria, PapelUsuario, TipoEvento, StatusPartida, TipoCompeticao } from "@prisma/client";
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -35,18 +35,17 @@ const ADVERSARIOS_SUB16 = [
 // ── Jogadores do sub-16 com perfis variados ───────────────────────────────────
 
 const JOGADORES_SUB16 = [
-  { nome: 'Murilo Paredão',     posicao: 'Goleiro', camisa: 1,  titular: true  },
-  { nome: 'Felipe Fixo',        posicao: 'Fixo',    camisa: 4,  titular: true  },
-  { nome: 'Jefferson Maestro',  posicao: 'Ala',     camisa: 10, titular: true  },
-  { nome: 'Marcos Artilheiro',  posicao: 'Pivô',    camisa: 9,  titular: true  },
-  { nome: 'Lucas Motorzinho',   posicao: 'Ala',     camisa: 7,  titular: true  },
-  { nome: 'Gabriel Talento',    posicao: 'Ala',     camisa: 11, titular: false },
-  { nome: 'Rafael Banco',       posicao: 'Pivô',    camisa: 13, titular: false },
-  { nome: 'Diego Coringa',      posicao: 'Ala',     camisa: 8,  titular: false },
+  { nome: 'Murilo Paredão',    posicao: 'Goleiro', camisa: 1,  titular: true  },
+  { nome: 'Felipe Fixo',       posicao: 'Fixo',    camisa: 4,  titular: true  },
+  { nome: 'Jefferson Maestro', posicao: 'Ala',     camisa: 10, titular: true  },
+  { nome: 'Marcos Artilheiro', posicao: 'Pivô',    camisa: 9,  titular: true  },
+  { nome: 'Lucas Motorzinho',  posicao: 'Ala',     camisa: 7,  titular: true  },
+  { nome: 'Gabriel Talento',   posicao: 'Ala',     camisa: 11, titular: false },
+  { nome: 'Rafael Banco',      posicao: 'Pivô',    camisa: 13, titular: false },
+  { nome: 'Diego Coringa',     posicao: 'Ala',     camisa: 8,  titular: false },
 ];
 
 // ── Gerador de eventos por partida ────────────────────────────────────────────
-// Recebe os IDs dos jogadores já criados e gera eventos variados e realistas
 
 function gerarEventos(
   partidaId: number,
@@ -58,7 +57,6 @@ function gerarEventos(
   tipo: TipoEvento;
   periodo: number;
   minuto: number | null;
-  doOcian: boolean;
   jogador_id: number | null;
 }> {
   const eventos: ReturnType<typeof gerarEventos> = [];
@@ -69,62 +67,60 @@ function gerarEventos(
   const fixos      = jogadores.filter(j => j.posicao === 'Fixo');
   const atacantes  = [...pivos, ...alas];
 
-  // Gols do Ocian — distribuídos entre períodos, majoritariamente atacantes
+  // Gols do Ocian
   let golsRestantes = golsOcian;
   for (let g = 0; g < golsOcian; g++) {
     const periodo = g < Math.ceil(golsOcian / 2) ? 1 : 2;
     const artilheiro = escolher(atacantes);
     const assistente = escolher([...alas, ...fixos].filter(j => j.id !== artilheiro.id));
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.GOL, periodo, minuto: null, doOcian: true, jogador_id: artilheiro.id });
-    // Assistência em ~70% dos gols
+    // Note que removemos o 'doOcian' daqui
+    eventos.push({ partida_id: partidaId, tipo: TipoEvento.GOL, periodo, minuto: null, jogador_id: artilheiro.id });
     if (Math.random() < 0.7 && assistente) {
-      eventos.push({ partida_id: partidaId, tipo: TipoEvento.ASSISTENCIA, periodo, minuto: null, doOcian: true, jogador_id: assistente.id });
+      eventos.push({ partida_id: partidaId, tipo: TipoEvento.ASSISTENCIA, periodo, minuto: null, jogador_id: assistente.id });
     }
     golsRestantes--;
   }
 
-  // Gols do adversário (sem jogador específico do Ocian)
+  // Gols do adversário
   for (let g = 0; g < golsAdversario; g++) {
     const periodo = g < Math.ceil(golsAdversario / 2) ? 1 : 2;
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.GOL, periodo, minuto: null, doOcian: false, jogador_id: null });
+    eventos.push({ partida_id: partidaId, tipo: TipoEvento.GOL, periodo, minuto: null, jogador_id: null });
   }
 
-  // Defesas do goleiro — mais defesas quanto mais gols o adversário fez + base
+  // Defesas
   const numDefesas = randInt(2, 4) + golsAdversario;
   for (let d = 0; d < numDefesas; d++) {
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.DEFESA, periodo: d % 2 === 0 ? 1 : 2, minuto: null, doOcian: true, jogador_id: goleiro.id });
+    eventos.push({ partida_id: partidaId, tipo: TipoEvento.DEFESA, periodo: d % 2 === 0 ? 1 : 2, minuto: null, jogador_id: goleiro.id });
   }
 
-  // Faltas (2-5 por partida, qualquer jogador)
+  // Faltas
   const numFaltas = randInt(2, 5);
   for (let f = 0; f < numFaltas; f++) {
     const j = escolher(jogadores);
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.FALTA, periodo: randInt(1, 2), minuto: null, doOcian: true, jogador_id: j.id });
+    eventos.push({ partida_id: partidaId, tipo: TipoEvento.FALTA, periodo: randInt(1, 2), minuto: null, jogador_id: j.id });
   }
 
-  // Cartões (ocasionais — ~40% das partidas têm 1 cartão amarelo)
+  // Cartões Amarelos
   if (Math.random() < 0.4) {
     const j = escolher(jogadores.filter(jj => jj.posicao !== 'Goleiro'));
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.CARTAO_AMARELO, periodo: 2, minuto: null, doOcian: true, jogador_id: j.id });
+    eventos.push({ partida_id: partidaId, tipo: TipoEvento.CARTAO_AMARELO, periodo: 2, minuto: null, jogador_id: j.id });
   }
 
-  // Cartão azul ocasional (~15%)
+  // Cartão azul
   if (Math.random() < 0.15) {
     const j = escolher(jogadores);
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.CARTAO_AZUL, periodo: 2, minuto: null, doOcian: true, jogador_id: j.id });
+    eventos.push({ partida_id: partidaId, tipo: TipoEvento.CARTAO_AZUL, periodo: 2, minuto: null, jogador_id: j.id });
   }
 
   return eventos;
 }
 
 // ── Tabela de 30 partidas do sub-16 ───────────────────────────────────────────
-// Distribuídas ao longo de 2025, resultados variados mas time forte (maioria vitorias)
 
 const CRONOGRAMA_SUB16: Array<{
   mes: number; dia: number; rodada: number; grupo: string | null;
   adversario: string; emCasa: boolean; golsOcian: number; golsAdv: number;
 }> = [
-  // FASE DE GRUPOS — Grupo A e B
   { mes: 2, dia: 8,  rodada: 1,  grupo: 'A', adversario: 'Santos FC',      emCasa: true,  golsOcian: 4, golsAdv: 1 },
   { mes: 2, dia: 15, rodada: 1,  grupo: 'B', adversario: 'Guarujá EC',     emCasa: false, golsOcian: 3, golsAdv: 2 },
   { mes: 2, dia: 22, rodada: 2,  grupo: 'A', adversario: 'Praia Grande FC',emCasa: true,  golsOcian: 5, golsAdv: 0 },
@@ -135,7 +131,6 @@ const CRONOGRAMA_SUB16: Array<{
   { mes: 3, dia: 29, rodada: 4,  grupo: 'B', adversario: 'Bertioga SC',    emCasa: false, golsOcian: 3, golsAdv: 1 },
   { mes: 4, dia: 5,  rodada: 5,  grupo: 'A', adversario: 'Cubatão FC',     emCasa: true,  golsOcian: 2, golsAdv: 0 },
   { mes: 4, dia: 12, rodada: 5,  grupo: 'B', adversario: 'Litoral FC',     emCasa: false, golsOcian: 4, golsAdv: 3 },
-  // RODADA DE VOLTA
   { mes: 4, dia: 26, rodada: 6,  grupo: 'A', adversario: 'Santos FC',      emCasa: false, golsOcian: 3, golsAdv: 2 },
   { mes: 5, dia: 3,  rodada: 6,  grupo: 'B', adversario: 'Guarujá EC',     emCasa: true,  golsOcian: 5, golsAdv: 1 },
   { mes: 5, dia: 10, rodada: 7,  grupo: 'A', adversario: 'Praia Grande FC',emCasa: false, golsOcian: 2, golsAdv: 2 },
@@ -146,7 +141,6 @@ const CRONOGRAMA_SUB16: Array<{
   { mes: 6, dia: 14, rodada: 9,  grupo: 'B', adversario: 'Bertioga SC',    emCasa: true,  golsOcian: 5, golsAdv: 0 },
   { mes: 6, dia: 21, rodada: 10, grupo: 'A', adversario: 'Cubatão FC',     emCasa: false, golsOcian: 2, golsAdv: 3 },
   { mes: 6, dia: 28, rodada: 10, grupo: 'B', adversario: 'Litoral FC',     emCasa: true,  golsOcian: 4, golsAdv: 1 },
-  // FASE ELIMINATÓRIA
   { mes: 7, dia: 19, rodada: 11, grupo: null, adversario: 'Santos FC',      emCasa: true,  golsOcian: 3, golsAdv: 1 },
   { mes: 7, dia: 26, rodada: 11, grupo: null, adversario: 'Guarujá EC',     emCasa: false, golsOcian: 4, golsAdv: 2 },
   { mes: 8, dia: 2,  rodada: 12, grupo: null, adversario: 'Praia Grande FC',emCasa: true,  golsOcian: 2, golsAdv: 1 },
@@ -155,7 +149,6 @@ const CRONOGRAMA_SUB16: Array<{
   { mes: 8, dia: 23, rodada: 13, grupo: null, adversario: 'Cubatão FC',     emCasa: false, golsOcian: 1, golsAdv: 2 },
   { mes: 9, dia: 6,  rodada: 14, grupo: null, adversario: 'Litoral FC',     emCasa: true,  golsOcian: 4, golsAdv: 1 },
   { mes: 9, dia: 13, rodada: 14, grupo: null, adversario: 'São Vicente EC', emCasa: false, golsOcian: 3, golsAdv: 0 },
-  // SEMIFINAL e FINAL
   { mes: 9, dia: 27, rodada: 15, grupo: null, adversario: 'Santos FC',      emCasa: true,  golsOcian: 4, golsAdv: 2 },
   { mes: 10,dia: 11, rodada: 16, grupo: null, adversario: 'Guarujá EC',     emCasa: true,  golsOcian: 3, golsAdv: 1 },
 ];
@@ -163,8 +156,10 @@ const CRONOGRAMA_SUB16: Array<{
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log("🧼 Limpando partidas, eventos e tabelas dependentes...");
+  console.log("🧼 Limpando dados antigos...");
 
+  // Para evitar erros de FK, é bom deletar UsuarioClube e Clube
+  await prisma.usuarioClube.deleteMany({});
   await prisma.evento.deleteMany({});
   await prisma.escalacaoPartida.deleteMany({});
   await prisma.partida.deleteMany({});
@@ -173,42 +168,76 @@ async function main() {
   await prisma.jogador.deleteMany({});
   await prisma.time.deleteMany({});
   await prisma.competicao.deleteMany({});
+  await prisma.categoria.deleteMany({});
+  await prisma.clube.deleteMany({});
 
   console.log("🏁 Banco limpo. Iniciando seeding...");
+
+  // ── 0. CRIANDO O CLUBE BASE (MULTI-TENANT) ──────────────────────────────────
+  const clubeOcian = await prisma.clube.create({
+    data: {
+      nome: 'CFA Ocian Praia Clube',
+      cidade: 'Praia Grande',
+      estado: 'SP',
+      plano: 'PRO'
+    }
+  });
+  console.log(`✅ Clube criado: ${clubeOcian.nome} (ID: ${clubeOcian.id})`);
 
   // ── 1. CATEGORIAS ────────────────────────────────────────────────────────────
   const categoriasIniciacao = ['sub-7', 'sub-8', 'sub-9', 'sub-10'];
   for (const nome of categoriasIniciacao) {
     await prisma.categoria.upsert({
-      where: { nome },
+      where: { nome_clube_id: { nome, clube_id: clubeOcian.id } },
       update: {},
-      create: { nome, tipo: TipoCategoria.INICIACAO, faixaIdade: parseInt(nome.replace('sub-', '')) },
+      create: { 
+        nome, 
+        tipo: TipoCategoria.INICIACAO, 
+        faixaIdade: parseInt(nome.replace('sub-', '')),
+        clube_id: clubeOcian.id
+      },
     });
   }
 
   const categoriasBases = ['sub-12', 'sub-14', 'sub-16', 'sub-18'];
   for (const nome of categoriasBases) {
     await prisma.categoria.upsert({
-      where: { nome },
+      where: { nome_clube_id: { nome, clube_id: clubeOcian.id } },
       update: {},
-      create: { nome, tipo: TipoCategoria.BASE, faixaIdade: parseInt(nome.replace('sub-', '')) },
+      create: { 
+        nome, 
+        tipo: TipoCategoria.BASE, 
+        faixaIdade: parseInt(nome.replace('sub-', '')),
+        clube_id: clubeOcian.id
+      },
     });
   }
-  console.log("✅ Categorias criadas/verificadas.");
+  console.log("✅ Categorias criadas vinculadas ao clube.");
 
   // ── 2. ADMIN ─────────────────────────────────────────────────────────────────
   const hashSenha = await bcrypt.hash('123456', 10);
   await prisma.usuario.upsert({
     where: { email: 'admin@ocian.com' },
     update: {},
-    create: { nome: 'Administrador', email: 'admin@ocian.com', senha: hashSenha, role: Role.ADMIN },
+    create: { 
+      nome: 'Administrador', 
+      email: 'admin@ocian.com', 
+      senha: hashSenha,
+      // Cria a relação com o clube na tabela pivô
+      clubes: {
+        create: {
+          clube_id: clubeOcian.id,
+          papel: PapelUsuario.ADMIN
+        }
+      }
+    },
   });
-  console.log('✅ Admin verificado.');
+  console.log('✅ Admin criado e vinculado ao clube como ADMIN.');
 
-  // ── 3. SEED BASE — 1 partida por sub (igual ao original) ─────────────────────
+  // ── 3. SEED BASE — 1 partida por sub ─────────────────────────────────────────
   console.log("⚽ Gerando estrutura base por sub...");
 
-  const todasCategorias = await prisma.categoria.findMany();
+  const todasCategorias = await prisma.categoria.findMany({ where: { clube_id: clubeOcian.id } });
   const anoAtual = 2026;
 
   for (const cat of todasCategorias) {
@@ -259,17 +288,17 @@ async function main() {
 
     await prisma.evento.createMany({
       data: [
-        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 1, minuto: null, doOcian: true, jogador_id: jogadoresCriados[3].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 1, minuto: null, doOcian: true, jogador_id: jogadoresCriados[3].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 2, minuto: null, doOcian: true, jogador_id: jogadoresCriados[3].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.ASSISTENCIA,   periodo: 1, minuto: null, doOcian: true, jogador_id: jogadoresCriados[2].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.ASSISTENCIA,   periodo: 2, minuto: null, doOcian: true, jogador_id: jogadoresCriados[2].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 2, minuto: null, doOcian: true, jogador_id: jogadoresCriados[2].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.DEFESA,        periodo: 1, minuto: null, doOcian: true, jogador_id: jogadoresCriados[0].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.DEFESA,        periodo: 2, minuto: null, doOcian: true, jogador_id: jogadoresCriados[0].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.FALTA,         periodo: 1, minuto: null, doOcian: true, jogador_id: jogadoresCriados[1].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.CARTAO_AMARELO,periodo: 2, minuto: null, doOcian: true, jogador_id: jogadoresCriados[1].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.CARTAO_AZUL,   periodo: 2, minuto: null, doOcian: true, jogador_id: jogadoresCriados[4].jogador.id },
+        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 1, minuto: null, jogador_id: jogadoresCriados[3].jogador.id },
+        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 1, minuto: null, jogador_id: jogadoresCriados[3].jogador.id },
+        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 2, minuto: null, jogador_id: jogadoresCriados[3].jogador.id },
+        { partida_id: partida.id, tipo: TipoEvento.ASSISTENCIA,   periodo: 1, minuto: null, jogador_id: jogadoresCriados[2].jogador.id },
+        { partida_id: partida.id, tipo: TipoEvento.ASSISTENCIA,   periodo: 2, minuto: null, jogador_id: jogadoresCriados[2].jogador.id },
+        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 2, minuto: null, jogador_id: jogadoresCriados[2].jogador.id },
+        { partida_id: partida.id, tipo: TipoEvento.DEFESA,        periodo: 1, minuto: null, jogador_id: jogadoresCriados[0].jogador.id },
+        { partida_id: partida.id, tipo: TipoEvento.DEFESA,        periodo: 2, minuto: null, jogador_id: jogadoresCriados[0].jogador.id },
+        { partida_id: partida.id, tipo: TipoEvento.FALTA,         periodo: 1, minuto: null, jogador_id: jogadoresCriados[1].jogador.id },
+        { partida_id: partida.id, tipo: TipoEvento.CARTAO_AMARELO,periodo: 2, minuto: null, jogador_id: jogadoresCriados[1].jogador.id },
+        { partida_id: partida.id, tipo: TipoEvento.CARTAO_AZUL,   periodo: 2, minuto: null, jogador_id: jogadoresCriados[4].jogador.id },
       ],
     });
 
@@ -279,40 +308,39 @@ async function main() {
   // ── 4. CAMPEONATO SUB-16 2025 ─────────────────────────────────────────────────
   console.log("\n🏆 Gerando campeonato sub-16 2025 com 30 partidas...");
 
-  const catSub16 = await prisma.categoria.findFirst({ where: { nome: 'sub-16' } });
+  const catSub16 = await prisma.categoria.findUnique({ 
+    where: { nome_clube_id: { nome: 'sub-16', clube_id: clubeOcian.id } } 
+  });
   if (!catSub16) throw new Error('Categoria sub-16 não encontrada');
 
-  // Cria o campeonato
   const campeonato = await prisma.competicao.create({
     data: {
       nome: 'Campeonato Paulista Litorâneo',
       ano: 2025,
       tipo: TipoCompeticao.BASE,
+      clube_id: clubeOcian.id // <--- Vínculo da competição com o clube
     },
   });
 
-  // Time Ocian sub-16 — pega o criado no loop acima
-  const ocianSub16 = await prisma.time.findFirst({
-    where: { nome: 'CFA Ocian', categoria_id: catSub16.id },
+  const ocianSub16 = await prisma.time.findUnique({
+    where: { nome_categoria_id: { nome: 'CFA Ocian', categoria_id: catSub16.id } },
   });
   if (!ocianSub16) throw new Error('Time Ocian sub-16 não encontrado');
 
-  // Inscreve o Ocian no campeonato
   await prisma.competicaoTime.create({
     data: { competicao_id: campeonato.id, time_id: ocianSub16.id },
   });
 
-  // Cria times adversários e inscreve no campeonato
   const timesAdv: Record<string, number> = {};
   for (const nomeAdv of ADVERSARIOS_SUB16) {
-    const timeExistente = await prisma.time.findFirst({
-      where: { nome: nomeAdv, categoria_id: catSub16.id },
+    const timeExistente = await prisma.time.findUnique({
+      where: { nome_categoria_id: { nome: nomeAdv, categoria_id: catSub16.id } },
     });
     const timeAdv = timeExistente ?? await prisma.time.create({
       data: { nome: nomeAdv, categoria_id: catSub16.id },
     });
     timesAdv[nomeAdv] = timeAdv.id;
-    // Inscreve no campeonato (ignora se já existir)
+    
     await prisma.competicaoTime.upsert({
       where: { competicao_id_time_id: { competicao_id: campeonato.id, time_id: timeAdv.id } },
       update: {},
@@ -320,13 +348,11 @@ async function main() {
     });
   }
 
-  // Jogadores do sub-16 — pega os criados no loop base
   const jogadoresSub16DB = await prisma.jogador.findMany({
     where: { categoria_id: catSub16.id },
     orderBy: { id: 'asc' },
   });
 
-  // Cria jogadores extras para o sub-16 ter um elenco mais completo (8 jogadores)
   const anoNascSub16 = anoAtual - catSub16.faixaIdade;
   const idStrSub16   = catSub16.id.toString().padStart(2, '0');
   const extras = [
@@ -348,7 +374,6 @@ async function main() {
     }
   }
 
-  // Inscreve todos os jogadores do sub-16 no campeonato
   for (const j of jogadoresSub16DB) {
     await prisma.competicaoJogador.upsert({
       where: { competicao_id_jogador_id: { competicao_id: campeonato.id, jogador_id: j.id } },
@@ -357,7 +382,6 @@ async function main() {
     });
   }
 
-  // Monta lista de jogadores com posição para o gerador de eventos
   const jogadoresParaEventos = jogadoresSub16DB.map(j => ({
     id:      j.id,
     posicao: j.posicao,
@@ -396,7 +420,6 @@ async function main() {
       },
     });
 
-    // Escalação — todos os jogadores do sub-16, camisas únicas por partida
     const titulares = jogadoresSub16DB.filter(j =>
       JOGADORES_SUB16.find(jd => j.nome.includes(jd.nome.split(' ')[0]))?.titular ?? false
     );
@@ -411,7 +434,6 @@ async function main() {
 
     await prisma.escalacaoPartida.createMany({ data: escalacao.map(e => ({ ...e, partida_id: partida.id })) });
 
-    // Eventos
     const eventos = gerarEventos(partida.id, jogadoresParaEventos, jogo.golsOcian, jogo.golsAdv);
     if (eventos.length > 0) {
       await prisma.evento.createMany({ data: eventos });

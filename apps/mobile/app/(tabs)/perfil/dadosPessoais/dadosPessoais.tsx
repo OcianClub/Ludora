@@ -1,116 +1,273 @@
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Pressable, ActivityIndicator, Alert } from 'react-native';
-import { useState, useEffect } from 'react';
-import { styles } from '../../../../src/styles/dadosPessoaisStyles';
-import { Header } from '@/src/components/Header';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors } from '@/src/theme/colors';
-import * as SecureStore from 'expo-secure-store';
-import { router } from 'expo-router'
-import { atualizarUsuario, excluirConta as excluirContaAPI } from '@/src/services/api';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Modal,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+
+import { useState, useEffect } from "react";
+
+import { styles } from "@/src/styles/dadosPessoaisStyles";
+import { Header } from "@/src/components/Header";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { colors } from "@ludora/design-tokens";
+import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+
+import {
+  atualizarUsuario,
+  excluirConta as excluirContaAPI,
+} from "@/src/services/api";
 
 interface DadosPessoaisProps {
   onFechar: () => void;
   noModal?: boolean;
 }
 
-interface CampoEditavelProps {
+interface CampoProps {
   label: string;
   valor: string;
-  placeholder?: string;
   icone: keyof typeof MaterialCommunityIcons.glyphMap;
   editando: boolean;
   onChangeText: (text: string) => void;
+  placeholder?: string;
   secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address' | 'numeric';
+  mostrarSenha?: boolean;
+  onToggleSenha?: () => void;
+  keyboardType?: "default" | "email-address";
 }
 
-function CampoEditavel({ label, valor, placeholder, icone, editando, onChangeText, secureTextEntry, keyboardType }: CampoEditavelProps) {
+function Campo({
+  label,
+  valor,
+  icone,
+  editando,
+  onChangeText,
+  placeholder,
+  secureTextEntry,
+  mostrarSenha,
+  onToggleSenha,
+  keyboardType = "default",
+}: CampoProps) {
+  if (!editando) {
+    return (
+      <View style={styles.infoItem}>
+        <View style={styles.infoIcon}>
+          <MaterialCommunityIcons
+            name={icone}
+            size={19}
+            color={colors.textoSecundario}
+          />
+        </View>
+
+        <View style={styles.infoContent}>
+          <Text style={styles.infoLabel}>
+            {label}
+          </Text>
+
+          <Text
+            style={[
+              styles.infoValue,
+              !valor && styles.infoValueEmpty,
+            ]}
+            numberOfLines={1}
+          >
+            {valor || placeholder || "Não informado"}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.campoContainer}>
-      <Text style={styles.campoLabel}>{label}</Text>
-      <View style={[styles.campoInputRow, editando && styles.campoInputRowAtivo]}>
-        <MaterialCommunityIcons name={icone} size={20} color={editando ? colors.azulClaro : colors.text_secondary} />
+    <View style={styles.editField}>
+      <Text style={styles.editLabel}>
+        {label}
+      </Text>
+
+      <View style={styles.inputWrapper}>
+        <MaterialCommunityIcons
+          name={icone}
+          size={19}
+          color={colors.primaria}
+        />
+
         <TextInput
-          style={styles.campoInput}
+          style={styles.input}
           value={valor}
           onChangeText={onChangeText}
-          editable={editando}
-          secureTextEntry={secureTextEntry}
-          keyboardType={keyboardType ?? 'default'}
-          placeholderTextColor={colors.text_secondary}
           placeholder={placeholder}
+          placeholderTextColor={colors.textoSecundario}
+          secureTextEntry={secureTextEntry}
+          keyboardType={keyboardType}
+          selectionColor={colors.primaria}
         />
-        {editando && (
-          <MaterialCommunityIcons name="pencil-outline" size={16} color={colors.azulClaro} />
+
+        {secureTextEntry !== undefined && (
+          <TouchableOpacity
+            onPress={onToggleSenha}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name={
+                mostrarSenha
+                  ? "eye-off-outline"
+                  : "eye-outline"
+              }
+              size={20}
+              color={colors.textoSecundario}
+            />
+          </TouchableOpacity>
         )}
       </View>
     </View>
   );
 }
 
-export default function DadosPessoais({ onFechar, noModal }: DadosPessoaisProps) {
-  const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [membroDesde, setMembroDesde] = useState('');
+export default function DadosPessoais({
+  onFechar,
+  noModal,
+}: DadosPessoaisProps) {
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+
+  const [membroDesde, setMembroDesde] = useState("");
+
   const [editando, setEditando] = useState(false);
+  const [mostrarSenha, setMostrarSenha] =
+    useState(false);
+
   const [salvando, setSalvando] = useState(false);
-  const [modalExcluir, setModalExcluir] = useState(false);
+
+  const [modalExcluir, setModalExcluir] =
+    useState(false);
+
   const [sucesso, setSucesso] = useState(false);
 
   useEffect(() => {
-    SecureStore.getItemAsync('userName').then(n => { if (n) setNome(n); });
-    SecureStore.getItemAsync('userEmail').then(e => { if (e) setEmail(e); });
-    SecureStore.getItemAsync('userCriadoEm').then(data => {
-      if (data) {
-        const formatted = new Date(data).toLocaleDateString('pt-BR', {
-          day: '2-digit', month: 'long', year: 'numeric'
-        });
-        setMembroDesde(formatted);
-      }
-    });
+    carregarDados();
   }, []);
 
-const salvar = async () => {
-  setSalvando(true);
-  try {
-    await atualizarUsuario({ nome, email, ...(senha.length >= 6 && { senha }) });
-    await SecureStore.setItemAsync('userName', nome);
-    await SecureStore.setItemAsync('userEmail', email);
-    setEditando(false);
-    setSenha('');
-    setSucesso(true);
-    setTimeout(() => setSucesso(false), 3000);
-  } catch (err: any) {
-    Alert.alert('Erro', err.message ?? 'Não foi possível salvar as alterações.');
-  } finally {
-    setSalvando(false);
-  }
-};
+  const carregarDados = async () => {
+    const nomeSalvo =
+      await SecureStore.getItemAsync("userName");
 
-const deslogar = async () => {
-    await SecureStore.deleteItemAsync('userToken');
-    await SecureStore.deleteItemAsync('userRole');
-    await SecureStore.deleteItemAsync('userName');
-    router.replace('/(auth)/login');
-    };
+    const emailSalvo =
+      await SecureStore.getItemAsync("userEmail");
+
+    const dataSalva =
+      await SecureStore.getItemAsync("userCriadoEm");
+
+    if (nomeSalvo) {
+      setNome(nomeSalvo);
+    }
+
+    if (emailSalvo) {
+      setEmail(emailSalvo);
+    }
+
+    if (dataSalva) {
+      const data = new Date(dataSalva);
+
+      const formatada = data.toLocaleDateString(
+        "pt-BR",
+        {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        }
+      );
+
+      setMembroDesde(formatada);
+    }
+  };
+
+  const salvar = async () => {
+    if (!nome.trim() || !email.trim()) {
+      Alert.alert(
+        "Atenção",
+        "Preencha nome e e-mail."
+      );
+      return;
+    }
+
+    setSalvando(true);
+
+    try {
+      await atualizarUsuario({
+        nome,
+        email,
+        ...(senha.length >= 6 && {
+          senha,
+        }),
+      });
+
+      await SecureStore.setItemAsync(
+        "userName",
+        nome
+      );
+
+      await SecureStore.setItemAsync(
+        "userEmail",
+        email
+      );
+
+      setSenha("");
+      setMostrarSenha(false);
+      setEditando(false);
+      setSucesso(true);
+
+      setTimeout(() => {
+        setSucesso(false);
+      }, 3000);
+    } catch (err: any) {
+      Alert.alert(
+        "Erro",
+        err.message ||
+          "Não foi possível salvar as alterações."
+      );
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const cancelarEdicao = async () => {
+    await carregarDados();
+
+    setSenha("");
+    setMostrarSenha(false);
+    setEditando(false);
+  };
 
   const excluirConta = async () => {
-  try {
-    await excluirContaAPI();
-    await SecureStore.deleteItemAsync('userToken');
-    await SecureStore.deleteItemAsync('userRole');
-    await SecureStore.deleteItemAsync('userName');
-    await SecureStore.deleteItemAsync('userEmail');
-    await SecureStore.deleteItemAsync('userCriadoEm');
-    setModalExcluir(false);
-    onFechar();
-    deslogar();
-  } catch (err: any) {
-    Alert.alert('Erro', err.message ?? 'Não foi possível excluir a conta.');
-  }
-};
+    try {
+      await excluirContaAPI();
+
+      await SecureStore.deleteItemAsync("userToken");
+      await SecureStore.deleteItemAsync("userRole");
+      await SecureStore.deleteItemAsync("userName");
+      await SecureStore.deleteItemAsync("userEmail");
+      await SecureStore.deleteItemAsync("userCriadoEm");
+
+      setModalExcluir(false);
+
+      onFechar();
+
+      router.replace("/(auth)/login");
+    } catch (err: any) {
+      Alert.alert(
+        "Erro",
+        err.message ||
+          "Não foi possível excluir a conta."
+      );
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -123,109 +280,256 @@ const deslogar = async () => {
         semSafeArea={noModal}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
+        {/* PERFIL */}
+        <View style={styles.profileHeader}>
+          <View style={styles.avatarWrapper}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarLetra}>
+                {nome
+                  ? nome.charAt(0).toUpperCase()
+                  : "?"}
+              </Text>
+            </View>
 
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarLetra}>{nome.charAt(0).toUpperCase()}</Text>
+            <View style={styles.avatarStatus} />
           </View>
-          <Text style={styles.nomeUsuario}>{nome}</Text>
-          <Text style={styles.membroDesde}>Membro desde {membroDesde}</Text>
+
+          <Text style={styles.nomeUsuario}>
+            {nome || "Usuário"}
+          </Text>
+
+          {membroDesde ? (
+            <Text style={styles.membroDesde}>
+              MEMBRO DESDE{" "}
+              {membroDesde.toUpperCase()}
+            </Text>
+          ) : null}
         </View>
 
-        <View style={styles.secao}>
-          <Text style={styles.secaoLabel}>INFORMAÇÕES DA CONTA</Text>
+        {/* INFORMAÇÕES */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIndicator} />
 
-          <CampoEditavel
-            label="Nome completo"
-            valor={nome}
-            icone="account-outline"
-            editando={editando}
-            onChangeText={setNome}
-          />
-          <CampoEditavel
-            label="E-mail"
-            valor={email}
-            icone="email-outline"
-            editando={editando}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-          />
-          <CampoEditavel
-            label="Senha"
-            valor={senha}
-            icone="lock-outline"
-            editando={editando}
-            onChangeText={setSenha}
-            secureTextEntry={!mostrarSenha}
-            placeholder={editando ? 'Nova senha' : '••••••••'}
+            <Text style={styles.sectionTitle}>
+              INFORMAÇÕES DA CONTA
+            </Text>
+          </View>
+
+          <View style={styles.infoCard}>
+            <Campo
+              label="NOME COMPLETO"
+              valor={nome}
+              icone="account-outline"
+              editando={editando}
+              onChangeText={setNome}
             />
-        </View>
 
-        <View style={styles.botoesContainer}>
-          {editando ? (
-            <TouchableOpacity
-              style={styles.btnSalvar}
-              activeOpacity={0.8}
-              onPress={salvar}
-              disabled={salvando}
-            >
-              {salvando
-                ? <ActivityIndicator color="#FFF" />
-                : (
-                  <>
-                    <MaterialCommunityIcons name="check" size={20} color="#FFF" />
-                    <Text style={styles.txtBtnSalvar}>SALVAR ALTERAÇÕES</Text>
-                  </>
+            <View style={styles.divider} />
+
+            <Campo
+              label="E-MAIL"
+              valor={email}
+              icone="email-outline"
+              editando={editando}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+            />
+
+            <View style={styles.divider} />
+
+            <Campo
+              label="SENHA"
+              valor=""
+              placeholder="••••••••"
+              icone="lock-outline"
+              editando={editando}
+              onChangeText={setSenha}
+              secureTextEntry={!mostrarSenha}
+              mostrarSenha={mostrarSenha}
+              onToggleSenha={() =>
+                setMostrarSenha(
+                  (prev) => !prev
                 )
               }
+            />
+          </View>
+        </View>
+
+        {/* AÇÕES */}
+        <View style={styles.actions}>
+          {!editando ? (
+            <TouchableOpacity
+              style={styles.editButton}
+              activeOpacity={0.8}
+              onPress={() => setEditando(true)}
+            >
+              <MaterialCommunityIcons
+                name="pencil-outline"
+                size={20}
+                color={colors.primaria}
+              />
+
+              <Text style={styles.editButtonText}>
+                EDITAR DADOS
+              </Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.btnEditar} activeOpacity={0.8} onPress={() => setEditando(true)}>
-              <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.text} />
-              <Text style={styles.txtBtnEditar}>EDITAR DADOS</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={styles.saveButton}
+                activeOpacity={0.8}
+                onPress={salvar}
+                disabled={salvando}
+              >
+                {salvando ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+
+                    <Text style={styles.saveButtonText}>
+                      SALVAR ALTERAÇÕES
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cancelButton}
+                activeOpacity={0.7}
+                onPress={cancelarEdicao}
+              >
+                <Text style={styles.cancelButtonText}>
+                  CANCELAR
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
+        </View>
 
-          {editando && (
-            <TouchableOpacity style={styles.btnCancelar} activeOpacity={0.8} onPress={() => setEditando(false)}>
-              <Text style={styles.txtBtnCancelar}>CANCELAR</Text>
+        {/* ZONA DE PERIGO */}
+        {!editando && (
+          <View style={styles.dangerSection}>
+            <View style={styles.sectionHeader}>
+            </View>
+
+            <TouchableOpacity
+              style={styles.deleteButton}
+              activeOpacity={0.8}
+              onPress={() =>
+                setModalExcluir(true)
+              }
+            >
+              <View style={styles.deleteIcon}>
+                <MaterialCommunityIcons
+                  name="trash-can-outline"
+                  size={20}
+                  color={colors.tituloErro}
+                />
+              </View>
+
+              <View style={styles.deleteContent}>
+                <Text style={styles.deleteTitle}>
+                  Excluir minha conta
+                </Text>
+
+                <Text style={styles.deleteSubtitle}>
+                  Essa ação não pode ser desfeita
+                </Text>
+              </View>
+
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={22}
+                color={colors.tituloErro}
+              />
             </TouchableOpacity>
-          )}
-        </View>
-
-        <View style={styles.secaoDanger}>
-          <TouchableOpacity style={styles.btnExcluir} activeOpacity={0.8} onPress={() => setModalExcluir(true)}>
-            <MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.vermelho} />
-            <Text style={styles.txtBtnExcluir}>EXCLUIR MINHA CONTA</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={{ height: 60 }} />
-      </ScrollView>
-
-      {sucesso && (
-        <View style={styles.toastSucesso}>
-            <MaterialCommunityIcons name="check-circle" size={20} color="#FFF" />
-            <Text style={styles.toastTexto}>Dados atualizados com sucesso!</Text>
-        </View>
+          </View>
         )}
 
-      <Modal visible={modalExcluir} transparent animationType="fade" onRequestClose={() => setModalExcluir(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setModalExcluir(false)}>
-          <View style={styles.modalCard}>
-            <MaterialCommunityIcons name="trash-can-outline" size={36} color={colors.vermelho} style={{ marginBottom: 8 }} />
-            <Text style={styles.modalTitulo}>Excluir conta</Text>
-            <Text style={styles.modalSubtitulo}>Essa ação é permanente e não pode ser desfeita. Todos os seus dados serão removidos.</Text>
-            <View style={styles.modalBotoes}>
-              <TouchableOpacity style={styles.btnNao} onPress={() => setModalExcluir(false)} activeOpacity={0.8}>
-                <Text style={styles.txtNao}>CANCELAR</Text>
+        <View style={{ height: 50 }} />
+      </ScrollView>
+
+      {/* SUCESSO */}
+      {sucesso && (
+        <View style={styles.successToast}>
+          <MaterialCommunityIcons
+            name="check-circle"
+            size={20}
+            color="#FFFFFF"
+          />
+
+          <Text style={styles.successText}>
+            Dados atualizados com sucesso!
+          </Text>
+        </View>
+      )}
+
+      {/* MODAL EXCLUSÃO */}
+      <Modal
+        visible={modalExcluir}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setModalExcluir(false)
+        }
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() =>
+            setModalExcluir(false)
+          }
+        >
+          <Pressable style={styles.modalCard}>
+            <View style={styles.modalIcon}>
+              <MaterialCommunityIcons
+                name="trash-can-outline"
+                size={27}
+                color={colors.tituloErro}
+              />
+            </View>
+
+            <Text style={styles.modalTitle}>
+              Excluir conta?
+            </Text>
+
+            <Text style={styles.modalSubtitle}>
+              Todos os seus dados serão removidos
+              permanentemente. Essa ação não pode ser
+              desfeita.
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() =>
+                  setModalExcluir(false)
+                }
+              >
+                <Text style={styles.modalCancelText}>
+                  CANCELAR
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.btnSim} onPress={excluirConta} activeOpacity={0.8}>
-                <Text style={styles.txtSim}>EXCLUIR</Text>
+
+              <TouchableOpacity
+                style={styles.modalDelete}
+                onPress={excluirConta}
+              >
+                <Text style={styles.modalDeleteText}>
+                  EXCLUIR
+                </Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
