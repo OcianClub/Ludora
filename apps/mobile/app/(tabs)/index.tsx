@@ -1,4 +1,4 @@
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Modal } from 'react-native';
 import { styles } from '../../src/styles/indexStyles';
 import { Header } from '@/src/components/Header';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { fetchPartidas } from '@/src/services/api';
 import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/CarrosselSubs';
 import DetalhesPartida, { Partida as PartidaDetalhes } from '@/src/components/DetalhesPartida';
 import * as SecureStore from 'expo-secure-store';
+import { HomeSkeleton, Skeleton } from '@/src/components/Skeleton';
 
 interface Time { id: number; nome: string; escudo: string | null; }
 interface Partida {
@@ -85,7 +86,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
 
             <View style={styles.mainCard}>
               {carregando ? (
-                <ActivityIndicator size="large" color="#0E78FF" style={{ marginVertical: 40 }} />
+                <HomeSkeleton />
               ) : !proximoJogo ? (
                 <View style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
                   <MaterialCommunityIcons name="calendar-remove-outline" size={40} color="#8B8D94" />
@@ -147,9 +148,9 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
               <View style={styles.smallCard}>
                 <Text style={styles.cardLabel}>PONTUAÇÃO</Text>
                 <View style={styles.smallCardContent}>
-                  <Text style={styles.cardValue}>
-                    {carregando ? '...' : `${estatisticas.pontos}`}
-                  </Text>
+                  {carregando
+                    ? <Skeleton width={52} height={30} radius={6} />
+                    : <Text style={styles.cardValue}>{estatisticas.pontos}</Text>}
                   <Text style={styles.cardLabel}>Pontos ganhos</Text>
                   <MaterialCommunityIcons name="trophy-outline" size={28} color="#0E78FF" style={styles.iconRight} />
                 </View>
@@ -158,9 +159,9 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
               <View style={styles.smallCard}>
                 <Text style={styles.cardLabel}>VITÓRIAS</Text>
                 <View style={styles.smallCardContent}>
-                  <Text style={styles.cardValue}>
-                    {carregando ? '...' : `${estatisticas.vitorias}`}
-                  </Text>
+                  {carregando
+                    ? <Skeleton width={52} height={30} radius={6} />
+                    : <Text style={styles.cardValue}>{estatisticas.vitorias}</Text>}
                   <Text style={styles.cardLabel}>Na temporada</Text>
                   <MaterialCommunityIcons name="medal-outline" size={28} color="#F0B84E" style={styles.iconRight} />
                 </View>
@@ -190,6 +191,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
 
 export default function Home() {
   const pagerRef = useRef<PagerView>(null);
+  const carregouUmaVez = useRef(false);
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(null);
@@ -209,11 +211,14 @@ export default function Home() {
     useCallback(() => {
       const carregarDadosDoClube = async () => {
         try {
-          setCarregando(true);
+          if (!carregouUmaVez.current) setCarregando(true);
           
-          const nomeSalvo = await SecureStore.getItemAsync('clubeAtivoNome');
-          const escudoSalvo = await SecureStore.getItemAsync('clubeAtivoEscudo');
-          const clubeAtivoId = await SecureStore.getItemAsync('clubeAtivoId');
+          const [nomeSalvo, escudoSalvo, clubeAtivoId, dadosUserString] = await Promise.all([
+            SecureStore.getItemAsync('clubeAtivoNome'),
+            SecureStore.getItemAsync('clubeAtivoEscudo'),
+            SecureStore.getItemAsync('clubeAtivoId'),
+            SecureStore.getItemAsync('userData'),
+          ]);
 
           if (nomeSalvo) {
             setNomeClube(nomeSalvo);
@@ -222,7 +227,6 @@ export default function Home() {
             setNomeClube('MEU CLUBE');
           }
 
-          const dadosUserString = await SecureStore.getItemAsync('userData');
           if (dadosUserString && clubeAtivoId) {
             const userData = JSON.parse(dadosUserString);
             const vinculo = userData.clubes?.find((c: any) => String(c.clube_id) === String(clubeAtivoId));
@@ -237,6 +241,7 @@ export default function Home() {
           console.error('Erro ao carregar Home:', error);
           setNomeClube('ERRO AO CARREGAR');
         } finally {
+          carregouUmaVez.current = true;
           setCarregando(false);
         }
       };

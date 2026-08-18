@@ -42,22 +42,27 @@ async function getToken() {
  * Ela automaticamente injeta o Token de Autenticação e o `x-clube-id`
  * em TODAS as requisições que saem do aplicativo.
  */
-async function apiFetch(endpoint: string, options: RequestInit = {}) {
+export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {});
 
   // Adiciona Content-Type padrão se tiver 'body'
-  if (!headers.has('Content-Type') && options.method && options.method !== 'GET' && options.method !== 'DELETE') {
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  if (!isFormData && !headers.has('Content-Type') && options.method && options.method !== 'GET' && options.method !== 'DELETE') {
     headers.set('Content-Type', 'application/json');
   }
 
   // Injeta o Token JWT
-  const token = await getToken();
+  // SecureStore cruza a ponte nativa. Ler as duas chaves em paralelo reduz
+  // a latência adicionada a toda chamada da API.
+  const [token, clubeId] = await Promise.all([
+    getToken(),
+    SecureStore.getItemAsync('clubeAtivoId'),
+  ]);
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
   // INJETA O CLUBE ATIVO (Multi-tenant)
-  const clubeId = await SecureStore.getItemAsync('clubeAtivoId');
   if (clubeId && !headers.has('x-clube-id')) {
     headers.set('x-clube-id', clubeId);
   }
@@ -413,6 +418,7 @@ export async function criarEvento(partida_id: number, dados: {
   minuto?: number | null;
   periodo?: number | null;
   jogador_id?: number | null;
+  doOcian?: boolean;
 }) {
   const res = await apiFetch(`/partidas/${partida_id}/eventos`, {
     method: 'POST',

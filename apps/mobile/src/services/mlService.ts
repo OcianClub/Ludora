@@ -1,4 +1,4 @@
-import { BASE_URL } from './api';
+import { apiFetch } from './api';
 
 export interface ScoresMl {
   finalizacao:   number;
@@ -14,7 +14,7 @@ export interface Jogador {
   nome:              string;
   posicao:           string;
   numCamisa:         number | null;
-  dtNasc:            string;
+  idade:             number;
   perfil_ml:         string;
   scores_ml:         ScoresMl | null;
   nota_geral:        number;
@@ -39,7 +39,7 @@ export interface ResumoCategoria {
 
 export const obterPerfisJogadores = async (categoria_id?: number): Promise<Jogador[]> => {
   const query = categoria_id ? `?categoria_id=${categoria_id}` : '';
-  const resposta = await fetch(`${BASE_URL}/jogadores/perfis${query}`);
+  const resposta = await apiFetch(`/jogadores/perfis${query}`);
   if (!resposta.ok) throw new Error(`Erro no servidor: ${resposta.status}`);
   const dados: Jogador[] = await resposta.json();
 
@@ -57,7 +57,7 @@ export const obterPerfisJogadores = async (categoria_id?: number): Promise<Jogad
 };
 
 export const reprocessarScout = async (): Promise<void> => {
-  const resposta = await fetch(`${BASE_URL}/admin/reprocessar-scout`, { method: 'POST' });
+  const resposta = await apiFetch('/admin/reprocessar-scout', { method: 'POST' });
   if (!resposta.ok) throw new Error('Erro ao reprocessar Scout IA');
 };
 

@@ -26,11 +26,11 @@ export default function Cadastro() {
   const [senhaFocada,   setSenhaFocada]   = useState(false);
   const [confirmFocado, setConfirmFocado] = useState(false);
 
-  const senhaMin6      = senha.length >= 6;
+  const senhaMin8      = senha.length >= 8;
   const senhaCoincidem = senha === confirmarSenha && confirmarSenha.length > 0;
   const emailValido    = /\S+@\S+\.\S+/.test(email);
 
-  const formValido = emailValido && senhaMin6 && senhaCoincidem;
+  const formValido = emailValido && senhaMin8 && senhaCoincidem;
 
   const handleCadastro = async () => {
     setErro('');

@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, TextInput, StyleSheet, Modal,
 } from 'react-native';
+import { ListSkeleton } from '@/src/components/Skeleton';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { Header } from '@/src/components/Header';
@@ -353,7 +354,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
       )}
 
       {carregando ? (
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+        <ListSkeleton rows={5} />
       ) : (
         <ScrollView
           contentContainerStyle={styles.lista}

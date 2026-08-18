@@ -120,7 +120,7 @@ function HexagonoScout({ scores, size = 200, corPerfil }: {
 
 function ModalScout({ jogador, onFechar }: { jogador: JogadorScout; onFechar: () => void }) {
   const corPerfil = COR_PERFIL[jogador.perfil_ml] || '#555555';
-  const idade = jogador.dtNasc ? new Date().getFullYear() - new Date(jogador.dtNasc).getFullYear() : null;
+  const idade = jogador.idade ?? null;
   const golsPJ   = jogador.jogos_disputados > 0 ? (jogador.gols / jogador.jogos_disputados).toFixed(2) : '—';
   const assistPJ = jogador.jogos_disputados > 0 ? (jogador.assistencias / jogador.jogos_disputados).toFixed(2) : '—';
 

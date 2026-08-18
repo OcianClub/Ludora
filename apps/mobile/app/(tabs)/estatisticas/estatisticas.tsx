@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, ActivityIndicator, TouchableOpacity,
   ScrollView, TextInput, Modal
@@ -12,6 +12,7 @@ import { Header } from '@/src/components/Header';
 import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/CarrosselSubs';
 import { colors } from '@/src/theme/colors';
 import { styles } from '@/src/styles/estatisticasStyles'; 
+import { CardsSkeleton } from '@/src/components/Skeleton';
 
 // ── Cores por perfil ──────────────────────────────────────────────────────────
 const COR_PERFIL: Record<string, string> = {
@@ -130,9 +131,7 @@ function HexSVG({ cx, cy, R, eixos, pontoBase, gridPoly, valorPoly, size }: any)
 // ── Card da Lista ─────────────────────────────────────────────────────────────
 function CardJogador({ jogador, onPress }: { jogador: Jogador; onPress: () => void }) {
   const corPerfil = COR_PERFIL[jogador.perfil_ml] ?? '#555';
-  const idade = jogador.dtNasc
-    ? new Date().getFullYear() - new Date(jogador.dtNasc).getFullYear()
-    : null;
+  const idade = jogador.idade ?? null;
 
   return (
     <TouchableOpacity style={styles.cardJogador} onPress={onPress} activeOpacity={0.8}>
@@ -167,9 +166,7 @@ function CardJogador({ jogador, onPress }: { jogador: Jogador; onPress: () => vo
 // ── Modal de Scout ────────────────────────────────────────────────────────────
 function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => void }) {
   const corPerfil = COR_PERFIL[jogador.perfil_ml] ?? '#555';
-  const idade = jogador.dtNasc
-    ? new Date().getFullYear() - new Date(jogador.dtNasc).getFullYear()
-    : null;
+  const idade = jogador.idade ?? null;
 
   const stats = [
     { label: 'Jogos',      valor: jogador.jogos_disputados,  icone: 'soccer-field'       },
@@ -297,6 +294,7 @@ const normalizarCategoria = (s: string | undefined | null) =>
 
 // ── Tela Principal ────────────────────────────────────────────────────────────
 export default function Estatisticas() {
+  const carregouUmaVez = useRef(false);
   const [jogadores, setJogadores]       = useState<Jogador[]>([]);
   const [carregando, setCarregando]     = useState(true);
   const [erro, setErro]                 = useState<string | null>(null);
@@ -309,8 +307,8 @@ export default function Estatisticas() {
   const subsAtivos = tipoAtivo === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
   const categoriaAtual = subsAtivos[subIndex]?.title ?? '';
 
-  const carregarDados = useCallback(async () => {
-    setCarregando(true);
+  const carregarDados = useCallback(async (silencioso = false) => {
+    if (!silencioso) setCarregando(true);
     setErro(null);
     try {
       const todos = await obterPerfisJogadores();
@@ -330,11 +328,14 @@ export default function Estatisticas() {
     } catch (e: any) {
       setErro(e?.message ?? 'Erro na conexão');
     } finally {
+      carregouUmaVez.current = true;
       setCarregando(false);
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { carregarDados(); }, [carregarDados]));
+  useFocusEffect(useCallback(() => {
+    carregarDados(carregouUmaVez.current);
+  }, [carregarDados]));
 
   const jogadoresFiltrados = jogadores.filter(j => {
     const matchCategoria = normalizarCategoria(j.categoria) === normalizarCategoria(categoriaAtual);
@@ -373,15 +374,14 @@ export default function Estatisticas() {
       </View>
 
       {carregando ? (
-        <View style={styles.centralizado}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.txtCarregando}>Calculando perfis...</Text>
-        </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listaContent}>
+          <CardsSkeleton rows={5} />
+        </ScrollView>
       ) : erro ? (
         <View style={styles.centralizado}>
           <MaterialCommunityIcons name="wifi-off" size={48} color="#333" />
           <Text style={styles.txtErro}>{erro}</Text>
-          <TouchableOpacity style={styles.btnRetry} onPress={carregarDados}>
+          <TouchableOpacity style={styles.btnRetry} onPress={() => carregarDados()}>
             <Text style={styles.txtBtnRetry}>Tentar novamente</Text>
           </TouchableOpacity>
         </View>

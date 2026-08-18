@@ -2,7 +2,6 @@ import express from 'express';
 import http from 'http';
 import cors from 'cors';
 import { Server } from 'socket.io';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import * as bcrypt from 'bcrypt';
 import axios from 'axios';
@@ -11,23 +10,84 @@ import 'dotenv/config';
 import campeonatoRoutes from './routes/campeonato.routes';
 import cron from 'node-cron';
 import { sincronizarTodos } from './services/campeonato.service';
+import { prisma } from './lib/prisma';
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
-const prisma = new PrismaClient();
 
-app.use(cors());
-app.use(express.json());
+const isProduction = process.env.NODE_ENV === 'production';
+const origensPermitidas = new Set(
+  (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:5173,http://localhost:8081')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
 
-app.use('/partidas/importar', importacaoRoutes);
-app.use('/campeonato', campeonatoRoutes);
+const validarOrigem: cors.CorsOptions['origin'] = (origin, callback) => {
+  // Apps nativos e chamadas servidor-servidor normalmente não enviam Origin.
+  if (!origin || origensPermitidas.has(origin)) return callback(null, true);
+  return callback(new Error('Origem não permitida pelo CORS'));
+};
 
-sincronizarTodos().catch(console.error);
+const corsOptions: cors.CorsOptions = {
+  origin: validarOrigem,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Authorization', 'Content-Type', 'x-clube-id', 'x-request-id'],
+  maxAge: 86400,
+};
 
-cron.schedule('*/30 * * * *', () => {
-  sincronizarTodos().catch(console.error);
+const io = new Server(server, { cors: corsOptions });
+
+app.disable('x-powered-by');
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 0));
+app.use(cors(corsOptions));
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
+  if (isProduction) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
 });
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '256kb' }));
+
+type RateEntry = { count: number; resetAt: number };
+const rateBuckets = new Map<string, RateEntry>();
+
+function limitarRequisicoes({ janelaMs, limite, prefixo }: { janelaMs: number; limite: number; prefixo: string }) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const agora = Date.now();
+    const identidade = `${req.ip}:${String(req.body?.email || '').trim().toLowerCase()}`;
+    const chave = `${prefixo}:${identidade}`;
+    const atual = rateBuckets.get(chave);
+    const entrada = !atual || atual.resetAt <= agora ? { count: 0, resetAt: agora + janelaMs } : atual;
+    entrada.count += 1;
+    rateBuckets.set(chave, entrada);
+
+    res.setHeader('RateLimit-Limit', String(limite));
+    res.setHeader('RateLimit-Remaining', String(Math.max(0, limite - entrada.count)));
+    res.setHeader('RateLimit-Reset', String(Math.ceil(entrada.resetAt / 1000)));
+    if (entrada.count > limite) {
+      res.setHeader('Retry-After', String(Math.ceil((entrada.resetAt - agora) / 1000)));
+      return res.status(429).json({ error: 'Muitas tentativas. Aguarde alguns minutos.' });
+    }
+    next();
+  };
+}
+
+const limitarAuth = limitarRequisicoes({ janelaMs: 15 * 60_000, limite: 20, prefixo: 'auth' });
+const limitarOperacaoPesada = limitarRequisicoes({ janelaMs: 10 * 60_000, limite: 5, prefixo: 'heavy' });
+
+// Remove buckets vencidos sem manter o processo vivo apenas por causa da limpeza.
+const rateCleanup = setInterval(() => {
+  const agora = Date.now();
+  for (const [chave, entrada] of rateBuckets) {
+    if (entrada.resetAt <= agora) rateBuckets.delete(chave);
+  }
+}, 10 * 60_000);
+rateCleanup.unref();
 
 const PYTHON_AI_URL = process.env.PYTHON_AI_URL;
 
@@ -40,6 +100,24 @@ if (!process.env.JWT_SECRET) {
 // O "as string" só deixa isso explícito pro TypeScript (que não enxerga esse tipo de
 // narrowing entre módulos/closures), evitando repetir esse cast em cada rota.
 const JWT_SECRET = process.env.JWT_SECRET as string;
+const JWT_ISSUER = 'ludora-api';
+const JWT_AUDIENCE = 'ludora-apps';
+const JWT_OPTIONS: jwt.SignOptions = {
+  algorithm: 'HS256',
+  expiresIn: '8h',
+  issuer: JWT_ISSUER,
+  audience: JWT_AUDIENCE,
+};
+
+if (isProduction && JWT_SECRET.length < 32) {
+  console.error('ERRO FATAL: JWT_SECRET deve ter pelo menos 32 caracteres em produção.');
+  process.exit(1);
+}
+
+if (isProduction && !process.env.CORS_ORIGINS) {
+  console.error('ERRO FATAL: CORS_ORIGINS deve ser configurada em produção.');
+  process.exit(1);
+}
 
 if (!PYTHON_AI_URL) {
   console.warn('⚠️  PYTHON_AI_URL não definida — Scout IA desativado.');
@@ -51,16 +129,37 @@ if (!PYTHON_AI_URL) {
 
 // Extrai o id do usuário logado a partir do token, sem lançar erro se não houver token
 // (algumas rotas, como listar clubes, funcionam tanto logado quanto deslogado)
-function getUsuarioId(req: express.Request): number | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return null;
+function getUsuarioIdPeloToken(token: string): number | null {
   try {
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET) as unknown as { id: number };
-    return decoded.id;
+    if (!token) return null;
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      algorithms: ['HS256'],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+    }) as jwt.JwtPayload;
+    const id = Number(decoded.id);
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
   } catch {
     return null;
   }
+}
+
+function getUsuarioId(req: express.Request): number | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  return getUsuarioIdPeloToken(authHeader.slice(7).trim());
+}
+
+function exigirAutenticacao(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const usuarioId = getUsuarioId(req);
+  if (!usuarioId) return res.status(401).json({ error: 'Não autorizado' });
+  (req as any).usuarioId = usuarioId;
+  next();
+}
+
+function idPositivo(valor: unknown): number | null {
+  const id = Number(valor);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
 // ==========================================
@@ -83,8 +182,8 @@ function exigirGestorDoClube(req: express.Request, res: express.Response, next: 
   const usuarioId = getUsuarioId(req);
   if (!usuarioId) return res.status(401).json({ error: 'Token inválido ou não enviado' });
 
-  const clube_id = Number(req.headers['x-clube-id']);
-  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+  const clube_id = idPositivo(req.headers['x-clube-id']);
+  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id inválido ou ausente' });
 
   prisma.usuarioClube
     .findUnique({ where: { usuario_id_clube_id: { usuario_id: usuarioId, clube_id } } })
@@ -126,11 +225,79 @@ function exigirPartidaDoClube(idParam: (req: express.Request) => number) {
   };
 }
 
-app.post('/auth/registrar', async (req, res) => {
-  // Removemos o 'role' daqui, pois novos usuários nascem sem vínculo ou vinculam-se depois
-  const { email, senha, nome } = req.body; 
+function exigirRecursoDoClube(
+  pertence: (id: number, clubeId: number) => Promise<boolean>,
+  idParam: (req: express.Request) => number = (req) => Number(req.params.id),
+) {
+  return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const id = idPositivo(idParam(req));
+    const clubeId = (req as any).clubeId as number;
+    if (!id) return res.status(400).json({ error: 'ID inválido' });
+    try {
+      if (!(await pertence(id, clubeId))) {
+        return res.status(403).json({ error: 'Recurso não pertence ao clube ativo' });
+      }
+      next();
+    } catch {
+      return res.status(500).json({ error: 'Erro ao verificar permissão do recurso' });
+    }
+  };
+}
+
+const exigirTimeDoClube = exigirRecursoDoClube(async (id, clubeId) => {
+  const total = await prisma.time.count({ where: { id, categoria: { clube_id: clubeId } } });
+  return total === 1;
+});
+
+const exigirCompeticaoDoClube = exigirRecursoDoClube(async (id, clubeId) => {
+  const total = await prisma.competicao.count({ where: { id, clube_id: clubeId } });
+  return total === 1;
+});
+
+const exigirJogadorDoClube = exigirRecursoDoClube(async (id, clubeId) => {
+  const total = await prisma.jogador.count({ where: { id, categoria: { clube_id: clubeId } } });
+  return total === 1;
+});
+
+io.use(async (socket, next) => {
+  const authHeader = String(socket.handshake.headers.authorization || '');
+  const tokenInformado = String(socket.handshake.auth?.token || authHeader.replace(/^Bearer\s+/i, ''));
+  const clubeId = idPositivo(socket.handshake.auth?.clubeId || socket.handshake.headers['x-clube-id']);
+  const usuarioId = getUsuarioIdPeloToken(tokenInformado);
+  if (!usuarioId || !clubeId) return next(new Error('Não autorizado'));
   try {
-    const hashSenha = await bcrypt.hash(senha, 10);
+    const vinculo = await prisma.usuarioClube.findUnique({
+      where: { usuario_id_clube_id: { usuario_id: usuarioId, clube_id: clubeId } },
+      select: { id: true },
+    });
+    if (!vinculo) return next(new Error('Não autorizado'));
+    socket.data.clubeId = clubeId;
+    socket.data.usuarioId = usuarioId;
+    next();
+  } catch {
+    next(new Error('Não autorizado'));
+  }
+});
+
+io.on('connection', (socket) => {
+  socket.join(`clube:${socket.data.clubeId}`);
+});
+
+// Routers que modificam dados são montados somente depois dos middlewares de autorização.
+app.use('/partidas/importar', exigirGestorDoClube, limitarOperacaoPesada, importacaoRoutes);
+app.use('/campeonato/sincronizar', exigirGestorDoClube, limitarOperacaoPesada);
+app.use('/campeonato', campeonatoRoutes);
+
+app.post('/auth/registrar', limitarAuth, async (req, res) => {
+  // Removemos o 'role' daqui, pois novos usuários nascem sem vínculo ou vinculam-se depois
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const senha = String(req.body?.senha || '');
+  const nome = String(req.body?.nome || '').trim();
+  if (!/^\S+@\S+\.\S+$/.test(email) || nome.length < 2 || nome.length > 100 || senha.length < 8 || senha.length > 128) {
+    return res.status(400).json({ error: 'Nome, e-mail ou senha inválidos. A senha deve ter ao menos 8 caracteres.' });
+  }
+  try {
+    const hashSenha = await bcrypt.hash(senha, 12);
     const usuario = await prisma.usuario.create({
       data: { email, senha: hashSenha, nome }
     });
@@ -140,8 +307,12 @@ app.post('/auth/registrar', async (req, res) => {
   }
 });
 
-app.post('/auth/login', async (req, res) => {
-  const { email, senha } = req.body;
+app.post('/auth/login', limitarAuth, async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const senha = String(req.body?.senha || '');
+  if (!email || !senha || email.length > 254 || senha.length > 128) {
+    return res.status(400).json({ error: 'Credenciais inválidas' });
+  }
   
   // Agora buscamos o usuário E também a lista de clubes que ele faz parte
   const usuario = await prisma.usuario.findUnique({ 
@@ -153,13 +324,13 @@ app.post('/auth/login', async (req, res) => {
     }
   });
   
-  if (!usuario) return res.status(401).json({ error: 'Usuário não encontrado' });
+  if (!usuario) return res.status(401).json({ error: 'E-mail ou senha inválidos' });
   
   const senhaValida = await bcrypt.compare(senha, usuario.senha);
-  if (!senhaValida) return res.status(401).json({ error: 'Senha incorreta' });
+  if (!senhaValida) return res.status(401).json({ error: 'E-mail ou senha inválidos' });
   
   // O JWT não carrega mais a "role" global, apenas o ID do usuário
-  const token = jwt.sign({ id: usuario.id }, JWT_SECRET, { expiresIn: '8h' });
+  const token = jwt.sign({ id: usuario.id }, JWT_SECRET, JWT_OPTIONS);
   
   // Formatamos os clubes para o app mobile montar a tela "Seus Clubes"
   const clubesDoUsuario = usuario.clubes.map(vinculo => ({
@@ -178,29 +349,26 @@ app.post('/auth/login', async (req, res) => {
   });
 });
 
-app.patch('/usuarios/me', async (req, res) => {
-  const { nome, email, senha } = req.body;
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Token não enviado' });
+app.patch('/usuarios/me', exigirAutenticacao, async (req, res) => {
+  const nome = String(req.body?.nome || '').trim();
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const senha = req.body?.senha == null ? '' : String(req.body.senha);
+  if (nome.length < 2 || nome.length > 100 || !/^\S+@\S+\.\S+$/.test(email) || (senha && (senha.length < 8 || senha.length > 128))) {
+    return res.status(400).json({ error: 'Dados de usuário inválidos' });
+  }
   try {
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET) as unknown as { id: number };
     const data: any = { nome, email };
-    if (senha && senha.length >= 6) data.senha = await bcrypt.hash(senha, 10);
-    const usuario = await prisma.usuario.update({ where: { id: decoded.id }, data });
+    if (senha) data.senha = await bcrypt.hash(senha, 12);
+    const usuario = await prisma.usuario.update({ where: { id: (req as any).usuarioId }, data });
     res.json({ nome: usuario.nome, email: usuario.email });
-  } catch (error: any) { res.status(401).json({ error: 'Token inválido' }); }
+  } catch { res.status(400).json({ error: 'Não foi possível atualizar os dados' }); }
 });
 
-app.delete('/usuarios/me', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Token não enviado' });
+app.delete('/usuarios/me', exigirAutenticacao, async (req, res) => {
   try {
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET) as unknown as { id: number };
-    await prisma.usuario.delete({ where: { id: decoded.id } });
+    await prisma.usuario.delete({ where: { id: (req as any).usuarioId } });
     res.json({ mensagem: 'Conta excluída com sucesso' });
-  } catch (error: any) { res.status(401).json({ error: 'Token inválido ou usuário não encontrado' }); }
+  } catch { res.status(400).json({ error: 'Não foi possível excluir a conta' }); }
 });
 // ==========================================
 // 1.1 CLUBES (descoberta + seguir)
@@ -290,23 +458,35 @@ app.delete('/clubes/:id/seguir', async (req, res) => {
 // 2. CADASTROS E BUSCAS
 // ==========================================
 
-app.post('/times', async (req, res) => {
+app.post('/times', exigirGestorDoClube, async (req, res) => {
   const { nome, escudo, categoria_id } = req.body;
   try {
+    const categoriaId = idPositivo(categoria_id);
+    if (!categoriaId) return res.status(400).json({ error: 'Categoria inválida' });
+    const categoriaValida = await prisma.categoria.count({
+      where: { id: categoriaId, clube_id: (req as any).clubeId },
+    });
+    if (!categoriaValida) return res.status(403).json({ error: 'Categoria não pertence ao clube ativo' });
     const time = await prisma.time.create({
-      data: { nome, escudo, categoria_id: Number(categoria_id) },
+      data: { nome, escudo, categoria_id: categoriaId },
       include: { categoria: true }
     });
     res.status(201).json(time);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao criar time' }); }
 });
 
-app.patch('/times/:id', async (req, res) => {
+app.patch('/times/:id', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
   const { nome, escudo, categoria_id } = req.body;
   try {
+    const categoriaId = idPositivo(categoria_id);
+    if (!categoriaId) return res.status(400).json({ error: 'Categoria inválida' });
+    const categoriaValida = await prisma.categoria.count({
+      where: { id: categoriaId, clube_id: (req as any).clubeId },
+    });
+    if (!categoriaValida) return res.status(403).json({ error: 'Categoria não pertence ao clube ativo' });
     const time = await prisma.time.update({
       where: { id: Number(req.params.id) },
-      data: { nome, escudo, categoria_id: Number(categoria_id) },
+      data: { nome, escudo, categoria_id: categoriaId },
       include: { categoria: true }
     });
     res.json(time);
@@ -327,7 +507,7 @@ app.get('/times', async (req, res) => {
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar times' }); }
 });
 
-app.delete('/times/:id', async (req, res) => {
+app.delete('/times/:id', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
   try {
     await prisma.time.delete({ where: { id: Number(req.params.id) } });
     res.json({ mensagem: 'Time excluído' });
@@ -336,9 +516,8 @@ app.delete('/times/:id', async (req, res) => {
   }
 });
 
-app.post('/competicoes', async (req, res) => {
-  const clube_id = Number(req.headers['x-clube-id']);
-  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+app.post('/competicoes', exigirGestorDoClube, async (req, res) => {
+  const clube_id = (req as any).clubeId as number;
 
   const { nome, ano, tipo } = req.body;
   try {
@@ -350,7 +529,7 @@ app.post('/competicoes', async (req, res) => {
   } catch (error: any) { res.status(500).json({ error: 'Erro ao criar competição' }); }
 });
 
-app.patch('/competicoes/:id', async (req, res) => {
+app.patch('/competicoes/:id', exigirGestorDoClube, exigirCompeticaoDoClube, async (req, res) => {
   const { nome, ano, tipo } = req.body;
   try {
     const competicao = await prisma.competicao.update({
@@ -374,17 +553,16 @@ app.get('/competicoes', async (req, res) => {
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar competições' }); }
 });
 
-app.get('/campeonato/sincronizar-todos', async (_req, res) => {
+app.post('/campeonato/sincronizar-todos', exigirGestorDoClube, limitarOperacaoPesada, async (_req, res) => {
   try {
-    const { sincronizarTodos } = require('./services/campeonato.service');
-    await sincronizarTodos();
+    await executarSincronizacao();
     res.json({ ok: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
 
-app.delete('/competicoes/:id', async (req, res) => {
+app.delete('/competicoes/:id', exigirGestorDoClube, exigirCompeticaoDoClube, async (req, res) => {
   const id = Number(req.params.id);
   try {
     const totalPartidas = await prisma.partida.count({ where: { competicao_id: id } });
@@ -424,20 +602,30 @@ app.get('/competicoes/:id/jogadores', async (req, res) => {
   }
 });
 
-app.put('/competicoes/:id/jogadores', async (req, res) => {
+app.put('/competicoes/:id/jogadores', exigirGestorDoClube, exigirCompeticaoDoClube, async (req, res) => {
   const competicao_id = Number(req.params.id);
   const { jogador_ids }: { jogador_ids: number[] } = req.body;
   if (!Array.isArray(jogador_ids)) return res.status(400).json({ error: 'jogador_ids deve ser um array' });
   try {
-    await prisma.competicaoJogador.deleteMany({ where: { competicao_id } });
-    const idsValidos = jogador_ids.filter((id): id is number => id != null && !isNaN(Number(id)));
-    if (idsValidos.length > 0) {
-      await prisma.competicaoJogador.createMany({
-        data: idsValidos.map(jogador_id => ({ competicao_id, jogador_id: Number(jogador_id) })),
-        skipDuplicates: true,
-      });
+    const idsValidos = [...new Set(jogador_ids.map(Number))]
+      .filter((id) => Number.isSafeInteger(id) && id > 0);
+    if (idsValidos.length !== jogador_ids.length || idsValidos.length > 200) {
+      return res.status(400).json({ error: 'Lista de jogadores inválida ou muito grande' });
     }
-    res.json({ ok: true, total: jogador_ids.length });
+    const jogadoresDoClube = await prisma.jogador.count({
+      where: { id: { in: idsValidos }, categoria: { clube_id: (req as any).clubeId } },
+    });
+    if (jogadoresDoClube !== idsValidos.length) {
+      return res.status(403).json({ error: 'Um ou mais jogadores não pertencem ao clube ativo' });
+    }
+    await prisma.$transaction([
+      prisma.competicaoJogador.deleteMany({ where: { competicao_id } }),
+      prisma.competicaoJogador.createMany({
+        data: idsValidos.map((jogador_id) => ({ competicao_id, jogador_id })),
+        skipDuplicates: true,
+      }),
+    ]);
+    res.json({ ok: true, total: idsValidos.length });
   } catch (error: any) {
     console.error('Erro ao salvar elenco:', error.message || error);
     res.status(500).json({ error: 'Erro ao salvar elenco da competição' });
@@ -461,9 +649,8 @@ app.get('/categorias', async (req, res) => {
 // JOGADORES
 // ==========================================
 
-app.post('/jogadores', async (req, res) => {
-  const clube_id = Number(req.headers['x-clube-id']);
-  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+app.post('/jogadores', exigirGestorDoClube, async (req, res) => {
+  const clube_id = (req as any).clubeId as number;
 
   const { nome, cpf, dtNasc, posicao, numCamisa } = req.body;
   if (!nome || !cpf || !dtNasc) return res.status(400).json({ error: 'Nome, CPF e data de nascimento obrigatórios' });
@@ -537,7 +724,7 @@ app.get('/jogadores/perfis', async (req, res) => {
         nome:              j.nome,
         posicao:           j.posicao,
         numCamisa:         j.numCamisa,
-        dtNasc:            j.dtNasc,
+        idade:             new Date().getFullYear() - new Date(j.dtNasc).getFullYear(),
         perfil_ml:         j.perfil_ml || 'Sem dados',
         scores_ml:         j.scores_ml,
         nota_geral:        j.nota_geral ?? 0,
@@ -561,9 +748,8 @@ app.get('/jogadores/perfis', async (req, res) => {
   }
 });
 
-app.get('/jogadores', async (req, res) => {
-  const clube_id = Number(req.headers['x-clube-id']);
-  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+app.get('/jogadores', exigirGestorDoClube, async (req, res) => {
+  const clube_id = (req as any).clubeId as number;
 
   try {
     const jogadores = await prisma.jogador.findMany({
@@ -572,13 +758,22 @@ app.get('/jogadores', async (req, res) => {
         categoria: { clube_id }
       },
       orderBy: { nome: 'asc' },
+      select: {
+        id: true,
+        nome: true,
+        dtNasc: true,
+        posicao: true,
+        numCamisa: true,
+        categoria_id: true,
+        ativo: true,
+      },
     });
     res.json(jogadores);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar jogadores' }); }
 });
 
-app.patch('/jogadores/:id', async (req, res) => {
-  const clube_id = Number(req.headers['x-clube-id']);
+app.patch('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async (req, res) => {
+  const clube_id = (req as any).clubeId as number;
   const { nome, dtNasc, posicao, numCamisa } = req.body;
   try {
     let dados: any = { nome, posicao, numCamisa: numCamisa ? Number(numCamisa) : null };
@@ -608,7 +803,7 @@ app.patch('/jogadores/:id', async (req, res) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/jogadores/:id', async (req, res) => {
+app.delete('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async (req, res) => {
   try {
     await prisma.jogador.delete({ where: { id: Number(req.params.id) } });
     res.json({ mensagem: 'Excluído com sucesso' });
@@ -619,9 +814,8 @@ app.delete('/jogadores/:id', async (req, res) => {
 // ADMIN
 // ==========================================
 
-app.patch('/admin/atualizar-idades', async (req, res) => {
-  const clube_id = Number(req.headers['x-clube-id']);
-  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+app.patch('/admin/atualizar-idades', exigirGestorDoClube, limitarOperacaoPesada, async (req, res) => {
+  const clube_id = (req as any).clubeId as number;
 
   try {
     const anoAtual = new Date().getFullYear();
@@ -665,14 +859,30 @@ app.post('/partidas', exigirGestorDoClube, async (req, res) => {
   const { mandante_id, visitante_id, data, horario, local, emCasa, categoria_id, competicao_id, rodada, grupo } = req.body;
   try {
     const dataFormatada = data ? new Date(`${data}T00:00:00Z`) : new Date();
-    const catId  = Number(categoria_id);
-    const compId = competicao_id ? Number(competicao_id) : null;
+    const catId = idPositivo(categoria_id);
+    const mandanteId = idPositivo(mandante_id);
+    const visitanteId = idPositivo(visitante_id);
+    const compId = competicao_id ? idPositivo(competicao_id) : null;
+    if (!catId || !mandanteId || !visitanteId || mandanteId === visitanteId || (competicao_id && !compId)) {
+      return res.status(400).json({ error: 'Dados da partida inválidos' });
+    }
+    if (Number.isNaN(dataFormatada.getTime())) return res.status(400).json({ error: 'Data inválida' });
 
     // Garante que a categoria escolhida pertence mesmo ao clube ativo
     // (evita criar partida "vazando" pra categoria de outro clube).
     const categoria = await prisma.categoria.findUnique({ where: { id: catId } });
     if (!categoria || categoria.clube_id !== (req as any).clubeId) {
       return res.status(403).json({ error: 'Categoria não pertence ao clube ativo' });
+    }
+    const timesValidos = await prisma.time.count({
+      where: { id: { in: [mandanteId, visitanteId] }, categoria_id: catId },
+    });
+    if (timesValidos !== 2) return res.status(403).json({ error: 'Times não pertencem à categoria selecionada' });
+    if (compId) {
+      const competicaoValida = await prisma.competicao.count({
+        where: { id: compId, clube_id: (req as any).clubeId },
+      });
+      if (!competicaoValida) return res.status(403).json({ error: 'Competição não pertence ao clube ativo' });
     }
 
     if (horario) {
@@ -684,7 +894,7 @@ app.post('/partidas', exigirGestorDoClube, async (req, res) => {
 
     const partida = await prisma.partida.create({
       data: {
-        mandante_id: Number(mandante_id), visitante_id: Number(visitante_id),
+        mandante_id: mandanteId, visitante_id: visitanteId,
         data: dataFormatada, horario, local,
         emCasa: emCasa !== undefined ? emCasa : true,
         categoria_id: catId, competicao_id: compId,
@@ -732,16 +942,38 @@ app.patch<{ id: string }>(
   async (req, res) => {
     const { mandante_id, visitante_id, data, horario, local, emCasa, rodada, grupo, categoria_id } = req.body;
     try {
+      const atual = await prisma.partida.findUnique({
+        where: { id: Number(req.params.id) },
+        select: { mandante_id: true, visitante_id: true, categoria_id: true },
+      });
+      if (!atual) return res.status(404).json({ error: 'Partida não encontrada' });
+      const categoriaId = categoria_id ? idPositivo(categoria_id) : atual.categoria_id;
+      const mandanteId = mandante_id ? idPositivo(mandante_id) : atual.mandante_id;
+      const visitanteId = visitante_id ? idPositivo(visitante_id) : atual.visitante_id;
+      if (!categoriaId || !mandanteId || !visitanteId || mandanteId === visitanteId) {
+        return res.status(400).json({ error: 'Dados da partida inválidos' });
+      }
+      const [categoriaValida, timesValidos] = await Promise.all([
+        prisma.categoria.count({ where: { id: categoriaId, clube_id: (req as any).clubeId } }),
+        prisma.time.count({ where: { id: { in: [mandanteId, visitanteId] }, categoria_id: categoriaId } }),
+      ]);
+      if (!categoriaValida || timesValidos !== 2) {
+        return res.status(403).json({ error: 'Categoria ou times não pertencem ao clube ativo' });
+      }
+      const dataAtualizada = data ? new Date(`${data}T00:00:00Z`) : undefined;
+      if (dataAtualizada && Number.isNaN(dataAtualizada.getTime())) {
+        return res.status(400).json({ error: 'Data inválida' });
+      }
       const partida = await prisma.partida.update({
         where: { id: Number(req.params.id) },
         data: {
-          mandante_id:  mandante_id  ? Number(mandante_id)  : undefined,
-          visitante_id: visitante_id ? Number(visitante_id) : undefined,
-          data:         data ? new Date(`${data}T00:00:00Z`) : undefined,
+          mandante_id: mandante_id ? mandanteId : undefined,
+          visitante_id: visitante_id ? visitanteId : undefined,
+          data: dataAtualizada,
           horario, local, emCasa,
           rodada:       rodada     ? Number(rodada)     : undefined,
           grupo:        grupo ?? null,
-          categoria_id: categoria_id ? Number(categoria_id) : undefined,
+          categoria_id: categoria_id ? categoriaId : undefined,
         },
         include: { mandante: true, visitante: true, categoria: true },
       });
@@ -773,12 +1005,17 @@ app.patch<{ id: string }>(
   exigirPartidaDoClube((req) => Number(req.params.id)),
   async (req, res) => {
     const { gols_mandante, gols_visitante } = req.body;
+    const golsMandante = Number(gols_mandante);
+    const golsVisitante = Number(gols_visitante);
+    if (![golsMandante, golsVisitante].every((gols) => Number.isSafeInteger(gols) && gols >= 0 && gols <= 99)) {
+      return res.status(400).json({ error: 'Placar inválido' });
+    }
     try {
       const partida = await prisma.partida.update({
         where: { id: Number(req.params.id) },
-        data: { gols_mandante: Number(gols_mandante), gols_visitante: Number(gols_visitante) },
+        data: { gols_mandante: golsMandante, gols_visitante: golsVisitante },
       });
-      io.emit('placar_atualizado', partida);
+      io.to(`clube:${(req as any).clubeId}`).emit('placar_atualizado', partida);
       res.json(partida);
     } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar placar' }); }
   }
@@ -791,6 +1028,9 @@ app.patch<{ id: string }>(
   async (req, res) => {
     const partidaId = Number(req.params.id);
     const { status } = req.body;
+    if (!['AGENDADA', 'AO_VIVO', 'FINALIZADA'].includes(status)) {
+      return res.status(400).json({ error: 'Status inválido' });
+    }
     try {
       const partida = await prisma.partida.update({ where: { id: partidaId }, data: { status } });
       if (status === 'FINALIZADA') {
@@ -825,14 +1065,28 @@ app.post<{ id: string }>(
     const partidaId = Number(req.params.id);
     // RESOLVIDO: Removendo o doOcian do payload, ele não existe mais!
     const { jogador_id, tipo, minuto, periodo } = req.body;
+    const tiposPermitidos = ['GOL', 'ASSISTENCIA', 'DEFESA', 'CARTAO_AMARELO', 'CARTAO_VERMELHO', 'FALTA'];
+    if (!tiposPermitidos.includes(tipo)) return res.status(400).json({ error: 'Tipo de evento inválido' });
+    const minutoNumero = minuto == null ? null : Number(minuto);
+    const periodoNumero = periodo == null ? 1 : Number(periodo);
+    if ((minutoNumero != null && (!Number.isSafeInteger(minutoNumero) || minutoNumero < 0 || minutoNumero > 200)) ||
+        !Number.isSafeInteger(periodoNumero) || periodoNumero < 1 || periodoNumero > 10) {
+      return res.status(400).json({ error: 'Minuto ou período inválido' });
+    }
     try {
+      if (jogador_id) {
+        const jogadorValido = await prisma.jogador.count({
+          where: { id: Number(jogador_id), categoria: { clube_id: (req as any).clubeId } },
+        });
+        if (!jogadorValido) return res.status(403).json({ error: 'Jogador não pertence ao clube ativo' });
+      }
       const evento = await prisma.evento.create({
         data: {
           partida_id: partidaId,
           jogador_id: jogador_id ? Number(jogador_id) : null,
           tipo,
-          minuto:  minuto  != null ? Number(minuto)  : null,
-          periodo: periodo != null ? Number(periodo)  : 1,
+          minuto: minutoNumero,
+          periodo: periodoNumero,
         },
       });
 
@@ -845,7 +1099,7 @@ app.post<{ id: string }>(
         nomeJogador = jog?.nome ?? 'Adversário';
       }
 
-      io.emit('evento_partida', {
+      io.to(`clube:${(req as any).clubeId}`).emit('evento_partida', {
         tipo:       evento.tipo,
         jogador:    nomeJogador,
         minuto:     evento.minuto,
@@ -930,16 +1184,16 @@ async function processarMachineLearning() {
       payload,
       { timeout: 120000 }
     );
-    for (const resultado of resposta.data) {
-      await prisma.jogador.update({
+    await prisma.$transaction(
+      resposta.data.map((resultado: any) => prisma.jogador.update({
         where: { id: resultado.jogador_id },
         data: {
           perfil_ml:  resultado.perfil_ml,
           scores_ml:  resultado.scores,
           nota_geral: resultado.nota_geral,
         },
-      });
-    }
+      })),
+    );
     console.log(`Scout IA: ${resposta.data.length} jogadores processados e atualizados. ✅`);
   } catch (error: any) {
     console.error('Falha ao comunicar com microsserviço de IA Python:', error.message || error);
@@ -978,16 +1232,34 @@ app.put<{ id: string }>(
     if (!Array.isArray(jogadores)) {
       return res.status(400).json({ error: 'jogadores deve ser um array' });
     }
+    if (jogadores.length > 50) return res.status(400).json({ error: 'Escalação muito grande' });
     try {
-      await prisma.escalacaoPartida.deleteMany({ where: { partida_id: partidaId } });
-      await prisma.escalacaoPartida.createMany({
-        data: jogadores.map(j => ({
-          partida_id: partidaId,
-          jogador_id: Number(j.jogador_id),
-          numCamisa:  Number(j.numCamisa),
-          titular:    Boolean(j.titular),
-        })),
+      const normalizados = jogadores.map((j) => ({
+        jogador_id: Number(j.jogador_id),
+        numCamisa: Number(j.numCamisa),
+        titular: Boolean(j.titular),
+      }));
+      const ids = [...new Set(normalizados.map((j) => j.jogador_id))];
+      const entradaValida = ids.length === normalizados.length && normalizados.every((j) =>
+        Number.isSafeInteger(j.jogador_id) && j.jogador_id > 0 &&
+        Number.isSafeInteger(j.numCamisa) && j.numCamisa >= 0 && j.numCamisa <= 99,
+      );
+      if (!entradaValida) return res.status(400).json({ error: 'Dados da escalação inválidos' });
+      const jogadoresValidos = await prisma.jogador.count({
+        where: { id: { in: ids }, categoria: { clube_id: (req as any).clubeId } },
       });
+      if (jogadoresValidos !== ids.length) {
+        return res.status(403).json({ error: 'Um ou mais jogadores não pertencem ao clube ativo' });
+      }
+      await prisma.$transaction([
+        prisma.escalacaoPartida.deleteMany({ where: { partida_id: partidaId } }),
+        prisma.escalacaoPartida.createMany({
+          data: normalizados.map(j => ({
+          partida_id: partidaId,
+            ...j,
+          })),
+        }),
+      ]);
       const nova = await prisma.escalacaoPartida.findMany({
         where: { partida_id: partidaId },
         include: { jogador: { select: { nome: true, posicao: true, numCamisa: true } } },
@@ -1001,7 +1273,7 @@ app.put<{ id: string }>(
   }
 );
 
-app.post('/admin/reprocessar-scout', async (req, res) => {
+app.post('/admin/reprocessar-scout', exigirGestorDoClube, limitarOperacaoPesada, async (req, res) => {
   if (!PYTHON_AI_URL) {
     return res.status(503).json({ error: 'PYTHON_AI_URL não configurada no servidor.' });
   }
@@ -1009,7 +1281,59 @@ app.post('/admin/reprocessar-scout', async (req, res) => {
   processarMachineLearning().catch(err => console.error('Erro no reprocessamento manual:', err));
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT as number, '0.0.0.0', () => {
+let sincronizacaoEmAndamento: Promise<void> | null = null;
+function executarSincronizacao(): Promise<void> {
+  if (sincronizacaoEmAndamento) return sincronizacaoEmAndamento;
+  sincronizacaoEmAndamento = sincronizarTodos()
+    .finally(() => { sincronizacaoEmAndamento = null; });
+  return sincronizacaoEmAndamento;
+}
+
+executarSincronizacao().catch((error) => {
+  console.error('Erro na sincronização inicial:', error?.message || error);
+});
+
+cron.schedule('*/30 * * * *', () => {
+  executarSincronizacao().catch((error) => {
+    console.error('Erro na sincronização agendada:', error?.message || error);
+  });
+});
+
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Rota não encontrada' });
+});
+
+app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const status = error?.type === 'entity.too.large' ? 413 : error?.message === 'Origem não permitida pelo CORS' ? 403 : 500;
+  if (status === 500) console.error('Erro não tratado:', error?.message || error);
+  res.status(status).json({
+    error: status === 413 ? 'Payload muito grande' : status === 403 ? 'Origem não permitida' : 'Erro interno do servidor',
+  });
+});
+
+const PORT = Number(process.env.PORT || 3000);
+if (!Number.isSafeInteger(PORT) || PORT < 1 || PORT > 65535) {
+  throw new Error('PORT inválida');
+}
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Core Service rodando na porta ${PORT}`);
 });
+
+server.requestTimeout = 130_000;
+server.headersTimeout = 15_000;
+server.keepAliveTimeout = 5_000;
+
+let encerrando = false;
+async function encerrar(signal: string) {
+  if (encerrando) return;
+  encerrando = true;
+  console.log(`Recebido ${signal}; encerrando API...`);
+  server.close(async () => {
+    await prisma.$disconnect().catch(() => undefined);
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+
+process.once('SIGTERM', () => void encerrar('SIGTERM'));
+process.once('SIGINT', () => void encerrar('SIGINT'));

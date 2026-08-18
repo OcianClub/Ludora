@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Pressable, Image, ActivityIndicator, Alert, FlatList } from 'react-native';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { styles } from '@/src/styles/equipesStyles';
 import { Header } from '@/src/components/Header';
@@ -12,10 +12,11 @@ import OrganizarPartidaCampeonato from '@/src/components/organizarPartidaCampeon
 import DetalhesCompeticao from '@/src/components/detalhesCompeticao';
 import * as SecureStore from 'expo-secure-store';
 import { atualizarIdadesJogadores } from '@/src/services/api';
+import { CardsSkeleton } from '@/src/components/Skeleton';
 
 
 import {
-  BASE_URL,
+  apiFetch,
   fetchTimes, fetchCompeticoes, fetchCategorias, fetchJogadores, fetchPartidas,
   criarTime, atualizarTime, deletarTime,
   criarCompeticao, atualizarCompeticao, deletarCompeticao,
@@ -58,6 +59,7 @@ function EmptyState({ icone, mensagem, onAction, labelAction }: any) {
 }
 
 export default function Equipes({ onFechar, noModal }: EquipesProps) {
+  const carregouUmaVez = useRef(false);
   const [abaAtiva, setAbaAtiva] = useState<'ocian' | 'adversarios' | 'campeonatos'>('ocian');
   const [tipoOcian, setTipoOcian] = useState<'INICIACAO' | 'BASE'>('INICIACAO');
   const [subSelecionadoId, setSubSelecionadoId] = useState<number | null>(null);
@@ -123,7 +125,11 @@ export default function Equipes({ onFechar, noModal }: EquipesProps) {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { carregarDados(); }, [carregarDados]));
+  useFocusEffect(useCallback(() => {
+    carregarDados(carregouUmaVez.current).finally(() => {
+      carregouUmaVez.current = true;
+    });
+  }, [carregarDados]));
 
   const isOcian = (nome: string) => nome.toUpperCase().includes(NOME_CLUBE);
   const categoriasOcian = categorias.filter(c => getTipoCategoria(c.nome) === tipoOcian);
@@ -282,7 +288,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
     formData.append('competicaoId', String((itemSelecionado as Competicao).id));
     formData.append('arquivo', { uri, name: nome, type: mimeType } as any);
  
-    const resposta = await fetch(`${BASE_URL}/partidas/importar`, {
+    const resposta = await apiFetch('/partidas/importar', {
       method: 'POST',
       body: formData,
     });
@@ -448,7 +454,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {carregando ? <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} /> : (
+        {carregando ? <CardsSkeleton rows={5} /> : (
           abaAtiva === 'ocian' ? renderCFAOcian() :
           abaAtiva === 'adversarios' ? renderAdversarios() : (
             <View>

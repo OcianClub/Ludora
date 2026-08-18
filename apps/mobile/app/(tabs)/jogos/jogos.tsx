@@ -15,6 +15,7 @@ import { fetchPartidas } from '@/src/services/api';
 import OrganizarPartidas from '../organizarPartidas/organizarPartidas';
 import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/CarrosselSubs';
 import DetalhesPartida, { Partida as PartidaDetalhes } from '@/src/components/DetalhesPartida';
+import { CardsSkeleton } from '@/src/components/Skeleton';
 
 const FILTROS_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -76,6 +77,7 @@ function ordenarPartidas(partidas: Partida[]): Partida[] {
 
 export default function Jogos() {
   const pagerRef = useRef<PagerView>(null);
+  const carregouUmaVez = useRef(false);
 
   const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(null);
 
@@ -133,8 +135,10 @@ export default function Jogos() {
         if (ativo) setEscudoClubeAtivo(escudo || null);
         if (ativo) setPodeGerenciar(!!papel && PAPEIS_GESTORES.includes(papel));
       })();
-      setCarregando(true);
-      carregarPartidas();
+      if (!carregouUmaVez.current) setCarregando(true);
+      carregarPartidas().finally(() => {
+        carregouUmaVez.current = true;
+      });
       return () => {
         ativo = false;
       };
@@ -225,7 +229,7 @@ export default function Jogos() {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaria} />}
               >
                 {carregando ? (
-                  <ActivityIndicator size="large" color={colors.primaria} style={{ marginTop: 60 }} />
+                  <CardsSkeleton rows={4} />
                 ) : diasComPartidas.length === 0 ? (
                   <View style={{ alignItems: 'center', marginTop: 60, gap: 12 }}>
                     <MaterialCommunityIcons name="calendar-remove-outline" size={48} color={colors.borda} />

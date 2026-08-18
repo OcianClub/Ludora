@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, ScrollView, Modal,
   Pressable, ActivityIndicator, Alert, Animated,
 } from 'react-native';
+import { CardsSkeleton } from '@/src/components/Skeleton';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
@@ -252,7 +253,7 @@ export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
       />
 
       {carregando ? (
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+        <View style={s.listaContent}><CardsSkeleton rows={4} /></View>
       ) : partidas.length === 0 ? (
         <View style={s.emptyContainer}>
           <MaterialCommunityIcons name="calendar-remove-outline" size={56} color="#2a2a2a" />

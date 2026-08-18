@@ -10,7 +10,7 @@
 // clube ativo no SecureStore e navega para (tabs) — de onde tudo (Header,
 // Home, estatísticas etc.) passa a ler dinamicamente.
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,7 @@ import {
   deixarDeSeguirClube,
   ClubeListado,
 } from '@/src/services/api';
+import { ListSkeleton } from '@/src/components/Skeleton';
 
 // ==========================================
 // HELPERS DE CACHE LOCAL (userData no SecureStore)
@@ -98,6 +99,9 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [processandoId, setProcessandoId] = useState<number | null>(null);
+  const primeiraBusca = useRef(true);
+  const requestAtual = useRef(0);
+  const carregouUmaVez = useRef(false);
 
   const [clubeAtivoId, setClubeAtivoId] = useState<string | null>(null);
   const [nomeClubeAtivo, setNomeClubeAtivo] = useState(
@@ -106,14 +110,15 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
   const [escudoClubeAtivo, setEscudoClubeAtivo] = useState<string | null>(null);
 
   const carregarClubes = useCallback(async (termo?: string) => {
+    const requestId = ++requestAtual.current;
     try {
       setErro('');
       const lista = await fetchClubes(termo);
-      setClubes(lista);
+      if (requestId === requestAtual.current) setClubes(lista);
     } catch (e: any) {
-      setErro(e.message || 'Erro ao carregar clubes');
+      if (requestId === requestAtual.current) setErro(e.message || 'Erro ao carregar clubes');
     } finally {
-      setCarregando(false);
+      if (requestId === requestAtual.current) setCarregando(false);
     }
   }, []);
 
@@ -122,16 +127,19 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
     useCallback(() => {
       let ativo = true;
       (async () => {
-        setCarregando(true);
+        if (!carregouUmaVez.current) setCarregando(true);
         if (modo === 'trocar') {
-          const nomeAtivo = await SecureStore.getItemAsync('clubeAtivoNome');
-          const escudoAtivo = await SecureStore.getItemAsync('clubeAtivoEscudo');
+          const [nomeAtivo, escudoAtivo] = await Promise.all([
+            SecureStore.getItemAsync('clubeAtivoNome'),
+            SecureStore.getItemAsync('clubeAtivoEscudo'),
+          ]);
           if (ativo && nomeAtivo) setNomeClubeAtivo(nomeAtivo);
           if (ativo && escudoAtivo) setEscudoClubeAtivo(escudoAtivo);
         }
         const idAtivo = await SecureStore.getItemAsync('clubeAtivoId');
         if (ativo) setClubeAtivoId(idAtivo);
         await carregarClubes();
+        carregouUmaVez.current = true;
       })();
       return () => {
         ativo = false;
@@ -141,7 +149,13 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
 
   // Busca com um pequeno debounce pra não disparar request a cada letra
   useEffect(() => {
+    // O carregamento inicial já é feito pelo useFocusEffect.
+    if (primeiraBusca.current) {
+      primeiraBusca.current = false;
+      return;
+    }
     const timer = setTimeout(() => {
+      setCarregando(true);
       carregarClubes(busca.trim() || undefined);
     }, 400);
     return () => clearTimeout(timer);
@@ -265,7 +279,7 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
         </View>
 
         {carregando ? (
-          <ActivityIndicator size="large" color="#0E78FF" style={{ marginVertical: 40 }} />
+          <ListSkeleton rows={5} />
         ) : (
           <>
             {/* Seus clubes */}

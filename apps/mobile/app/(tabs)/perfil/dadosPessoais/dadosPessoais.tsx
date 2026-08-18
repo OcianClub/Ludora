@@ -196,6 +196,10 @@ export default function DadosPessoais({
       );
       return;
     }
+    if (senha.length > 0 && senha.length < 8) {
+      Alert.alert("Atenção", "A nova senha deve ter pelo menos 8 caracteres.");
+      return;
+    }
 
     setSalvando(true);
 
@@ -203,7 +207,7 @@ export default function DadosPessoais({
       await atualizarUsuario({
         nome,
         email,
-        ...(senha.length >= 6 && {
+        ...(senha.length >= 8 && {
           senha,
         }),
       });
