@@ -39,7 +39,7 @@ interface EscalacaoPartidaProps {
   categoriaId:    number | null;
   competicaoId?:  number | null;
   isAdmin:        boolean;
-  partidaStatus?: 'AGENDADA' | 'AO_VIVO' | 'FINALIZADA';
+  partidaStatus?: 'AGENDADA' | 'PREPARADA' | 'AO_VIVO' | 'FINALIZADA' | 'CANCELADA';
   onEscalacaoAtualizada?: (escalacao: JogadorEscalado[]) => void;
 }
 

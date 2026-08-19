@@ -8,6 +8,7 @@ import {
 import { Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SecureStore from 'expo-secure-store';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 type Destino = '/(auth)/login' | '/clubes' | '/(tabs)';
 
@@ -36,6 +37,7 @@ function StartupScreen() {
 export default function Index() {
   const [carregando, setCarregando] = useState(true);
   const [destino, setDestino] = useState<Destino | null>(null);
+  const { clubeAtivo } = useClubeAtivo();
 
   useEffect(() => {
   async function verificarSessao() {

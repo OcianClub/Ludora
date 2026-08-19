@@ -33,7 +33,7 @@ export interface Partida {
   data: string;
   horario: string | null;
   local: string | null;
-  status: 'AGENDADA' | 'AO_VIVO' | 'FINALIZADA';
+  status: 'AGENDADA' | 'PREPARADA' | 'AO_VIVO' | 'FINALIZADA' | 'CANCELADA';
   emCasa: boolean;
   categoria: { id: number; nome: string } | null;
   competicao?: { id: number; nome: string; ano?: number; tipo: 'INICIACAO' | 'BASE' } | null;
@@ -178,6 +178,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
 
   const periodos = getPeriodos(partida.categoria?.nome);
   const isInterativo = isAdmin && (partida.status === 'AO_VIVO' || modoEdicao);
+  const partidaNaoIniciada = partida.status === 'AGENDADA' || partida.status === 'PREPARADA';
   const ocianEhMandante = partida.emCasa;
 
   const timesFiltrados = times.filter(t =>
@@ -191,7 +192,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const carregarEventos = useCallback(async () => {
-    if (partida.status === 'AGENDADA') return;
+    if (partida.status === 'AGENDADA' || partida.status === 'PREPARADA' || partida.status === 'CANCELADA') return;
     setCarregandoEventos(true);
     try { setEventos(await fetchEventosDaPartida(partida.id)); } catch {} finally { setCarregandoEventos(false); }
   }, [partida.id, partida.status]);
@@ -383,7 +384,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
               <Text style={[styles.headerEditBtnText, modoEdicao && { color: '#FFF' }]}>{modoEdicao ? 'CONCLUIR' : 'SCOUT'}</Text>
             </TouchableOpacity>
           )}
-          {isAdmin && !modoEdicao && (partida.status === 'AGENDADA' || partida.status === 'FINALIZADA') && (
+          {isAdmin && !modoEdicao && (partidaNaoIniciada || partida.status === 'FINALIZADA') && (
             <TouchableOpacity style={styles.headerEditBtn} onPress={abrirEditar}>
               <Icon name="pencil-outline" size={18} color={colors.textoSecundario} />
             </TouchableOpacity>
@@ -408,7 +409,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
             </View>
 
             <View style={styles.heroScoreBlock}>
-              {partida.status === 'AGENDADA' ? (
+              {partidaNaoIniciada || partida.status === 'CANCELADA' ? (
                 <>
                   <Text style={styles.heroVs}>VS</Text>
                   <View style={styles.scheduledBadge}><Text style={styles.scheduledBadgeText}>{partida.horario ?? 'AGENDADO'}</Text></View>
@@ -470,7 +471,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
         </View>
 
         {/* BOTÃO INICIAR PARTIDA */}
-        {partida.status === 'AGENDADA' && isAdmin && isHoje(partida.data) && (
+        {partidaNaoIniciada && isAdmin && isHoje(partida.data) && (
           <View style={styles.section}>
             <TouchableOpacity style={styles.finalizarBtn} onPress={iniciarPartida}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -528,7 +529,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
         )}
 
         {/* LISTA DE EVENTOS */}
-        {partida.status !== 'AGENDADA' && (
+        {!partidaNaoIniciada && partida.status !== 'CANCELADA' && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}><View style={styles.sectionBar} /><Text style={styles.sectionTitle}>EVENTOS DA PARTIDA</Text></View>

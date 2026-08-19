@@ -696,11 +696,9 @@ app.post('/jogadores', exigirGestorDoClube, async (req, res) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/jogadores/perfis', async (req, res) => {
-  const clube_id = Number(req.headers['x-clube-id']);
+app.get('/jogadores/perfis', exigirGestorDoClube, async (req, res) => {
+  const clube_id = (req as any).clubeId as number;
   const { categoria_id } = req.query;
-  
-  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
 
   try {
     const jogadores = await prisma.jogador.findMany({
@@ -929,7 +927,13 @@ app.get('/partidas', async (req, res) => {
     const partidas = await prisma.partida.findMany({
       where,
       orderBy: { data: 'asc' },
-      include: { mandante: true, visitante: true, categoria: true, eventos: true },
+      include: {
+        mandante: true,
+        visitante: true,
+        categoria: true,
+        competicao: true,
+        eventos: true,
+      },
     });
     res.json(partidas);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar partidas' }); }
@@ -1028,7 +1032,7 @@ app.patch<{ id: string }>(
   async (req, res) => {
     const partidaId = Number(req.params.id);
     const { status } = req.body;
-    if (!['AGENDADA', 'AO_VIVO', 'FINALIZADA'].includes(status)) {
+    if (!['AGENDADA', 'PREPARADA', 'AO_VIVO', 'FINALIZADA', 'CANCELADA'].includes(status)) {
       return res.status(400).json({ error: 'Status inválido' });
     }
     try {

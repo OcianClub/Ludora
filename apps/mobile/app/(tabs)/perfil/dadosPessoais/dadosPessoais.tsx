@@ -18,6 +18,7 @@ import { Header } from "@/src/components/Header";
 import { colors } from "@ludora/design-tokens";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
 
 import {
   atualizarUsuario,
@@ -133,6 +134,7 @@ export default function DadosPessoais({
   onFechar,
   noModal,
 }: DadosPessoaisProps) {
+  const { clubeAtivo } = useClubeAtivo();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -281,6 +283,7 @@ export default function DadosPessoais({
         showProfile={false}
         btnVoltar="arrow-left"
         onBtnVoltar={onFechar}
+        papelUsuario={clubeAtivo?.papel ?? undefined}
         semSafeArea={noModal}
       />
 

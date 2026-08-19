@@ -1,8 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
 
-export const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ??
-  'http://192.168.7.2:3000';
+export const BASE_URL = 'http://192.168.7.2:3000';
+// export const BASE_URL =
+//   process.env.EXPO_PUBLIC_API_URL ??
+//   'http://192.168.7.2:3000';
 
 export interface ClassificacaoItem {
   grupo: string;
@@ -319,14 +320,16 @@ export async function fetchPartidas(params?: {
   categoria_id?: number;
   mes?: number;
   status?: string;
-}) {
+}, clubeId?: number) {
   const query = new URLSearchParams();
   if (params?.categoria_id != null) query.append('categoria_id', String(params.categoria_id));
   if (params?.mes          != null) query.append('mes',          String(params.mes));
   if (params?.status)               query.append('status',       params.status);
 
   const endpoint = `/partidas?${query.toString()}`;
-  const res = await apiFetch(endpoint);
+  const res = await apiFetch(endpoint, clubeId
+    ? { headers: { 'x-clube-id': String(clubeId) } }
+    : undefined);
 
   if (!res.ok) {
     const corpo = await res.text().catch(() => '');

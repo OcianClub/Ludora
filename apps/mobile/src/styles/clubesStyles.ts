@@ -67,8 +67,22 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     width: 64,
   },
-  clubeAtalhoLogo: {
+  clubeAtalhoEscudoWrap: {
+    position: 'relative',
     marginBottom: 8,
+  },
+  clubeAtalhoGestorBadge: {
+    position: 'absolute',
+    right: -4,
+    bottom: -3,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.fundoAtencao,
+    borderWidth: 2,
+    borderColor: colors.fundo,
   },
   clubeAtalhoNome: {
     fontFamily: typography.fontFamily.corpo.semiBold,
@@ -105,6 +119,15 @@ export const styles = StyleSheet.create({
     color: colors.textoSecundario,
     textTransform: 'uppercase',
   },
+  descobertaVazia: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  descobertaVaziaTxt: {
+    fontFamily: typography.fontFamily.corpo.medium,
+    fontSize: typography.fontSize.xs,
+    color: colors.textoSecundario,
+  },
   
   // ── Card do Clube ──
   clubeCard: {
@@ -135,17 +158,51 @@ export const styles = StyleSheet.create({
     color: colors.texto,
     flexShrink: 1,
   },
+  gestaoSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  gestaoSectionIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.fundoAtencao,
+  },
+  gestaoSectionTextos: {
+    flex: 1,
+  },
+  gestaoSectionTitle: {
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.xs,
+    color: colors.tituloAtencao,
+    textTransform: 'uppercase',
+  },
+  gestaoSectionSub: {
+    marginTop: 2,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: 10,
+    color: colors.textoSecundario,
+  },
   badgeTecnico: {
     backgroundColor: colors.fundoAtencao,
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 4,
-    marginLeft: 8,
+    marginLeft: 6,
   },
   badgeTecnicoTxt: {
-    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontFamily: typography.fontFamily.corpo.medium,
     fontSize: 8.5,
     color: colors.tituloAtencao,
+  },
+  gestaoAcesso: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 8,
   },
   clubeCardSub: {
     fontFamily: typography.fontFamily.corpo.regular,

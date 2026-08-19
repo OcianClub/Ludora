@@ -38,13 +38,21 @@ export const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: typography.fontSize.sm,
   },
+  seasonStatusAoVivo: {
+    color: colors.vermelho,
+  },
 
   // CARD PRINCIPAL (PARTIDA)
   mainCard: {
     backgroundColor: colors.card,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
     padding: 20,
     marginBottom: 20,
+  },
+  mainCardAoVivo: {
+    borderColor: colors.bordaBotao,
   },
   containerIcon: {
     flexDirection: 'row',
@@ -118,6 +126,12 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
+  },
+  btnDetalhesContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   txtDetalhes: {
     color: colors.texto,

@@ -1,455 +1,363 @@
-import { PrismaClient, TipoCategoria, PapelUsuario, TipoEvento, StatusPartida, TipoCompeticao } from "@prisma/client";
+import {
+  PapelUsuario,
+  PrismaClient,
+  StatusPartida,
+  TipoCategoria,
+  TipoCompeticao,
+  TipoEvento,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+const CATEGORIAS = [
+  { nome: 'sub-7', faixaIdade: 7, tipo: TipoCategoria.INICIACAO },
+  { nome: 'sub-8', faixaIdade: 8, tipo: TipoCategoria.INICIACAO },
+  { nome: 'sub-9', faixaIdade: 9, tipo: TipoCategoria.INICIACAO },
+  { nome: 'sub-10', faixaIdade: 10, tipo: TipoCategoria.INICIACAO },
+  { nome: 'sub-12', faixaIdade: 12, tipo: TipoCategoria.BASE },
+  { nome: 'sub-14', faixaIdade: 14, tipo: TipoCategoria.BASE },
+  { nome: 'sub-16', faixaIdade: 16, tipo: TipoCategoria.BASE },
+  { nome: 'sub-18', faixaIdade: 18, tipo: TipoCategoria.BASE },
+] as const;
 
-function dataPartida(anoBase: number, mes: number, dia: number): Date {
-  return new Date(`${anoBase}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`);
+const NOMES_JOGADORES = [
+  'Gabriel Costa', 'Lucas Almeida', 'Matheus Santos', 'Rafael Oliveira',
+  'Pedro Henrique', 'João Vitor', 'Gustavo Lima', 'Felipe Rocha',
+  'Bruno Martins', 'Caio Ribeiro', 'Diego Souza', 'Leonardo Alves',
+] as const;
+
+const POSICOES = [
+  'Goleiro', 'Fixo', 'Ala', 'Pivô', 'Ala', 'Ala',
+  'Fixo', 'Pivô', 'Ala', 'Goleiro', 'Fixo', 'Ala',
+] as const;
+
+const ADVERSARIOS = ['Aurora FC', 'Estrela Azul', 'União Esportiva'] as const;
+
+const CENARIOS_PARTIDAS = [
+  { dias: -28, status: StatusPartida.FINALIZADA, nossosGols: 4, golsRival: 1 },
+  { dias: -21, status: StatusPartida.FINALIZADA, nossosGols: 2, golsRival: 2 },
+  { dias: -14, status: StatusPartida.FINALIZADA, nossosGols: 1, golsRival: 3 },
+  { dias: -7, status: StatusPartida.FINALIZADA, nossosGols: 5, golsRival: 2 },
+  { dias: 0, status: StatusPartida.AGENDADA, nossosGols: 0, golsRival: 0 },
+  { dias: 3, status: StatusPartida.PREPARADA, nossosGols: 0, golsRival: 0 },
+  { dias: 8, status: StatusPartida.AGENDADA, nossosGols: 0, golsRival: 0 },
+  { dias: 15, status: StatusPartida.CANCELADA, nossosGols: 0, golsRival: 0 },
+] as const;
+
+const PRIORIDADE_PAPEL: Record<PapelUsuario, number> = {
+  ADMIN: 4,
+  TECNICO: 3,
+  MESARIO: 2,
+  TORCEDOR: 1,
+};
+
+function hojeUtc(): Date {
+  const agora = new Date();
+  return new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), agora.getUTCDate()));
 }
 
-function escolher<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+function adicionarDias(data: Date, dias: number): Date {
+  const resultado = new Date(data);
+  resultado.setUTCDate(resultado.getUTCDate() + dias);
+  return resultado;
 }
 
-function randInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+function dataNascimento(faixaIdade: number, indice: number): Date {
+  const ano = new Date().getUTCFullYear() - faixaIdade + (indice % 2);
+  return new Date(Date.UTC(ano, (indice * 2) % 12, 2 + (indice * 3) % 25));
 }
 
-// ── Adversários realistas para o sub-16 ───────────────────────────────────────
-
-const ADVERSARIOS_SUB16 = [
-  'Santos FC',
-  'Guarujá EC',
-  'Praia Grande FC',
-  'São Vicente EC',
-  'Mongaguá SC',
-  'Itanhaém FC',
-  'Peruíbe EC',
-  'Bertioga SC',
-  'Cubatão FC',
-  'Litoral FC',
-];
-
-// ── Jogadores do sub-16 com perfis variados ───────────────────────────────────
-
-const JOGADORES_SUB16 = [
-  { nome: 'Murilo Paredão',    posicao: 'Goleiro', camisa: 1,  titular: true  },
-  { nome: 'Felipe Fixo',       posicao: 'Fixo',    camisa: 4,  titular: true  },
-  { nome: 'Jefferson Maestro', posicao: 'Ala',     camisa: 10, titular: true  },
-  { nome: 'Marcos Artilheiro', posicao: 'Pivô',    camisa: 9,  titular: true  },
-  { nome: 'Lucas Motorzinho',  posicao: 'Ala',     camisa: 7,  titular: true  },
-  { nome: 'Gabriel Talento',   posicao: 'Ala',     camisa: 11, titular: false },
-  { nome: 'Rafael Banco',      posicao: 'Pivô',    camisa: 13, titular: false },
-  { nome: 'Diego Coringa',     posicao: 'Ala',     camisa: 8,  titular: false },
-];
-
-// ── Gerador de eventos por partida ────────────────────────────────────────────
-
-function gerarEventos(
-  partidaId: number,
-  jogadores: { id: number; posicao: string; titular: boolean }[],
-  golsOcian: number,
-  golsAdversario: number,
-): Array<{
-  partida_id: number;
-  tipo: TipoEvento;
-  periodo: number;
-  minuto: number | null;
-  jogador_id: number | null;
-}> {
-  const eventos: ReturnType<typeof gerarEventos> = [];
-
-  const goleiro    = jogadores.find(j => j.posicao === 'Goleiro')!;
-  const pivos      = jogadores.filter(j => j.posicao === 'Pivô');
-  const alas       = jogadores.filter(j => j.posicao === 'Ala');
-  const fixos      = jogadores.filter(j => j.posicao === 'Fixo');
-  const atacantes  = [...pivos, ...alas];
-
-  // Gols do Ocian
-  let golsRestantes = golsOcian;
-  for (let g = 0; g < golsOcian; g++) {
-    const periodo = g < Math.ceil(golsOcian / 2) ? 1 : 2;
-    const artilheiro = escolher(atacantes);
-    const assistente = escolher([...alas, ...fixos].filter(j => j.id !== artilheiro.id));
-    // Note que removemos o 'doOcian' daqui
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.GOL, periodo, minuto: null, jogador_id: artilheiro.id });
-    if (Math.random() < 0.7 && assistente) {
-      eventos.push({ partida_id: partidaId, tipo: TipoEvento.ASSISTENCIA, periodo, minuto: null, jogador_id: assistente.id });
-    }
-    golsRestantes--;
-  }
-
-  // Gols do adversário
-  for (let g = 0; g < golsAdversario; g++) {
-    const periodo = g < Math.ceil(golsAdversario / 2) ? 1 : 2;
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.GOL, periodo, minuto: null, jogador_id: null });
-  }
-
-  // Defesas
-  const numDefesas = randInt(2, 4) + golsAdversario;
-  for (let d = 0; d < numDefesas; d++) {
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.DEFESA, periodo: d % 2 === 0 ? 1 : 2, minuto: null, jogador_id: goleiro.id });
-  }
-
-  // Faltas
-  const numFaltas = randInt(2, 5);
-  for (let f = 0; f < numFaltas; f++) {
-    const j = escolher(jogadores);
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.FALTA, periodo: randInt(1, 2), minuto: null, jogador_id: j.id });
-  }
-
-  // Cartões Amarelos
-  if (Math.random() < 0.4) {
-    const j = escolher(jogadores.filter(jj => jj.posicao !== 'Goleiro'));
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.CARTAO_AMARELO, periodo: 2, minuto: null, jogador_id: j.id });
-  }
-
-  // Cartão azul
-  if (Math.random() < 0.15) {
-    const j = escolher(jogadores);
-    eventos.push({ partida_id: partidaId, tipo: TipoEvento.CARTAO_AZUL, periodo: 2, minuto: null, jogador_id: j.id });
-  }
-
-  return eventos;
+function criarCpfUnico(indiceCategoria: number, indiceJogador: number): string {
+  return `${700 + indiceCategoria}${String(indiceJogador + 1).padStart(3, '0')}00000`;
 }
 
-// ── Tabela de 30 partidas do sub-16 ───────────────────────────────────────────
+function dadosScout(posicao: string, indice: number) {
+  const variacao = (indice % 4) * 2;
+  if (posicao === 'Goleiro') {
+    return {
+      perfil_ml: 'Paredão', nota_geral: 7.8 + variacao / 10,
+      scores_ml: { finalizacao: 28 + variacao, visao_de_jogo: 64 + variacao,
+        defesa: 91 - variacao, disciplina: 82 - variacao,
+        intensidade: 72 + variacao, tecnica: 68 + variacao },
+    };
+  }
+  if (posicao === 'Pivô') {
+    return {
+      perfil_ml: 'Artilheiro', nota_geral: 8.1 + variacao / 10,
+      scores_ml: { finalizacao: 90 - variacao, visao_de_jogo: 72 + variacao,
+        defesa: 42 + variacao, disciplina: 75 - variacao,
+        intensidade: 84 + variacao, tecnica: 86 - variacao },
+    };
+  }
+  return {
+    perfil_ml: 'Armador', nota_geral: 7.6 + variacao / 10,
+    scores_ml: { finalizacao: 70 + variacao, visao_de_jogo: 89 - variacao,
+      defesa: posicao === 'Fixo' ? 82 : 60, disciplina: 80 - variacao,
+      intensidade: 85 + variacao, tecnica: 88 - variacao },
+  };
+}
 
-const CRONOGRAMA_SUB16: Array<{
-  mes: number; dia: number; rodada: number; grupo: string | null;
-  adversario: string; emCasa: boolean; golsOcian: number; golsAdv: number;
-}> = [
-  { mes: 2, dia: 8,  rodada: 1,  grupo: 'A', adversario: 'Santos FC',      emCasa: true,  golsOcian: 4, golsAdv: 1 },
-  { mes: 2, dia: 15, rodada: 1,  grupo: 'B', adversario: 'Guarujá EC',     emCasa: false, golsOcian: 3, golsAdv: 2 },
-  { mes: 2, dia: 22, rodada: 2,  grupo: 'A', adversario: 'Praia Grande FC',emCasa: true,  golsOcian: 5, golsAdv: 0 },
-  { mes: 3, dia: 1,  rodada: 2,  grupo: 'B', adversario: 'São Vicente EC', emCasa: false, golsOcian: 2, golsAdv: 2 },
-  { mes: 3, dia: 8,  rodada: 3,  grupo: 'A', adversario: 'Mongaguá SC',    emCasa: true,  golsOcian: 6, golsAdv: 1 },
-  { mes: 3, dia: 15, rodada: 3,  grupo: 'B', adversario: 'Itanhaém FC',    emCasa: false, golsOcian: 1, golsAdv: 3 },
-  { mes: 3, dia: 22, rodada: 4,  grupo: 'A', adversario: 'Peruíbe EC',     emCasa: true,  golsOcian: 4, golsAdv: 2 },
-  { mes: 3, dia: 29, rodada: 4,  grupo: 'B', adversario: 'Bertioga SC',    emCasa: false, golsOcian: 3, golsAdv: 1 },
-  { mes: 4, dia: 5,  rodada: 5,  grupo: 'A', adversario: 'Cubatão FC',     emCasa: true,  golsOcian: 2, golsAdv: 0 },
-  { mes: 4, dia: 12, rodada: 5,  grupo: 'B', adversario: 'Litoral FC',     emCasa: false, golsOcian: 4, golsAdv: 3 },
-  { mes: 4, dia: 26, rodada: 6,  grupo: 'A', adversario: 'Santos FC',      emCasa: false, golsOcian: 3, golsAdv: 2 },
-  { mes: 5, dia: 3,  rodada: 6,  grupo: 'B', adversario: 'Guarujá EC',     emCasa: true,  golsOcian: 5, golsAdv: 1 },
-  { mes: 5, dia: 10, rodada: 7,  grupo: 'A', adversario: 'Praia Grande FC',emCasa: false, golsOcian: 2, golsAdv: 2 },
-  { mes: 5, dia: 17, rodada: 7,  grupo: 'B', adversario: 'São Vicente EC', emCasa: true,  golsOcian: 4, golsAdv: 0 },
-  { mes: 5, dia: 24, rodada: 8,  grupo: 'A', adversario: 'Mongaguá SC',    emCasa: false, golsOcian: 3, golsAdv: 1 },
-  { mes: 5, dia: 31, rodada: 8,  grupo: 'B', adversario: 'Itanhaém FC',    emCasa: true,  golsOcian: 6, golsAdv: 2 },
-  { mes: 6, dia: 7,  rodada: 9,  grupo: 'A', adversario: 'Peruíbe EC',     emCasa: false, golsOcian: 1, golsAdv: 1 },
-  { mes: 6, dia: 14, rodada: 9,  grupo: 'B', adversario: 'Bertioga SC',    emCasa: true,  golsOcian: 5, golsAdv: 0 },
-  { mes: 6, dia: 21, rodada: 10, grupo: 'A', adversario: 'Cubatão FC',     emCasa: false, golsOcian: 2, golsAdv: 3 },
-  { mes: 6, dia: 28, rodada: 10, grupo: 'B', adversario: 'Litoral FC',     emCasa: true,  golsOcian: 4, golsAdv: 1 },
-  { mes: 7, dia: 19, rodada: 11, grupo: null, adversario: 'Santos FC',      emCasa: true,  golsOcian: 3, golsAdv: 1 },
-  { mes: 7, dia: 26, rodada: 11, grupo: null, adversario: 'Guarujá EC',     emCasa: false, golsOcian: 4, golsAdv: 2 },
-  { mes: 8, dia: 2,  rodada: 12, grupo: null, adversario: 'Praia Grande FC',emCasa: true,  golsOcian: 2, golsAdv: 1 },
-  { mes: 8, dia: 9,  rodada: 12, grupo: null, adversario: 'Itanhaém FC',    emCasa: false, golsOcian: 5, golsAdv: 0 },
-  { mes: 8, dia: 16, rodada: 13, grupo: null, adversario: 'Mongaguá SC',    emCasa: true,  golsOcian: 3, golsAdv: 2 },
-  { mes: 8, dia: 23, rodada: 13, grupo: null, adversario: 'Cubatão FC',     emCasa: false, golsOcian: 1, golsAdv: 2 },
-  { mes: 9, dia: 6,  rodada: 14, grupo: null, adversario: 'Litoral FC',     emCasa: true,  golsOcian: 4, golsAdv: 1 },
-  { mes: 9, dia: 13, rodada: 14, grupo: null, adversario: 'São Vicente EC', emCasa: false, golsOcian: 3, golsAdv: 0 },
-  { mes: 9, dia: 27, rodada: 15, grupo: null, adversario: 'Santos FC',      emCasa: true,  golsOcian: 4, golsAdv: 2 },
-  { mes: 10,dia: 11, rodada: 16, grupo: null, adversario: 'Guarujá EC',     emCasa: true,  golsOcian: 3, golsAdv: 1 },
-];
+function papelMaisForte(papeis: PapelUsuario[]): PapelUsuario {
+  return papeis.reduce<PapelUsuario>(
+    (maisForte, papel) => PRIORIDADE_PAPEL[papel] > PRIORIDADE_PAPEL[maisForte] ? papel : maisForte,
+    PapelUsuario.TORCEDOR,
+  );
+}
 
-// ── MAIN ──────────────────────────────────────────────────────────────────────
+async function limparDadosEsportivos(): Promise<void> {
+  await prisma.$transaction([
+    prisma.usuarioClube.deleteMany(),
+    prisma.campeonatoClassificacao.deleteMany(),
+    prisma.evento.deleteMany(),
+    prisma.escalacaoPartida.deleteMany(),
+    prisma.partida.deleteMany(),
+    prisma.competicaoJogador.deleteMany(),
+    prisma.competicaoTime.deleteMany(),
+    prisma.jogador.deleteMany(),
+    prisma.time.deleteMany(),
+    prisma.competicao.deleteMany(),
+    prisma.categoria.deleteMany(),
+    prisma.clube.deleteMany(),
+  ]);
+}
 
-async function main() {
-  console.log("🧼 Limpando dados antigos...");
+async function main(): Promise<void> {
+  console.log('🌱 Iniciando seed de demonstração do Ludora...');
 
-  // Para evitar erros de FK, é bom deletar UsuarioClube e Clube
-  await prisma.usuarioClube.deleteMany({});
-  await prisma.evento.deleteMany({});
-  await prisma.escalacaoPartida.deleteMany({});
-  await prisma.partida.deleteMany({});
-  await prisma.competicaoTime.deleteMany({});
-  await prisma.competicaoJogador.deleteMany({});
-  await prisma.jogador.deleteMany({});
-  await prisma.time.deleteMany({});
-  await prisma.competicao.deleteMany({});
-  await prisma.categoria.deleteMany({});
-  await prisma.clube.deleteMany({});
-
-  console.log("🏁 Banco limpo. Iniciando seeding...");
-
-  // ── 0. CRIANDO O CLUBE BASE (MULTI-TENANT) ──────────────────────────────────
-  const clubeOcian = await prisma.clube.create({
-    data: {
-      nome: 'CFA Ocian Praia Clube',
-      cidade: 'Praia Grande',
-      estado: 'SP',
-      plano: 'PRO'
-    }
+  // A tabela Usuario e os hashes das senhas nunca são apagados por este seed.
+  let usuarios = await prisma.usuario.findMany({
+    orderBy: { criadoEm: 'asc' },
+    include: { clubes: { select: { papel: true } } },
   });
-  console.log(`✅ Clube criado: ${clubeOcian.nome} (ID: ${clubeOcian.id})`);
+  const papeisAnteriores = new Map(
+    usuarios.map((usuario) => [
+      usuario.id,
+      papelMaisForte(usuario.clubes.map((vinculo) => vinculo.papel)),
+    ]),
+  );
 
-  // ── 1. CATEGORIAS ────────────────────────────────────────────────────────────
-  const categoriasIniciacao = ['sub-7', 'sub-8', 'sub-9', 'sub-10'];
-  for (const nome of categoriasIniciacao) {
-    await prisma.categoria.upsert({
-      where: { nome_clube_id: { nome, clube_id: clubeOcian.id } },
-      update: {},
-      create: { 
-        nome, 
-        tipo: TipoCategoria.INICIACAO, 
-        faixaIdade: parseInt(nome.replace('sub-', '')),
-        clube_id: clubeOcian.id
-      },
+  await limparDadosEsportivos();
+  console.log(`🧹 Dados esportivos removidos; ${usuarios.length} usuário(s) preservado(s).`);
+
+  const clube = await prisma.clube.create({
+    data: { nome: 'Ludora FC', cidade: 'São Paulo', estado: 'SP', plano: 'PRO' },
+  });
+
+  let usuarioTesteCriado = false;
+  if (usuarios.length === 0) {
+    const senha = await bcrypt.hash('Ludora@123', 12);
+    const usuario = await prisma.usuario.create({
+      data: { nome: 'Administrador Ludora', email: 'admin@ludora.dev', senha },
+      include: { clubes: { select: { papel: true } } },
     });
+    usuarios = [usuario];
+    papeisAnteriores.set(usuario.id, PapelUsuario.ADMIN);
+    usuarioTesteCriado = true;
   }
 
-  const categoriasBases = ['sub-12', 'sub-14', 'sub-16', 'sub-18'];
-  for (const nome of categoriasBases) {
-    await prisma.categoria.upsert({
-      where: { nome_clube_id: { nome, clube_id: clubeOcian.id } },
-      update: {},
-      create: { 
-        nome, 
-        tipo: TipoCategoria.BASE, 
-        faixaIdade: parseInt(nome.replace('sub-', '')),
-        clube_id: clubeOcian.id
-      },
-    });
-  }
-  console.log("✅ Categorias criadas vinculadas ao clube.");
+  const emailAdmin = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  const usuarioAdminEscolhido =
+    usuarios.find((usuario) => usuario.email.toLowerCase() === emailAdmin) ??
+    usuarios.find((usuario) => papeisAnteriores.get(usuario.id) === PapelUsuario.ADMIN) ??
+    usuarios[0];
 
-  // ── 2. ADMIN ─────────────────────────────────────────────────────────────────
-  const hashSenha = await bcrypt.hash('123456', 10);
-  await prisma.usuario.upsert({
-    where: { email: 'admin@ocian.com' },
-    update: {},
-    create: { 
-      nome: 'Administrador', 
-      email: 'admin@ocian.com', 
-      senha: hashSenha,
-      // Cria a relação com o clube na tabela pivô
-      clubes: {
-        create: {
-          clube_id: clubeOcian.id,
-          papel: PapelUsuario.ADMIN
-        }
+  await prisma.usuarioClube.createMany({
+    data: usuarios.map((usuario) => ({
+      usuario_id: usuario.id,
+      clube_id: clube.id,
+      papel: usuario.id === usuarioAdminEscolhido.id
+        ? PapelUsuario.ADMIN
+        : (papeisAnteriores.get(usuario.id) ?? PapelUsuario.TORCEDOR),
+    })),
+  });
+
+  const categorias = [];
+  for (const categoria of CATEGORIAS) {
+    categorias.push(await prisma.categoria.create({
+      data: { clube_id: clube.id, ...categoria },
+    }));
+  }
+
+  const anoAtual = new Date().getUTCFullYear();
+  const competicaoIniciacao = await prisma.competicao.create({
+    data: {
+      clube_id: clube.id, nome: `Festival Ludora ${anoAtual}`,
+      ano: anoAtual, tipo: TipoCompeticao.INICIACAO,
+      categorias: { connect: categorias
+        .filter((categoria) => categoria.tipo === TipoCategoria.INICIACAO)
+        .map(({ id }) => ({ id })) },
+    },
+  });
+  const competicaoBase = await prisma.competicao.create({
+    data: {
+      clube_id: clube.id, nome: `Liga Ludora ${anoAtual}`,
+      ano: anoAtual, tipo: TipoCompeticao.BASE,
+      categorias: { connect: categorias
+        .filter((categoria) => categoria.tipo === TipoCategoria.BASE)
+        .map(({ id }) => ({ id })) },
+    },
+  });
+
+  let totalTimes = 0;
+  let totalJogadores = 0;
+  let totalPartidas = 0;
+  let totalEventos = 0;
+
+  for (const [indiceCategoria, categoria] of categorias.entries()) {
+    const competicao = categoria.tipo === TipoCategoria.INICIACAO
+      ? competicaoIniciacao : competicaoBase;
+    const nossoTime = await prisma.time.create({
+      data: { nome: `Ludora FC ${categoria.nome}`, categoria_id: categoria.id },
+    });
+    const rivais = [];
+    for (const nome of ADVERSARIOS) {
+      rivais.push(await prisma.time.create({
+        data: { nome: `${nome} ${categoria.nome}`, categoria_id: categoria.id },
+      }));
+    }
+    const times = [nossoTime, ...rivais];
+    totalTimes += times.length;
+    await prisma.competicaoTime.createMany({
+      data: times.map((time) => ({ competicao_id: competicao.id, time_id: time.id })),
+    });
+
+    const jogadores = [];
+    for (const [indiceJogador, nome] of NOMES_JOGADORES.entries()) {
+      const posicao = POSICOES[indiceJogador];
+      jogadores.push(await prisma.jogador.create({
+        data: {
+          nome: `${nome} (${categoria.nome})`,
+          cpf: criarCpfUnico(indiceCategoria, indiceJogador),
+          dtNasc: dataNascimento(categoria.faixaIdade, indiceJogador),
+          numCamisa: indiceJogador + 1,
+          posicao,
+          categoria_id: categoria.id,
+          ...dadosScout(posicao, indiceJogador),
+        },
+      }));
+    }
+    totalJogadores += jogadores.length;
+    await prisma.competicaoJogador.createMany({
+      data: jogadores.map((jogador) => ({ competicao_id: competicao.id, jogador_id: jogador.id })),
+    });
+
+    for (const [indicePartida, cenarioOriginal] of CENARIOS_PARTIDAS.entries()) {
+      const cenario = categoria.nome === 'sub-16' && cenarioOriginal.dias === 0
+        ? { ...cenarioOriginal, status: StatusPartida.AO_VIVO, nossosGols: 2, golsRival: 1 }
+        : cenarioOriginal;
+      const rival = rivais[indicePartida % rivais.length];
+      const emCasa = indicePartida % 2 === 0;
+      const partida = await prisma.partida.create({
+        data: {
+          mandante_id: emCasa ? nossoTime.id : rival.id,
+          visitante_id: emCasa ? rival.id : nossoTime.id,
+          gols_mandante: emCasa ? cenario.nossosGols : cenario.golsRival,
+          gols_visitante: emCasa ? cenario.golsRival : cenario.nossosGols,
+          horario: indicePartida % 2 === 0 ? '19:30' : '10:00',
+          data: adicionarDias(hojeUtc(), cenario.dias),
+          local: emCasa ? 'Ginásio Ludora' : `Arena ${rival.nome.replace(` ${categoria.nome}`, '')}`,
+          rodada: indicePartida + 1, grupo: 'A', emCasa,
+          status: cenario.status, categoria_id: categoria.id,
+          competicao_id: competicao.id,
+        },
+      });
+      totalPartidas++;
+
+      if (cenario.status !== StatusPartida.CANCELADA) {
+        await prisma.escalacaoPartida.createMany({
+          data: jogadores.slice(0, 10).map((jogador, indice) => ({
+            partida_id: partida.id, jogador_id: jogador.id,
+            numCamisa: jogador.numCamisa ?? indice + 1, titular: indice < 5,
+          })),
+        });
       }
-    },
-  });
-  console.log('✅ Admin criado e vinculado ao clube como ADMIN.');
 
-  // ── 3. SEED BASE — 1 partida por sub ─────────────────────────────────────────
-  console.log("⚽ Gerando estrutura base por sub...");
-
-  const todasCategorias = await prisma.categoria.findMany({ where: { clube_id: clubeOcian.id } });
-  const anoAtual = 2026;
-
-  for (const cat of todasCategorias) {
-    const ocianSub = await prisma.time.create({ data: { nome: "CFA Ocian", categoria_id: cat.id } });
-    const rivalSub = await prisma.time.create({ data: { nome: "Rival FC",  categoria_id: cat.id } });
-
-    const anoNasc  = anoAtual - cat.faixaIdade;
-    const idStr    = cat.id.toString().padStart(2, '0');
-
-    const jogadoresData = [
-      { nome: `Murilo Paredão (${cat.nome})`,    posicao: 'Goleiro', camisa: 1,  titular: true  },
-      { nome: `Felipe Fixo (${cat.nome})`,       posicao: 'Fixo',    camisa: 4,  titular: true  },
-      { nome: `Jefferson Maestro (${cat.nome})`, posicao: 'Ala',     camisa: 10, titular: true  },
-      { nome: `Marcos Artilheiro (${cat.nome})`, posicao: 'Pivô',    camisa: 9,  titular: true  },
-      { nome: `Lucas Motorzinho (${cat.nome})`,  posicao: 'Ala',     camisa: 7,  titular: true  },
-      { nome: `Gabriel Talento (${cat.nome})`,   posicao: 'Ala',     camisa: 11, titular: false },
-    ];
-
-    const jogadoresCriados = [];
-
-    for (let i = 0; i < jogadoresData.length; i++) {
-      const jData = jogadoresData[i];
-      const cpf   = `${String(i + 1).repeat(3)}.${String(i + 1).repeat(3)}.${idStr}-00`;
-      const j = await prisma.jogador.create({
-        data: {
-          nome: jData.nome, cpf, posicao: jData.posicao, categoria_id: cat.id,
-          dtNasc: new Date(`${anoNasc}-05-10`), numCamisa: jData.camisa, ativo: true,
-        },
-      });
-      jogadoresCriados.push({ jogador: j, titular: jData.titular, camisa: jData.camisa });
+      const possuiScout = cenario.status === StatusPartida.FINALIZADA
+        || cenario.status === StatusPartida.AO_VIVO;
+      if (possuiScout) {
+        const eventos: Array<{
+          partida_id: number; tipo: TipoEvento; periodo: number;
+          minuto: number | null; jogador_id: number | null;
+        }> = [];
+        for (let gol = 0; gol < cenario.nossosGols; gol++) {
+          eventos.push({
+            partida_id: partida.id, tipo: TipoEvento.GOL,
+            periodo: gol % 2 === 0 ? 1 : 2, minuto: 4 + gol * 3,
+            jogador_id: jogadores[2 + (gol % 6)].id,
+          });
+          if (gol > 0) {
+            eventos.push({
+              partida_id: partida.id, tipo: TipoEvento.ASSISTENCIA,
+              periodo: gol % 2 === 0 ? 1 : 2, minuto: 4 + gol * 3,
+              jogador_id: jogadores[4 + (gol % 3)].id,
+            });
+          }
+        }
+        for (let gol = 0; gol < cenario.golsRival; gol++) {
+          eventos.push({
+            partida_id: partida.id, tipo: TipoEvento.GOL,
+            periodo: gol % 2 === 0 ? 1 : 2, minuto: 7 + gol * 4,
+            jogador_id: null,
+          });
+        }
+        eventos.push(
+          { partida_id: partida.id, tipo: TipoEvento.DEFESA, periodo: 1, minuto: 9, jogador_id: jogadores[0].id },
+          { partida_id: partida.id, tipo: TipoEvento.DEFESA, periodo: 2, minuto: 14, jogador_id: jogadores[0].id },
+          { partida_id: partida.id, tipo: TipoEvento.FALTA, periodo: 2, minuto: 11, jogador_id: jogadores[1].id },
+        );
+        if (indicePartida % 2 === 0) {
+          eventos.push({
+            partida_id: partida.id, tipo: TipoEvento.CARTAO_AMARELO,
+            periodo: 2, minuto: 12, jogador_id: jogadores[1].id,
+          });
+        }
+        await prisma.evento.createMany({ data: eventos });
+        totalEventos += eventos.length;
+      }
     }
-
-    const partida = await prisma.partida.create({
-      data: {
-        mandante_id: ocianSub.id, visitante_id: rivalSub.id,
-        gols_mandante: 4, gols_visitante: 1,
-        emCasa: true, status: StatusPartida.FINALIZADA, categoria_id: cat.id,
-        data: new Date(), horario: "09:00", local: "Ginásio Ocian Praia Clube", rodada: 1,
-      },
-    });
-
-    await prisma.escalacaoPartida.createMany({
-      data: jogadoresCriados.map(jc => ({
-        partida_id: partida.id, jogador_id: jc.jogador.id,
-        numCamisa: jc.camisa,  titular: jc.titular,
-      })),
-    });
-
-    await prisma.evento.createMany({
-      data: [
-        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 1, minuto: null, jogador_id: jogadoresCriados[3].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 1, minuto: null, jogador_id: jogadoresCriados[3].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 2, minuto: null, jogador_id: jogadoresCriados[3].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.ASSISTENCIA,   periodo: 1, minuto: null, jogador_id: jogadoresCriados[2].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.ASSISTENCIA,   periodo: 2, minuto: null, jogador_id: jogadoresCriados[2].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.GOL,           periodo: 2, minuto: null, jogador_id: jogadoresCriados[2].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.DEFESA,        periodo: 1, minuto: null, jogador_id: jogadoresCriados[0].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.DEFESA,        periodo: 2, minuto: null, jogador_id: jogadoresCriados[0].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.FALTA,         periodo: 1, minuto: null, jogador_id: jogadoresCriados[1].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.CARTAO_AMARELO,periodo: 2, minuto: null, jogador_id: jogadoresCriados[1].jogador.id },
-        { partida_id: partida.id, tipo: TipoEvento.CARTAO_AZUL,   periodo: 2, minuto: null, jogador_id: jogadoresCriados[4].jogador.id },
-      ],
-    });
-
-    console.log(`⚡ Base injetada para [${cat.nome.toUpperCase()}]`);
   }
 
-  // ── 4. CAMPEONATO SUB-16 2025 ─────────────────────────────────────────────────
-  console.log("\n🏆 Gerando campeonato sub-16 2025 com 30 partidas...");
-
-  const catSub16 = await prisma.categoria.findUnique({ 
-    where: { nome_clube_id: { nome: 'sub-16', clube_id: clubeOcian.id } } 
-  });
-  if (!catSub16) throw new Error('Categoria sub-16 não encontrada');
-
-  const campeonato = await prisma.competicao.create({
-    data: {
-      nome: 'Campeonato Paulista Litorâneo',
-      ano: 2025,
-      tipo: TipoCompeticao.BASE,
-      clube_id: clubeOcian.id // <--- Vínculo da competição com o clube
-    },
-  });
-
-  const ocianSub16 = await prisma.time.findUnique({
-    where: { nome_categoria_id: { nome: 'CFA Ocian', categoria_id: catSub16.id } },
-  });
-  if (!ocianSub16) throw new Error('Time Ocian sub-16 não encontrado');
-
-  await prisma.competicaoTime.create({
-    data: { competicao_id: campeonato.id, time_id: ocianSub16.id },
-  });
-
-  const timesAdv: Record<string, number> = {};
-  for (const nomeAdv of ADVERSARIOS_SUB16) {
-    const timeExistente = await prisma.time.findUnique({
-      where: { nome_categoria_id: { nome: nomeAdv, categoria_id: catSub16.id } },
-    });
-    const timeAdv = timeExistente ?? await prisma.time.create({
-      data: { nome: nomeAdv, categoria_id: catSub16.id },
-    });
-    timesAdv[nomeAdv] = timeAdv.id;
-    
-    await prisma.competicaoTime.upsert({
-      where: { competicao_id_time_id: { competicao_id: campeonato.id, time_id: timeAdv.id } },
-      update: {},
-      create: { competicao_id: campeonato.id, time_id: timeAdv.id },
-    });
-  }
-
-  const jogadoresSub16DB = await prisma.jogador.findMany({
-    where: { categoria_id: catSub16.id },
-    orderBy: { id: 'asc' },
-  });
-
-  const anoNascSub16 = anoAtual - catSub16.faixaIdade;
-  const idStrSub16   = catSub16.id.toString().padStart(2, '0');
-  const extras = [
-    { nome: 'Rafael Banco (sub-16)',  posicao: 'Pivô', camisa: 13 },
-    { nome: 'Diego Coringa (sub-16)', posicao: 'Ala',  camisa: 8  },
+  const classificacao = [
+    { clube: 'Ludora FC', pontos: 10, jogos: 4, vitorias: 3, empates: 1, derrotas: 0, golsPro: 14, golsContra: 7 },
+    { clube: 'Aurora FC', pontos: 7, jogos: 4, vitorias: 2, empates: 1, derrotas: 1, golsPro: 10, golsContra: 8 },
+    { clube: 'Estrela Azul', pontos: 4, jogos: 4, vitorias: 1, empates: 1, derrotas: 2, golsPro: 8, golsContra: 11 },
+    { clube: 'União Esportiva', pontos: 1, jogos: 4, vitorias: 0, empates: 1, derrotas: 3, golsPro: 5, golsContra: 11 },
   ];
-  for (let i = 0; i < extras.length; i++) {
-    const ex = extras[i];
-    const cpf = `9${String(i + 1).repeat(2)}.${String(i + 1).repeat(3)}.${idStrSub16}-00`;
-    const existente = await prisma.jogador.findUnique({ where: { cpf } });
-    if (!existente) {
-      const j = await prisma.jogador.create({
-        data: {
-          nome: ex.nome, cpf, posicao: ex.posicao, categoria_id: catSub16.id,
-          dtNasc: new Date(`${anoNascSub16}-05-10`), numCamisa: ex.camisa, ativo: true,
-        },
-      });
-      jogadoresSub16DB.push(j);
-    }
+  await prisma.campeonatoClassificacao.createMany({
+    data: classificacao.map((item, indice) => ({
+      temporada: String(anoAtual), titulo: `Liga Ludora ${anoAtual}`,
+      divisao: 'Base', categoria: 'sub-16', eventoId: competicaoBase.id,
+      tipoTabela: 'CLASSIFICACAO', grupo: 'A', posicao: indice + 1, ...item,
+      saldo: item.golsPro - item.golsContra,
+      average: item.golsContra === 0 ? item.golsPro : item.golsPro / item.golsContra,
+      mediaGolsMarcados: item.golsPro / item.jogos,
+      mediaGolsSofridos: item.golsContra / item.jogos,
+      indiceTecnico: item.pontos / (item.jogos * 3), destaque: indice === 0,
+    })),
+  });
+
+  console.log('\n✅ Seed concluído!');
+  console.log(`   Clube: ${clube.nome}`);
+  console.log(`   Usuários preservados/vinculados: ${usuarios.length}`);
+  console.log(`   Categorias: ${categorias.length}`);
+  console.log('   Competições: 2');
+  console.log(`   Times: ${totalTimes}`);
+  console.log(`   Jogadores: ${totalJogadores}`);
+  console.log(`   Partidas: ${totalPartidas}`);
+  console.log(`   Eventos: ${totalEventos}`);
+  console.log(`   Administrador: ${usuarioAdminEscolhido.email}`);
+  if (usuarioTesteCriado) {
+    console.log('\n⚠️ Nenhum usuário existia; foi criada uma conta apenas para desenvolvimento:');
+    console.log('   E-mail: admin@ludora.dev');
+    console.log('   Senha: Ludora@123');
   }
-
-  for (const j of jogadoresSub16DB) {
-    await prisma.competicaoJogador.upsert({
-      where: { competicao_id_jogador_id: { competicao_id: campeonato.id, jogador_id: j.id } },
-      update: {},
-      create: { competicao_id: campeonato.id, jogador_id: j.id },
-    });
-  }
-
-  const jogadoresParaEventos = jogadoresSub16DB.map(j => ({
-    id:      j.id,
-    posicao: j.posicao,
-    titular: JOGADORES_SUB16.find(jd => j.nome.includes(jd.nome.split(' ')[0]))?.titular ?? false,
-  }));
-
-  // ── 30 Partidas ──────────────────────────────────────────────────────────────
-  for (const jogo of CRONOGRAMA_SUB16) {
-    const advId    = timesAdv[jogo.adversario];
-    const mandId   = jogo.emCasa ? ocianSub16.id : advId;
-    const visitId  = jogo.emCasa ? advId : ocianSub16.id;
-    const golsMand = jogo.emCasa ? jogo.golsOcian : jogo.golsAdv;
-    const golsVis  = jogo.emCasa ? jogo.golsAdv   : jogo.golsOcian;
-
-    const local = jogo.emCasa
-      ? 'Ginásio Ocian Praia Clube'
-      : `Arena ${jogo.adversario.replace(' FC', '').replace(' EC', '').replace(' SC', '')}`;
-
-    const horarios = ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00', '16:00'];
-
-    const partida = await prisma.partida.create({
-      data: {
-        mandante_id:   mandId,
-        visitante_id:  visitId,
-        gols_mandante: golsMand,
-        gols_visitante: golsVis,
-        emCasa:        jogo.emCasa,
-        status:        StatusPartida.FINALIZADA,
-        categoria_id:  catSub16.id,
-        competicao_id: campeonato.id,
-        data:          dataPartida(2025, jogo.mes, jogo.dia),
-        horario:       escolher(horarios),
-        local,
-        rodada:        jogo.rodada,
-        grupo:         jogo.grupo,
-      },
-    });
-
-    const titulares = jogadoresSub16DB.filter(j =>
-      JOGADORES_SUB16.find(jd => j.nome.includes(jd.nome.split(' ')[0]))?.titular ?? false
-    );
-    const reservas = jogadoresSub16DB.filter(j =>
-      !(JOGADORES_SUB16.find(jd => j.nome.includes(jd.nome.split(' ')[0]))?.titular ?? false)
-    );
-
-    const escalacao = [
-      ...titulares.map(j => ({ jogador_id: j.id, numCamisa: j.numCamisa!, titular: true })),
-      ...reservas.map(j =>  ({ jogador_id: j.id, numCamisa: j.numCamisa!, titular: false })),
-    ];
-
-    await prisma.escalacaoPartida.createMany({ data: escalacao.map(e => ({ ...e, partida_id: partida.id })) });
-
-    const eventos = gerarEventos(partida.id, jogadoresParaEventos, jogo.golsOcian, jogo.golsAdv);
-    if (eventos.length > 0) {
-      await prisma.evento.createMany({ data: eventos });
-    }
-
-    console.log(`  📅 ${jogo.mes.toString().padStart(2,'0')}/${jogo.dia.toString().padStart(2,'0')}/2025 R${jogo.rodada} — Ocian ${jogo.golsOcian}x${jogo.golsAdv} ${jogo.adversario} ${jogo.grupo ? `(Grp ${jogo.grupo})` : ''}`);
-  }
-
-  console.log(`\n✅ Campeonato "${campeonato.nome}" criado com 30 partidas e elenco completo do sub-16.`);
-  console.log('🚀 Seeding concluído!');
 }
 
 main()
-  .catch((e) => {
-    console.error("Erro durante o seed:", e);
-    process.exit(1);
+  .catch((error: unknown) => {
+    console.error('❌ Erro ao executar o seed:', error);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();

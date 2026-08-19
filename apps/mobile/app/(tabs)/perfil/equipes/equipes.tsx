@@ -13,6 +13,7 @@ import DetalhesCompeticao from '@/src/components/detalhesCompeticao';
 import * as SecureStore from 'expo-secure-store';
 import { atualizarIdadesJogadores } from '@/src/services/api';
 import { CardsSkeleton } from '@/src/components/Skeleton';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 
 import {
@@ -59,6 +60,7 @@ function EmptyState({ icone, mensagem, onAction, labelAction }: any) {
 }
 
 export default function Equipes({ onFechar, noModal }: EquipesProps) {
+  const { clubeAtivo } = useClubeAtivo();
   const carregouUmaVez = useRef(false);
   const [abaAtiva, setAbaAtiva] = useState<'ocian' | 'adversarios' | 'campeonatos'>('ocian');
   const [tipoOcian, setTipoOcian] = useState<'INICIACAO' | 'BASE'>('INICIACAO');
@@ -441,7 +443,15 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
 
   return (
     <View style={styles.container}>
-      <Header title="EQUIPES" showLogo={false} showProfile={false} btnVoltar="arrow-left" onBtnVoltar={onFechar} semSafeArea={noModal} />
+      <Header
+        title="EQUIPES"
+        showLogo={false}
+        showProfile={false}
+        btnVoltar="arrow-left"
+        onBtnVoltar={onFechar}
+        semSafeArea={noModal}
+        papelUsuario={clubeAtivo?.papel ?? undefined}
+      />
 
       <View style={styles.segmentedControl}>
         {(['ocian', 'adversarios', 'campeonatos'] as const).map(aba => (

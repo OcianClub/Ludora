@@ -12,6 +12,7 @@ import { Header } from '@/src/components/Header';
 import OrganizarPartidaCampeonato from '@/src/components/organizarPartidaCampeonato';
 import { fetchPartidasPorCompeticao, fetchJogadoresPorCompeticao, atualizarStatusPartida, deletarPartida } from '@/src/services/api';
 import { s } from '@/src/styles/detalhesCompeticaoStyles';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 interface Competicao { id: number; nome: string; ano: number; tipo: 'INICIACAO' | 'BASE'; }
 interface Time { id: number; nome: string; escudo: string | null; categoria_id: number; }
@@ -98,6 +99,7 @@ function calcularStatsJogadores(eventos: Evento[]) {
 }
 
 export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
+  const { clubeAtivo } = useClubeAtivo();
   const [partidas,           setPartidas]           = useState<Partida[]>([]);
   const [jogadores,          setJogadores]          = useState<Jogador[]>([]);
   const [categorias,         setCategorias]         = useState<{ id: number; nome: string }[]>([]);
@@ -249,6 +251,7 @@ export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
         showProfile={false}
         btnVoltar="arrow-left"
         onBtnVoltar={onFechar}
+        papelUsuario={clubeAtivo?.papel ?? undefined}
         semSafeArea={true}
       />
 

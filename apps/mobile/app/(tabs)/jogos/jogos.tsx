@@ -10,19 +10,19 @@ import { colors } from '@ludora/design-tokens';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import PagerView from 'react-native-pager-view';
-import * as SecureStore from 'expo-secure-store';
 import { fetchPartidas } from '@/src/services/api';
 import OrganizarPartidas from '../organizarPartidas/organizarPartidas';
 import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/CarrosselSubs';
 import DetalhesPartida, { Partida as PartidaDetalhes } from '@/src/components/DetalhesPartida';
 import { CardsSkeleton } from '@/src/components/Skeleton';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 const FILTROS_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 type StatusFiltro = 'TODOS' | 'AGENDADA' | 'AO_VIVO' | 'FINALIZADA';
 const STATUS_OPTIONS: { label: string; value: StatusFiltro; icon: IconName; iconColor: string }[] = [
   { label: 'Todos os jogos', value: 'TODOS', icon: 'soccer', iconColor: colors.primaria },
-  { label: 'Ao vivo',        value: 'AO_VIVO', icon: 'record-circle-outline', iconColor: colors.vermelho },
+  { label: 'Ao vivo',        value: 'AO_VIVO', icon: 'record-circle-outline', iconColor: colors.tituloErro },
   { label: 'Agendadas',      value: 'AGENDADA', icon: 'calendar-clock', iconColor: colors.textoSecundario },
   { label: 'Finalizadas',    value: 'FINALIZADA', icon: 'check', iconColor: colors.primaria },
 ];
@@ -32,8 +32,6 @@ const STATUS_OPTIONS: { label: string; value: StatusFiltro; icon: IconName; icon
 // Cobre tudo que não é torcedor puro: criar/editar/apagar partida, apontar
 // placar, registrar eventos etc. (mesmo comportamento que "isAdmin" tinha
 // antes no DetalhesPartida — só que agora calculado por clube).
-const PAPEIS_GESTORES = ['ADMIN', 'TECNICO', 'MESARIO'];
-
 interface Time { id: number; nome: string; escudo: string | null; }
 interface Partida {
   id: number;
@@ -44,11 +42,17 @@ interface Partida {
   data: string;
   horario: string | null;
   local: string | null;
-  status: 'AGENDADA' | 'AO_VIVO' | 'FINALIZADA';
+  status: 'AGENDADA' | 'PREPARADA' | 'AO_VIVO' | 'FINALIZADA' | 'CANCELADA';
   emCasa: boolean;
   categoria: { id: number; nome: string } | null;
 }
 interface DiaJogo { data: string; partidas: Partida[]; }
+
+function isHoje(dataStr: string): boolean {
+  const hoje = new Date();
+  const [ano, mes, dia] = dataStr.split('T')[0].split('-').map(Number);
+  return hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes && hoje.getDate() === dia;
+}
 
 function agruparPorDia(partidas: Partida[]): DiaJogo[] {
   const mapa = new Map<string, Partida[]>();
@@ -67,28 +71,23 @@ function agruparPorDia(partidas: Partida[]): DiaJogo[] {
 function ordenarPartidas(partidas: Partida[]): Partida[] {
   const aoVivo    = partidas.filter(p => p.status === 'AO_VIVO');
   const agendadas = partidas
-    .filter(p => p.status === 'AGENDADA')
+    .filter(p => p.status === 'AGENDADA' || p.status === 'PREPARADA')
     .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
   const finalizadas = partidas
     .filter(p => p.status === 'FINALIZADA')
     .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-  return [...aoVivo, ...agendadas, ...finalizadas];
+  const canceladas = partidas.filter(p => p.status === 'CANCELADA');
+  return [...aoVivo, ...agendadas, ...finalizadas, ...canceladas];
 }
 
 export default function Jogos() {
+  const { clubeAtivo, podeGerenciar } = useClubeAtivo();
   const pagerRef = useRef<PagerView>(null);
   const carregouUmaVez = useRef(false);
+  const clubeCarregadoId = useRef<number | null>(null);
 
   const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(null);
 
-  // "podeGerenciar" = papel do usuário NO CLUBE ATIVO é ADMIN/TECNICO/MESARIO.
-  const [podeGerenciar, setPodeGerenciar] = useState(false);
-
-  // Clube ativo (dinâmico) — antes era fixo "CFA OCIAN" no Header.
-  // Lido do mesmo SecureStore que o ClubesExplorer grava ao acessar um clube.
-  const [nomeClubeAtivo, setNomeClubeAtivo] = useState('MEU CLUBE');
-  const [escudoClubeAtivo, setEscudoClubeAtivo] = useState<string | null>(null);
-  
   // Estados Reais (aplicados)
   const [mesAtivo, setMesAtivo] = useState(new Date().getMonth() + 1);
   const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>('TODOS');
@@ -107,41 +106,35 @@ export default function Jogos() {
   const [modalOrganizar, setModalOrganizar] = useState(false);
 
   const carregarPartidas = useCallback(async () => {
+    const clubeMudou = clubeCarregadoId.current !== (clubeAtivo?.id ?? null);
     try {
+      if (clubeMudou) {
+        setCarregando(true);
+        setDias([]);
+      }
+      if (!clubeAtivo?.id) {
+        setDias([]);
+        return;
+      }
       const params: any = { mes: mesAtivo };
       if (statusFiltro !== 'TODOS') params.status = statusFiltro;
-      const partidas: Partida[] = await fetchPartidas(params);
+      const partidas: Partida[] = await fetchPartidas(params, clubeAtivo.id);
       setDias(agruparPorDia(ordenarPartidas(partidas)));
+      clubeCarregadoId.current = clubeAtivo.id;
     } catch (e) {
       console.error(e);
     } finally {
       setCarregando(false);
       setRefreshing(false);
     }
-  }, [mesAtivo, statusFiltro]);
+  }, [clubeAtivo?.id, mesAtivo, statusFiltro]);
 
   useFocusEffect(
     useCallback(() => {
-      let ativo = true;
-      (async () => {
-        // Recarrega o clube ativo (e o papel do usuário nele) a cada foco,
-        // pra pegar troca de clube feita na aba "Clubes".
-        const [nome, escudo, papel] = await Promise.all([
-          SecureStore.getItemAsync('clubeAtivoNome'),
-          SecureStore.getItemAsync('clubeAtivoEscudo'),
-          SecureStore.getItemAsync('clubeAtivoPapel'),
-        ]);
-        if (ativo && nome) setNomeClubeAtivo(nome);
-        if (ativo) setEscudoClubeAtivo(escudo || null);
-        if (ativo) setPodeGerenciar(!!papel && PAPEIS_GESTORES.includes(papel));
-      })();
       if (!carregouUmaVez.current) setCarregando(true);
       carregarPartidas().finally(() => {
         carregouUmaVez.current = true;
       });
-      return () => {
-        ativo = false;
-      };
     }, [carregarPartidas])
   );
 
@@ -189,11 +182,12 @@ export default function Jogos() {
   return (
     <View style={styles.container}>
       <Header
-        title={nomeClubeAtivo}
-        logoUrl={escudoClubeAtivo}
+        title={clubeAtivo?.nome ?? 'MEU CLUBE'}
+        logoUrl={clubeAtivo?.escudo ?? null}
         btnNotificacao="bell"
         showLogo={true}
         showProfile={true}
+        papelUsuario={clubeAtivo?.papel ?? undefined}
       />
 
       {/* 1. Mova o CarrosselSubs para FORA do filtersContainer para não dobrar o padding */}
@@ -238,20 +232,31 @@ export default function Jogos() {
                     </Text>
                   </View>
                 ) : (
-                  diasComPartidas.map((dia, index) => (
-                    <View key={index} style={styles.daySection}>
-                      <View style={styles.dateHeader}>
-                        <View style={styles.dateBar} />
-                        <Text style={styles.dateText}>{dia.data}</Text>
-                      </View>
+                  diasComPartidas.map((dia, index) => {
+                    const diaEhHoje = dia.filtradas.some(partida => isHoje(partida.data));
+                    return (
+                      <View key={index} style={styles.daySection}>
+                        <View style={styles.dateHeader}>
+                          <View style={[styles.dateBar, diaEhHoje && styles.dateBarHoje]} />
+                          <Text style={[styles.dateText, diaEhHoje && styles.dateTextHoje]}>
+                            {diaEhHoje ? `HOJE • ${dia.data}` : dia.data}
+                          </Text>
+                        </View>
 
-                      {dia.filtradas.map(partida => (
-                        <TouchableOpacity
-                          key={partida.id}
-                          style={styles.matchCard}
-                          activeOpacity={0.85}
-                          onPress={() => setPartidaSelecionada(partida)}
-                        >
+                        {dia.filtradas.map(partida => {
+                          const partidaEhHoje = isHoje(partida.data);
+                          const partidaAoVivo = partida.status === 'AO_VIVO';
+                          return (
+                            <TouchableOpacity
+                              key={partida.id}
+                              style={[
+                                styles.matchCard,
+                                partidaEhHoje && styles.matchCardHoje,
+                                partidaAoVivo && styles.matchCardAoVivo,
+                              ]}
+                              activeOpacity={0.85}
+                              onPress={() => setPartidaSelecionada(partida)}
+                            >
                           {/* TOP CARD */}
                           <View style={styles.cardTop}>
                             <View style={styles.cardTopLeft}>
@@ -259,10 +264,23 @@ export default function Jogos() {
                               <Text style={styles.timeText}>{partida.horario ?? '--:--'}</Text>
                               <View style={styles.separator} />
                               <Text style={styles.catText}>{partida.categoria?.nome.replace('SUB', '').trim() ?? '?'}</Text>
+                              {partidaEhHoje && !partidaAoVivo && (
+                                <View style={styles.todayBadge}>
+                                  <Text style={styles.todayBadgeText}>HOJE</Text>
+                                </View>
+                              )}
                             </View>
-                            <View style={[styles.badge, !partida.emCasa && { backgroundColor: colors.cardSecundario }]}>
-                              <Icon name={partida.emCasa ? 'home-outline' : 'bus'} size={14} color={colors.texto} />
-                              <Text style={styles.badgeText}>{partida.emCasa ? 'CASA' : 'FORA'}</Text>
+                            <View style={styles.cardBadges}>
+                              {partidaAoVivo && (
+                                <View style={styles.liveBadge}>
+                                  <Icon name="live" size={14} color={colors.tituloErro} />
+                                  <Text style={styles.liveBadgeText}>AO VIVO</Text>
+                                </View>
+                              )}
+                              <View style={[styles.badge, !partida.emCasa && { backgroundColor: colors.cardSecundario }]}>
+                                <Icon name={partida.emCasa ? 'home-outline' : 'bus'} size={14} color={colors.texto} />
+                                <Text style={styles.badgeText}>{partida.emCasa ? 'CASA' : 'FORA'}</Text>
+                              </View>
                             </View>
                           </View>
 
@@ -280,7 +298,7 @@ export default function Jogos() {
                             </View>
 
                             <View style={styles.placarCentral}>
-                              {partida.status === 'AGENDADA' ? (
+                              {partida.status === 'AGENDADA' || partida.status === 'PREPARADA' || partida.status === 'CANCELADA' ? (
                                 <>
                                   <Text style={styles.placarText}>-</Text>
                                   <Text style={styles.vsText}>VS</Text>
@@ -308,10 +326,12 @@ export default function Jogos() {
                             <Icon name="map-marker-outline" size={16} color={colors.texto} />
                             <Text style={styles.locationText}>{partida.local ?? 'Local não definido'}</Text>
                           </View>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  ))
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    );
+                  })
                 )}
                 <View style={{ height: 100 }} />
               </ScrollView>

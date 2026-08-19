@@ -4,23 +4,44 @@ import {
   View, Text, ActivityIndicator, TouchableOpacity,
   ScrollView, TextInput, Modal
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { Redirect, useFocusEffect } from 'expo-router';
 import Svg, { Polygon, Line, Text as SvgText } from 'react-native-svg';
 
-import { obterPerfisJogadores, Jogador, ScoresMl } from '@/src/services/mlService';
+import { calcularResumo, obterPerfisJogadores, Jogador, ScoresMl } from '@/src/services/mlService';
 import { Header } from '@/src/components/Header';
 import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/CarrosselSubs';
-import { colors } from '@/src/theme/colors';
+import { colors } from '@ludora/design-tokens';
 import { styles } from '@/src/styles/estatisticasStyles'; 
 import { CardsSkeleton } from '@/src/components/Skeleton';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 // ── Cores por perfil ──────────────────────────────────────────────────────────
 const COR_PERFIL: Record<string, string> = {
-  'Artilheiro': colors.vermelho,
-  'Paredão':    colors.azulClaro,
+  'Artilheiro': colors.vermelhoDestaque,
+  'Paredão':    colors.primaria,
   'Armador':    colors.amarelo,
-  'Sem dados':  '#555',
+  'Sem dados':  colors.textoSecundario,
 };
+
+const DESCRICAO_PERFIL: Record<string, string> = {
+  Artilheiro: 'Perfil associado ao grupo com maior índice médio de finalização.',
+  Paredão: 'Perfil associado ao grupo com maior índice médio de defesas.',
+  Armador: 'Perfil geralmente associado à visão de jogo e à criação de jogadas.',
+  'Sem dados': 'Aguardando partidas suficientes para identificar o perfil.',
+};
+
+type Ordenacao = 'NOTA' | 'GOLS' | 'ASSISTENCIAS';
+
+const OPCOES_ORDENACAO: { label: string; value: Ordenacao }[] = [
+  { label: 'Índice', value: 'NOTA' },
+  { label: 'Gols', value: 'GOLS' },
+  { label: 'Assistências', value: 'ASSISTENCIAS' },
+];
+
+function notaExibida(nota: number): string {
+  if (!nota || nota <= 0) return '—';
+  return Math.round(nota).toString();
+}
 
 // ── Hexágono SVG ─────────────────────────────────────────────────────────────
 interface HexProps { scores: ScoresMl; size?: number; }
@@ -82,7 +103,7 @@ function HexSVG({ cx, cy, R, eixos, pontoBase, gridPoly, valorPoly, size }: any)
           key={`grid-${idx}`}
           points={gridPoly(frac)}
           fill="none"
-          stroke={frac === 1 ? '#3a3a3a' : '#2a2a2a'}
+          stroke={frac === 1 ? colors.borda : colors.linha}
           strokeWidth={frac === 1 ? 1.5 : 1}
         />
       ))}
@@ -94,7 +115,7 @@ function HexSVG({ cx, cy, R, eixos, pontoBase, gridPoly, valorPoly, size }: any)
             key={`line-${i}`}
             x1={cx} y1={cy}
             x2={p.x} y2={p.y}
-            stroke="#2a2a2a"
+            stroke={colors.linha}
             strokeWidth={1}
           />
         );
@@ -102,8 +123,8 @@ function HexSVG({ cx, cy, R, eixos, pontoBase, gridPoly, valorPoly, size }: any)
 
       <Polygon
         points={valorPoly}
-        fill={colors.primary + '40'}
-        stroke={colors.primary}
+        fill={colors.primaria + '33'}
+        stroke={colors.primaria}
         strokeWidth={2}
       />
 
@@ -114,10 +135,10 @@ function HexSVG({ cx, cy, R, eixos, pontoBase, gridPoly, valorPoly, size }: any)
             key={`text-${i}`}
             x={p.x}
             y={p.y + 3} 
-            fill={colors.text_secondary}
+            fill={colors.textoSecundario}
             fontSize="9"
             fontWeight="bold"
-            fontFamily="Creato-Bold"
+            fontFamily="Inter_600SemiBold"
             textAnchor="middle"
           >
             {eixo.label}
@@ -130,7 +151,7 @@ function HexSVG({ cx, cy, R, eixos, pontoBase, gridPoly, valorPoly, size }: any)
 
 // ── Card da Lista ─────────────────────────────────────────────────────────────
 function CardJogador({ jogador, onPress }: { jogador: Jogador; onPress: () => void }) {
-  const corPerfil = COR_PERFIL[jogador.perfil_ml] ?? '#555';
+  const corPerfil = COR_PERFIL[jogador.perfil_ml] ?? colors.textoSecundario;
   const idade = jogador.idade ?? null;
 
   return (
@@ -155,8 +176,9 @@ function CardJogador({ jogador, onPress }: { jogador: Jogador; onPress: () => vo
             {jogador.perfil_ml}
           </Text>
         </View>
+        <Text style={styles.cardNotaLabel}>NOTA</Text>
         <Text style={styles.cardNota}>
-          {jogador.nota_geral > 0 ? jogador.nota_geral.toFixed(0) : '—'}
+          {notaExibida(jogador.nota_geral)}
         </Text>
       </View>
     </TouchableOpacity>
@@ -165,7 +187,7 @@ function CardJogador({ jogador, onPress }: { jogador: Jogador; onPress: () => vo
 
 // ── Modal de Scout ────────────────────────────────────────────────────────────
 function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => void }) {
-  const corPerfil = COR_PERFIL[jogador.perfil_ml] ?? '#555';
+  const corPerfil = COR_PERFIL[jogador.perfil_ml] ?? colors.textoSecundario;
   const idade = jogador.idade ?? null;
 
   const stats = [
@@ -188,13 +210,13 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
   return (
     <Modal visible animationType="slide" transparent={false} onRequestClose={onFechar}>
       <View style={styles.scoutContainer}>
-        <View style={styles.scoutHeader}>
-          <TouchableOpacity onPress={onFechar} style={styles.scoutBtnVoltar}>
-            <Icon name="arrow-left" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.scoutHeaderTitulo}>FICHA DO ATLETA</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <Header
+          title="FICHA DO ATLETA"
+          btnVoltar="arrow-left"
+          showLogo={false}
+          showProfile={false}
+          onBtnVoltar={onFechar}
+        />
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scoutContent}>
           <View style={[styles.scoutIdentidade, { borderColor: corPerfil }]}>
@@ -213,17 +235,25 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
                 <View style={styles.scoutChip}>
                   <Text style={styles.scoutChipTxt}>{jogador.categoria}</Text>
                 </View>
+                <View style={styles.scoutChip}>
+                  <Text style={styles.scoutChipTxt}>
+                    {jogador.jogos_disputados} {jogador.jogos_disputados === 1 ? 'jogo' : 'jogos'}
+                  </Text>
+                </View>
                 {idade && (
                   <View style={styles.scoutChip}>
                     <Text style={styles.scoutChipTxt}>{idade} anos</Text>
                   </View>
                 )}
               </View>
+              <Text style={styles.scoutPerfilDescricao} numberOfLines={2}>
+                {DESCRICAO_PERFIL[jogador.perfil_ml] ?? DESCRICAO_PERFIL['Sem dados']}
+              </Text>
             </View>
             <View style={styles.scoutNotaContainer}>
               <Text style={styles.scoutNotaLabel}>NOTA</Text>
               <Text style={[styles.scoutNota, { color: corPerfil }]}>
-                {jogador.nota_geral > 0 ? jogador.nota_geral.toFixed(0) : '—'}
+                {notaExibida(jogador.nota_geral)}
               </Text>
             </View>
           </View>
@@ -231,8 +261,11 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
           {/* Hexágono & Barras */}
           {jogador.scores_ml ? (
             <View style={styles.scoutHexContainer}>
-              <Text style={styles.scoutSecaoLabel}>RADAR DO ATLETA</Text>
+              <Text style={styles.scoutSecaoLabel}>ÍNDICES COMPARATIVOS</Text>
               <HexagonoScout scores={jogador.scores_ml} size={220} />
+              <Text style={styles.scoutRadarNota}>
+                Escala relativa aos atletas analisados. 100 representa o maior valor observado no conjunto atual.
+              </Text>
 
               <View style={styles.scoutScoresGrid}>
                 {Object.entries(jogador.scores_ml).map(([key, val]) => (
@@ -250,7 +283,7 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
             </View>
           ) : (
             <View style={styles.scoutSemDados}>
-              <Icon name="chart-arc" size={40} color="#333" />
+              <Icon name="chart-arc" size={40} color={colors.borda} />
               <Text style={styles.scoutSemDadosTxt}>
                 Radar disponível após o primeiro jogo registrado
               </Text>
@@ -271,12 +304,12 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
           <Text style={styles.scoutSecaoLabel}>EFICIÊNCIA POR JOGO</Text>
           <View style={styles.scoutEficienciaRow}>
             <View style={styles.scoutEficienciaCard}>
-              <Icon name="soccer" size={24} color={colors.vermelho} />
+              <Icon name="soccer" size={24} color={colors.vermelhoDestaque} />
               <Text style={styles.scoutEficienciaValor}>{eficienciaGol}</Text>
               <Text style={styles.scoutEficienciaLabel}>Gols/Jogo</Text>
             </View>
             <View style={styles.scoutEficienciaCard}>
-              <Icon name="handshake" size={24} color={colors.azulClaro} />
+              <Icon name="handshake" size={24} color={colors.primaria} />
               <Text style={styles.scoutEficienciaValor}>{eficienciaAssist}</Text>
               <Text style={styles.scoutEficienciaLabel}>Assist./Jogo</Text>
             </View>
@@ -294,11 +327,13 @@ const normalizarCategoria = (s: string | undefined | null) =>
 
 // ── Tela Principal ────────────────────────────────────────────────────────────
 export default function Estatisticas() {
+  const { clubeAtivo, podeGerenciar, carregandoClubeAtivo } = useClubeAtivo();
   const carregouUmaVez = useRef(false);
   const [jogadores, setJogadores]       = useState<Jogador[]>([]);
   const [carregando, setCarregando]     = useState(true);
   const [erro, setErro]                 = useState<string | null>(null);
   const [busca, setBusca]               = useState('');
+  const [ordenacao, setOrdenacao]       = useState<Ordenacao>('NOTA');
   const [jogadorSelecionado, setJogadorSelecionado] = useState<Jogador | null>(null);
 
   const [subIndex, setSubIndex]     = useState(0);
@@ -334,21 +369,51 @@ export default function Estatisticas() {
   }, []);
 
   useFocusEffect(useCallback(() => {
+    if (carregandoClubeAtivo || !podeGerenciar) return;
     carregarDados(carregouUmaVez.current);
-  }, [carregarDados]));
+  }, [carregarDados, carregandoClubeAtivo, podeGerenciar]));
 
-  const jogadoresFiltrados = jogadores.filter(j => {
+  const jogadoresDaCategoria = jogadores.filter(j => {
     const matchCategoria = normalizarCategoria(j.categoria) === normalizarCategoria(categoriaAtual);
     const matchTipo      = (j.categoria_tipo ?? '') === tipoAtivo;
+    return matchCategoria && matchTipo;
+  });
+
+  const jogadoresFiltrados = jogadoresDaCategoria.filter(j => {
     const matchBusca     = busca === '' ||
       (j.nome ?? '').toLowerCase().includes(busca.toLowerCase()) ||
       (j.posicao ?? '').toLowerCase().includes(busca.toLowerCase());
-    return matchCategoria && matchTipo && matchBusca;
+    return matchBusca;
+  }).sort((a, b) => {
+    if (ordenacao === 'GOLS') return b.gols - a.gols || b.nota_geral - a.nota_geral;
+    if (ordenacao === 'ASSISTENCIAS') return b.assistencias - a.assistencias || b.nota_geral - a.nota_geral;
+    return b.nota_geral - a.nota_geral;
   });
+
+  const resumo = calcularResumo(jogadoresDaCategoria);
+
+  if (carregandoClubeAtivo) {
+    return (
+      <View style={styles.containerCarregandoPermissao}>
+        <ActivityIndicator size="large" color={colors.primaria} />
+      </View>
+    );
+  }
+
+  if (!podeGerenciar) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   return (
     <View style={styles.container}>
-      <Header title="SCOUT" btnNotificacao="bell" showLogo={false} showProfile={true} />
+      <Header
+        title="ESTATÍSTICAS"
+        btnNotificacao="bell"
+        showLogo={true}
+        logoUrl={clubeAtivo?.escudo ?? null}
+        showProfile={true}
+        papelUsuario={clubeAtivo?.papel ?? undefined}
+      />
 
       <CarrosselSubs
         tipoFiltro={tipoAtivo}
@@ -357,49 +422,112 @@ export default function Estatisticas() {
         onChangeIndex={setSubIndex}
       />
 
-      <View style={styles.buscaContainer}>
-        <Icon name="magnify" size={18} color={colors.text_secondary} />
-        <TextInput
-          style={styles.buscaInput}
-          placeholder="Buscar atleta..."
-          placeholderTextColor={colors.text_secondary}
-          value={busca}
-          onChangeText={setBusca}
-        />
-        {busca.length > 0 && (
-          <TouchableOpacity onPress={() => setBusca('')}>
-            <Icon name="close" size={16} color={colors.text_secondary} />
-          </TouchableOpacity>
-        )}
-      </View>
-
       {carregando ? (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listaContent}>
           <CardsSkeleton rows={5} />
         </ScrollView>
       ) : erro ? (
         <View style={styles.centralizado}>
-          <Icon name="wifi-off" size={48} color="#333" />
+          <View style={styles.estadoIcone}>
+            <Icon name="wifi-off" size={28} color={colors.tituloErro} />
+          </View>
           <Text style={styles.txtErro}>{erro}</Text>
           <TouchableOpacity style={styles.btnRetry} onPress={() => carregarDados()}>
             <Text style={styles.txtBtnRetry}>Tentar novamente</Text>
           </TouchableOpacity>
         </View>
-      ) : jogadoresFiltrados.length === 0 ? (
-        <View style={styles.centralizado}>
-          <Icon name="account-off-outline" size={48} color="#333" />
-          <Text style={styles.txtErro}>Nenhum atleta encontrado</Text>
-        </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listaContent}>
-          {jogadoresFiltrados.map(j => (
-            <CardJogador
-              key={j.id_jogador}
-              jogador={j}
-              onPress={() => setJogadorSelecionado(j)}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.telaContent}>
+          {jogadoresDaCategoria.length > 0 && (
+            <View style={styles.resumoContainer}>
+              <View style={styles.resumoHeader}>
+                <Text style={styles.resumoTitulo}>DESTAQUES DA CATEGORIA</Text>
+                <Text style={styles.resumoSub}>{categoriaAtual}</Text>
+              </View>
+              <View style={styles.resumoCards}>
+                <View style={styles.resumoCard}>
+                  <Icon name="soccer" size={19} color={colors.vermelhoDestaque} />
+                  <Text style={styles.resumoCardLabel}>ARTILHEIRO</Text>
+                  <Text style={styles.resumoCardValor}>{resumo.artilheiro?.gols ?? 0}</Text>
+                  <Text style={styles.resumoCardNome} numberOfLines={1}>{resumo.artilheiro?.nome ?? 'Sem dados'}</Text>
+                </View>
+                <View style={styles.resumoCard}>
+                  <Icon name="handshake" size={19} color={colors.primaria} />
+                  <Text style={styles.resumoCardLabel}>ASSISTÊNCIAS</Text>
+                  <Text style={styles.resumoCardValor}>{resumo.assistente?.assistencias ?? 0}</Text>
+                  <Text style={styles.resumoCardNome} numberOfLines={1}>{resumo.assistente?.nome ?? 'Sem dados'}</Text>
+                </View>
+                <View style={styles.resumoCard}>
+                  <Icon name="radar" size={19} color={colors.amarelo} />
+                  <Text style={styles.resumoCardLabel}>MAIOR ÍNDICE</Text>
+                  <Text style={styles.resumoCardValor}>{resumo.lider?.pontos ?? 0}</Text>
+                  <Text style={styles.resumoCardNome} numberOfLines={1}>{resumo.lider?.nome ?? 'Sem dados'}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.infoAnalise}>
+            <Icon name="information-outline" size={17} color={colors.primaria} />
+            <Text style={styles.infoAnaliseTxt}>
+              Perfis e índices são comparativos e atualizados conforme novas partidas são registradas.
+            </Text>
+          </View>
+
+          <View style={styles.buscaContainer}>
+            <Icon name="magnify" size={18} color={colors.textoSecundario} />
+            <TextInput
+              style={styles.buscaInput}
+              placeholder="Buscar atleta..."
+              placeholderTextColor={colors.textoSecundario}
+              value={busca}
+              onChangeText={setBusca}
             />
-          ))}
-          <View style={{ height: 80 }} />
+            {busca.length > 0 && (
+              <TouchableOpacity onPress={() => setBusca('')}>
+                <Icon name="close" size={16} color={colors.textoSecundario} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.listaHeader}>
+            <Text style={styles.listaTitulo}>ATLETAS</Text>
+            <Text style={styles.listaContador}>{jogadoresFiltrados.length} ENCONTRADOS</Text>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.ordenacaoContent}
+          >
+            {OPCOES_ORDENACAO.map((opcao) => (
+              <TouchableOpacity
+                key={opcao.value}
+                style={[styles.ordenacaoPill, ordenacao === opcao.value && styles.ordenacaoPillAtiva]}
+                onPress={() => setOrdenacao(opcao.value)}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.ordenacaoTxt, ordenacao === opcao.value && styles.ordenacaoTxtAtiva]}>
+                  {opcao.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {jogadoresFiltrados.length === 0 ? (
+            <View style={styles.listaVazia}>
+              <View style={styles.estadoIcone}>
+                <Icon name="account-off-outline" size={28} color={colors.textoSecundario} />
+              </View>
+              <Text style={styles.txtErro}>Nenhum atleta encontrado</Text>
+            </View>
+          ) : jogadoresFiltrados.map(j => (
+              <CardJogador
+                key={j.id_jogador}
+                jogador={j}
+                onPress={() => setJogadorSelecionado(j)}
+              />
+            ))}
         </ScrollView>
       )}
 

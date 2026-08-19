@@ -19,6 +19,7 @@ import EscudoTime from '@/src/components/EscudoTime';
 // ── Serviços e Estilos ──
 import { fetchTimes, fetchCategorias, criarPartida, atualizarPartida } from '@/src/services/api';
 import { styles } from '@/src/styles/organizarPartidaCampeonatoStyles';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 // ── Interfaces ──
 interface Categoria { id: number; nome: string; tipo: 'INICIACAO' | 'BASE'; }
@@ -154,6 +155,7 @@ function CardPartidaPendente({
 }
 
 export default function OrganizarPartidaCampeonato({ competicao, partida, onFechar, onSalvo }: Props) {
+  const { clubeAtivo } = useClubeAtivo();
   const modoEdicao = !!partida;
 
   // ── Estados ──
@@ -309,6 +311,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
         title={modoEdicao ? 'EDITAR PARTIDA' : competicao.nome}
         showLogo={false} showProfile={false}
         btnVoltar="arrow-left" onBtnVoltar={onFechar} semSafeArea
+        papelUsuario={clubeAtivo?.papel ?? undefined}
       />
 
       {modoEdicao && (

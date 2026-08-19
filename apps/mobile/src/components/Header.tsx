@@ -16,19 +16,23 @@ interface HeaderProps {
   showProfile?: boolean;
   onBtnVoltar?: () => void; 
   semSafeArea?: boolean; 
+  papelUsuario?: PapelUsuario;
 }
+
+type PapelUsuario = 'ADMIN' | 'TECNICO' | 'MESARIO' | 'TORCEDOR';
 
 export function Header({ 
   title, 
   btnVoltar, 
   btnNotificacao, 
   showLogo, 
-  logoUrl, // RECEBENDO AQUI
+  logoUrl,
   onPressIcon, 
   icon, 
   showProfile, 
   onBtnVoltar, 
-  semSafeArea 
+  semSafeArea,
+  papelUsuario
 }: HeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -47,15 +51,10 @@ export function Header({
         )}
         {showLogo && (
           logoUrl ? (
-            // Tem escudo de clube de verdade: fundo NEUTRO — evita o
-            // choque de cor entre o azul do app e a paleta do time
-            // (ex: Corinthians preto/branco/vermelho em cima de azul).
             <View style={styles.logoContainerNeutro}>
               <Image source={{ uri: logoUrl }} style={styles.logo} resizeMode="contain" />
             </View>
           ) : (
-            // Sem escudo ainda (placeholder do app): mantém o gradiente
-            // azul, que é o que dá contraste pro mark preto do app.
             <LinearGradient
               colors={[colors.primaria, '#0055FF']}
               start={{ x: 0, y: 0 }}
@@ -75,11 +74,18 @@ export function Header({
             <Icon name={icon} size={44} color={colors.primaria} />
           </TouchableOpacity>
         )}
-        {/* O TITLE JÁ ERA DINÂMICO E CONTINUA AQUI — agora com numberOfLines pra truncar
-            em vez de empurrar os botões da direita pra fora da tela */}
-        <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-          {title}
-        </Text>
+        <View style={styles.leftContainer}>
+          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+            {title}
+          </Text>
+          {papelUsuario && (
+            <View style={styles.papelBadge}>
+              <Text style={styles.papelTexto}>
+                {papelUsuario}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       <View style={styles.rightContent}>
@@ -150,7 +156,7 @@ const styles = StyleSheet.create({
     color: colors.texto,
     textTransform: 'uppercase',
     flexShrink: 1,
-    flex: 1,
+    maxWidth: '100%',
   },
   rightContent: {
     flexDirection: 'row',
@@ -176,4 +182,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  papelBadge: {
+    backgroundColor: colors.fundoAtencao,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    alignSelf: 'flex-start',
+  },
+  papelTexto: {
+    color: colors.amarelo,
+    fontFamily: typography.fontFamily.corpo.medium,
+    fontSize: 11
+  },
+  leftContainer: {
+    flex: 1,
+    minWidth: 0,
+    height: 45,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: 2,
+  }
 });

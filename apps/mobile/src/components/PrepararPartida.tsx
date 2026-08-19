@@ -12,6 +12,7 @@ import {
   salvarEscalacaoPartida,
   atualizarStatusPartida,
 } from '@/src/services/api';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,7 @@ function nomeCurto(nome: string) {
 // ── Componente ────────────────────────────────────────────────────────────────
 
 export default function PrepararPartida({ partida, competicao, onFechar, onConfirmado }: Props) {
+  const { clubeAtivo } = useClubeAtivo();
   const [jogadores,    setJogadores]    = useState<JogadorDisponivel[]>([]);
   const [estado,       setEstado]       = useState<Record<number, EstadoJogador>>({});
   const [carregando,   setCarregando]   = useState(true);
@@ -314,6 +316,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
         showProfile={false}
         btnVoltar="arrow-left"
         onBtnVoltar={onFechar}
+        papelUsuario={clubeAtivo?.papel ?? undefined}
       />
 
       <View style={styles.infoBar}>

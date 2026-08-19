@@ -15,6 +15,7 @@ import TeamSelectorCard from '@/src/components/TeamSelectorCard';
 import MandoCampo from '@/src/components/mandoCampo';
 import InputDataHora from '@/src/components/InputDataHora';
 import { fetchTimes, fetchCompeticoes, fetchCategorias, criarPartida } from '@/src/services/api';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 const ORDEM_SUBS: Record<string, number> = {
   'SUB 7': 1, 'SUB-7': 1, 'SUB 8': 2, 'SUB-8': 2, 'SUB 9': 3, 'SUB-9': 3,
@@ -29,6 +30,7 @@ interface OrganizarPartidasProps { onFechar: () => void; noModal?: boolean; }
 
 export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartidasProps) {
   const router = useRouter();
+  const { clubeAtivo } = useClubeAtivo();
   
   // ── Estados ──
   const [times, setTimes] = useState<Time[]>([]);
@@ -109,7 +111,15 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
 
   return (
     <View style={styles.container}>
-      <Header title="ORGANIZAR PARTIDA" showLogo={false} showProfile={false} btnVoltar="arrow-left" onBtnVoltar={onFechar} semSafeArea={noModal} />
+      <Header
+        title="ORGANIZAR PARTIDA"
+        showLogo={false}
+        showProfile={false}
+        btnVoltar="arrow-left"
+        onBtnVoltar={onFechar}
+        semSafeArea={noModal}
+        papelUsuario={clubeAtivo?.papel ?? undefined}
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 

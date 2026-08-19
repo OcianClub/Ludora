@@ -12,6 +12,7 @@ import { Header } from "@/src/components/Header";
 import { colors } from "@ludora/design-tokens";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
 
 import DadosPessoais from "./dadosPessoais/dadosPessoais";
 import Equipes from "./equipes/equipes";
@@ -63,6 +64,7 @@ function CardMenu({
 }
 
 export default function Perfil() {
+  const { clubeAtivo } = useClubeAtivo();
   const [nome, setNome] = useState("");
   const [membroDesde, setMembroDesde] = useState("");
   const [modalSair, setModalSair] = useState(false);
@@ -131,6 +133,7 @@ export default function Perfil() {
         showLogo={false}
         showProfile={false}
         btnVoltar="arrow-left"
+        papelUsuario={clubeAtivo?.papel ?? undefined}
       />
 
       <View style={styles.content}>

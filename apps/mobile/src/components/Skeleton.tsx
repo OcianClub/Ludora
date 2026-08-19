@@ -1,3 +1,4 @@
+import { colors } from '@ludora/design-tokens';
 import React, { memo, useEffect, useRef } from 'react';
 import { Animated, Easing, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
@@ -105,8 +106,14 @@ export function HomeSkeleton({ style }: HomeSkeletonProps) {
 }
 
 const styles = StyleSheet.create({
-  block: { backgroundColor: '#2A2C31', overflow: 'hidden' },
-  list: { paddingHorizontal: 24, gap: 12 },
+  block: { 
+    backgroundColor: colors.cardClaro,
+    overflow: 'hidden'
+  },
+  list: { 
+    paddingHorizontal: 24,
+    gap: 12 
+  },
   row: {
     minHeight: 78,
     padding: 15,
@@ -116,13 +123,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
-  rowText: { flex: 1, gap: 9 },
-  cards: { gap: 12 },
-  card: { padding: 16, minHeight: 112, borderRadius: 12, backgroundColor: '#1D1E21', gap: 14 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  rowText: {
+    flex: 1,
+    gap: 9
+  },
+  cards: {
+    gap: 12
+  },
+  card: {
+    padding: 16,
+    minHeight: 112,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    gap: 14
+  },
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
   homeContent: {
     gap: 16,
   },
-  separator: { marginVertical: 4 },
-  heroBottom: { flexDirection: 'row', justifyContent: 'space-between' },
+  separator: {
+    marginVertical: 4
+  },
+  heroBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between'
+  },
 });

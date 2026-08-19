@@ -13,6 +13,7 @@ import { criarJogador, atualizarJogador, deletarJogador } from '@/src/services/a
 import { colors } from '@/src/theme/colors';
 import { Header } from '@/src/components/Header';
 import { styles as s } from '@/src/styles/ElencoSubStyles';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -546,6 +547,7 @@ function CardAtleta({ jogador, scout, onVerFicha, onEditar, onExcluir }: {
 // ─── ElencoSub (componente principal) ────────────────────────────────────────
 
 export default function ElencoSub({ categoria, jogadores, onFechar, onRecarregar }: ElencoSubProps) {
+  const { clubeAtivo } = useClubeAtivo();
   const [scouts,           setScouts]           = useState<JogadorScout[]>([]);
   const [carregandoScout,  setCarregandoScout]  = useState(true);
   const [refreshing,       setRefreshing]       = useState(false);
@@ -659,6 +661,7 @@ export default function ElencoSub({ categoria, jogadores, onFechar, onRecarregar
         showLogo={false} showProfile={false}
         btnVoltar="arrow-left" onBtnVoltar={onFechar}
         semSafeArea={true}
+        papelUsuario={clubeAtivo?.papel ?? undefined}
       />
 
       {/* Busca */}
