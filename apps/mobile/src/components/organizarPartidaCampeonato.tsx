@@ -1,3 +1,4 @@
+import { Icon } from '@ludora/icons';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
@@ -6,7 +7,6 @@ import {
 
 // ── Tipografia e Cores Oficiais ──
 import { colors, typography } from '@ludora/design-tokens';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // ── Componentes Compartilhados ──
@@ -83,7 +83,7 @@ function CardPartidaPendente({
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <MaterialCommunityIcons name="clock-outline" size={13} color={colors.textoSecundario} />
+          <Icon name="clock-outline" size={13} color={colors.textoSecundario} />
           <Text style={{ fontFamily: typography.fontFamily.corpo.semiBold, color: colors.textoSecundario, fontSize: 11 }}>
             {partida.horario}
           </Text>
@@ -105,7 +105,7 @@ function CardPartidaPendente({
             backgroundColor: colors.cardSecundario, paddingHorizontal: 8, paddingVertical: 3,
             borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4,
           }}>
-            <MaterialCommunityIcons name={partida.emCasa ? 'home-outline' : 'bus'} size={11} color={colors.texto} />
+            <Icon name={partida.emCasa ? 'home-outline' : 'bus'} size={11} color={colors.texto} />
             <Text style={{ fontFamily: typography.fontFamily.corpo.semiBold, color: colors.texto, fontSize: 10 }}>
               {partida.emCasa ? 'CASA' : 'FORA'}
             </Text>
@@ -117,7 +117,7 @@ function CardPartidaPendente({
               borderWidth: 1, borderColor: selecionada ? colors.primaria : colors.borda,
               alignItems: 'center', justifyContent: 'center',
             }}>
-              {selecionada && <MaterialCommunityIcons name="check" size={13} color="#FFF" />}
+              {selecionada && <Icon name="check" size={13} color="#FFF" />}
             </View>
           )}
         </View>
@@ -143,7 +143,7 @@ function CardPartidaPendente({
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, borderTopWidth: 1, borderTopColor: colors.borda, paddingTop: 10, marginTop: 12 }}>
-        <MaterialCommunityIcons name="calendar-outline" size={12} color={colors.textoSecundario} />
+        <Icon name="calendar-outline" size={12} color={colors.textoSecundario} />
         <Text style={{ fontFamily: typography.fontFamily.corpo.regular, color: colors.textoSecundario, fontSize: 11 }}>
           {partida.data.split('-').reverse().join('/')}
           {partida.local ? ` • ${partida.local}` : ''}
@@ -313,7 +313,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
 
       {modoEdicao && (
         <View style={styles.editBanner}>
-          <MaterialCommunityIcons name="pencil-circle" size={15} color={colors.amarelo} />
+          <Icon name="pencil-circle" size={15} color={colors.amarelo} />
           <Text style={styles.editBannerTxt}>{competicao.nome} • Rodada {partida?.rodada ?? '—'}</Text>
         </View>
       )}
@@ -330,7 +330,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
           <Text style={styles.filaPendenteTexto}>
             {partidasPendentes.length === 1 ? '1 partida aguardando' : `${partidasPendentes.length} partidas aguardando`}
           </Text>
-          <MaterialCommunityIcons name="chevron-right" size={16} color={colors.primaria} />
+          <Icon name="chevron-right" size={16} color={colors.primaria} />
         </TouchableOpacity>
       )}
 
@@ -349,7 +349,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
           <Text style={styles.sectionLabel}>CATEGORIA</Text>
           {modoEdicao ? (
             <View style={styles.categoriaLocked}>
-              <MaterialCommunityIcons name="lock-outline" size={14} color={colors.textoSecundario} />
+              <Icon name="lock-outline" size={14} color={colors.textoSecundario} />
               <Text style={styles.categoriaLockedNome}>{categorias.find(c => c.id === categoriaId)?.nome ?? partida?.categoria.nome}</Text>
               <Text style={styles.categoriaLockedSub}>Não pode ser alterada</Text>
             </View>
@@ -372,7 +372,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
               disabled={Number(rodada) <= 1}
               activeOpacity={0.7}
             >
-              <MaterialCommunityIcons name="minus" size={18} color={Number(rodada) > 1 ? colors.primaria : colors.textoSecundario} />
+              <Icon name="minus" size={18} color={Number(rodada) > 1 ? colors.primaria : colors.textoSecundario} />
             </TouchableOpacity>
             <View style={styles.stepperDivider} />
             <View style={styles.stepperValue}>
@@ -386,7 +386,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
               onPress={() => setRodada(r => String(Number(r || '0') + 1))}
               activeOpacity={0.7}
             >
-              <MaterialCommunityIcons name="plus" size={18} color={colors.primaria} />
+              <Icon name="plus" size={18} color={colors.primaria} />
             </TouchableOpacity>
           </View>
 
@@ -432,18 +432,18 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
 
           <Text style={styles.sectionLabel}>LOCAL DA PARTIDA</Text>
           <View style={styles.inputRow}>
-            <MaterialCommunityIcons name="map-marker-outline" size={18} color={colors.textoSecundario} />
+            <Icon name="map-marker-outline" size={18} color={colors.textoSecundario} />
             <TextInput style={[styles.inputText, { flex: 1 }]} placeholder="Ginásio, quadra ou campo..." placeholderTextColor={colors.textoSecundario} value={local} onChangeText={setLocal} />
           </View>
 
           {isValido && (
             <View style={styles.resumoCard}>
               <View style={styles.resumoRow}>
-                <MaterialCommunityIcons name="check-circle" size={14} color="#6FCF97" />
+                <Icon name="check-circle" size={14} color="#6FCF97" />
                 <Text style={styles.resumoTxt} numberOfLines={1}>{mandante?.nome} vs {visitante?.nome}</Text>
               </View>
               <View style={styles.resumoRow}>
-                <MaterialCommunityIcons name="check-circle" size={14} color="#6FCF97" />
+                <Icon name="check-circle" size={14} color="#6FCF97" />
                 <Text style={styles.resumoTxt}>{data} às {horario}{rodada ? ` • Rodada ${rodada}` : ''}{local ? ` • ${local}` : ''}</Text>
               </View>
             </View>
@@ -458,7 +458,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
               <LinearGradient colors={[colors.primaria, '#0055FF']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.salvarGradient}>
                 {salvando ? <ActivityIndicator color="#FFF" /> : (
                   <View style={styles.salvarBtnInner}>
-                    <MaterialCommunityIcons name="content-save-edit-outline" size={18} color="#FFF" />
+                    <Icon name="content-save-edit-outline" size={18} color="#FFF" />
                     <Text style={styles.salvarText}>SALVAR ALTERAÇÕES</Text>
                   </View>
                 )}
@@ -475,7 +475,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
                 disabled={!isValido}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <MaterialCommunityIcons name="plus-circle-outline" size={18} color={isValido ? colors.primaria : colors.textoSecundario} />
+                  <Icon name="plus-circle-outline" size={18} color={isValido ? colors.primaria : colors.textoSecundario} />
                   <Text style={{ fontFamily: typography.fontFamily.corpo.semiBold, color: isValido ? colors.primaria : colors.textoSecundario, fontSize: 14, letterSpacing: 1 }}>
                     ADICIONAR E CRIAR OUTRA
                   </Text>
@@ -493,7 +493,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
                 >
                   <LinearGradient colors={[colors.primaria, '#0055FF']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.salvarGradient}>
                     <View style={styles.salvarBtnInner}>
-                      <MaterialCommunityIcons name="check-all" size={18} color="#FFF" />
+                      <Icon name="check-all" size={18} color="#FFF" />
                       <Text style={styles.salvarText}>
                         FINALIZAR{partidasPendentes.length > 0 ? ` (${isValido ? partidasPendentes.length + 1 : partidasPendentes.length})` : ''}
                       </Text>
@@ -515,11 +515,11 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{modalTime === 'mandante' ? 'Selecionar mandante' : 'Selecionar visitante'}</Text>
               <TouchableOpacity style={styles.closeBtn} onPress={() => { setModalTime(null); setBuscaTime(''); }}>
-                <MaterialCommunityIcons name="close" size={18} color={colors.textoSecundario} />
+                <Icon name="close" size={18} color={colors.textoSecundario} />
               </TouchableOpacity>
             </View>
             <View style={styles.buscaContainer}>
-              <MaterialCommunityIcons name="magnify" size={20} color={colors.textoSecundario} />
+              <Icon name="magnify" size={20} color={colors.textoSecundario} />
               <TextInput style={styles.buscaText} placeholder="Buscar time..." placeholderTextColor={colors.textoSecundario} value={buscaTime} onChangeText={setBuscaTime} autoFocus />
             </View>
             {categoriaAtual && (
@@ -528,7 +528,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
             <ScrollView showsVerticalScrollIndicator={false}>
               {timesFiltrados.length === 0 ? (
                 <View style={{ alignItems: 'center', paddingVertical: 32, gap: 8 }}>
-                  <MaterialCommunityIcons name="shield-off-outline" size={36} color={colors.textoSecundario} />
+                  <Icon name="shield-off-outline" size={36} color={colors.textoSecundario} />
                   <Text style={{ fontFamily: typography.fontFamily.corpo.semiBold, color: colors.textoSecundario, fontSize: 13 }}>Nenhum time encontrado</Text>
                 </View>
               ) : (
@@ -543,7 +543,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
                           {time.escudo ? (
                                <Image source={{ uri: time.escudo }} style={{ width: 24, height: 24, borderRadius: 12 }} />
                           ) : (
-                              <MaterialCommunityIcons name={sel ? "shield-check" : "shield"} size={20} color={sel ? '#FFF' : timeColor} />
+                              <Icon name={sel ? "shield-check" : "shield"} size={20} color={sel ? '#FFF' : timeColor} />
                           )}
                       </View>
                       <View style={{ flex: 1 }}>
@@ -551,9 +551,9 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
                           <Text style={styles.modalItemSub}>{sel ? (modalTime === 'mandante' ? 'Mandante de casa' : 'Visitante convidado') : ((Math.floor(Math.random() * 8) + 2) + ' partidas na competição')}</Text>
                       </View>
                       {sel ? (
-                          <MaterialCommunityIcons name="check-circle" size={24} color={colors.primaria} />
+                          <Icon name="check-circle" size={24} color={colors.primaria} />
                       ) : (
-                          <MaterialCommunityIcons name="circle-outline" size={24} color={colors.borda} />
+                          <Icon name="circle-outline" size={24} color={colors.borda} />
                       )}
                     </TouchableOpacity>
                   );
@@ -575,7 +575,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
             {modoSelecao ? (
               <>
                 <TouchableOpacity onPress={cancelarSelecao} style={styles.closeBtn}>
-                  <MaterialCommunityIcons name="close" size={22} color={colors.texto} />
+                  <Icon name="close" size={22} color={colors.texto} />
                 </TouchableOpacity>
                 <Text style={{ fontFamily: typography.fontFamily.corpo.semiBold, color: colors.texto, fontSize: 16, flex: 1 }}>
                   {selecionadas.size} selecionada{selecionadas.size !== 1 ? 's' : ''}
@@ -588,14 +588,14 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
                     borderRadius: 10, borderWidth: 1, borderColor: colors.bordaErro,
                   }}
                 >
-                  <MaterialCommunityIcons name="trash-can-outline" size={16} color={colors.vermelho} />
+                  <Icon name="trash-can-outline" size={16} color={colors.vermelho} />
                   <Text style={{ fontFamily: typography.fontFamily.corpo.semiBold, color: colors.vermelho, fontSize: 12 }}>REMOVER</Text>
                 </TouchableOpacity>
               </>
             ) : (
               <>
                 <TouchableOpacity onPress={() => setModalRevisao(false)} style={styles.closeBtn}>
-                  <MaterialCommunityIcons name="arrow-left" size={22} color={colors.texto} />
+                  <Icon name="arrow-left" size={22} color={colors.texto} />
                 </TouchableOpacity>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: typography.fontFamily.corpo.semiBold, color: colors.texto, fontSize: 17 }}>
@@ -620,7 +620,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
             {partidasPendentes.length === 0 ? (
               <View style={{ alignItems: 'center', marginTop: 60, gap: 12 }}>
-                <MaterialCommunityIcons name="soccer" size={48} color={colors.textoSecundario} />
+                <Icon name="soccer" size={48} color={colors.textoSecundario} />
                 <Text style={{ fontFamily: typography.fontFamily.corpo.semiBold, color: colors.textoSecundario, fontSize: 14, letterSpacing: 1 }}>
                   NENHUMA PARTIDA NA FILA
                 </Text>
@@ -648,7 +648,7 @@ export default function OrganizarPartidaCampeonato({ competicao, partida, onFech
                     <ActivityIndicator color="#FFF" />
                   ) : (
                     <View style={styles.salvarBtnInner}>
-                      <MaterialCommunityIcons name="cloud-upload-outline" size={18} color="#FFF" />
+                      <Icon name="cloud-upload-outline" size={18} color="#FFF" />
                       <Text style={styles.salvarText}>
                         SALVAR {partidasPendentes.length} PARTIDA{partidasPendentes.length !== 1 ? 'S' : ''}
                       </Text>

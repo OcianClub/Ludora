@@ -1,10 +1,10 @@
+import { Icon, type IconName } from '@ludora/icons';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Modal,
   Pressable, ActivityIndicator, Alert, Animated,
 } from 'react-native';
 import { CardsSkeleton } from '@/src/components/Skeleton';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
 import { colors } from '@/src/theme/colors';
@@ -54,7 +54,7 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELADA:  'Cancelada',
 };
 
-const TIPO_ICONE: Record<string, string> = {
+const TIPO_ICONE: Record<string, IconName> = {
   GOL:            'soccer',
   ASSISTENCIA:    'shoe-cleat',
   DEFESA:         'shield-check',
@@ -256,7 +256,7 @@ export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
         <View style={s.listaContent}><CardsSkeleton rows={4} /></View>
       ) : partidas.length === 0 ? (
         <View style={s.emptyContainer}>
-          <MaterialCommunityIcons name="calendar-remove-outline" size={56} color="#2a2a2a" />
+          <Icon name="calendar-remove-outline" size={56} color="#2a2a2a" />
           <Text style={s.emptyTxt}>Nenhuma partida importada ainda.</Text>
         </View>
       ) : (
@@ -346,7 +346,7 @@ export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
 
                       {estaSelecionada && (
                         <View style={{ position: 'absolute', top: 10, right: 10, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.vermelho, alignItems: 'center', justifyContent: 'center' }}>
-                          <MaterialCommunityIcons name="check" size={16} color="#FFF" />
+                          <Icon name="check" size={16} color="#FFF" />
                         </View>
                       )}
                     </TouchableOpacity>
@@ -380,7 +380,7 @@ export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
                       {partidaSelecionada.grupo ? ` • Grupo ${partidaSelecionada.grupo}` : ''}
                     </Text>
                     <TouchableOpacity onPress={() => setModalDetalhes(false)}>
-                      <MaterialCommunityIcons name="close" size={22} color={colors.text} />
+                      <Icon name="close" size={22} color={colors.text} />
                     </TouchableOpacity>
                   </View>
 
@@ -432,7 +432,7 @@ export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
                             <View style={s.statBadgesRow}>
                               {tiposComValor.map(([tipo, valor]) => (
                                 <View key={tipo} style={[s.statBadge, { backgroundColor: TIPO_COR[tipo] + '22' }]}>
-                                  <MaterialCommunityIcons name={TIPO_ICONE[tipo] as any} size={12} color={TIPO_COR[tipo]} />
+                                  <Icon name={TIPO_ICONE[tipo]} size={12} color={TIPO_COR[tipo]} />
                                   <Text style={[s.statBadgeTxt, { color: TIPO_COR[tipo] }]}>
                                     {valor} {TIPO_LABEL[tipo]}
                                   </Text>
@@ -467,7 +467,7 @@ export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
                       style={s.btnAcao}
                       onPress={() => { setModalDetalhes(false); setModalEditar(true); }}
                     >
-                      <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.azulClaro} />
+                      <Icon name="pencil-outline" size={18} color={colors.azulClaro} />
                       <Text style={[s.btnAcaoTxt, { color: colors.azulClaro }]}>Editar</Text>
                     </TouchableOpacity>
 
@@ -478,7 +478,7 @@ export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
                       }]}
                       onPress={() => setModalStatus(true)}
                     >
-                      <MaterialCommunityIcons name="swap-horizontal" size={18} color={STATUS_COR[partidaSelecionada.status]} />
+                      <Icon name="swap-horizontal" size={18} color={STATUS_COR[partidaSelecionada.status]} />
                       <Text style={[s.btnAcaoTxt, { color: STATUS_COR[partidaSelecionada.status] }]}>
                         {STATUS_LABEL[partidaSelecionada.status]}
                       </Text>
@@ -550,7 +550,7 @@ export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
           paddingBottom: 28, gap: 12,
         }}>
           <TouchableOpacity onPress={sairModoSelecao} style={{ padding: 4 }}>
-            <MaterialCommunityIcons name="close" size={22} color={colors.text_secondary} />
+            <Icon name="close" size={22} color={colors.text_secondary} />
           </TouchableOpacity>
           <Text style={{ fontFamily: 'Creato-Bold', color: colors.text, fontSize: 14, flex: 1 }}>
             {selecionadas.size} selecionada{selecionadas.size !== 1 ? 's' : ''}
@@ -567,7 +567,7 @@ export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
           >
             {removendo
               ? <ActivityIndicator size="small" color={colors.vermelho} />
-              : <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.vermelho} />
+              : <Icon name="trash-can-outline" size={18} color={colors.vermelho} />
             }
             <Text style={{ fontFamily: 'Creato-Bold', color: colors.vermelho, fontSize: 13 }}>
               Remover
@@ -589,7 +589,7 @@ export default function DetalhesCompeticao({ competicao, onFechar }: Props) {
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={{ width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' }}
           >
-            <MaterialCommunityIcons name="plus" size={32} color="#FFF" />
+            <Icon name="plus" size={32} color="#FFF" />
           </LinearGradient>
         </TouchableOpacity>
       )}

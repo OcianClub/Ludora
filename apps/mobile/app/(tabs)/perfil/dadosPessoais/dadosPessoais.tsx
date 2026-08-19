@@ -1,3 +1,4 @@
+import { Icon, type IconName } from '@ludora/icons';
 import {
   View,
   Text,
@@ -14,7 +15,6 @@ import { useState, useEffect } from "react";
 
 import { styles } from "@/src/styles/dadosPessoaisStyles";
 import { Header } from "@/src/components/Header";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "@ludora/design-tokens";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -32,7 +32,7 @@ interface DadosPessoaisProps {
 interface CampoProps {
   label: string;
   valor: string;
-  icone: keyof typeof MaterialCommunityIcons.glyphMap;
+  icone: IconName;
   editando: boolean;
   onChangeText: (text: string) => void;
   placeholder?: string;
@@ -58,7 +58,7 @@ function Campo({
     return (
       <View style={styles.infoItem}>
         <View style={styles.infoIcon}>
-          <MaterialCommunityIcons
+          <Icon
             name={icone}
             size={19}
             color={colors.textoSecundario}
@@ -91,7 +91,7 @@ function Campo({
       </Text>
 
       <View style={styles.inputWrapper}>
-        <MaterialCommunityIcons
+        <Icon
           name={icone}
           size={19}
           color={colors.primaria}
@@ -113,7 +113,7 @@ function Campo({
             onPress={onToggleSenha}
             activeOpacity={0.7}
           >
-            <MaterialCommunityIcons
+            <Icon
               name={
                 mostrarSenha
                   ? "eye-off-outline"
@@ -372,7 +372,7 @@ export default function DadosPessoais({
               activeOpacity={0.8}
               onPress={() => setEditando(true)}
             >
-              <MaterialCommunityIcons
+              <Icon
                 name="pencil-outline"
                 size={20}
                 color={colors.primaria}
@@ -394,7 +394,7 @@ export default function DadosPessoais({
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <>
-                    <MaterialCommunityIcons
+                    <Icon
                       name="check"
                       size={20}
                       color="#FFFFFF"
@@ -434,7 +434,7 @@ export default function DadosPessoais({
               }
             >
               <View style={styles.deleteIcon}>
-                <MaterialCommunityIcons
+                <Icon
                   name="trash-can-outline"
                   size={20}
                   color={colors.tituloErro}
@@ -451,7 +451,7 @@ export default function DadosPessoais({
                 </Text>
               </View>
 
-              <MaterialCommunityIcons
+              <Icon
                 name="chevron-right"
                 size={22}
                 color={colors.tituloErro}
@@ -466,7 +466,7 @@ export default function DadosPessoais({
       {/* SUCESSO */}
       {sucesso && (
         <View style={styles.successToast}>
-          <MaterialCommunityIcons
+          <Icon
             name="check-circle"
             size={20}
             color="#FFFFFF"
@@ -495,7 +495,7 @@ export default function DadosPessoais({
         >
           <Pressable style={styles.modalCard}>
             <View style={styles.modalIcon}>
-              <MaterialCommunityIcons
+              <Icon
                 name="trash-can-outline"
                 size={27}
                 color={colors.tituloErro}

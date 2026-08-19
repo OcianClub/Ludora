@@ -1,9 +1,9 @@
+import { Icon } from '@ludora/icons';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Pressable, Image, ActivityIndicator, Alert, FlatList } from 'react-native';
 import React, { useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { styles } from '@/src/styles/equipesStyles';
 import { Header } from '@/src/components/Header';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -46,11 +46,11 @@ const getTipoCategoria = (nome: string) => {
 function EmptyState({ icone, mensagem, onAction, labelAction }: any) {
   return (
     <View style={styles.emptyContainer}>
-      <MaterialCommunityIcons name={icone} size={56} color="#2a2a2a" />
+      <Icon name={icone} size={56} color="#2a2a2a" />
       <Text style={styles.emptyText}>{mensagem}</Text>
       {onAction && (
         <TouchableOpacity style={styles.emptyBtn} onPress={onAction} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="plus" size={16} color={colors.text} />
+          <Icon name="plus" size={16} color={colors.text} />
           <Text style={styles.emptyBtnText}>{labelAction}</Text>
         </TouchableOpacity>
       )}
@@ -364,7 +364,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
       <View style={styles.gridCategorias}>
         {categoriasOcian.map(cat => (
           <TouchableOpacity key={cat.id} style={styles.cardCategoriaOcian} onPress={() => { setCategoriaElenco(cat); setElencoSubVisivel(true); }}>
-            <View style={styles.iconCircleOcian}><MaterialCommunityIcons name="shield-star" size={32} color={colors.primary} /></View>
+            <View style={styles.iconCircleOcian}><Icon name="shield-star" size={32} color={colors.primary} /></View>
             <Text style={styles.catOcianNome}>{cat.nome}</Text>
             <Text style={styles.catOcianBadgeTxt}>{jogadores.filter(j => j.categoria_id === cat.id).length} atletas</Text>
           </TouchableOpacity>
@@ -379,11 +379,11 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
       return (
         <View>
           <View style={styles.buscaContainer}>
-            <MaterialCommunityIcons name="magnify" size={18} color={colors.text_secondary} />
+            <Icon name="magnify" size={18} color={colors.text_secondary} />
             <TextInput style={styles.buscaInput} placeholder="Buscar time..." placeholderTextColor={colors.text_secondary} value={busca} onChangeText={setBusca} />
           </View>
           <TouchableOpacity style={styles.btnVoltarCategorias} onPress={() => { setSubSelecionadoId(null); setBusca(''); }}>
-            <MaterialCommunityIcons name="chevron-left" size={20} color={colors.azulClaro} />
+            <Icon name="chevron-left" size={20} color={colors.azulClaro} />
             <Text style={styles.txtVoltarCategorias}>VOLTAR PARA CATEGORIAS</Text>
           </TouchableOpacity>
           {adversariosDesseSub.length === 0 ? (
@@ -400,8 +400,8 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
                   </View>
                 </View>
                 <View style={styles.cardAcoes}>
-                  <TouchableOpacity style={styles.btnAcao} onPress={() => abrirFormAdversario(time)}><MaterialCommunityIcons name="pencil-outline" size={18} color={colors.azulClaro} /></TouchableOpacity>
-                  <TouchableOpacity style={[styles.btnAcao, styles.btnAcaoDanger]} onPress={() => { setItemSelecionado(time); setModalConfirmar(true); }}><MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.vermelho} /></TouchableOpacity>
+                  <TouchableOpacity style={styles.btnAcao} onPress={() => abrirFormAdversario(time)}><Icon name="pencil-outline" size={18} color={colors.azulClaro} /></TouchableOpacity>
+                  <TouchableOpacity style={[styles.btnAcao, styles.btnAcaoDanger]} onPress={() => { setItemSelecionado(time); setModalConfirmar(true); }}><Icon name="trash-can-outline" size={18} color={colors.vermelho} /></TouchableOpacity>
                 </View>
               </View>
             ))
@@ -417,7 +417,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
             const qtdEquipes = getAdversariosPorSub(cat.id).length;
             return (
               <TouchableOpacity key={cat.id} style={styles.cardCategoriaOcian} onPress={() => setSubSelecionadoId(cat.id)}>
-                <View style={[styles.iconCircleOcian, { backgroundColor: '#2a2a2a' }]}><MaterialCommunityIcons name="shield-outline" size={28} color={colors.azulClaro} /></View>
+                <View style={[styles.iconCircleOcian, { backgroundColor: '#2a2a2a' }]}><Icon name="shield-outline" size={28} color={colors.azulClaro} /></View>
                 <Text style={styles.catOcianNome}>{cat.nome}</Text>
                 <Text style={styles.catOcianBadgeTxt}>{qtdEquipes} equipes</Text>
               </TouchableOpacity>
@@ -459,7 +459,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
           abaAtiva === 'adversarios' ? renderAdversarios() : (
             <View>
               <View style={styles.buscaContainer}>
-                <MaterialCommunityIcons name="magnify" size={18} color={colors.text_secondary} />
+                <Icon name="magnify" size={18} color={colors.text_secondary} />
                 <TextInput style={styles.buscaInput} placeholder="Buscar campeonato..." placeholderTextColor={colors.text_secondary} value={busca} onChangeText={setBusca} />
               </View>
               {competicoesFiltradas.length === 0 ? (
@@ -474,7 +474,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
                     >
                       <View style={styles.cardLeft}>
                         <View style={styles.escudoPlaceholder}>
-                          <MaterialCommunityIcons name="trophy-outline" size={20} color={colors.azulClaro} />
+                          <Icon name="trophy-outline" size={20} color={colors.azulClaro} />
                         </View>
                         <View style={{ flexShrink: 1 }}>
                           <Text style={styles.cardNome} numberOfLines={2}>{comp.nome}</Text>
@@ -486,13 +486,13 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
                           style={styles.btnAcao}
                           onPress={(e) => { e.stopPropagation(); iniciarWizardCampeonato(comp); }}
                         >
-                          <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.azulClaro} />
+                          <Icon name="pencil-outline" size={18} color={colors.azulClaro} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[styles.btnAcao, styles.btnAcaoDanger]}
                           onPress={(e) => { e.stopPropagation(); setItemSelecionado(comp); setModalConfirmar(true); }}
                         >
-                          <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.vermelho} />
+                          <Icon name="trash-can-outline" size={18} color={colors.vermelho} />
                         </TouchableOpacity>
                       </View>
                     </TouchableOpacity>
@@ -506,7 +506,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
 
       {abaAtiva !== 'ocian' && (abaAtiva === 'campeonatos' || (abaAtiva === 'adversarios' && subSelecionadoId !== null)) && (
         <TouchableOpacity style={styles.fab} onPress={() => abaAtiva === 'campeonatos' ? iniciarWizardCampeonato() : abrirFormAdversario()} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="plus" size={30} color="#FFF" />
+          <Icon name="plus" size={30} color="#FFF" />
         </TouchableOpacity>
       )}
 
@@ -516,7 +516,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
           <View style={[styles.modalCard, { maxHeight: '80%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitulo}>Elenco {itemSelecionado?.nome}</Text>
-              <TouchableOpacity onPress={() => setModalElenco(false)}><MaterialCommunityIcons name="close" size={24} color={colors.text} /></TouchableOpacity>
+              <TouchableOpacity onPress={() => setModalElenco(false)}><Icon name="close" size={24} color={colors.text} /></TouchableOpacity>
             </View>
             {jogadores.filter(j => j.categoria_id === itemSelecionado?.id).length === 0 ? (
               <EmptyState icone="account-group-outline" mensagem="Nenhum atleta cadastrado neste sub." />
@@ -542,11 +542,11 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitulo}>{itemSelecionado ? 'Editar' : 'Novo'} Adversário</Text>
-              <TouchableOpacity onPress={() => setModalFormAdversario(false)}><MaterialCommunityIcons name="close" size={22} color={colors.text} /></TouchableOpacity>
+              <TouchableOpacity onPress={() => setModalFormAdversario(false)}><Icon name="close" size={22} color={colors.text} /></TouchableOpacity>
             </View>
             <TouchableOpacity style={styles.escudoPicker} onPress={escolherImagem}>
               {escudoUri || escudoUrl ? <Image source={{ uri: escudoUri || escudoUrl || '' }} style={styles.escudoPickerImg} /> : (
-                <><MaterialCommunityIcons name="camera-plus-outline" size={28} color={colors.text_secondary} /><Text style={styles.escudoPickerTxt}>Adicionar escudo</Text></>
+                <><Icon name="camera-plus-outline" size={28} color={colors.text_secondary} /><Text style={styles.escudoPickerTxt}>Adicionar escudo</Text></>
               )}
             </TouchableOpacity>
             <Text style={styles.modalSubtitulo}>Selecione a categoria do adversário:</Text>
@@ -558,7 +558,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
               ))}
             </View>
             <View style={styles.inputRow}>
-              <MaterialCommunityIcons name="shield-outline" size={18} color={colors.text_secondary} />
+              <Icon name="shield-outline" size={18} color={colors.text_secondary} />
               <TextInput style={styles.input} placeholder="Nome do Time" placeholderTextColor={colors.text_secondary} value={nomeForm} onChangeText={setNomeForm} />
             </View>
             <TouchableOpacity style={styles.btnSalvar} onPress={salvarAdversario} disabled={salvando}>
@@ -584,7 +584,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
                 }}
                 style={{ padding: 4 }}
               >
-                <MaterialCommunityIcons name={wizardStep === 'INFO' ? 'close' : 'arrow-left'} size={24} color={colors.text} />
+                <Icon name={wizardStep === 'INFO' ? 'close' : 'arrow-left'} size={24} color={colors.text} />
               </TouchableOpacity>
               <Text style={styles.modalTitulo}>
                 {wizardStep === 'INFO' ? 'Dados do Torneio' :
@@ -613,11 +613,11 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
                   </TouchableOpacity>
                 </View>
                 <View style={[styles.inputRow, { marginBottom: 12 }]}>
-                  <MaterialCommunityIcons name="trophy-outline" size={18} color={colors.text_secondary} />
+                  <Icon name="trophy-outline" size={18} color={colors.text_secondary} />
                   <TextInput style={styles.input} placeholder="Nome do Campeonato" placeholderTextColor={colors.text_secondary} value={nomeForm} onChangeText={setNomeForm} />
                 </View>
                 <View style={[styles.inputRow, { marginBottom: 24 }]}>
-                  <MaterialCommunityIcons name="calendar-outline" size={18} color={colors.text_secondary} />
+                  <Icon name="calendar-outline" size={18} color={colors.text_secondary} />
                   <TextInput style={styles.input} placeholder="Ano" placeholderTextColor={colors.text_secondary} value={anoForm} onChangeText={setAnoForm} keyboardType="numeric" maxLength={4} />
                 </View>
                 <TouchableOpacity style={styles.btnSalvar} onPress={avancarWizardParaSubs} disabled={salvando}>
@@ -639,7 +639,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
                         <View style={[styles.iconCircleOcian, {
                           backgroundColor: vazio ? '#1e1e1e' : colors.primary + '22',
                         }]}>
-                          <MaterialCommunityIcons
+                          <Icon
                             name={vazio ? 'account-plus-outline' : 'check-all'}
                             size={28}
                             color={vazio ? colors.text_secondary : colors.primary}
@@ -687,7 +687,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
                   </Text>
                   {jogadoresDoCat.length === 0 ? (
                     <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                      <MaterialCommunityIcons name="account-off-outline" size={44} color="#333" />
+                      <Icon name="account-off-outline" size={44} color="#333" />
                       <Text style={{ color: '#555', marginTop: 8, textAlign: 'center' }}>Nenhum atleta cadastrado neste sub.</Text>
                     </View>
                   ) : (
@@ -698,7 +698,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
                         onPress={toggleSelecionarTodos}
                         activeOpacity={0.7}
                       >
-                        <MaterialCommunityIcons 
+                        <Icon
                           name={todosSelecionados ? 'checkbox-marked' : 'checkbox-blank-outline'} 
                           size={24} 
                           color={todosSelecionados ? colors.primary : colors.text_secondary} 
@@ -721,7 +721,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
                               onPress={() => toggleJogadorElenco(item.id)}
                               activeOpacity={0.7}
                             >
-                              <MaterialCommunityIcons name={selecionado ? 'checkbox-marked' : 'checkbox-blank-outline'} size={24} color={selecionado ? colors.primary : colors.text_secondary} />
+                              <Icon name={selecionado ? 'checkbox-marked' : 'checkbox-blank-outline'} size={24} color={selecionado ? colors.primary : colors.text_secondary} />
                               <View style={{ flex: 1, marginLeft: 12 }}>
                                 <Text style={styles.jogadorNome}>{item.nome}</Text>
                                 <Text style={styles.jogadorPosicao}>{item.posicao} • #{item.numCamisa ?? '—'}</Text>
@@ -763,7 +763,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
                   activeOpacity={0.8}
                 >
                   <View style={styles.wizardOptionIcon}>
-                    <MaterialCommunityIcons name="calendar-edit" size={32} color={colors.azulClaro} />
+                    <Icon name="calendar-edit" size={32} color={colors.azulClaro} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.wizardOptionTitle}>Criação Manual</Text>
@@ -781,7 +781,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
                   <View style={[styles.wizardOptionIcon, { backgroundColor: colors.primary + '22' }]}>
                     {importando
                       ? <ActivityIndicator color={colors.primary} size={28} />
-                      : <MaterialCommunityIcons name="file-upload-outline" size={32} color={colors.primary} />}
+                      : <Icon name="file-upload-outline" size={32} color={colors.primary} />}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.wizardOptionTitle, { color: colors.primary }]}>Importar CSV / PDF</Text>
@@ -835,7 +835,7 @@ const importarArquivo = async (tipo: 'documento' | 'imagem') => {
       <Modal visible={modalConfirmar} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setModalConfirmar(false)}>
           <View style={[styles.modalCard, { alignItems: 'center' }]}>
-            <MaterialCommunityIcons name="trash-can-outline" size={36} color={colors.vermelho} style={{ marginBottom: 8 }} />
+            <Icon name="trash-can-outline" size={36} color={colors.vermelho} style={{ marginBottom: 8 }} />
             <Text style={styles.modalTitulo}>Excluir</Text>
             <Text style={styles.modalSubtitulo}>Tem certeza que deseja excluir "{itemSelecionado?.nome}"?</Text>
             <View style={styles.modalBotoes}>

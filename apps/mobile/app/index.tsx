@@ -1,59 +1,121 @@
-// Caminho: app/index.tsx
-//
-// Essa é a PRIMEIRA tela que o Expo Router carrega ao abrir o app.
-// Ela não renderiza nenhuma UI de verdade — só decide pra onde mandar
-// o usuário, e some em seguida:
-//
-//   sem token salvo            -> /(auth)/login
-//   com token, sem clube ativo -> /clubes            (escolher/seguir um clube)
-//   com token e clube ativo    -> /(tabs)             (app normal, com navbar)
-//
-// Se esse arquivo não existir (ou se por engano tiver a tela Home aqui
-// dentro), o app carrega a Home direto na raiz, SEM o grupo (tabs) por
-// cima — por isso ela aparece sem a navbar de baixo, e com "CLUBE
-// SELECIONADO" no header (fallback de quando não acha o clube ativo
-// no cache do usuário).
-
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import {
+  Image,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Redirect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import * as SecureStore from 'expo-secure-store';
-import { colors } from '@ludora/design-tokens';
 
 type Destino = '/(auth)/login' | '/clubes' | '/(tabs)';
+
+function StartupScreen() {
+  return (
+    <View style={styles.splashContainer}>
+      <StatusBar style="light" />
+
+      <Image
+        source={require('../assets/icon.png')}
+        style={styles.splashLogo}
+        resizeMode="contain"
+      />
+
+      <Text style={styles.splashTitle}>
+        LUDORA
+      </Text>
+
+      <Text style={styles.splashSubtitle}>
+        GESTÃO E ESTATÍSTICAS DE CLUBES
+      </Text>
+    </View>
+  );
+}
 
 export default function Index() {
   const [carregando, setCarregando] = useState(true);
   const [destino, setDestino] = useState<Destino | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const token = await SecureStore.getItemAsync('userToken');
+  async function verificarSessao() {
+    const inicio = Date.now();
+    const tempoMinimo = 800;
 
-        if (!token) {
-          setDestino('/(auth)/login');
-          return;
-        }
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
 
-        const clubeAtivoId = await SecureStore.getItemAsync('clubeAtivoId');
-        setDestino(clubeAtivoId ? '/(tabs)' : '/clubes');
-      } catch (error) {
-        console.error('Erro ao decidir rota inicial:', error);
+      if (!token) {
         setDestino('/(auth)/login');
-      } finally {
-        setCarregando(false);
+        return;
       }
-    })();
-  }, []);
+
+      const clubeAtivoId =
+        await SecureStore.getItemAsync('clubeAtivoId');
+
+      setDestino(
+        clubeAtivoId
+          ? '/(tabs)'
+          : '/clubes',
+      );
+    } catch (error) {
+      console.error(
+        'Erro ao decidir rota inicial:',
+        error,
+      );
+
+      setDestino('/(auth)/login');
+    } finally {
+      const tempoDecorrido = Date.now() - inicio;
+      const tempoRestante = tempoMinimo - tempoDecorrido;
+
+      if (tempoRestante > 0) {
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, tempoRestante);
+        });
+      }
+
+      setCarregando(false);
+    }
+  }
+
+  verificarSessao();
+}, []);
 
   if (carregando || !destino) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.fundo }}>
-        <ActivityIndicator size="large" color={colors.primaria} />
-      </View>
-    );
+    return <StartupScreen />;
   }
 
   return <Redirect href={destino} />;
 }
+
+const styles = StyleSheet.create({
+  splashContainer: {
+    flex: 1,
+    backgroundColor: '#0B0D12',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+
+  splashLogo: {
+    width: 74,
+    height: 74,
+    marginBottom: 14,
+  },
+
+  splashTitle: {
+    color: '#F5EBDD',
+    fontFamily: 'Oswald_700Bold',
+    fontSize: 38,
+    lineHeight: 44,
+  },
+
+  splashSubtitle: {
+    color: '#F4F4F4',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 16,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+});

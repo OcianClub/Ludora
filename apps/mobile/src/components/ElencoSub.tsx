@@ -1,9 +1,9 @@
+import { Icon } from '@ludora/icons';
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Modal,
   TextInput, ActivityIndicator, Alert, Pressable, RefreshControl, Animated,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Polygon, Line, Text as SvgText } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -132,14 +132,14 @@ function ModalScout({ jogador, onFechar }: { jogador: JogadorScout; onFechar: ()
     { label: 'Faltas',    valor: jogador.faltas_cometidas,  icone: 'whistle'      },
     { label: 'Amarelos',  valor: jogador.cartoes_amarelos,  icone: 'card'         },
     { label: 'Vermelhos', valor: jogador.cartoes_vermelhos, icone: 'card'         },
-  ];
+  ] as const;
 
   return (
     <Modal visible animationType="slide" transparent={false} onRequestClose={onFechar}>
       <View style={s.scoutContainer}>
         <View style={[s.scoutHeader, { borderBottomColor: corPerfil + '40' }]}>
           <TouchableOpacity onPress={onFechar} style={s.btnVoltar}>
-            <MaterialCommunityIcons name="arrow-left" size={22} color={colors.text} />
+            <Icon name="arrow-left" size={22} color={colors.text} />
           </TouchableOpacity>
           <Text style={s.scoutTitulo}>FICHA DO ATLETA</Text>
           <View style={{ width: 40 }} />
@@ -193,7 +193,7 @@ function ModalScout({ jogador, onFechar }: { jogador: JogadorScout; onFechar: ()
             </View>
           ) : (
             <View style={s.semDados}>
-              <MaterialCommunityIcons name="chart-arc" size={44} color="#2a2a2a" />
+              <Icon name="chart-arc" size={44} color="#2a2a2a" />
               <Text style={s.semDadosTxt}>Radar disponível após o primeiro jogo registrado</Text>
             </View>
           )}
@@ -202,7 +202,7 @@ function ModalScout({ jogador, onFechar }: { jogador: JogadorScout; onFechar: ()
           <View style={s.statsGrid}>
             {stats.map(st => (
               <View key={st.label} style={s.statCard}>
-                <MaterialCommunityIcons name={st.icone as any} size={18} color={corPerfil} style={{ opacity: 0.85 }} />
+                <Icon name={st.icone} size={18} color={corPerfil} style={{ opacity: 0.85 }} />
                 <Text style={s.statValor}>{st.valor}</Text>
                 <Text style={s.statLabel}>{st.label}</Text>
               </View>
@@ -212,12 +212,12 @@ function ModalScout({ jogador, onFechar }: { jogador: JogadorScout; onFechar: ()
           <Text style={[s.secaoLabel, { marginTop: 4 }]}>EFICIÊNCIA POR JOGO</Text>
           <View style={s.eficienciaRow}>
             <View style={s.eficienciaCard}>
-              <MaterialCommunityIcons name="soccer" size={20} color={colors.vermelho} />
+              <Icon name="soccer" size={20} color={colors.vermelho} />
               <Text style={s.eficienciaValor}>{golsPJ}</Text>
               <Text style={s.eficienciaLabel}>Gols/Jogo</Text>
             </View>
             <View style={s.eficienciaCard}>
-              <MaterialCommunityIcons name="handshake" size={20} color={colors.azulClaro} />
+              <Icon name="handshake" size={20} color={colors.azulClaro} />
               <Text style={s.eficienciaValor}>{assistPJ}</Text>
               <Text style={s.eficienciaLabel}>Assist./Jogo</Text>
             </View>
@@ -357,11 +357,11 @@ function ModalFormJogador({
           <View style={s.formHeader}>
             <Text style={s.formTitulo}>{jogador ? 'Editar Atleta' : 'Novo Atleta'}</Text>
             <TouchableOpacity onPress={onFechar}>
-              <MaterialCommunityIcons name="close" size={22} color={colors.text} />
+              <Icon name="close" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
           <View style={s.inputRow}>
-            <MaterialCommunityIcons name="account-outline" size={18} color={colors.text_secondary} />
+            <Icon name="account-outline" size={18} color={colors.text_secondary} />
             <TextInput
               style={s.input}
               placeholder="Nome completo"
@@ -374,7 +374,7 @@ function ModalFormJogador({
 
           {!jogador && (
             <View style={s.inputRow}>
-              <MaterialCommunityIcons name="card-account-details-outline" size={18} color={colors.text_secondary} />
+              <Icon name="card-account-details-outline" size={18} color={colors.text_secondary} />
               <TextInput
                 style={s.input}
                 placeholder="CPF obrigatório (somente números)"
@@ -388,7 +388,7 @@ function ModalFormJogador({
           )}
 
           <View style={s.inputRow}>
-            <MaterialCommunityIcons name="calendar-outline" size={18} color={colors.text_secondary} />
+            <Icon name="calendar-outline" size={18} color={colors.text_secondary} />
             <TextInput
               style={s.input}
               placeholder="Data nasc. (DD/MM/AAAA)"
@@ -408,7 +408,7 @@ function ModalFormJogador({
                 marginBottom: 12,
               },
             ]}>
-              <MaterialCommunityIcons
+              <Icon
                 name={subDiferente ? 'alert-circle-outline' : 'check-circle-outline'}
                 size={15}
                 color={subDiferente ? colors.amarelo : colors.primary}
@@ -421,7 +421,7 @@ function ModalFormJogador({
             </View>
           )}
           <View style={s.inputRow}>
-            <MaterialCommunityIcons name="tshirt-crew-outline" size={18} color={colors.text_secondary} />
+            <Icon name="tshirt-crew-outline" size={18} color={colors.text_secondary} />
             <TextInput
               style={s.input}
               placeholder="Nº camisa (opcional)"
@@ -440,7 +440,7 @@ function ModalFormJogador({
                 style={[s.pill, posicao === p && s.pillAtivo]}
                 onPress={() => setPosicao(p)}
               >
-                <MaterialCommunityIcons
+                <Icon
                   name={p === 'Goleiro' ? 'hand-front-right' : 'run-fast'}
                   size={14}
                   color={posicao === p ? colors.primary : colors.text_secondary}
@@ -451,7 +451,7 @@ function ModalFormJogador({
           </View>
           {jogador && (
             <View style={s.infoBox}>
-              <MaterialCommunityIcons name="information-outline" size={14} color={colors.azulClaro} />
+              <Icon name="information-outline" size={14} color={colors.azulClaro} />
               <Text style={s.infoTxt}>
                 Ao alterar a data de nascimento, o sub do atleta será recalculado automaticamente.
               </Text>
@@ -504,7 +504,7 @@ function CardAtleta({ jogador, scout, onVerFicha, onEditar, onExcluir }: {
       <View style={s.cardInfos}>
         <Text style={s.cardNome} numberOfLines={1}>{jogador.nome}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-          <MaterialCommunityIcons
+          <Icon
             name={jogador.posicao === 'Goleiro' ? 'hand-front-right' : 'run-fast'}
             size={11} color={colors.text_secondary}
           />
@@ -533,10 +533,10 @@ function CardAtleta({ jogador, scout, onVerFicha, onEditar, onExcluir }: {
 
       <View style={s.acoes}>
         <TouchableOpacity style={s.btnAcao} onPress={onEditar} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-          <MaterialCommunityIcons name="pencil-outline" size={15} color={colors.azulClaro} />
+          <Icon name="pencil-outline" size={15} color={colors.azulClaro} />
         </TouchableOpacity>
         <TouchableOpacity style={[s.btnAcao, s.btnAcaoDanger]} onPress={onExcluir} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-          <MaterialCommunityIcons name="trash-can-outline" size={15} color={colors.vermelho} />
+          <Icon name="trash-can-outline" size={15} color={colors.vermelho} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -664,7 +664,7 @@ export default function ElencoSub({ categoria, jogadores, onFechar, onRecarregar
       {/* Busca */}
       <View style={s.topRow}>
         <View style={s.buscaContainer}>
-          <MaterialCommunityIcons name="magnify" size={16} color={colors.text_secondary} />
+          <Icon name="magnify" size={16} color={colors.text_secondary} />
           <TextInput
             style={s.buscaInput}
             placeholder="Buscar atleta..."
@@ -674,7 +674,7 @@ export default function ElencoSub({ categoria, jogadores, onFechar, onRecarregar
           />
           {busca.length > 0 && (
             <TouchableOpacity onPress={() => setBusca('')}>
-              <MaterialCommunityIcons name="close" size={14} color={colors.text_secondary} />
+              <Icon name="close" size={14} color={colors.text_secondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -712,7 +712,7 @@ export default function ElencoSub({ categoria, jogadores, onFechar, onRecarregar
       >
         {ativosFiltrados.length === 0 ? (
           <View style={s.emptyContainer}>
-            <MaterialCommunityIcons name="account-group-outline" size={60} color="#222" />
+            <Icon name="account-group-outline" size={60} color="#222" />
             <Text style={s.emptyTxt}>
               {busca ? 'Nenhum atleta encontrado' : 'Nenhum atleta neste sub.\nAdicione o primeiro!'}
             </Text>
@@ -740,7 +740,7 @@ export default function ElencoSub({ categoria, jogadores, onFechar, onRecarregar
               onPress={() => setMostrarSenior(v => !v)}
               activeOpacity={0.7}
             >
-              <MaterialCommunityIcons
+              <Icon
                 name={mostrarSenior ? 'chevron-down' : 'chevron-right'}
                 size={18} color="#555"
               />
@@ -770,7 +770,7 @@ export default function ElencoSub({ categoria, jogadores, onFechar, onRecarregar
         onPress={() => { setJogadorEditando(null); setModalForm(true); }}
         activeOpacity={0.85}
       >
-        <MaterialCommunityIcons name="plus" size={28} color="#FFF" />
+        <Icon name="plus" size={28} color="#FFF" />
       </TouchableOpacity>
 
       {toast && (
@@ -808,7 +808,7 @@ export default function ElencoSub({ categoria, jogadores, onFechar, onRecarregar
         alignItems: 'center',
         backgroundColor: toast.tipo === 'aviso' ? colors.amarelo + '18' : colors.primary + '18',
       }}>
-        <MaterialCommunityIcons
+        <Icon
           name={toast.tipo === 'aviso' ? 'alert-circle-outline' : 'check-circle-outline'}
           size={20}
           color={toast.tipo === 'aviso' ? colors.amarelo : colors.primary}
@@ -852,7 +852,7 @@ export default function ElencoSub({ categoria, jogadores, onFechar, onRecarregar
       <Modal visible={modalConfirmar} transparent animationType="fade">
         <Pressable style={s.overlay} onPress={() => setModalConfirmar(false)}>
           <View style={s.confirmCard}>
-            <MaterialCommunityIcons name="trash-can-outline" size={34} color={colors.vermelho} />
+            <Icon name="trash-can-outline" size={34} color={colors.vermelho} />
             <Text style={s.formTitulo}>Excluir Atleta</Text>
             <Text style={s.confirmTxt}>
               Tem certeza que deseja excluir{'\n'}

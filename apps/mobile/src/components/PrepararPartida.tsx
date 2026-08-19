@@ -1,10 +1,10 @@
+import { Icon } from '@ludora/icons';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, TextInput, StyleSheet, Modal,
 } from 'react-native';
 import { ListSkeleton } from '@/src/components/Skeleton';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { Header } from '@/src/components/Header';
 import {
@@ -250,7 +250,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
         ]}
       >
         <TouchableOpacity onPress={() => togglePresente(j.id_jogador)} style={styles.checkBox}>
-          <MaterialCommunityIcons
+          <Icon
             name={presente ? 'checkbox-marked' : 'checkbox-blank-outline'}
             size={24}
             color={presente ? colors.primary : '#444'}
@@ -295,7 +295,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
             onPress={() => toggleTitular(j.id_jogador)}
             style={[styles.titularBtn, titular && styles.titularBtnAtivo]}
           >
-            <MaterialCommunityIcons
+            <Icon
               name={titular ? 'star' : 'star-outline'}
               size={20}
               color={titular ? '#facc15' : '#444'}
@@ -348,7 +348,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
 
       {!fixaCamisa && (
         <View style={styles.legenda}>
-          <MaterialCommunityIcons name="information-outline" size={13} color="#666" />
+          <Icon name="information-outline" size={13} color="#666" />
           <Text style={styles.legendaTxt}>Defina o nº de camisa para cada atleta presente.</Text>
         </View>
       )}
@@ -361,7 +361,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
           showsVerticalScrollIndicator={false}
         >
           <TouchableOpacity style={styles.btnTodos} onPress={toggleTodos}>
-            <MaterialCommunityIcons
+            <Icon
               name={jogadores.every(j => estado[j.id_jogador]?.presente) ? 'checkbox-marked' : 'checkbox-blank-outline'}
               size={20}
               color={colors.azulClaro}
@@ -373,7 +373,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
 
           {jogadores.length === 0 ? (
             <View style={styles.vazio}>
-              <MaterialCommunityIcons name="account-off-outline" size={44} color="#333" />
+              <Icon name="account-off-outline" size={44} color="#333" />
               <Text style={styles.vazioTxt}>Nenhum atleta convocado neste sub.</Text>
               <Text style={[styles.vazioTxt, { fontSize: 12, marginTop: 4 }]}>
                 Adicione jogadores ao elenco do campeonato antes de preparar.
@@ -399,7 +399,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
               <ActivityIndicator color="#FFF" />
             ) : (
               <>
-                <MaterialCommunityIcons name="clipboard-check-outline" size={20} color="#FFF" />
+                <Icon name="clipboard-check-outline" size={20} color="#FFF" />
                 <Text style={styles.btnConfirmarTxt}>CONFIRMAR ESCALAÇÃO</Text>
               </>
             )}
@@ -411,7 +411,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
         <View style={mt.overlay}>
           <View style={mt.box}>
             <View style={mt.iconWrap}>
-              <MaterialCommunityIcons name="tshirt-crew" size={26} color={colors.amarelo} />
+              <Icon name="tshirt-crew" size={26} color={colors.amarelo} />
             </View>
             <Text style={mt.titulo}>Camisa #{modalTroca?.camisaA} em uso</Text>
             <Text style={mt.desc}>
@@ -422,7 +422,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
                 <View style={mt.badge}><Text style={mt.badgeNum}>#{modalTroca?.camisaA}</Text></View>
                 <Text style={mt.cardNome} numberOfLines={1}>{modalTroca?.nomeA}</Text>
               </View>
-              <MaterialCommunityIcons name="swap-horizontal" size={24} color={colors.primary} />
+              <Icon name="swap-horizontal" size={24} color={colors.primary} />
               <View style={mt.card}>
                 <View style={[mt.badge, { backgroundColor: '#252525' }]}>
                   <Text style={[mt.badgeNum, { color: colors.text_secondary }]}>#{modalTroca?.camisaB || '—'}</Text>
@@ -435,7 +435,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
                 <Text style={mt.btnCancelTxt}>CANCELAR</Text>
               </TouchableOpacity>
               <TouchableOpacity style={mt.btnConfirm} onPress={modalTroca?.onConfirmar}>
-                <MaterialCommunityIcons name="check" size={15} color="#fff" />
+                <Icon name="check" size={15} color="#fff" />
                 <Text style={mt.btnConfirmTxt}>TROCAR</Text>
               </TouchableOpacity>
             </View>

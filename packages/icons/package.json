@@ -1,7 +1,26 @@
 {
   "name": "@ludora/icons",
   "version": "1.0.0",
+  "private": true,
+  "sideEffects": false,
+  "scripts": {
+    "generate": "node ./scripts/generate-icons.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
   "exports": {
-    "./*": "./src/svg/*"
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-native-svg": "^15.12.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "react": "19.1.0",
+    "react-native-svg": "15.12.1",
+    "typescript": "~5.9.2"
   }
 }

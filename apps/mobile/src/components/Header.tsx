@@ -1,5 +1,5 @@
+import { Icon, type IconName } from '@ludora/icons';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, typography } from '@ludora/design-tokens';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,11 +7,11 @@ import { useRouter } from 'expo-router';
 
 interface HeaderProps {
   title: string;
-  btnVoltar?: keyof typeof MaterialCommunityIcons.glyphMap;
-  btnNotificacao?: keyof typeof MaterialCommunityIcons.glyphMap;
+  btnVoltar?: IconName;
+  btnNotificacao?: IconName;
   showLogo?: boolean;
   logoUrl?: string | null;
-  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
+  icon?: IconName;
   onPressIcon?: () => void;
   showProfile?: boolean;
   onBtnVoltar?: () => void; 
@@ -42,7 +42,7 @@ export function Header({
             activeOpacity={0.7} 
             onPress={() => onBtnVoltar ? onBtnVoltar() : router.back()}
           >
-            <MaterialCommunityIcons name={btnVoltar} size={24} color={colors.texto} />
+            <Icon name={btnVoltar} size={24} color={colors.texto} />
           </TouchableOpacity>
         )}
         {showLogo && (
@@ -72,7 +72,7 @@ export function Header({
         )} 
         {icon && (
           <TouchableOpacity onPress={onPressIcon} activeOpacity={0.6}>
-            <MaterialCommunityIcons name={icon} size={44} color={colors.primaria} />
+            <Icon name={icon} size={44} color={colors.primaria} />
           </TouchableOpacity>
         )}
         {/* O TITLE JÁ ERA DINÂMICO E CONTINUA AQUI — agora com numberOfLines pra truncar
@@ -85,7 +85,7 @@ export function Header({
       <View style={styles.rightContent}>
         {btnNotificacao && (
           <TouchableOpacity style={styles.actionButton} activeOpacity={0.7} onPress={onPressIcon}>
-            <MaterialCommunityIcons name={btnNotificacao} size={24} color={colors.texto} />
+            <Icon name={btnNotificacao} size={24} color={colors.texto} />
           </TouchableOpacity>
         )}
         {showProfile && (
@@ -94,7 +94,7 @@ export function Header({
             activeOpacity={0.7} 
             onPress={() => router.push('perfil/perfil')}
           >
-            <MaterialCommunityIcons name="account" size={24} color={colors.primaria} />
+            <Icon name="account" size={24} color={colors.primaria} />
           </TouchableOpacity>
         )}
       </View>

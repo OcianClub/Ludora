@@ -1,6 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
 
-export const BASE_URL = 'http://192.168.7.2:3000';
+export const BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ??
+  'http://192.168.7.2:3000';
 
 export interface ClassificacaoItem {
   grupo: string;

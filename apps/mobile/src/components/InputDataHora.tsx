@@ -1,6 +1,6 @@
+import { Icon } from '@ludora/icons';
 import React from 'react';
 import { View, Text, TextInput } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@ludora/design-tokens';
 import { styles } from '../styles/inputDataHoraStyles';
 
@@ -17,7 +17,7 @@ export default function InputDataHora({ data, horario, onChangeData, onChangeHor
       <View style={styles.halfBlock}>
         <Text style={styles.label}>DATA</Text>
         <View style={styles.inputRow}>
-          <MaterialCommunityIcons name="calendar-outline" size={17} color={colors.textoSecundario} />
+          <Icon name="calendar-outline" size={17} color={colors.textoSecundario} />
           <TextInput 
             style={styles.inputText} 
             value={data} 
@@ -33,7 +33,7 @@ export default function InputDataHora({ data, horario, onChangeData, onChangeHor
       <View style={styles.halfBlock}>
         <Text style={styles.label}>HORÁRIO</Text>
         <View style={styles.inputRow}>
-          <MaterialCommunityIcons name="clock-outline" size={17} color={colors.textoSecundario} />
+          <Icon name="clock-outline" size={17} color={colors.textoSecundario} />
           <TextInput 
             style={styles.inputText} 
             value={horario} 

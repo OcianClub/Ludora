@@ -1,9 +1,9 @@
+import { Icon } from '@ludora/icons';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { BASE_URL } from '@/src/services/api';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SvgProps } from 'react-native-svg';
 
 // Importação dos estilos e design tokens
@@ -62,7 +62,7 @@ export default function Login() {
       
       {/* Botão Voltar */}
       <TouchableOpacity style={styles.btnVoltar} onPress={() => router.back()}>
-        <MaterialCommunityIcons name="arrow-left" size={22} color={colors.texto} />
+        <Icon name="arrow-left" size={22} color={colors.texto} />
       </TouchableOpacity>
 
       {/* Cabeçalho */}
@@ -78,7 +78,7 @@ export default function Login() {
       <View style={styles.form}>
         {erro !== '' && (
           <View style={styles.erroContainer}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.tituloErro} />
+            <Icon name="alert-circle-outline" size={18} color={colors.tituloErro} />
             <Text style={styles.erroTxt}>{erro}</Text>
           </View>
         )}
@@ -86,7 +86,7 @@ export default function Login() {
         <View>
           <Text style={styles.inputLabel}>EMAIL</Text>
           <View style={[styles.inputRow, emailFocado && styles.inputRowFocado]}>
-            <MaterialCommunityIcons name="email-outline" size={20} color={emailFocado ? colors.primaria : colors.textoSecundario} />
+            <Icon name="email-outline" size={20} color={emailFocado ? colors.primaria : colors.textoSecundario} />
             <TextInput
               style={styles.input}
               placeholder="seu@email.com"
@@ -104,7 +104,7 @@ export default function Login() {
         <View>
           <Text style={styles.inputLabel}>SENHA</Text>
           <View style={[styles.inputRow, senhaFocada && styles.inputRowFocado]}>
-            <MaterialCommunityIcons name="lock-outline" size={20} color={senhaFocada ? colors.primaria : colors.textoSecundario} />
+            <Icon name="lock-outline" size={20} color={senhaFocada ? colors.primaria : colors.textoSecundario} />
             <TextInput
               style={styles.input}
               placeholder="••••••••"
@@ -116,7 +116,7 @@ export default function Login() {
               onBlur={() => setSenhaFocada(false)}
             />
             <TouchableOpacity onPress={() => setMostrarSenha(v => !v)} activeOpacity={0.7} style={styles.olho}>
-              <MaterialCommunityIcons
+              <Icon
                 name={mostrarSenha ? 'eye-outline' : 'eye-off-outline'}
                 size={22}
                 color={colors.textoSecundario}

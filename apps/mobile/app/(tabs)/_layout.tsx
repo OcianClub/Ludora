@@ -1,9 +1,9 @@
 import { Tabs } from 'expo-router';
 import { View, Text } from 'react-native';
 import { colors, typography } from '@ludora/design-tokens'
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts } from '@/src/theme/fonts';
+import { HomeIcon, Icon } from '@ludora/icons';
+import Home from '.';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -45,7 +45,7 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home" size={size} color={color} />
+            <HomeIcon size={size} color={color}/>
           ),
         }}
       />
@@ -54,7 +54,7 @@ export default function TabsLayout() {
         options={{
           title: 'Jogos',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="soccer" size={size} color={color} />
+            <Icon name="soccer" size={size} color={color} />
           ),
         }}
       />
@@ -63,7 +63,7 @@ export default function TabsLayout() {
         options={{
           title: 'Clubes',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="shield-outline" size={size} color={color} />
+            <Icon name="shield-outline" size={size} color={color} />
           ),
         }}
       />
@@ -72,7 +72,7 @@ export default function TabsLayout() {
         options={{
           title: 'Scout',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="radar" size={size} color={color} />
+            <Icon name="radar" size={size} color={color} />
           ),
         }}
       />

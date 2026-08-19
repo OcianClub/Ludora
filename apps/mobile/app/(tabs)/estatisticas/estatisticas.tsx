@@ -1,10 +1,10 @@
+import { Icon } from '@ludora/icons';
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, ActivityIndicator, TouchableOpacity,
   ScrollView, TextInput, Modal
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Polygon, Line, Text as SvgText } from 'react-native-svg';
 
 import { obterPerfisJogadores, Jogador, ScoresMl } from '@/src/services/mlService';
@@ -176,7 +176,7 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
     { label: 'Faltas',     valor: jogador.faltas_cometidas,  icone: 'whistle'            },
     { label: 'Amarelos',   valor: jogador.cartoes_amarelos,  icone: 'card'               },
     { label: 'Vermelhos',  valor: jogador.cartoes_vermelhos, icone: 'card'               },
-  ];
+  ] as const;
 
   const eficienciaGol = jogador.jogos_disputados > 0
     ? (jogador.gols / jogador.jogos_disputados).toFixed(2)
@@ -190,7 +190,7 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
       <View style={styles.scoutContainer}>
         <View style={styles.scoutHeader}>
           <TouchableOpacity onPress={onFechar} style={styles.scoutBtnVoltar}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color={colors.text} />
+            <Icon name="arrow-left" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.scoutHeaderTitulo}>FICHA DO ATLETA</Text>
           <View style={{ width: 40 }} />
@@ -250,7 +250,7 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
             </View>
           ) : (
             <View style={styles.scoutSemDados}>
-              <MaterialCommunityIcons name="chart-arc" size={40} color="#333" />
+              <Icon name="chart-arc" size={40} color="#333" />
               <Text style={styles.scoutSemDadosTxt}>
                 Radar disponível após o primeiro jogo registrado
               </Text>
@@ -261,7 +261,7 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
           <View style={styles.scoutStatsGrid}>
             {stats.map(s => (
               <View key={s.label} style={styles.scoutStatCard}>
-                <MaterialCommunityIcons name={s.icone as any} size={22} color={corPerfil} style={{ opacity: 0.8 }} />
+                <Icon name={s.icone} size={22} color={corPerfil} style={{ opacity: 0.8 }} />
                 <Text style={styles.scoutStatValor}>{s.valor}</Text>
                 <Text style={styles.scoutStatLabel}>{s.label}</Text>
               </View>
@@ -271,12 +271,12 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
           <Text style={styles.scoutSecaoLabel}>EFICIÊNCIA POR JOGO</Text>
           <View style={styles.scoutEficienciaRow}>
             <View style={styles.scoutEficienciaCard}>
-              <MaterialCommunityIcons name="soccer" size={24} color={colors.vermelho} />
+              <Icon name="soccer" size={24} color={colors.vermelho} />
               <Text style={styles.scoutEficienciaValor}>{eficienciaGol}</Text>
               <Text style={styles.scoutEficienciaLabel}>Gols/Jogo</Text>
             </View>
             <View style={styles.scoutEficienciaCard}>
-              <MaterialCommunityIcons name="handshake" size={24} color={colors.azulClaro} />
+              <Icon name="handshake" size={24} color={colors.azulClaro} />
               <Text style={styles.scoutEficienciaValor}>{eficienciaAssist}</Text>
               <Text style={styles.scoutEficienciaLabel}>Assist./Jogo</Text>
             </View>
@@ -358,7 +358,7 @@ export default function Estatisticas() {
       />
 
       <View style={styles.buscaContainer}>
-        <MaterialCommunityIcons name="magnify" size={18} color={colors.text_secondary} />
+        <Icon name="magnify" size={18} color={colors.text_secondary} />
         <TextInput
           style={styles.buscaInput}
           placeholder="Buscar atleta..."
@@ -368,7 +368,7 @@ export default function Estatisticas() {
         />
         {busca.length > 0 && (
           <TouchableOpacity onPress={() => setBusca('')}>
-            <MaterialCommunityIcons name="close" size={16} color={colors.text_secondary} />
+            <Icon name="close" size={16} color={colors.text_secondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -379,7 +379,7 @@ export default function Estatisticas() {
         </ScrollView>
       ) : erro ? (
         <View style={styles.centralizado}>
-          <MaterialCommunityIcons name="wifi-off" size={48} color="#333" />
+          <Icon name="wifi-off" size={48} color="#333" />
           <Text style={styles.txtErro}>{erro}</Text>
           <TouchableOpacity style={styles.btnRetry} onPress={() => carregarDados()}>
             <Text style={styles.txtBtnRetry}>Tentar novamente</Text>
@@ -387,7 +387,7 @@ export default function Estatisticas() {
         </View>
       ) : jogadoresFiltrados.length === 0 ? (
         <View style={styles.centralizado}>
-          <MaterialCommunityIcons name="account-off-outline" size={48} color="#333" />
+          <Icon name="account-off-outline" size={48} color="#333" />
           <Text style={styles.txtErro}>Nenhum atleta encontrado</Text>
         </View>
       ) : (

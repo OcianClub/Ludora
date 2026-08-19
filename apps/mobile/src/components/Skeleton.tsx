@@ -8,7 +8,6 @@ type SkeletonProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Bloco de carregamento leve: uma única animação nativa pode envolver vários itens. */
 export const Skeleton = memo(function Skeleton({
   width = '100%',
   height,
@@ -79,18 +78,27 @@ export function CardsSkeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
-export function HomeSkeleton() {
+type HomeSkeletonProps = {
+  style?: StyleProp<ViewStyle>;
+};
+
+export function HomeSkeleton({ style }: HomeSkeletonProps) {
   return (
-    <SkeletonPulse style={styles.home}>
-      <View style={styles.hero}>
-        <Skeleton width="35%" height={11} radius={4} />
-        <Skeleton width="72%" height={22} radius={6} />
-        <Skeleton width="100%" height={1} radius={0} style={styles.separator} />
-        <View style={styles.heroBottom}>
-          <Skeleton width="28%" height={34} radius={5} />
-          <Skeleton width="28%" height={34} radius={5} />
-          <Skeleton width="28%" height={34} radius={5} />
-        </View>
+    <SkeletonPulse style={[style, styles.homeContent]}>
+      <Skeleton width="35%" height={11} radius={4} />
+      <Skeleton width="72%" height={22} radius={6} />
+
+      <Skeleton
+        width="100%"
+        height={1}
+        radius={0}
+        style={styles.separator}
+      />
+
+      <View style={styles.heroBottom}>
+        <Skeleton width="28%" height={34} radius={5} />
+        <Skeleton width="28%" height={34} radius={5} />
+        <Skeleton width="28%" height={34} radius={5} />
       </View>
     </SkeletonPulse>
   );
@@ -112,8 +120,9 @@ const styles = StyleSheet.create({
   cards: { gap: 12 },
   card: { padding: 16, minHeight: 112, borderRadius: 12, backgroundColor: '#1D1E21', gap: 14 },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  home: { paddingHorizontal: 20, paddingTop: 12 },
-  hero: { padding: 20, borderRadius: 12, backgroundColor: '#1D1E21', gap: 16 },
+  homeContent: {
+    gap: 16,
+  },
   separator: { marginVertical: 4 },
   heroBottom: { flexDirection: 'row', justifyContent: 'space-between' },
 });

@@ -1,9 +1,7 @@
+import { Icon } from '@ludora/icons';
 import { View, Text, FlatList, TouchableOpacity, Modal } from 'react-native';
 import { styles } from '../../src/styles/indexStyles';
 import { Header } from '@/src/components/Header';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
-import Octicons from '@expo/vector-icons/Octicons';
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { Link, useFocusEffect } from 'expo-router';
 import PagerView from 'react-native-pager-view';
@@ -84,16 +82,24 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
               </TouchableOpacity>
             </View>
 
-            <View style={styles.mainCard}>
-              {carregando ? (
-                <HomeSkeleton />
-              ) : !proximoJogo ? (
-                <View style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
-                  <MaterialCommunityIcons name="calendar-remove-outline" size={40} color="#8B8D94" />
-                  <Text style={{ fontFamily: 'Creato-Bold', color: '#666' }}>Nenhuma partida agendada</Text>
-                </View>
-              ) : (
-                <>
+            {carregando ? (
+              <HomeSkeleton style={styles.mainCard} />
+            ) : (
+              <View style={styles.mainCard}>
+                {!proximoJogo ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
+                    <Icon
+                      name="calendar-remove-outline"
+                      size={40}
+                      color="#8B8D94"
+                    />
+
+                    <Text style={{ fontFamily: 'Creato-Bold', color: '#666' }}>
+                      Nenhuma partida agendada
+                    </Text>
+                  </View>
+                ) : (
+                  <>
                   <View style={styles.containerIcon}>
                     <View style={styles.topCard}>
                       <Text style={styles.cardLabel} numberOfLines={1}>
@@ -104,7 +110,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
                       </View>
                     </View>
                     <View>
-                      <FontAwesome5 name={proximoJogo.emCasa ? 'home' : 'bus'} size={22} color="#0E78FF" />
+                      <Icon name={proximoJogo.emCasa ? 'home' : 'bus'} size={22} color="#0E78FF" />
                     </View>
                   </View>
 
@@ -113,7 +119,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
                   <View style={styles.rowSpaceBetween}>
                     <View style={styles.cardHoraData}>
                       <View style={styles.containerDataHora}>
-                        <FontAwesome5 name="calendar" size={18} color="#8B8D94" />
+                        <Icon name="calendar" size={18} color="#8B8D94" />
                         <View style={styles.containerTextDataHora}>
                           <Text style={styles.titleDataHora}>Data</Text>
                           <Text style={styles.subTitleDataHora}>{formatarDataCard(proximoJogo.data)}</Text>
@@ -121,7 +127,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
                       </View>
 
                       <View style={styles.containerDataHora}>
-                        <FontAwesome5 name="clock" size={18} color="#8B8D94" />
+                        <Icon name="clock" size={18} color="#8B8D94" />
                         <View style={styles.containerTextDataHora}>
                           <Text style={styles.titleDataHora}>Horário</Text>
                           <Text style={styles.subTitleDataHora}>{proximoJogo.horario || '--:--'}</Text>
@@ -130,7 +136,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
                     </View>
 
                     <View style={styles.containerLocalizacao}>
-                      <Octicons name="location" size={20} color="#8B8D94" />
+                      <Icon name="location" size={20} color="#8B8D94" />
                       <Text style={styles.txtLocalizacao} numberOfLines={2}>
                         {proximoJogo.local || 'Local não definido'}
                       </Text>
@@ -141,8 +147,9 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
                     </TouchableOpacity>
                   </View>
                 </>
-              )}
-            </View>
+                )}
+              </View>
+            )}
 
             <View style={styles.rowCards}>
               <View style={styles.smallCard}>
@@ -152,7 +159,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
                     ? <Skeleton width={52} height={30} radius={6} />
                     : <Text style={styles.cardValue}>{estatisticas.pontos}</Text>}
                   <Text style={styles.cardLabel}>Pontos ganhos</Text>
-                  <MaterialCommunityIcons name="trophy-outline" size={28} color="#0E78FF" style={styles.iconRight} />
+                  <Icon name="trophy-outline" size={28} color="#0E78FF" style={styles.iconRight} />
                 </View>
               </View>
 
@@ -163,7 +170,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
                     ? <Skeleton width={52} height={30} radius={6} />
                     : <Text style={styles.cardValue}>{estatisticas.vitorias}</Text>}
                   <Text style={styles.cardLabel}>Na temporada</Text>
-                  <MaterialCommunityIcons name="medal-outline" size={28} color="#F0B84E" style={styles.iconRight} />
+                  <Icon name="medal-outline" size={28} color="#F0B84E" style={styles.iconRight} />
                 </View>
               </View>
             </View>

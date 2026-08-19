@@ -1,10 +1,10 @@
+import { Icon } from '@ludora/icons';
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   Modal, ActivityIndicator, Alert, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '@ludora/design-tokens';
 import { styles } from '@/src/styles/escalacaoPartidaStyles';
@@ -310,7 +310,7 @@ export default function EscalacaoPartida({
           <ActivityIndicator color={colors.primaria} />
         ) : escalacao.length === 0 ? (
           <View style={styles.emptyBox}>
-            <MaterialCommunityIcons name="account-group-outline" size={40} color={colors.textoSecundario} />
+            <Icon name="account-group-outline" size={40} color={colors.textoSecundario} />
             <Text style={styles.emptyTxt}>Nenhum jogador escalado</Text>
             {isAdmin && (
               <TouchableOpacity style={styles.emptyBtn} onPress={abrirModal}>
@@ -341,7 +341,7 @@ export default function EscalacaoPartida({
         <SafeAreaView style={styles.modalRoot}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setModalEscalacao(false)}>
-              <MaterialCommunityIcons name="close" size={22} color={colors.texto} />
+              <Icon name="close" size={22} color={colors.texto} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>{modoSubstituicao ? 'SUBSTITUIÇÃO' : 'ESCALAÇÃO'}</Text>
             {modoSubstituicao ? (
@@ -360,7 +360,7 @@ export default function EscalacaoPartida({
           </View>
 
           <View style={styles.modalDicaBox}>
-            <MaterialCommunityIcons name="information-outline" size={14} color={colors.textoSecundario} />
+            <Icon name="information-outline" size={14} color={colors.textoSecundario} />
             <Text style={styles.modalDicaTxt}>
               {modoSubstituicao
                 ? `Escolha quem SAI, depois quem ENTRA · máx. ${MAX_SUBS} trocas por partida`
@@ -382,11 +382,11 @@ export default function EscalacaoPartida({
                       <View key={i} style={styles.cardTitular}>
                         <View style={styles.cardCamisa}><Text style={[styles.cardCamisaNum, { color: colors.vermelho }]}>{saindo?.numCamisa}</Text></View>
                         <Text style={[styles.cardNome, { flex: 1 }]} numberOfLines={1}>{saindo?.jogador.nome}</Text>
-                        <MaterialCommunityIcons name="arrow-right" size={16} color={colors.primaria} />
+                        <Icon name="arrow-right" size={16} color={colors.primaria} />
                         <View style={styles.cardCamisa}><Text style={[styles.cardCamisaNum, { color: colors.primaria }]}>{entrando?.numCamisa}</Text></View>
                         <Text style={[styles.cardNome, { flex: 1 }]} numberOfLines={1}>{entrando?.jogador.nome}</Text>
                         <TouchableOpacity onPress={() => setSubPares(p => p.filter((_, j) => j !== i))}>
-                          <MaterialCommunityIcons name="close-circle" size={18} color={colors.vermelho} />
+                          <Icon name="close-circle" size={18} color={colors.vermelho} />
                         </TouchableOpacity>
                       </View>
                     );
@@ -398,7 +398,7 @@ export default function EscalacaoPartida({
                 <>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14, marginTop: 14, backgroundColor: colors.card, borderRadius: 10, padding: 12 }}>
                     <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: subStep === 'saindo' ? colors.fundoErro : colors.fundoBotao, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: subStep === 'saindo' ? colors.bordaErro : colors.bordaBotao }}>
-                      <MaterialCommunityIcons name={subStep === 'saindo' ? 'arrow-up-circle' : 'arrow-down-circle'} size={18} color={subStep === 'saindo' ? colors.texto : colors.primaria} />
+                      <Icon name={subStep === 'saindo' ? 'arrow-up-circle' : 'arrow-down-circle'} size={18} color={subStep === 'saindo' ? colors.texto : colors.primaria} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.rowNome}>
@@ -429,7 +429,7 @@ export default function EscalacaoPartida({
                             <Text style={styles.cardPos}>{item.jogador.posicao}</Text>
                           </View>
                           <View style={styles.tagTitular}><Text style={styles.tagTitularTxt}>EM CAMPO</Text></View>
-                          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textoSecundario} />
+                          <Icon name="chevron-right" size={20} color={colors.textoSecundario} />
                         </TouchableOpacity>
                       ))
                   ) : (
@@ -445,7 +445,7 @@ export default function EscalacaoPartida({
                             <Text style={styles.cardPos}>{item.jogador.posicao}</Text>
                           </View>
                           <View style={styles.tagBanco}><Text style={styles.tagBancoTxt}>BANCO</Text></View>
-                          <MaterialCommunityIcons name="arrow-up-circle-outline" size={20} color={colors.primaria} />
+                          <Icon name="arrow-up-circle-outline" size={20} color={colors.primaria} />
                         </TouchableOpacity>
                       ))
                   )}
@@ -461,7 +461,7 @@ export default function EscalacaoPartida({
           ) : disponiveis.length === 0 ? (
             /* ══ MODO NORMAL — sem jogadores ════════════════════════════════════ */
             <View style={styles.modalEmptyBox}>
-              <MaterialCommunityIcons name="account-group-outline" size={48} color={colors.textoSecundario} />
+              <Icon name="account-group-outline" size={48} color={colors.textoSecundario} />
               <Text style={styles.modalEmptyTxt}>Nenhum jogador encontrado</Text>
               <Text style={styles.modalEmptySubTxt}>
                 Verifique se o elenco foi inscrito nessa competição em Equipes → Campeonatos.
@@ -486,21 +486,21 @@ export default function EscalacaoPartida({
                   <TouchableOpacity key={String(item.id_jogador)} style={[styles.cardTitular, semCamisa && { borderColor: '#F5C51860' }]} onPress={() => toggleConvocado(id)} onLongPress={() => abrirEdicaoCamisa(item)} activeOpacity={0.75}>
                     <View style={styles.cardOrdem}><Text style={styles.cardOrdemNum}>{pos + 1}</Text></View>
                     <View style={[styles.cardCamisa, semCamisa && { backgroundColor: '#F5C51820' }]}>
-                      {semCamisa ? <MaterialCommunityIcons name="tshirt-crew-outline" size={18} color="#F5C518" /> : <Text style={styles.cardCamisaNum}>{item.numCamisa}</Text>}
+                      {semCamisa ? <Icon name="tshirt-crew-outline" size={18} color="#F5C518" /> : <Text style={styles.cardCamisaNum}>{item.numCamisa}</Text>}
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.cardNome}>{item.nome}</Text>
                       <Text style={styles.cardPos}>{item.posicao}{semCamisa ? ' · Segure para definir camisa' : ''}</Text>
                     </View>
                     <View style={styles.tagTitular}><Text style={styles.tagTitularTxt}>TITULAR</Text></View>
-                    <MaterialCommunityIcons name="close-circle" size={20} color={colors.texto} />
+                    <Icon name="close-circle" size={20} color={colors.texto} />
                   </TouchableOpacity>
                 );
               })}
               {Math.min(convocados.length, MAX_TITULARES) < MAX_TITULARES &&
                 Array.from({ length: MAX_TITULARES - Math.min(convocados.length, MAX_TITULARES) }).map((_, i) => (
                   <View key={`slot-${i}`} style={styles.slotVazio}>
-                    <MaterialCommunityIcons name="account-plus-outline" size={18} color={colors.textoSecundario} />
+                    <Icon name="account-plus-outline" size={18} color={colors.textoSecundario} />
                     <Text style={styles.slotVazioTxt}>Toque em um jogador abaixo</Text>
                   </View>
                 ))
@@ -522,7 +522,7 @@ export default function EscalacaoPartida({
                 return (
                   <TouchableOpacity key={String(item.id_jogador)} style={[styles.cardBanco, convocado && styles.cardBancoConvocado, semCamisa && convocado && { borderColor: '#F5C51850' }]} onPress={() => toggleConvocado(id)} onLongPress={() => abrirEdicaoCamisa(item)} activeOpacity={0.75}>
                     <View style={[styles.cardCamisa, convocado && { backgroundColor: colors.textoSecundario + '33' }, semCamisa && convocado && { backgroundColor: '#F5C51820' }]}>
-                      {semCamisa && convocado ? <MaterialCommunityIcons name="tshirt-crew-outline" size={16} color="#F5C518" /> : <Text style={[styles.cardCamisaNum, { color: convocado ? colors.texto : colors.texto }]}>{item.numCamisa ?? '?'}</Text>}
+                      {semCamisa && convocado ? <Icon name="tshirt-crew-outline" size={16} color="#F5C518" /> : <Text style={[styles.cardCamisaNum, { color: convocado ? colors.texto : colors.texto }]}>{item.numCamisa ?? '?'}</Text>}
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.cardNome, !convocado && { color: colors.textoSecundario }]}>{item.nome}</Text>
@@ -531,10 +531,10 @@ export default function EscalacaoPartida({
                     {convocado ? (
                       <>
                         <View style={styles.tagBanco}><Text style={styles.tagBancoTxt}>BANCO</Text></View>
-                        <MaterialCommunityIcons name="close-circle" size={20} color={colors.texto} />
+                        <Icon name="close-circle" size={20} color={colors.texto} />
                       </>
                     ) : (
-                      <MaterialCommunityIcons name="plus-circle-outline" size={22} color={colors.textoSecundario} />
+                      <Icon name="plus-circle-outline" size={22} color={colors.textoSecundario} />
                     )}
                   </TouchableOpacity>
                 );
@@ -568,7 +568,7 @@ export default function EscalacaoPartida({
       <Modal visible={!!modalTroca} transparent animationType="fade" onRequestClose={() => setModalTroca(null)}>
         <View style={styles.mtOverlay}>
           <View style={styles.mtBox}>
-            <View style={styles.mtIconWrap}><MaterialCommunityIcons name="tshirt-crew" size={26} color="#F5C518" /></View>
+            <View style={styles.mtIconWrap}><Icon name="tshirt-crew" size={26} color="#F5C518" /></View>
             <Text style={styles.mtTitulo}>Camisa #{modalTroca?.camisaA} em uso</Text>
             <Text style={styles.mtDesc}><Text style={styles.mtBold}>{modalTroca?.nomeB}</Text> já usa essa camisa.{'\n'}Deseja fazer a troca?</Text>
             <View style={styles.mtTrocaRow}>
@@ -576,7 +576,7 @@ export default function EscalacaoPartida({
                 <View style={styles.mtBadge}><Text style={styles.mtBadgeNum}>#{modalTroca?.camisaA}</Text></View>
                 <Text style={styles.mtCardNome} numberOfLines={1}>{modalTroca?.nomeA}</Text>
               </View>
-              <MaterialCommunityIcons name="swap-horizontal" size={24} color={colors.primaria} />
+              <Icon name="swap-horizontal" size={24} color={colors.primaria} />
               <View style={styles.mtCard}>
                 <View style={[styles.mtBadge, { backgroundColor: colors.cardSecundario }]}><Text style={[styles.mtBadgeNum, { color: colors.textoSecundario }]}>#{modalTroca?.camisaB || '—'}</Text></View>
                 <Text style={styles.mtCardNome} numberOfLines={1}>{modalTroca?.nomeB}</Text>
@@ -584,7 +584,7 @@ export default function EscalacaoPartida({
             </View>
             <View style={styles.mtBtnRow}>
               <TouchableOpacity style={styles.mtBtnCancel} onPress={() => setModalTroca(null)}><Text style={styles.mtBtnCancelTxt}>CANCELAR</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.mtBtnConfirm} onPress={modalTroca?.onConfirmar}><MaterialCommunityIcons name="check" size={15} color="#fff" /><Text style={styles.mtBtnConfirmTxt}>TROCAR</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.mtBtnConfirm} onPress={modalTroca?.onConfirmar}><Icon name="check" size={15} color="#fff" /><Text style={styles.mtBtnConfirmTxt}>TROCAR</Text></TouchableOpacity>
             </View>
           </View>
         </View>

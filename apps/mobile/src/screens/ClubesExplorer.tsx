@@ -1,3 +1,4 @@
+import { Icon } from '@ludora/icons';
 // Caminho sugerido: src/screens/ClubesExplorer.tsx
 //
 // Componente compartilhado entre:
@@ -19,7 +20,6 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@ludora/design-tokens';
 import { styles } from '@/src/styles/clubesStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -267,7 +267,7 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
         {/* Busca */}
         <View style={styles.searchContainer}>
           <View style={styles.searchInputRow}>
-            <MaterialCommunityIcons name="magnify" size={20} color={colors.textoSecundario} />
+            <Icon name="magnify" size={20} color={colors.textoSecundario} />
             <TextInput
               style={styles.searchInput}
               placeholder="Buscar clube por nome..."
@@ -315,7 +315,7 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
             {/* Descobrir clubes */}
             <View style={styles.listaContainer}>
               <View style={styles.locationHeader}>
-                <MaterialCommunityIcons name="shield-search" size={16} color={colors.textoSecundario} />
+                <Icon name="shield-search" size={16} color={colors.textoSecundario} />
                 <Text style={styles.locationText}>
                   {meusClubes.length > 0 ? 'DESCOBRIR CLUBES' : 'TODOS OS CLUBES'}
                 </Text>
@@ -376,7 +376,7 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
             {modo === 'trocar' && meusClubes.length > 0 && (
               <View style={[styles.listaContainer, { marginTop: 8 }]}>
                 <View style={styles.locationHeader}>
-                  <MaterialCommunityIcons name="check-circle-outline" size={16} color={colors.textoSecundario} />
+                  <Icon name="check-circle-outline" size={16} color={colors.textoSecundario} />
                   <Text style={styles.locationText}>GERENCIAR CLUBES SEGUIDOS</Text>
                 </View>
 
@@ -400,7 +400,7 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
                           {clube.nome}
                         </Text>
                         {String(clube.id) === clubeAtivoId && (
-                          <MaterialCommunityIcons name="check-decagram" size={16} color={colors.primaria} />
+                          <Icon name="check-decagram" size={16} color={colors.primaria} />
                         )}
                         {clube.papel && clube.papel !== 'TORCEDOR' && (
                           <View style={styles.badgeTecnico}>

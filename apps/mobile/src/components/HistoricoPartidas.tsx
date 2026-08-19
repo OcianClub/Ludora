@@ -1,5 +1,4 @@
 import { View, Text, Image, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { styles } from './historicoPartidasStyles';
 import { colors } from '@ludora/design-tokens';
 

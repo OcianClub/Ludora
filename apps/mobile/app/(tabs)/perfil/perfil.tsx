@@ -1,3 +1,4 @@
+import { Icon, type IconName } from '@ludora/icons';
 import {
   Modal,
   View,
@@ -8,7 +9,6 @@ import {
 import { useState, useEffect } from "react";
 import { styles } from "../../../src/styles/perfilStyles";
 import { Header } from "@/src/components/Header";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "@ludora/design-tokens";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -19,7 +19,7 @@ import Equipes from "./equipes/equipes";
 interface CardMenuProps {
   titulo: string;
   subtitulo: string;
-  icone: keyof typeof MaterialCommunityIcons.glyphMap;
+  icone: IconName;
   action: () => void;
 }
 
@@ -36,7 +36,7 @@ function CardMenu({
       onPress={action}
     >
       <View style={styles.menuIcon}>
-        <MaterialCommunityIcons
+        <Icon
           name={icone}
           size={21}
           color={colors.primaria}
@@ -53,7 +53,7 @@ function CardMenu({
         </Text>
       </View>
 
-      <MaterialCommunityIcons
+      <Icon
         name="chevron-right"
         size={22}
         color={colors.textoSecundario}
@@ -208,7 +208,7 @@ export default function Perfil() {
             onPress={() => setModalSair(true)}
           >
             <View style={styles.logoutIcon}>
-              <MaterialCommunityIcons
+              <Icon
                 name="logout"
                 size={20}
                 color={colors.tituloErro}
@@ -225,7 +225,7 @@ export default function Perfil() {
               </Text>
             </View>
 
-            <MaterialCommunityIcons
+            <Icon
               name="chevron-right"
               size={22}
               color={colors.tituloErro}
@@ -247,7 +247,7 @@ export default function Perfil() {
         >
           <Pressable style={styles.modalCard}>
             <View style={styles.modalIcon}>
-              <MaterialCommunityIcons
+              <Icon
                 name="logout"
                 size={26}
                 color={colors.tituloErro}

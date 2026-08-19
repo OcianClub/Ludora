@@ -1,3 +1,4 @@
+import { Icon, type IconName } from '@ludora/icons';
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, Image, ScrollView,
@@ -6,7 +7,6 @@ import {
 import { styles } from '@/src/styles/jogosStyles';
 import { Header } from '@/src/components/Header';
 import { colors } from '@ludora/design-tokens';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import PagerView from 'react-native-pager-view';
@@ -20,7 +20,7 @@ import { CardsSkeleton } from '@/src/components/Skeleton';
 const FILTROS_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 type StatusFiltro = 'TODOS' | 'AGENDADA' | 'AO_VIVO' | 'FINALIZADA';
-const STATUS_OPTIONS: { label: string; value: StatusFiltro, icon: any, iconColor: string }[] = [
+const STATUS_OPTIONS: { label: string; value: StatusFiltro; icon: IconName; iconColor: string }[] = [
   { label: 'Todos os jogos', value: 'TODOS', icon: 'soccer', iconColor: colors.primaria },
   { label: 'Ao vivo',        value: 'AO_VIVO', icon: 'record-circle-outline', iconColor: colors.vermelho },
   { label: 'Agendadas',      value: 'AGENDADA', icon: 'calendar-clock', iconColor: colors.textoSecundario },
@@ -207,11 +207,11 @@ export default function Jogos() {
       {/* 2. O filtersContainer agora envolve APENAS o botão do modal de filtros */}
       <View style={styles.filtersContainer}>
         <TouchableOpacity activeOpacity={0.7} style={styles.singleFilterBtn} onPress={abrirFiltros}>
-          <MaterialCommunityIcons name="filter-variant" size={20} color={colors.primaria} />
+          <Icon name="filter-variant" size={20} color={colors.primaria} />
           <Text style={styles.filterBtnText}>
             {FILTROS_MES[mesAtivo - 1]} • {STATUS_OPTIONS.find(o => o.value === statusFiltro)?.label}
           </Text>
-          <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textoSecundario} />
+          <Icon name="chevron-down" size={20} color={colors.textoSecundario} />
         </TouchableOpacity>
       </View>
 
@@ -232,7 +232,7 @@ export default function Jogos() {
                   <CardsSkeleton rows={4} />
                 ) : diasComPartidas.length === 0 ? (
                   <View style={{ alignItems: 'center', marginTop: 60, gap: 12 }}>
-                    <MaterialCommunityIcons name="calendar-remove-outline" size={48} color={colors.borda} />
+                    <Icon name="calendar-remove-outline" size={48} color={colors.borda} />
                     <Text style={{ fontFamily: 'Inter_600SemiBold', color: colors.textoSecundario, fontSize: 14 }}>
                       NENHUM JOGO ENCONTRADO
                     </Text>
@@ -255,13 +255,13 @@ export default function Jogos() {
                           {/* TOP CARD */}
                           <View style={styles.cardTop}>
                             <View style={styles.cardTopLeft}>
-                              <MaterialCommunityIcons name="clock-outline" size={16} color={colors.textoSecundario} />
+                              <Icon name="clock-outline" size={16} color={colors.textoSecundario} />
                               <Text style={styles.timeText}>{partida.horario ?? '--:--'}</Text>
                               <View style={styles.separator} />
                               <Text style={styles.catText}>{partida.categoria?.nome.replace('SUB', '').trim() ?? '?'}</Text>
                             </View>
                             <View style={[styles.badge, !partida.emCasa && { backgroundColor: colors.cardSecundario }]}>
-                              <MaterialCommunityIcons name={partida.emCasa ? 'home-outline' : 'bus'} size={14} color={colors.texto} />
+                              <Icon name={partida.emCasa ? 'home-outline' : 'bus'} size={14} color={colors.texto} />
                               <Text style={styles.badgeText}>{partida.emCasa ? 'CASA' : 'FORA'}</Text>
                             </View>
                           </View>
@@ -305,7 +305,7 @@ export default function Jogos() {
                           {/* FOOTER CARD */}
                           <View style={styles.cardFooterDivider} />
                           <View style={styles.cardFooter}>
-                            <MaterialCommunityIcons name="map-marker-outline" size={16} color={colors.texto} />
+                            <Icon name="map-marker-outline" size={16} color={colors.texto} />
                             <Text style={styles.locationText}>{partida.local ?? 'Local não definido'}</Text>
                           </View>
                         </TouchableOpacity>
@@ -324,7 +324,7 @@ export default function Jogos() {
       {podeGerenciar && (
         <TouchableOpacity activeOpacity={0.8} style={styles.fab} onPress={() => setModalOrganizar(true)}>
           <LinearGradient colors={[colors.primaria, '#0055FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabGradient}>
-            <MaterialCommunityIcons name="plus" size={32} color={colors.texto} />
+            <Icon name="plus" size={32} color={colors.texto} />
           </LinearGradient>
         </TouchableOpacity>
       )}
@@ -337,7 +337,7 @@ export default function Jogos() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>FILTROS</Text>
               <TouchableOpacity style={styles.closeBtn} onPress={() => setModalFiltrosVisible(false)}>
-                <MaterialCommunityIcons name="close" size={18} color={colors.texto} />
+                <Icon name="close" size={18} color={colors.texto} />
               </TouchableOpacity>
             </View>
 
@@ -348,9 +348,9 @@ export default function Jogos() {
               activeOpacity={0.7} 
               onPress={() => setShowMonthGrid(!showMonthGrid)}
             >
-              <MaterialCommunityIcons name="calendar-outline" size={20} color={colors.textoSecundario} />
+              <Icon name="calendar-outline" size={20} color={colors.textoSecundario} />
               <Text style={styles.dateSelectorText}>{FILTROS_MES[tempMes - 1]}</Text>
-              <MaterialCommunityIcons name={showMonthGrid ? "chevron-up" : "chevron-down"} size={20} color={colors.textoSecundario} />
+              <Icon name={showMonthGrid ? "chevron-up" : "chevron-down"} size={20} color={colors.textoSecundario} />
             </TouchableOpacity>
 
             {/* EXPANSÃO DOS MESES */}
@@ -380,7 +380,7 @@ export default function Jogos() {
                   onPress={() => setTempStatus(status.value)}
                 >
                   <Text style={styles.statusItemText}>{status.label}</Text>
-                  <MaterialCommunityIcons name={status.icon} size={20} color={tempStatus === status.value ? colors.primaria : status.iconColor} />
+                  <Icon name={status.icon} size={20} color={tempStatus === status.value ? colors.primaria : status.iconColor} />
                 </TouchableOpacity>
               ))}
             </View>
