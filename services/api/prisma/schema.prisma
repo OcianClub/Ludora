@@ -25,17 +25,29 @@ model Clube {
 }
 
 model UsuarioClube {
-  id         Int          @id @default(autoincrement())
-  usuario_id Int
-  clube_id   Int
-  papel      PapelUsuario @default(TORCEDOR)
-  
-  usuario    Usuario      @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
-  clube      Clube        @relation(fields: [clube_id], references: [id], onDelete: Cascade)
+  id                      Int          @id @default(autoincrement())
+  usuario_id              Int
+  clube_id                Int
+  papel                   PapelUsuario @default(TORCEDOR)
+  acesso_todas_categorias Boolean      @default(false)
 
-  // Garante que o mesmo usuário não crie vínculos duplicados no mesmo clube
+  usuario    Usuario                  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  clube      Clube                    @relation(fields: [clube_id], references: [id], onDelete: Cascade)
+  categorias UsuarioClubeCategoria[]
+
   @@unique([usuario_id, clube_id])
   @@index([clube_id])
+}
+
+model UsuarioClubeCategoria {
+  usuario_clube_id Int
+  categoria_id     Int
+
+  usuarioClube UsuarioClube @relation(fields: [usuario_clube_id], references: [id], onDelete: Cascade)
+  categoria    Categoria    @relation(fields: [categoria_id], references: [id], onDelete: Cascade)
+
+  @@id([usuario_clube_id, categoria_id])
+  @@index([categoria_id])
 }
 
 // ── MODELOS ATUALIZADOS ──
@@ -51,11 +63,12 @@ model Usuario {
 }
 
 model Categoria {
-  id          Int           @id @default(autoincrement())
-  clube_id    Int
-  nome        String
-  faixaIdade  Int           @default(0)
-  tipo        TipoCategoria
+  id                  Int            @id @default(autoincrement())
+  clube_id            Int
+  nome                String
+  faixaIdade          Int             @default(0)
+  tipo                TipoCategoria
+  usuariosPermitidos  UsuarioClubeCategoria[]
   
   clube       Clube         @relation(fields: [clube_id], references: [id], onDelete: Cascade)
   jogadores   Jogador[]

@@ -24,7 +24,6 @@ const origensPermitidas = new Set(
 );
 
 const validarOrigem: cors.CorsOptions['origin'] = (origin, callback) => {
-  // Apps nativos e chamadas servidor-servidor normalmente não enviam Origin.
   if (!origin || origensPermitidas.has(origin)) return callback(null, true);
   return callback(new Error('Origem não permitida pelo CORS'));
 };
@@ -80,7 +79,6 @@ function limitarRequisicoes({ janelaMs, limite, prefixo }: { janelaMs: number; l
 const limitarAuth = limitarRequisicoes({ janelaMs: 15 * 60_000, limite: 20, prefixo: 'auth' });
 const limitarOperacaoPesada = limitarRequisicoes({ janelaMs: 10 * 60_000, limite: 5, prefixo: 'heavy' });
 
-// Remove buckets vencidos sem manter o processo vivo apenas por causa da limpeza.
 const rateCleanup = setInterval(() => {
   const agora = Date.now();
   for (const [chave, entrada] of rateBuckets) {
@@ -96,9 +94,6 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
-// Depois do guard acima, o processo já teria sido encerrado se JWT_SECRET não existisse.
-// O "as string" só deixa isso explícito pro TypeScript (que não enxerga esse tipo de
-// narrowing entre módulos/closures), evitando repetir esse cast em cada rota.
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const JWT_ISSUER = 'ludora-api';
 const JWT_AUDIENCE = 'ludora-apps';
@@ -127,8 +122,6 @@ if (!PYTHON_AI_URL) {
 // 1. AUTENTICAÇÃO
 // ==========================================
 
-// Extrai o id do usuário logado a partir do token, sem lançar erro se não houver token
-// (algumas rotas, como listar clubes, funcionam tanto logado quanto deslogado)
 function getUsuarioIdPeloToken(token: string): number | null {
   try {
     if (!token) return null;
@@ -202,40 +195,125 @@ function exigirGestorDoClube(req: express.Request, res: express.Response, next: 
     .catch(() => res.status(500).json({ error: 'Erro ao verificar permissão do clube' }));
 }
 
-// Além de exigir papel de gestor, confere que a PARTIDA em questão (:id na URL)
-// realmente pertence ao clube ativo (req.clubeId) — evita que um gestor do
-// Clube A edite/apague uma partida do Clube B só trocando o header x-clube-id.
-async function partidaPertenceAoClube(partidaId: number, clubeId: number): Promise<boolean> {
-  const partida = await prisma.partida.findUnique({
-    where: { id: partidaId },
-    include: { categoria: { select: { clube_id: true } } },
+interface EscopoCategorias {
+  acessoTotal: boolean;
+  categoriaIds: number[];
+}
+
+async function obterEscopoCategorias(
+  usuarioId: number,
+  clubeId: number
+): Promise<EscopoCategorias> {
+  const vinculo = await prisma.usuarioClube.findUnique({
+    where: {
+      usuario_id_clube_id: {
+        usuario_id: usuarioId,
+        clube_id: clubeId,
+      },
+    },
+    select: {
+      papel: true,
+      acesso_todas_categorias: true,
+      categorias: {
+        select: {
+          categoria_id: true,
+        },
+      },
+    },
   });
-  return !!partida && partida.categoria?.clube_id === clubeId;
+
+  if (!vinculo || vinculo.papel === 'TORCEDOR') {
+    return {
+      acessoTotal: false,
+      categoriaIds: [],
+    };
+  }
+
+  const acessoTotal =
+    vinculo.papel === 'ADMIN' ||
+    vinculo.acesso_todas_categorias;
+
+  return {
+    acessoTotal,
+    categoriaIds: vinculo.categorias.map(
+      categoria => categoria.categoria_id
+    ),
+  };
+}
+
+async function podeAcessarCategoria(
+  usuarioId: number,
+  clubeId: number,
+  categoriaId: number
+): Promise<boolean> {
+  const escopo = await obterEscopoCategorias(
+    usuarioId,
+    clubeId
+  );
+
+  if (escopo.acessoTotal) {
+    return true;
+  }
+
+  return escopo.categoriaIds.includes(categoriaId);
+}
+
+async function exigirAcessoTotalCategorias(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) {
+  try {
+    const escopo = await obterEscopoCategorias(
+      (req as any).usuarioId as number,
+      (req as any).clubeId as number,
+    );
+    if (!escopo.acessoTotal) {
+      return res.status(403).json({
+        error: 'Esta operação exige acesso a todas as categorias do clube',
+      });
+    }
+    next();
+  } catch {
+    return res.status(500).json({ error: 'Erro ao verificar o escopo de categorias' });
+  }
 }
 
 function exigirPartidaDoClube(idParam: (req: express.Request) => number) {
   return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const partidaId = idParam(req);
     const clubeId = (req as any).clubeId as number;
-    const pertence = await partidaPertenceAoClube(partidaId, clubeId).catch(() => false);
-    if (!pertence) {
-      return res.status(403).json({ error: 'Esta partida não pertence ao clube ativo' });
+    const usuarioId = (req as any).usuarioId as number;
+    try {
+      const partida = await prisma.partida.findUnique({
+        where: { id: partidaId },
+        select: { categoria_id: true, categoria: { select: { clube_id: true } } },
+      });
+      if (!partida || partida.categoria.clube_id !== clubeId) {
+        return res.status(403).json({ error: 'Esta partida não pertence ao clube ativo' });
+      }
+      if (!(await podeAcessarCategoria(usuarioId, clubeId, partida.categoria_id))) {
+        return res.status(403).json({ error: 'Você não administra a categoria desta partida' });
+      }
+      next();
+    } catch {
+      return res.status(500).json({ error: 'Erro ao verificar permissão da partida' });
     }
-    next();
   };
 }
 
 function exigirRecursoDoClube(
-  pertence: (id: number, clubeId: number) => Promise<boolean>,
+  pertence: (id: number, clubeId: number, usuarioId: number) => Promise<boolean>,
   idParam: (req: express.Request) => number = (req) => Number(req.params.id),
 ) {
   return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const id = idPositivo(idParam(req));
     const clubeId = (req as any).clubeId as number;
+    const usuarioId = (req as any).usuarioId as number;
     if (!id) return res.status(400).json({ error: 'ID inválido' });
     try {
-      if (!(await pertence(id, clubeId))) {
-        return res.status(403).json({ error: 'Recurso não pertence ao clube ativo' });
+      if (!(await pertence(id, clubeId, usuarioId))) {
+        return res.status(403).json({ error: 'Recurso fora do seu escopo de categorias' });
       }
       next();
     } catch {
@@ -244,9 +322,12 @@ function exigirRecursoDoClube(
   };
 }
 
-const exigirTimeDoClube = exigirRecursoDoClube(async (id, clubeId) => {
-  const total = await prisma.time.count({ where: { id, categoria: { clube_id: clubeId } } });
-  return total === 1;
+const exigirTimeDoClube = exigirRecursoDoClube(async (id, clubeId, usuarioId) => {
+  const time = await prisma.time.findFirst({
+    where: { id, categoria: { clube_id: clubeId } },
+    select: { categoria_id: true },
+  });
+  return !!time?.categoria_id && podeAcessarCategoria(usuarioId, clubeId, time.categoria_id);
 });
 
 const exigirCompeticaoDoClube = exigirRecursoDoClube(async (id, clubeId) => {
@@ -254,9 +335,12 @@ const exigirCompeticaoDoClube = exigirRecursoDoClube(async (id, clubeId) => {
   return total === 1;
 });
 
-const exigirJogadorDoClube = exigirRecursoDoClube(async (id, clubeId) => {
-  const total = await prisma.jogador.count({ where: { id, categoria: { clube_id: clubeId } } });
-  return total === 1;
+const exigirJogadorDoClube = exigirRecursoDoClube(async (id, clubeId, usuarioId) => {
+  const jogador = await prisma.jogador.findFirst({
+    where: { id, categoria: { clube_id: clubeId } },
+    select: { categoria_id: true },
+  });
+  return !!jogador && podeAcessarCategoria(usuarioId, clubeId, jogador.categoria_id);
 });
 
 io.use(async (socket, next) => {
@@ -284,8 +368,8 @@ io.on('connection', (socket) => {
 });
 
 // Routers que modificam dados são montados somente depois dos middlewares de autorização.
-app.use('/partidas/importar', exigirGestorDoClube, limitarOperacaoPesada, importacaoRoutes);
-app.use('/campeonato/sincronizar', exigirGestorDoClube, limitarOperacaoPesada);
+app.use('/partidas/importar', exigirGestorDoClube, exigirAcessoTotalCategorias, limitarOperacaoPesada, importacaoRoutes);
+app.use('/campeonato/sincronizar', exigirGestorDoClube, exigirAcessoTotalCategorias, limitarOperacaoPesada);
 app.use('/campeonato', campeonatoRoutes);
 
 app.post('/auth/registrar', limitarAuth, async (req, res) => {
@@ -467,6 +551,9 @@ app.post('/times', exigirGestorDoClube, async (req, res) => {
       where: { id: categoriaId, clube_id: (req as any).clubeId },
     });
     if (!categoriaValida) return res.status(403).json({ error: 'Categoria não pertence ao clube ativo' });
+    if (!(await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, categoriaId))) {
+      return res.status(403).json({ error: 'Você não administra esta categoria' });
+    }
     const time = await prisma.time.create({
       data: { nome, escudo, categoria_id: categoriaId },
       include: { categoria: true }
@@ -484,6 +571,9 @@ app.patch('/times/:id', exigirGestorDoClube, exigirTimeDoClube, async (req, res)
       where: { id: categoriaId, clube_id: (req as any).clubeId },
     });
     if (!categoriaValida) return res.status(403).json({ error: 'Categoria não pertence ao clube ativo' });
+    if (!(await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, categoriaId))) {
+      return res.status(403).json({ error: 'Você não administra a categoria de destino' });
+    }
     const time = await prisma.time.update({
       where: { id: Number(req.params.id) },
       data: { nome, escudo, categoria_id: categoriaId },
@@ -493,13 +583,17 @@ app.patch('/times/:id', exigirGestorDoClube, exigirTimeDoClube, async (req, res)
   } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar time' }); }
 });
 
-app.get('/times', async (req, res) => {
-  const clube_id = Number(req.headers['x-clube-id']);
-  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
-
+app.get('/times', exigirGestorDoClube, async (req, res) => {
+  const clube_id = (req as any).clubeId as number;
   try {
+    const escopo = await obterEscopoCategorias((req as any).usuarioId, clube_id);
     const times = await prisma.time.findMany({
-      where: { categoria: { clube_id } }, // Filtra apenas times do clube logado
+      where: {
+        categoria: {
+          clube_id,
+          ...(escopo.acessoTotal ? {} : { id: { in: escopo.categoriaIds } }),
+        },
+      },
       orderBy: { nome: 'asc' },
       include: { categoria: true }
     });
@@ -516,7 +610,7 @@ app.delete('/times/:id', exigirGestorDoClube, exigirTimeDoClube, async (req, res
   }
 });
 
-app.post('/competicoes', exigirGestorDoClube, async (req, res) => {
+app.post('/competicoes', exigirGestorDoClube, exigirAcessoTotalCategorias, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
 
   const { nome, ano, tipo } = req.body;
@@ -529,7 +623,7 @@ app.post('/competicoes', exigirGestorDoClube, async (req, res) => {
   } catch (error: any) { res.status(500).json({ error: 'Erro ao criar competição' }); }
 });
 
-app.patch('/competicoes/:id', exigirGestorDoClube, exigirCompeticaoDoClube, async (req, res) => {
+app.patch('/competicoes/:id', exigirGestorDoClube, exigirAcessoTotalCategorias, exigirCompeticaoDoClube, async (req, res) => {
   const { nome, ano, tipo } = req.body;
   try {
     const competicao = await prisma.competicao.update({
@@ -540,20 +634,28 @@ app.patch('/competicoes/:id', exigirGestorDoClube, exigirCompeticaoDoClube, asyn
   } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar competição' }); }
 });
 
-app.get('/competicoes', async (req, res) => {
-  const clube_id = Number(req.headers['x-clube-id']);
-  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
-
+app.get('/competicoes', exigirGestorDoClube, async (req, res) => {
+  const clube_id = (req as any).clubeId as number;
   try {
+    const escopo = await obterEscopoCategorias((req as any).usuarioId, clube_id);
     const competicoes = await prisma.competicao.findMany({ 
-      where: { clube_id },
+      where: {
+        clube_id,
+        ...(escopo.acessoTotal ? {} : {
+          OR: [
+            { categorias: { some: { id: { in: escopo.categoriaIds } } } },
+            { partidas: { some: { categoria_id: { in: escopo.categoriaIds } } } },
+            { jogadores_inscritos: { some: { jogador: { categoria_id: { in: escopo.categoriaIds } } } } },
+          ],
+        }),
+      },
       orderBy: { nome: 'asc' } 
     });
     res.json(competicoes);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar competições' }); }
 });
 
-app.post('/campeonato/sincronizar-todos', exigirGestorDoClube, limitarOperacaoPesada, async (_req, res) => {
+app.post('/campeonato/sincronizar-todos', exigirGestorDoClube, exigirAcessoTotalCategorias, limitarOperacaoPesada, async (_req, res) => {
   try {
     await executarSincronizacao();
     res.json({ ok: true });
@@ -562,7 +664,7 @@ app.post('/campeonato/sincronizar-todos', exigirGestorDoClube, limitarOperacaoPe
   }
 });
 
-app.delete('/competicoes/:id', exigirGestorDoClube, exigirCompeticaoDoClube, async (req, res) => {
+app.delete('/competicoes/:id', exigirGestorDoClube, exigirAcessoTotalCategorias, exigirCompeticaoDoClube, async (req, res) => {
   const id = Number(req.params.id);
   try {
     const totalPartidas = await prisma.partida.count({ where: { competicao_id: id } });
@@ -578,12 +680,20 @@ app.delete('/competicoes/:id', exigirGestorDoClube, exigirCompeticaoDoClube, asy
   } catch (error: any) { res.status(500).json({ error: 'Erro ao excluir campeonato.' }); }
 });
 
-app.get('/competicoes/:id/jogadores', async (req, res) => {
+app.get('/competicoes/:id/jogadores', exigirGestorDoClube, exigirCompeticaoDoClube, async (req, res) => {
   const competicao_id = Number(req.params.id);
   const categoria_id  = req.query.categoria_id ? Number(req.query.categoria_id) : undefined;
   try {
+    const escopo = await obterEscopoCategorias((req as any).usuarioId, (req as any).clubeId);
+    if (categoria_id && !escopo.acessoTotal && !escopo.categoriaIds.includes(categoria_id)) {
+      return res.status(403).json({ error: 'Você não administra a categoria solicitada' });
+    }
     const where: any = { competicao_id };
-    if (categoria_id) where.jogador = { categoria_id };
+    where.jogador = categoria_id
+      ? { categoria_id }
+      : escopo.acessoTotal
+        ? { categoria: { clube_id: (req as any).clubeId } }
+        : { categoria_id: { in: escopo.categoriaIds } };
     const inscricoes = await prisma.competicaoJogador.findMany({
       where,
       include: {
@@ -607,19 +717,31 @@ app.put('/competicoes/:id/jogadores', exigirGestorDoClube, exigirCompeticaoDoClu
   const { jogador_ids }: { jogador_ids: number[] } = req.body;
   if (!Array.isArray(jogador_ids)) return res.status(400).json({ error: 'jogador_ids deve ser um array' });
   try {
+    const escopo = await obterEscopoCategorias((req as any).usuarioId, (req as any).clubeId);
     const idsValidos = [...new Set(jogador_ids.map(Number))]
       .filter((id) => Number.isSafeInteger(id) && id > 0);
     if (idsValidos.length !== jogador_ids.length || idsValidos.length > 200) {
       return res.status(400).json({ error: 'Lista de jogadores inválida ou muito grande' });
     }
     const jogadoresDoClube = await prisma.jogador.count({
-      where: { id: { in: idsValidos }, categoria: { clube_id: (req as any).clubeId } },
+      where: {
+        id: { in: idsValidos },
+        categoria: { clube_id: (req as any).clubeId },
+        ...(escopo.acessoTotal ? {} : { categoria_id: { in: escopo.categoriaIds } }),
+      },
     });
     if (jogadoresDoClube !== idsValidos.length) {
       return res.status(403).json({ error: 'Um ou mais jogadores não pertencem ao clube ativo' });
     }
     await prisma.$transaction([
-      prisma.competicaoJogador.deleteMany({ where: { competicao_id } }),
+      prisma.competicaoJogador.deleteMany({
+        where: {
+          competicao_id,
+          ...(escopo.acessoTotal ? {} : {
+            jogador: { categoria_id: { in: escopo.categoriaIds } },
+          }),
+        },
+      }),
       prisma.competicaoJogador.createMany({
         data: idsValidos.map((jogador_id) => ({ competicao_id, jogador_id })),
         skipDuplicates: true,
@@ -632,17 +754,40 @@ app.put('/competicoes/:id/jogadores', exigirGestorDoClube, exigirCompeticaoDoClu
   }
 });
 
-app.get('/categorias', async (req, res) => {
-  const clube_id = Number(req.headers['x-clube-id']);
-  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+app.get('/categorias', exigirGestorDoClube, async (req, res) => {
+  const usuario_id = (req as any).usuarioId as number;
+  const clube_id = (req as any).clubeId as number;
 
   try {
-    const categorias = await prisma.categoria.findMany({ 
-      where: { clube_id },
-      orderBy: { nome: 'asc' } 
+    const escopo = await obterEscopoCategorias(
+      usuario_id,
+      clube_id
+    );
+
+    const categorias = await prisma.categoria.findMany({
+      where: {
+        clube_id,
+        ...(escopo.acessoTotal
+          ? {}
+          : {
+              id: {
+                in: escopo.categoriaIds,
+              },
+            }),
+      },
+      orderBy: {
+        nome: 'asc',
+      },
     });
+
     res.json(categorias);
-  } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar categorias' }); }
+  } catch (error: any) {
+    console.error('Erro ao buscar categorias:', error);
+
+    res.status(500).json({
+      error: 'Erro ao buscar categorias',
+    });
+  }
 });
 
 // ==========================================
@@ -651,6 +796,7 @@ app.get('/categorias', async (req, res) => {
 
 app.post('/jogadores', exigirGestorDoClube, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
+  const usuario_id = (req as any).usuarioId as number;
 
   const { nome, cpf, dtNasc, posicao, numCamisa } = req.body;
   if (!nome || !cpf || !dtNasc) return res.status(400).json({ error: 'Nome, CPF e data de nascimento obrigatórios' });
@@ -673,7 +819,23 @@ app.post('/jogadores', exigirGestorDoClube, async (req, res) => {
       where: { nome: categoriaAdequada.nome, clube_id }
     });
     
-    if (!categoria) return res.status(404).json({ error: `Categoria ${categoriaAdequada.nome} não encontrada no banco do clube.` });
+    if (!categoria) {
+      return res.status(404).json({
+        error: `Categoria ${categoriaAdequada.nome} não encontrada no banco do clube.`,
+      });
+    }
+
+    const temAcessoCategoria = await podeAcessarCategoria(
+      usuario_id,
+      clube_id,
+      categoria.id
+    );
+
+    if (!temAcessoCategoria) {
+      return res.status(403).json({
+        error: `Você não tem permissão para administrar a categoria ${categoria.nome}.`,
+      });
+    }
 
     if (numCamisa) {
       const camisaEmUso = await prisma.jogador.findFirst({
@@ -698,14 +860,27 @@ app.post('/jogadores', exigirGestorDoClube, async (req, res) => {
 
 app.get('/jogadores/perfis', exigirGestorDoClube, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
-  const { categoria_id } = req.query;
+  const usuario_id = (req as any).usuarioId as number;
+  const categoriaInformada = req.query.categoria_id !== undefined;
+  const categoria_id = categoriaInformada ? idPositivo(req.query.categoria_id) : null;
+  if (categoriaInformada && !categoria_id) {
+    return res.status(400).json({ error: 'Categoria inválida' });
+  }
 
   try {
+    const escopo = await obterEscopoCategorias(usuario_id, clube_id);
+    if (categoria_id && !escopo.acessoTotal && !escopo.categoriaIds.includes(categoria_id)) {
+      return res.status(403).json({ error: 'Você não administra a categoria solicitada' });
+    }
     const jogadores = await prisma.jogador.findMany({
       where: {
         ativo: true,
         categoria: { clube_id },
-        ...(categoria_id ? { categoria_id: Number(categoria_id) } : {}),
+        ...(categoria_id
+          ? { categoria_id }
+          : escopo.acessoTotal
+            ? {}
+            : { categoria_id: { in: escopo.categoriaIds } }),
       },
       include: { eventos: true, categoria: true, escalacoes: true },
       orderBy: { nota_geral: 'desc' },
@@ -750,10 +925,12 @@ app.get('/jogadores', exigirGestorDoClube, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
 
   try {
+    const escopo = await obterEscopoCategorias((req as any).usuarioId, clube_id);
     const jogadores = await prisma.jogador.findMany({
       where: { 
         ativo: true,
-        categoria: { clube_id }
+        categoria: { clube_id },
+        ...(escopo.acessoTotal ? {} : { categoria_id: { in: escopo.categoriaIds } }),
       },
       orderBy: { nome: 'asc' },
       select: {
@@ -772,6 +949,7 @@ app.get('/jogadores', exigirGestorDoClube, async (req, res) => {
 
 app.patch('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
+  const usuario_id = (req as any).usuarioId as number;
   const { nome, dtNasc, posicao, numCamisa } = req.body;
   try {
     let dados: any = { nome, posicao, numCamisa: numCamisa ? Number(numCamisa) : null };
@@ -789,7 +967,13 @@ app.patch('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async (re
         const cat = await prisma.categoria.findFirst({
           where: { nome: catAdequada.nome, clube_id }
         });
-        if (cat) { dados.dtNasc = new Date(dtNasc); dados.categoria_id = cat.id; }
+        if (cat) {
+          if (!(await podeAcessarCategoria(usuario_id, clube_id, cat.id))) {
+            return res.status(403).json({ error: `Você não administra a categoria ${cat.nome}` });
+          }
+          dados.dtNasc = new Date(dtNasc);
+          dados.categoria_id = cat.id;
+        }
       }
     }
     const jogador = await prisma.jogador.update({
@@ -812,7 +996,7 @@ app.delete('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async (r
 // ADMIN
 // ==========================================
 
-app.patch('/admin/atualizar-idades', exigirGestorDoClube, limitarOperacaoPesada, async (req, res) => {
+app.patch('/admin/atualizar-idades', exigirGestorDoClube, exigirAcessoTotalCategorias, limitarOperacaoPesada, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
 
   try {
@@ -871,6 +1055,9 @@ app.post('/partidas', exigirGestorDoClube, async (req, res) => {
     const categoria = await prisma.categoria.findUnique({ where: { id: catId } });
     if (!categoria || categoria.clube_id !== (req as any).clubeId) {
       return res.status(403).json({ error: 'Categoria não pertence ao clube ativo' });
+    }
+    if (!(await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, catId))) {
+      return res.status(403).json({ error: 'Você não administra a categoria selecionada' });
     }
     const timesValidos = await prisma.time.count({
       where: { id: { in: [mandanteId, visitanteId] }, categoria_id: catId },
@@ -964,6 +1151,9 @@ app.patch<{ id: string }>(
       if (!categoriaValida || timesValidos !== 2) {
         return res.status(403).json({ error: 'Categoria ou times não pertencem ao clube ativo' });
       }
+      if (!(await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, categoriaId))) {
+        return res.status(403).json({ error: 'Você não administra a categoria de destino' });
+      }
       const dataAtualizada = data ? new Date(`${data}T00:00:00Z`) : undefined;
       if (dataAtualizada && Number.isNaN(dataAtualizada.getTime())) {
         return res.status(400).json({ error: 'Data inválida' });
@@ -1038,8 +1228,9 @@ app.patch<{ id: string }>(
     try {
       const partida = await prisma.partida.update({ where: { id: partidaId }, data: { status } });
       if (status === 'FINALIZADA') {
+        const clubeId = (req as any).clubeId as number;
         setImmediate(() => {
-          processarMachineLearning().catch(err => console.error('Erro na IA:', err));
+          processarMachineLearning(clubeId).catch(err => console.error('Erro na IA:', err));
         });
       }
       res.json(partida);
@@ -1047,8 +1238,8 @@ app.patch<{ id: string }>(
   }
 );
 
-app.get('/jogadores/:id/estatisticas', async (req, res) => {
-  const jogadorId = parseInt(req.params.id);
+app.get('/jogadores/:id/estatisticas', exigirGestorDoClube, exigirJogadorDoClube, async (req, res) => {
+  const jogadorId = Number(req.params.id);
   const estatisticas = await prisma.evento.groupBy({
     by: ['tipo'],
     where: { jogador_id: jogadorId },
@@ -1078,11 +1269,16 @@ app.post<{ id: string }>(
       return res.status(400).json({ error: 'Minuto ou período inválido' });
     }
     try {
+      const partida = await prisma.partida.findUnique({
+        where: { id: partidaId },
+        select: { categoria_id: true },
+      });
+      if (!partida) return res.status(404).json({ error: 'Partida não encontrada' });
       if (jogador_id) {
         const jogadorValido = await prisma.jogador.count({
-          where: { id: Number(jogador_id), categoria: { clube_id: (req as any).clubeId } },
+          where: { id: Number(jogador_id), categoria_id: partida.categoria_id },
         });
-        if (!jogadorValido) return res.status(403).json({ error: 'Jogador não pertence ao clube ativo' });
+        if (!jogadorValido) return res.status(403).json({ error: 'Jogador não pertence à categoria da partida' });
       }
       const evento = await prisma.evento.create({
         data: {
@@ -1128,11 +1324,22 @@ app.get('/partidas/:id/eventos', async (req, res) => {
 
 app.delete<{ id: string }>('/eventos/:id', exigirGestorDoClube, async (req, res) => {
   try {
-    const evento = await prisma.evento.findUnique({ where: { id: Number(req.params.id) } });
+    const evento = await prisma.evento.findUnique({
+      where: { id: Number(req.params.id) },
+      include: { partida: { select: { categoria_id: true, categoria: { select: { clube_id: true } } } } },
+    });
     if (!evento) return res.status(404).json({ error: 'Evento não encontrado' });
 
-    const pertence = await partidaPertenceAoClube(evento.partida_id, (req as any).clubeId);
-    if (!pertence) return res.status(403).json({ error: 'Este evento não pertence ao clube ativo' });
+    if (evento.partida.categoria.clube_id !== (req as any).clubeId) {
+      return res.status(403).json({ error: 'Este evento não pertence ao clube ativo' });
+    }
+    if (!(await podeAcessarCategoria(
+      (req as any).usuarioId,
+      (req as any).clubeId,
+      evento.partida.categoria_id,
+    ))) {
+      return res.status(403).json({ error: 'Você não administra a categoria deste evento' });
+    }
 
     await prisma.evento.delete({ where: { id: Number(req.params.id) } });
     res.json({ mensagem: 'Evento deletado' });
@@ -1143,15 +1350,17 @@ app.delete<{ id: string }>('/eventos/:id', exigirGestorDoClube, async (req, res)
 // 4. INTEGRAÇÃO COM IA
 // ==========================================
 
-async function processarMachineLearning() {
+async function processarMachineLearning(clubeId?: number) {
   if (!PYTHON_AI_URL) {
     console.warn('Scout IA: PYTHON_AI_URL não definida, pulando processamento.');
     return;
   }
 
-  // Como o processamento de IA roda em background e é pesado, ele vai varrer 
-  // todos os jogadores ativos do banco independentemente do clube. O Python devolve pelo ID do jogador.
   const jogadores = await prisma.jogador.findMany({
+    where: {
+      ativo: true,
+      ...(clubeId ? { categoria: { clube_id: clubeId } } : {}),
+    },
     include: { eventos: true, escalacoes: true }
   });
 
@@ -1238,6 +1447,11 @@ app.put<{ id: string }>(
     }
     if (jogadores.length > 50) return res.status(400).json({ error: 'Escalação muito grande' });
     try {
+      const partida = await prisma.partida.findUnique({
+        where: { id: partidaId },
+        select: { categoria_id: true },
+      });
+      if (!partida) return res.status(404).json({ error: 'Partida não encontrada' });
       const normalizados = jogadores.map((j) => ({
         jogador_id: Number(j.jogador_id),
         numCamisa: Number(j.numCamisa),
@@ -1250,10 +1464,10 @@ app.put<{ id: string }>(
       );
       if (!entradaValida) return res.status(400).json({ error: 'Dados da escalação inválidos' });
       const jogadoresValidos = await prisma.jogador.count({
-        where: { id: { in: ids }, categoria: { clube_id: (req as any).clubeId } },
+        where: { id: { in: ids }, categoria_id: partida.categoria_id },
       });
       if (jogadoresValidos !== ids.length) {
-        return res.status(403).json({ error: 'Um ou mais jogadores não pertencem ao clube ativo' });
+        return res.status(403).json({ error: 'Um ou mais jogadores não pertencem à categoria da partida' });
       }
       await prisma.$transaction([
         prisma.escalacaoPartida.deleteMany({ where: { partida_id: partidaId } }),
@@ -1277,12 +1491,12 @@ app.put<{ id: string }>(
   }
 );
 
-app.post('/admin/reprocessar-scout', exigirGestorDoClube, limitarOperacaoPesada, async (req, res) => {
+app.post('/admin/reprocessar-scout', exigirGestorDoClube, exigirAcessoTotalCategorias, limitarOperacaoPesada, async (req, res) => {
   if (!PYTHON_AI_URL) {
     return res.status(503).json({ error: 'PYTHON_AI_URL não configurada no servidor.' });
   }
   res.json({ ok: true, mensagem: 'Scout IA iniciado em background. Aguarde ~60s e consulte /jogadores/perfis.' });
-  processarMachineLearning().catch(err => console.error('Erro no reprocessamento manual:', err));
+  processarMachineLearning((req as any).clubeId).catch(err => console.error('Erro no reprocessamento manual:', err));
 });
 
 let sincronizacaoEmAndamento: Promise<void> | null = null;
