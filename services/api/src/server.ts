@@ -11,6 +11,12 @@ import campeonatoRoutes from './routes/campeonato.routes';
 import cron from 'node-cron';
 import { sincronizarTodos } from './services/campeonato.service';
 import { prisma } from './lib/prisma';
+import {
+  createHash,
+  randomBytes,
+  randomInt,
+} from 'crypto';
+import { enviarEmailConvite } from './services/email';
 
 const app = express();
 const server = http.createServer(app);
@@ -118,6 +124,80 @@ if (!PYTHON_AI_URL) {
   console.warn('⚠️  PYTHON_AI_URL não definida — Scout IA desativado.');
 }
 
+function gerarHashConvite(token: string): string {
+  return createHash('sha256')
+    .update(token)
+    .digest('hex');
+}
+
+const ALFABETO_CODIGO =
+  'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function gerarCodigoConvite(): string {
+  let codigo = '';
+
+  for (let indice = 0; indice < 8; indice++) {
+    codigo += ALFABETO_CODIGO[
+      randomInt(ALFABETO_CODIGO.length)
+    ];
+  }
+
+  return `${codigo.slice(0, 4)}-${codigo.slice(4)}`;
+}
+
+function normalizarCodigoConvite(codigo: string): string {
+  return codigo
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]/g, '');
+}
+
+function codigoConviteValido(codigo: string): boolean {
+  const codigoNormalizado =
+    normalizarCodigoConvite(codigo);
+
+  return (
+    codigoNormalizado.length === 8 &&
+    [...codigoNormalizado].every(caractere =>
+      ALFABETO_CODIGO.includes(caractere)
+    )
+  );
+}
+
+function gerarHashCodigoConvite(codigo: string): string {
+  return gerarHashConvite(
+    normalizarCodigoConvite(codigo)
+  );
+}
+
+function obterFiltroCredencialConvite(
+  params: Record<string, string | string[] | undefined>
+) {
+  const obterParametro = (
+    valor: string | string[] | undefined
+  ) => Array.isArray(valor) ? valor[0] ?? '' : valor ?? '';
+
+  const codigo = obterParametro(params.codigo).trim();
+
+  if (codigo) {
+    if (!codigoConviteValido(codigo)) return null;
+
+    return {
+      codigo_hash: gerarHashCodigoConvite(codigo),
+    };
+  }
+
+  const token = obterParametro(params.token).trim();
+
+  if (!/^[A-Za-z0-9_-]{40,100}$/.test(token)) {
+    return null;
+  }
+
+  return {
+    token_hash: gerarHashConvite(token),
+  };
+}
+
 // ==========================================
 // 1. AUTENTICAÇÃO
 // ==========================================
@@ -193,6 +273,20 @@ function exigirGestorDoClube(req: express.Request, res: express.Response, next: 
       next();
     })
     .catch(() => res.status(500).json({ error: 'Erro ao verificar permissão do clube' }));
+}
+
+function exigirAdminDoClube(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) {
+  if ((req as any).papelUsuario !== 'ADMIN') {
+    return res.status(403).json({
+      error: 'Apenas administradores podem enviar convites',
+    });
+  }
+
+  next();
 }
 
 interface EscopoCategorias {
@@ -537,6 +631,1201 @@ app.delete('/clubes/:id/seguir', async (req, res) => {
     res.status(500).json({ error: 'Erro ao deixar de seguir clube' });
   }
 });
+
+app.get(
+  '/convites',
+  exigirGestorDoClube,
+  exigirAdminDoClube,
+  async (req, res) => {
+    const clubeId = (req as any).clubeId as number;
+
+    const statusInformado = req.query.status
+      ? String(req.query.status).trim().toUpperCase()
+      : null;
+
+    const statusPermitidos = [
+      'PENDENTE',
+      'ACEITO',
+      'REVOGADO',
+      'EXPIRADO',
+    ];
+
+    if (
+      statusInformado &&
+      !statusPermitidos.includes(statusInformado)
+    ) {
+      return res.status(400).json({
+        error: 'Status inválido',
+      });
+    }
+
+    const limiteInformado = Number(req.query.limite || 50);
+
+    const limite =
+      Number.isSafeInteger(limiteInformado) &&
+      limiteInformado > 0
+        ? Math.min(limiteInformado, 100)
+        : 50;
+
+    try {
+      const agora = new Date();
+      const where: any = {
+        clube_id: clubeId,
+      };
+
+      if (statusInformado === 'EXPIRADO') {
+        where.status = 'PENDENTE';
+        where.expira_em = {
+          lte: agora,
+        };
+      } else if (statusInformado) {
+        where.status = statusInformado;
+      }
+
+      const convites = await prisma.conviteClube.findMany({
+        where,
+        take: limite,
+
+        orderBy: {
+          criado_em: 'desc',
+        },
+
+        select: {
+          id: true,
+          email: true,
+          papel: true,
+          acesso_todas_categorias: true,
+          status: true,
+          expira_em: true,
+          criado_em: true,
+          aceito_em: true,
+          revogado_em: true,
+
+          criadoPor: {
+            select: {
+              id: true,
+              nome: true,
+            },
+          },
+
+          aceitoPor: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+            },
+          },
+
+          categorias: {
+            select: {
+              categoria: {
+                select: {
+                  id: true,
+                  nome: true,
+                  tipo: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return res.json({
+        total: convites.length,
+
+        convites: convites.map(convite => {
+          const expirado =
+            convite.status === 'PENDENTE' &&
+            convite.expira_em.getTime() <= agora.getTime();
+
+          return {
+            id: convite.id,
+            email: convite.email,
+            papel: convite.papel,
+            acesso_todas_categorias:
+              convite.acesso_todas_categorias,
+
+            status: convite.status,
+            situacao: expirado
+              ? 'EXPIRADO'
+              : convite.status,
+
+            expira_em: convite.expira_em,
+            criado_em: convite.criado_em,
+            aceito_em: convite.aceito_em,
+            revogado_em: convite.revogado_em,
+
+            criado_por: convite.criadoPor,
+            aceito_por: convite.aceitoPor,
+
+            categorias: convite.categorias.map(
+              item => item.categoria
+            ),
+          };
+        }),
+      });
+    } catch (error) {
+      console.error('Erro ao listar convites:', error);
+
+      return res.status(500).json({
+        error: 'Erro ao listar convites',
+      });
+    }
+  }
+);
+
+app.post(
+  '/convites',
+  exigirGestorDoClube,
+  exigirAdminDoClube,
+  async (req, res) => {
+    const clubeId = (req as any).clubeId as number;
+    const usuarioId = (req as any).usuarioId as number;
+
+    const email = String(req.body?.email || '')
+      .trim()
+      .toLowerCase();
+
+    const papel = String(req.body?.papel || '');
+    const acessoTotal = req.body?.acesso_todas_categorias === true;
+    const categoriasInformadas = req.body?.categoria_ids;
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      return res.status(400).json({
+        error: 'E-mail inválido',
+      });
+    }
+
+    if (papel !== 'TECNICO' && papel !== 'MESARIO') {
+      return res.status(400).json({
+        error: 'Papel inválido para o convite',
+      });
+    }
+
+    const categoriaIds = acessoTotal
+      ? []
+      : Array.isArray(categoriasInformadas)
+        ? [...new Set(categoriasInformadas.map(Number))]
+        : [];
+
+    if (!acessoTotal && categoriaIds.length === 0) {
+      return res.status(400).json({
+        error: 'Selecione pelo menos uma categoria',
+      });
+    }
+
+    if (
+      categoriaIds.some(
+        id => !Number.isSafeInteger(id) || id <= 0
+      )
+    ) {
+      return res.status(400).json({
+        error: 'Lista de categorias inválida',
+      });
+    }
+
+    try {
+      if (!acessoTotal) {
+        const totalCategoriasValidas =
+          await prisma.categoria.count({
+            where: {
+              id: {
+                in: categoriaIds,
+              },
+              clube_id: clubeId,
+            },
+          });
+
+        if (totalCategoriasValidas !== categoriaIds.length) {
+          return res.status(403).json({
+            error: 'Uma ou mais categorias não pertencem ao clube',
+          });
+        }
+      }
+
+      const convitePendente =
+        await prisma.conviteClube.findFirst({
+          where: {
+            clube_id: clubeId,
+            email,
+            status: 'PENDENTE',
+            expira_em: {
+              gt: new Date(),
+            },
+          },
+        });
+
+      if (convitePendente) {
+        return res.status(409).json({
+          error: 'Já existe um convite pendente para este e-mail',
+        });
+      }
+
+      const token = randomBytes(32).toString('base64url');
+      const tokenHash = gerarHashConvite(token);
+      const codigo = gerarCodigoConvite();
+      const codigoHash = gerarHashCodigoConvite(codigo);
+
+      const expiraEm = new Date(
+        Date.now() + 72 * 60 * 60 * 1000
+      );
+
+      const convite = await prisma.conviteClube.create({
+        data: {
+          clube_id: clubeId,
+          criado_por_id: usuarioId,
+          email,
+          papel,
+          acesso_todas_categorias: acessoTotal,
+          token_hash: tokenHash,
+          codigo_hash: codigoHash,
+          expira_em: expiraEm,
+
+          categorias: acessoTotal
+            ? undefined
+            : {
+                create: categoriaIds.map(categoriaId => ({
+                  categoria_id: categoriaId,
+                })),
+              },
+        },
+
+        select: {
+          id: true,
+          email: true,
+          papel: true,
+          acesso_todas_categorias: true,
+          status: true,
+          expira_em: true,
+
+          clube: {
+            select: {
+              id: true,
+              nome: true,
+              escudo: true,
+            },
+          },
+
+          criadoPor: {
+            select: {
+              nome: true,
+            },
+          },
+
+          categorias: {
+            select: {
+              categoria: {
+                select: {
+                  id: true,
+                  nome: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      let emailEnviado = true;
+      let aviso: string | undefined;
+
+      try {
+        await enviarEmailConvite({
+          email: convite.email,
+          nomeClube: convite.clube.nome,
+          nomeConvidante:
+            convite.criadoPor?.nome ?? 'Administrador',
+          token,
+          codigo,
+        });
+      } catch (error) {
+        emailEnviado = false;
+        aviso = 'Convite criado, mas o e-mail não pôde ser enviado';
+
+        console.error('Erro ao enviar e-mail do convite:', error);
+      }
+
+      return res.status(201).json({
+        convite,
+        email_enviado: emailEnviado,
+        aviso,
+        ...(isProduction ? {} : { token, codigo }),
+      });
+    } catch (error) {
+      console.error('Erro ao criar convite:', error);
+
+      return res.status(500).json({
+        error: 'Erro ao criar convite',
+      });
+    }
+  }
+);
+
+app.get([
+  '/convites/codigo/:codigo',
+  '/convites/:token',
+], limitarAuth, async (req, res) => {
+  const filtroConvite = obterFiltroCredencialConvite(
+    req.params
+  );
+
+  if (!filtroConvite) {
+    return res.status(404).json({
+      error: 'Convite inválido',
+    });
+  }
+
+  try {
+    const convite = await prisma.conviteClube.findUnique({
+      where: filtroConvite,
+
+      select: {
+        id: true,
+        email: true,
+        papel: true,
+        acesso_todas_categorias: true,
+        status: true,
+        expira_em: true,
+
+        clube: {
+          select: {
+            id: true,
+            nome: true,
+            escudo: true,
+            cidade: true,
+            estado: true,
+          },
+        },
+
+        criadoPor: {
+          select: {
+            nome: true,
+          },
+        },
+
+        categorias: {
+          select: {
+            categoria: {
+              select: {
+                id: true,
+                nome: true,
+                tipo: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!convite) {
+      return res.status(404).json({
+        error: 'Convite inválido',
+      });
+    }
+
+    if (convite.status === 'REVOGADO') {
+      return res.status(410).json({
+        error: 'Este convite foi revogado',
+      });
+    }
+
+    if (convite.status === 'ACEITO') {
+      return res.status(409).json({
+        error: 'Este convite já foi utilizado',
+      });
+    }
+
+    if (convite.expira_em.getTime() <= Date.now()) {
+      return res.status(410).json({
+        error: 'Este convite expirou',
+      });
+    }
+
+    const [parteLocal, dominio] = convite.email.split('@');
+
+    const emailMascarado =
+      `${parteLocal.slice(0, 2)}***@${dominio}`;
+
+      const possuiConta = await prisma.usuario.count({
+        where: {
+          email: convite.email,
+        },
+      });
+
+    return res.json({
+      convite: {
+        id: convite.id,
+        email: emailMascarado,
+        possui_conta: possuiConta > 0,
+        papel: convite.papel,
+        acesso_todas_categorias:
+          convite.acesso_todas_categorias,
+        expira_em: convite.expira_em,
+        clube: convite.clube,
+        convidado_por:
+          convite.criadoPor?.nome ?? 'Administrador',
+        categorias: convite.categorias.map(
+          item => item.categoria
+        ),
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao consultar convite:', error);
+
+    return res.status(500).json({
+      error: 'Erro ao consultar convite',
+    });
+  }
+});
+
+app.post(
+  [
+    '/convites/codigo/:codigo/aceitar',
+    '/convites/:token/aceitar',
+  ],
+  limitarAuth,
+  async (req, res) => {
+    const filtroConvite = obterFiltroCredencialConvite(
+      req.params
+    );
+    const nome = String(req.body?.nome || '').trim();
+    const senha = String(req.body?.senha || '');
+
+    if (!filtroConvite) {
+      return res.status(404).json({
+        error: 'Convite inválido',
+      });
+    }
+
+    if (nome.length < 2 || nome.length > 100) {
+      return res.status(400).json({
+        error: 'Nome inválido',
+      });
+    }
+
+    if (senha.length < 8 || senha.length > 128) {
+      return res.status(400).json({
+        error: 'A senha deve possuir entre 8 e 128 caracteres',
+      });
+    }
+
+    try {
+      const convite = await prisma.conviteClube.findUnique({
+        where: filtroConvite,
+
+        select: {
+          id: true,
+          clube_id: true,
+          email: true,
+          papel: true,
+          acesso_todas_categorias: true,
+          status: true,
+          expira_em: true,
+
+          categorias: {
+            select: {
+              categoria_id: true,
+            },
+          },
+        },
+      });
+
+      if (!convite) {
+        return res.status(404).json({
+          error: 'Convite inválido',
+        });
+      }
+
+      if (convite.status === 'REVOGADO') {
+        return res.status(410).json({
+          error: 'Este convite foi revogado',
+        });
+      }
+
+      if (convite.status === 'ACEITO') {
+        return res.status(409).json({
+          error: 'Este convite já foi utilizado',
+        });
+      }
+
+      if (convite.expira_em.getTime() <= Date.now()) {
+        return res.status(410).json({
+          error: 'Este convite expirou',
+        });
+      }
+
+      const usuarioExistente = await prisma.usuario.findUnique({
+        where: {
+          email: convite.email,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (usuarioExistente) {
+        return res.status(409).json({
+          error: 'Já existe uma conta com este e-mail. Faça login para aceitar o convite.',
+          codigo: 'CONTA_EXISTENTE',
+        });
+      }
+
+      const senhaHash = await bcrypt.hash(senha, 12);
+      const agora = new Date();
+
+      const resultado = await prisma.$transaction(
+        async transaction => {
+          // Tenta reservar o convite. Apenas uma requisição consegue
+          // transformar o mesmo convite de PENDENTE para ACEITO.
+          const conviteReservado =
+            await transaction.conviteClube.updateMany({
+              where: {
+                id: convite.id,
+                ...filtroConvite,
+                status: 'PENDENTE',
+                expira_em: {
+                  gt: agora,
+                },
+              },
+
+              data: {
+                status: 'ACEITO',
+                aceito_em: agora,
+              },
+            });
+
+          if (conviteReservado.count !== 1) {
+            throw new Error('CONVITE_INDISPONIVEL');
+          }
+
+          const usuario = await transaction.usuario.create({
+            data: {
+              nome,
+              email: convite.email,
+              senha: senhaHash,
+            },
+
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+              criadoEm: true,
+            },
+          });
+
+          const vinculo =
+            await transaction.usuarioClube.create({
+              data: {
+                usuario_id: usuario.id,
+                clube_id: convite.clube_id,
+                papel: convite.papel,
+                acesso_todas_categorias:
+                  convite.acesso_todas_categorias,
+
+                categorias:
+                  convite.acesso_todas_categorias
+                    ? undefined
+                    : {
+                        create: convite.categorias.map(
+                          categoria => ({
+                            categoria_id:
+                              categoria.categoria_id,
+                          })
+                        ),
+                      },
+              },
+
+              include: {
+                clube: {
+                  select: {
+                    id: true,
+                    nome: true,
+                    escudo: true,
+                  },
+                },
+
+                categorias: {
+                  select: {
+                    categoria: {
+                      select: {
+                        id: true,
+                        nome: true,
+                      },
+                    },
+                  },
+                },
+              },
+            });
+
+          await transaction.conviteClube.update({
+            where: {
+              id: convite.id,
+            },
+
+            data: {
+              aceito_por_id: usuario.id,
+            },
+          });
+
+          return {
+            usuario,
+            vinculo,
+          };
+        }
+      );
+
+      const tokenLogin = jwt.sign(
+        {
+          id: resultado.usuario.id,
+        },
+        JWT_SECRET,
+        JWT_OPTIONS
+      );
+
+      return res.status(201).json({
+        mensagem: 'Conta criada e convite aceito',
+        token: tokenLogin,
+
+        usuario: resultado.usuario,
+
+        clube: {
+          id: resultado.vinculo.clube.id,
+          nome: resultado.vinculo.clube.nome,
+          escudo: resultado.vinculo.clube.escudo,
+          papel: resultado.vinculo.papel,
+          acesso_todas_categorias:
+            resultado.vinculo.acesso_todas_categorias,
+
+          categorias: resultado.vinculo.categorias.map(
+            item => item.categoria
+          ),
+        },
+      });
+    } catch (error: any) {
+      if (error?.message === 'CONVITE_INDISPONIVEL') {
+        return res.status(409).json({
+          error: 'Este convite não está mais disponível',
+        });
+      }
+
+      console.error('Erro ao aceitar convite:', error);
+
+      return res.status(500).json({
+        error: 'Erro ao aceitar convite',
+      });
+    }
+  }
+);
+
+app.post(
+  [
+    '/convites/codigo/:codigo/aceitar-existente',
+    '/convites/:token/aceitar-existente',
+  ],
+  limitarAuth,
+  exigirAutenticacao,
+  async (req, res) => {
+    const filtroConvite = obterFiltroCredencialConvite(
+      req.params
+    );
+    const usuarioId = (req as any).usuarioId as number;
+
+    if (!filtroConvite) {
+      return res.status(404).json({
+        error: 'Convite inválido',
+      });
+    }
+
+    try {
+      const [convite, usuario] = await Promise.all([
+        prisma.conviteClube.findUnique({
+          where: filtroConvite,
+
+          select: {
+            id: true,
+            clube_id: true,
+            email: true,
+            papel: true,
+            acesso_todas_categorias: true,
+            status: true,
+            expira_em: true,
+
+            categorias: {
+              select: {
+                categoria_id: true,
+              },
+            },
+          },
+        }),
+
+        prisma.usuario.findUnique({
+          where: {
+            id: usuarioId,
+          },
+
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        }),
+      ]);
+
+      if (!convite) {
+        return res.status(404).json({
+          error: 'Convite inválido',
+        });
+      }
+
+      if (!usuario) {
+        return res.status(401).json({
+          error: 'Usuário não encontrado',
+        });
+      }
+
+      if (convite.status === 'REVOGADO') {
+        return res.status(410).json({
+          error: 'Este convite foi revogado',
+        });
+      }
+
+      if (convite.status === 'ACEITO') {
+        return res.status(409).json({
+          error: 'Este convite já foi utilizado',
+        });
+      }
+
+      if (convite.expira_em.getTime() <= Date.now()) {
+        return res.status(410).json({
+          error: 'Este convite expirou',
+        });
+      }
+
+      if (
+        usuario.email.trim().toLowerCase() !==
+        convite.email.trim().toLowerCase()
+      ) {
+        return res.status(403).json({
+          error: 'Este convite pertence a outro e-mail',
+        });
+      }
+
+      if (
+        !convite.acesso_todas_categorias &&
+        convite.categorias.length === 0
+      ) {
+        return res.status(409).json({
+          error: 'Este convite não possui categorias válidas',
+        });
+      }
+
+      const agora = new Date();
+
+      const resultado = await prisma.$transaction(
+        async transaction => {
+          const conviteReservado =
+            await transaction.conviteClube.updateMany({
+              where: {
+                id: convite.id,
+                ...filtroConvite,
+                status: 'PENDENTE',
+                expira_em: {
+                  gt: agora,
+                },
+              },
+
+              data: {
+                status: 'ACEITO',
+                aceito_em: agora,
+                aceito_por_id: usuario.id,
+              },
+            });
+
+          if (conviteReservado.count !== 1) {
+            throw new Error('CONVITE_INDISPONIVEL');
+          }
+
+          let vinculo =
+            await transaction.usuarioClube.findUnique({
+              where: {
+                usuario_id_clube_id: {
+                  usuario_id: usuario.id,
+                  clube_id: convite.clube_id,
+                },
+              },
+            });
+
+          if (vinculo?.papel === 'ADMIN') {
+            throw new Error('JA_ADMINISTRA_CLUBE');
+          }
+
+          if (
+            vinculo &&
+            vinculo.papel !== 'TORCEDOR' &&
+            vinculo.papel !== convite.papel
+          ) {
+            throw new Error('PAPEL_CONFLITANTE');
+          }
+
+          if (!vinculo) {
+            vinculo = await transaction.usuarioClube.create({
+              data: {
+                usuario_id: usuario.id,
+                clube_id: convite.clube_id,
+                papel: convite.papel,
+                acesso_todas_categorias:
+                  convite.acesso_todas_categorias,
+              },
+            });
+          } else {
+            vinculo = await transaction.usuarioClube.update({
+              where: {
+                id: vinculo.id,
+              },
+
+              data: {
+                papel:
+                  vinculo.papel === 'TORCEDOR'
+                    ? convite.papel
+                    : vinculo.papel,
+
+                acesso_todas_categorias:
+                  vinculo.acesso_todas_categorias ||
+                  convite.acesso_todas_categorias,
+              },
+            });
+          }
+
+          if (
+            !vinculo.acesso_todas_categorias &&
+            convite.categorias.length > 0
+          ) {
+            await transaction.usuarioClubeCategoria.createMany({
+              data: convite.categorias.map(categoria => ({
+                usuario_clube_id: vinculo!.id,
+                categoria_id: categoria.categoria_id,
+              })),
+
+              skipDuplicates: true,
+            });
+          }
+
+          return transaction.usuarioClube.findUniqueOrThrow({
+            where: {
+              id: vinculo.id,
+            },
+
+            include: {
+              clube: {
+                select: {
+                  id: true,
+                  nome: true,
+                  escudo: true,
+                },
+              },
+
+              categorias: {
+                select: {
+                  categoria: {
+                    select: {
+                      id: true,
+                      nome: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+        }
+      );
+
+      return res.json({
+        mensagem: 'Convite aceito com sucesso',
+
+        usuario: {
+          id: usuario.id,
+          nome: usuario.nome,
+          email: usuario.email,
+        },
+
+        clube: {
+          id: resultado.clube.id,
+          nome: resultado.clube.nome,
+          escudo: resultado.clube.escudo,
+          papel: resultado.papel,
+          acesso_todas_categorias:
+            resultado.acesso_todas_categorias,
+
+          categorias: resultado.categorias.map(
+            item => item.categoria
+          ),
+        },
+      });
+    } catch (error: any) {
+      if (error?.message === 'CONVITE_INDISPONIVEL') {
+        return res.status(409).json({
+          error: 'Este convite não está mais disponível',
+        });
+      }
+
+      if (error?.message === 'JA_ADMINISTRA_CLUBE') {
+        return res.status(409).json({
+          error: 'Este usuário já administra o clube',
+        });
+      }
+
+      if (error?.message === 'PAPEL_CONFLITANTE') {
+        return res.status(409).json({
+          error: 'Este usuário já possui outro papel de gestão neste clube',
+        });
+      }
+
+      console.error(
+        'Erro ao aceitar convite com conta existente:',
+        error
+      );
+
+      return res.status(500).json({
+        error: 'Erro ao aceitar convite',
+      });
+    }
+  }
+);
+
+app.post(
+  '/convites/:id/revogar',
+  exigirGestorDoClube,
+  exigirAdminDoClube,
+  async (req, res) => {
+    const clubeId = (req as any).clubeId as number;
+    const conviteId = String(req.params.id || '').trim();
+
+    if (!conviteId || conviteId.length > 100) {
+      return res.status(400).json({
+        error: 'ID do convite inválido',
+      });
+    }
+
+    try {
+      const convite = await prisma.conviteClube.findFirst({
+        where: {
+          id: conviteId,
+          clube_id: clubeId,
+        },
+
+        select: {
+          id: true,
+          status: true,
+          email: true,
+        },
+      });
+
+      if (!convite) {
+        return res.status(404).json({
+          error: 'Convite não encontrado',
+        });
+      }
+
+      if (convite.status === 'ACEITO') {
+        return res.status(409).json({
+          error: 'Um convite aceito não pode ser revogado',
+        });
+      }
+
+      if (convite.status === 'REVOGADO') {
+        return res.status(409).json({
+          error: 'Este convite já foi revogado',
+        });
+      }
+
+      const agora = new Date();
+
+      const atualizado =
+        await prisma.conviteClube.updateMany({
+          where: {
+            id: conviteId,
+            clube_id: clubeId,
+            status: 'PENDENTE',
+          },
+
+          data: {
+            status: 'REVOGADO',
+            revogado_em: agora,
+          },
+        });
+
+      if (atualizado.count !== 1) {
+        return res.status(409).json({
+          error: 'Este convite não está mais disponível',
+        });
+      }
+
+      return res.json({
+        mensagem: 'Convite revogado com sucesso',
+
+        convite: {
+          id: convite.id,
+          email: convite.email,
+          status: 'REVOGADO',
+          revogado_em: agora,
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao revogar convite:', error);
+
+      return res.status(500).json({
+        error: 'Erro ao revogar convite',
+      });
+    }
+  }
+);
+
+app.post(
+  '/convites/:id/reenviar',
+  exigirGestorDoClube,
+  exigirAdminDoClube,
+  async (req, res) => {
+    const clubeId = (req as any).clubeId as number;
+    const conviteId = String(req.params.id || '').trim();
+
+    if (!conviteId || conviteId.length > 100) {
+      return res.status(400).json({
+        error: 'ID do convite inválido',
+      });
+    }
+
+    try {
+      const convite = await prisma.conviteClube.findFirst({
+        where: {
+          id: conviteId,
+          clube_id: clubeId,
+        },
+
+        select: {
+          id: true,
+          email: true,
+          papel: true,
+          acesso_todas_categorias: true,
+          status: true,
+          token_hash: true,
+
+          clube: {
+            select: {
+              nome: true,
+            },
+          },
+
+          criadoPor: {
+            select: {
+              nome: true,
+            },
+          },
+        },
+      });
+
+      if (!convite) {
+        return res.status(404).json({
+          error: 'Convite não encontrado',
+        });
+      }
+
+      if (convite.status === 'ACEITO') {
+        return res.status(409).json({
+          error: 'Um convite aceito não pode ser reenviado',
+        });
+      }
+
+      const tokenNovo = randomBytes(32).toString('base64url');
+      const tokenHashNovo = gerarHashConvite(tokenNovo);
+      const codigoNovo = gerarCodigoConvite();
+      const codigoHashNovo =
+        gerarHashCodigoConvite(codigoNovo);
+
+      const agora = new Date();
+
+      const novaExpiracao = new Date(
+        agora.getTime() + 72 * 60 * 60 * 1000
+      );
+
+      const atualizado =
+        await prisma.conviteClube.updateMany({
+          where: {
+            id: convite.id,
+            clube_id: clubeId,
+            token_hash: convite.token_hash,
+
+            status: {
+              in: ['PENDENTE', 'REVOGADO'],
+            },
+          },
+
+          data: {
+            token_hash: tokenHashNovo,
+            codigo_hash: codigoHashNovo,
+            status: 'PENDENTE',
+            expira_em: novaExpiracao,
+            revogado_em: null,
+            aceito_em: null,
+            aceito_por_id: null,
+          },
+        });
+
+      if (atualizado.count !== 1) {
+        return res.status(409).json({
+          error: 'O convite foi alterado por outra operação',
+        });
+      }
+
+      let emailEnviado = true;
+      let aviso: string | undefined;
+
+      try {
+        await enviarEmailConvite({
+          email: convite.email,
+          nomeClube: convite.clube.nome,
+          nomeConvidante:
+            convite.criadoPor?.nome ?? 'Administrador',
+          token: tokenNovo,
+          codigo: codigoNovo,
+        });
+      } catch (error) {
+        emailEnviado = false;
+        aviso =
+          'Novo token gerado, mas o e-mail não pôde ser enviado';
+
+        console.error(
+          'Erro ao reenviar e-mail do convite:',
+          error
+        );
+      }
+
+      return res.json({
+        mensagem: 'Novo token gerado com sucesso',
+
+        convite: {
+          id: convite.id,
+          email: convite.email,
+          papel: convite.papel,
+          acesso_todas_categorias:
+            convite.acesso_todas_categorias,
+          status: 'PENDENTE',
+          expira_em: novaExpiracao,
+        },
+
+        email_enviado: emailEnviado,
+        aviso,
+        ...(isProduction
+          ? {}
+          : { token: tokenNovo, codigo: codigoNovo }),
+      });
+    } catch (error) {
+      console.error('Erro ao reenviar convite:', error);
+
+      return res.status(500).json({
+        error: 'Erro ao reenviar convite',
+      });
+    }
+  }
+);
 
 // ==========================================
 // 2. CADASTROS E BUSCAS

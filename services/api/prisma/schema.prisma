@@ -11,17 +11,18 @@ datasource db {
 // ── NOVOS MODELOS MULTI-TENANT ──
 
 model Clube {
-  id          Int            @id @default(autoincrement())
-  nome        String
-  escudo      String?
-  cidade      String?
-  estado      String?
-  plano       String         @default("FREE")
-  criado_em   DateTime       @default(now())
-  
+  id        Int      @id @default(autoincrement())
+  nome      String
+  escudo    String?
+  cidade    String?
+  estado    String?
+  plano     String   @default("FREE")
+  criado_em DateTime @default(now())
+
   usuarios    UsuarioClube[]
   categorias  Categoria[]
   competicoes Competicao[]
+  convites    ConviteClube[]
 }
 
 model UsuarioClube {
@@ -31,8 +32,8 @@ model UsuarioClube {
   papel                   PapelUsuario @default(TORCEDOR)
   acesso_todas_categorias Boolean      @default(false)
 
-  usuario    Usuario                  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
-  clube      Clube                    @relation(fields: [clube_id], references: [id], onDelete: Cascade)
+  usuario    Usuario                 @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  clube      Clube                   @relation(fields: [clube_id], references: [id], onDelete: Cascade)
   categorias UsuarioClubeCategoria[]
 
   @@unique([usuario_id, clube_id])
@@ -53,28 +54,32 @@ model UsuarioClubeCategoria {
 // ── MODELOS ATUALIZADOS ──
 
 model Usuario {
-  id       Int            @id @default(autoincrement())
+  id       Int      @id @default(autoincrement())
   nome     String
-  email    String         @unique
+  email    String   @unique
   senha    String
-  criadoEm DateTime       @default(now())
-  
-  clubes   UsuarioClube[]
+  criadoEm DateTime @default(now())
+
+  clubes UsuarioClube[]
+
+  convitesCriados ConviteClube[] @relation("ConvitesCriados")
+  convitesAceitos ConviteClube[] @relation("ConvitesAceitos")
 }
 
 model Categoria {
-  id                  Int            @id @default(autoincrement())
-  clube_id            Int
-  nome                String
-  faixaIdade          Int             @default(0)
-  tipo                TipoCategoria
-  usuariosPermitidos  UsuarioClubeCategoria[]
-  
-  clube       Clube         @relation(fields: [clube_id], references: [id], onDelete: Cascade)
+  id                 Int                     @id @default(autoincrement())
+  clube_id           Int
+  nome               String
+  faixaIdade         Int                     @default(0)
+  tipo               TipoCategoria
+  usuariosPermitidos UsuarioClubeCategoria[]
+
+  clube       Clube              @relation(fields: [clube_id], references: [id], onDelete: Cascade)
   jogadores   Jogador[]
   partidas    Partida[]
-  times       Time[]        @relation("TimeCategorias")
-  competicoes Competicao[]  @relation("CompeticaoCategorias")
+  times       Time[]             @relation("TimeCategorias")
+  competicoes Competicao[]       @relation("CompeticaoCategorias")
+  convites    ConviteCategoria[]
 
   // Agora permite categorias com nomes iguais, desde que em clubes diferentes
   @@unique([nome, clube_id])
@@ -82,12 +87,12 @@ model Categoria {
 }
 
 model Competicao {
-  id                  Int                 @id @default(autoincrement())
-  clube_id            Int
-  nome                String
-  ano                 Int
-  tipo                TipoCompeticao
-  
+  id       Int            @id @default(autoincrement())
+  clube_id Int
+  nome     String
+  ano      Int
+  tipo     TipoCompeticao
+
   clube               Clube               @relation(fields: [clube_id], references: [id], onDelete: Cascade)
   jogadores_inscritos CompeticaoJogador[]
   times_inscritos     CompeticaoTime[]
@@ -237,7 +242,51 @@ model CampeonatoClassificacao {
   @@index([temporada, titulo, divisao, categoria, tipoTabela])
 }
 
+model ConviteClube {
+  id                      String        @id @default(cuid())
+  clube_id                Int
+  criado_por_id           Int?
+  aceito_por_id           Int?
+  email                   String
+  papel                   PapelUsuario
+  acesso_todas_categorias Boolean       @default(false)
+  token_hash              String        @unique
+  codigo_hash             String?       @unique
+  status                  StatusConvite @default(PENDENTE)
+  expira_em               DateTime
+  criado_em               DateTime      @default(now())
+  aceito_em               DateTime?
+  revogado_em             DateTime?
+
+  clube     Clube    @relation(fields: [clube_id], references: [id], onDelete: Cascade)
+  criadoPor Usuario? @relation("ConvitesCriados", fields: [criado_por_id], references: [id], onDelete: SetNull)
+  aceitoPor Usuario? @relation("ConvitesAceitos", fields: [aceito_por_id], references: [id], onDelete: SetNull)
+
+  categorias ConviteCategoria[]
+
+  @@index([clube_id, status])
+  @@index([email])
+  @@index([expira_em])
+}
+
+model ConviteCategoria {
+  convite_id   String
+  categoria_id Int
+
+  convite   ConviteClube @relation(fields: [convite_id], references: [id], onDelete: Cascade)
+  categoria Categoria    @relation(fields: [categoria_id], references: [id], onDelete: Cascade)
+
+  @@id([convite_id, categoria_id])
+  @@index([categoria_id])
+}
+
 // ── ENUMS ATUALIZADOS ──
+
+enum StatusConvite {
+  PENDENTE
+  ACEITO
+  REVOGADO
+}
 
 enum PapelUsuario {
   ADMIN
