@@ -1,7 +1,6 @@
 import { Router } from 'express';
 
 import { prisma } from '../../lib/prisma';
-import { executarSincronizacao } from '../../jobs/campeonato.job';
 import {
   exigirAcessoTotalCategorias,
   exigirCompeticaoDoClube,
@@ -10,7 +9,6 @@ import {
   obterEscopoCategorias,
   podeAcessarCategoria,
 } from '../../middlewares/permissoes.middleware';
-import { limitarOperacaoPesada } from '../../middlewares/rate-limit.middleware';
 import { idPositivo } from '../../utils/id';
 
 const router = Router();
@@ -130,15 +128,6 @@ router.get('/competicoes', exigirGestorDoClube, async (req, res) => {
     });
     res.json(competicoes);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar competições' }); }
-});
-
-router.post('/campeonato/sincronizar-todos', exigirGestorDoClube, exigirAcessoTotalCategorias, limitarOperacaoPesada, async (_req, res) => {
-  try {
-    await executarSincronizacao();
-    res.json({ ok: true });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
 });
 
 router.delete('/competicoes/:id', exigirGestorDoClube, exigirAcessoTotalCategorias, exigirCompeticaoDoClube, async (req, res) => {

@@ -15,7 +15,6 @@ import * as SecureStore from "expo-secure-store";
 import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
 
 import DadosPessoais from "./dadosPessoais/dadosPessoais";
-import Equipes from "./equipes/equipes";
 
 interface CardMenuProps {
   titulo: string;
@@ -70,9 +69,6 @@ export default function Perfil() {
   const [modalSair, setModalSair] = useState(false);
   const [modalDadosPessoais, setModalDadosPessoais] =
     useState(false);
-  const [modalMinhasEquipes, setModalMinhasEquipes] =
-    useState(false);
-  const [ehAdmin, setEhAdmin] = useState(false);
 
   useEffect(() => {
     carregarDados();
@@ -101,10 +97,6 @@ export default function Perfil() {
       setMembroDesde(formatada.replace(".", ""));
     }
 
-    const role =
-      await SecureStore.getItemAsync("userRole");
-
-    setEhAdmin(role === "ADMIN");
   };
 
   const fecharDadosPessoais = async () => {
@@ -182,17 +174,6 @@ export default function Perfil() {
                 setModalDadosPessoais(true)
               }
             />
-
-            {ehAdmin && (
-              <CardMenu
-                titulo="Equipes"
-                subtitulo="Times e campeonatos cadastrados"
-                icone="account-group-outline"
-                action={() =>
-                  setModalMinhasEquipes(true)
-                }
-              />
-            )}
 
             <CardMenu
               titulo="Notificações"
@@ -306,22 +287,6 @@ export default function Perfil() {
         />
       </Modal>
 
-      {/* EQUIPES */}
-      <Modal
-        visible={modalMinhasEquipes}
-        transparent={false}
-        animationType="slide"
-        onRequestClose={() =>
-          setModalMinhasEquipes(false)
-        }
-      >
-        <Equipes
-          noModal={true}
-          onFechar={() =>
-            setModalMinhasEquipes(false)
-          }
-        />
-      </Modal>
     </View>
   );
 }

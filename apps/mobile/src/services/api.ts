@@ -5,33 +5,6 @@ export const BASE_URL = 'http://192.168.7.2:3000';
 //   process.env.EXPO_PUBLIC_API_URL ??
 //   'http://192.168.7.2:3000';
 
-export interface ClassificacaoItem {
-  grupo: string;
-  posicao: number;
-  clube: string;
-  pontos: number;
-  jogos: number;
-  vitorias: number;
-  empates: number;
-  derrotas: number;
-  golsPro: number;
-  golsContra: number;
-  saldo: number;
-  average: number;
-  mediaGolsMarcados: number;
-  mediaGolsSofridos: number;
-  indiceTecnico: number;
-  destaque: boolean;
-  tipoTabela: string;
-}
-
-export interface FiltrosCampeonato {
-  temporada: string;
-  titulo: string;
-  divisao: string;
-  categoria: string;
-}
-
 // ==========================================
 // CENTRAL DE REQUISIÇÕES (API FETCH)
 // ==========================================
@@ -289,27 +262,6 @@ export async function salvarElencoCompeticao(comp_id: number, jogador_ids: numbe
     body: JSON.stringify({ jogador_ids }),
   });
   if (!res.ok) throw new Error('Erro ao salvar elenco da competição');
-}
-
-export async function fetchClassificacaoCampeonato(
-  filtros: FiltrosCampeonato,
-): Promise<ClassificacaoItem[]> {
-  const params = new URLSearchParams({
-    temporada: filtros.temporada,
-    titulo:    filtros.titulo,
-    divisao:   filtros.divisao,
-    categoria: filtros.categoria,
-  });
-
-  const res = await apiFetch(`/campeonato/classificacao?${params}`);
-  
-  if (!res.ok) {
-    const body = await res.text().catch(() => '(sem body)');
-    throw new Error(`[${res.status}] ${body}`);
-  }
-
-  const json = await res.json();
-  return Array.isArray(json) ? json : json.data ?? [];
 }
 
 // ==========================================

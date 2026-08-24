@@ -2,7 +2,6 @@ import http from 'http';
 
 import { criarApp } from './app';
 import { PORT } from './config/env';
-import { iniciarSincronizacaoCampeonatos } from './jobs/campeonato.job';
 import { prisma } from './lib/prisma';
 import { criarSocketServer } from './realtime/socket';
 
@@ -15,8 +14,6 @@ io.attach(server);
 server.requestTimeout = 130_000;
 server.headersTimeout = 15_000;
 server.keepAliveTimeout = 5_000;
-
-iniciarSincronizacaoCampeonatos();
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Core Service rodando na porta ${PORT}`);

@@ -3,11 +3,6 @@ import express from 'express';
 import type { Server } from 'socket.io';
 
 import { corsOptions, isProduction } from './config/env';
-import {
-  exigirAcessoTotalCategorias,
-  exigirGestorDoClube,
-} from './middlewares/permissoes.middleware';
-import { limitarOperacaoPesada } from './middlewares/rate-limit.middleware';
 import authRoutes from './modules/auth/auth.routes';
 import cadastroRoutes from './modules/cadastros/cadastro.routes';
 import clubeRoutes from './modules/clubes/clube.routes';
@@ -16,8 +11,6 @@ import escalacaoRoutes from './modules/escalacoes/escalacao.routes';
 import jogadorRoutes from './modules/jogadores/jogador.routes';
 import { criarPartidaRoutes } from './modules/partidas/partida.routes';
 import scoutRoutes from './modules/scout/scout.routes';
-import campeonatoRoutes from './routes/campeonato.routes';
-import importacaoRoutes from './routes/importacao.routes';
 
 export function criarApp(io: Server) {
   const app = express();
@@ -45,21 +38,6 @@ export function criarApp(io: Server) {
     next();
   });
   app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '256kb' }));
-
-  app.use(
-    '/partidas/importar',
-    exigirGestorDoClube,
-    exigirAcessoTotalCategorias,
-    limitarOperacaoPesada,
-    importacaoRoutes
-  );
-  app.use(
-    '/campeonato/sincronizar',
-    exigirGestorDoClube,
-    exigirAcessoTotalCategorias,
-    limitarOperacaoPesada
-  );
-  app.use('/campeonato', campeonatoRoutes);
 
   app.use(authRoutes);
   app.use(clubeRoutes);

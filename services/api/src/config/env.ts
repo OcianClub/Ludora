@@ -31,7 +31,7 @@ if (isProduction && !process.env.CORS_ORIGINS) {
 }
 
 if (!PYTHON_AI_URL) {
-  console.warn('⚠️  PYTHON_AI_URL não definida — Scout IA desativado.');
+  console.warn('PYTHON_AI_URL não definida — Scout IA desativado.');
 }
 
 const origensPermitidas = new Set(

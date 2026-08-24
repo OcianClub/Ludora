@@ -4,9 +4,10 @@ Plataforma de gestão e estatísticas para clubes de futebol e futsal.
 
 O Ludora nasceu como um projeto de extensão acadêmica e está sendo construído
 como uma solução multiplataforma. O aplicativo mobile atende o acompanhamento
-do clube e o dia de jogo; a API concentra autenticação, permissões, dados,
-convites e tempo real; e um serviço Python processa os perfis estatísticos dos
-jogadores.
+do clube e as operações do dia de jogo. A gestão administrativa de categorias,
+times, jogadores, competições e convites será concentrada nas futuras aplicações
+web e desktop. A API centraliza autenticação, permissões, dados, convites e tempo
+real, enquanto um serviço Python processa os perfis estatísticos dos jogadores.
 
 ## Estado atual
 
@@ -15,8 +16,8 @@ jogadores.
 | Aplicativo mobile | Em desenvolvimento ativo |
 | API Node.js | Funcional |
 | Serviço de Scout IA | Funcional |
-| Aplicação web | Planejada |
-| Aplicação desktop | Planejada |
+| Aplicação web | Planejada para gestão administrativa |
+| Aplicação desktop | Planejada para gestão administrativa |
 
 A API publicada atualmente está disponível em
 [ludora-pgho.onrender.com](https://ludora-pgho.onrender.com).
@@ -27,7 +28,7 @@ A API publicada atualmente está disponível em
 - Vínculos entre usuários e múltiplos clubes.
 - Papéis de administrador, técnico, mesário e torcedor.
 - Técnicos com acesso a todas as categorias ou apenas a categorias específicas.
-- Cadastro e gestão de categorias, times, jogadores e competições.
+- API preparada para cadastro e gestão de categorias, times, jogadores e competições.
 - Partidas, escalações, placar e eventos em tempo real com Socket.IO.
 - Estatísticas de jogadores e perfis processados pelo serviço de Scout IA.
 - Descoberta e acompanhamento de clubes.
@@ -35,6 +36,23 @@ A API publicada atualmente está disponível em
 - Aceite de convite por link seguro ou código curto, como 5KU2-BYK7.
 - Envio de convites por e-mail com Resend.
 - Design tokens e pacote de ícones compartilhados.
+
+## Responsabilidades por aplicação
+
+O mobile e os futuros clientes administrativos consomem a mesma API, mas possuem
+responsabilidades diferentes:
+
+| Aplicação | Responsabilidade |
+|---|---|
+| Mobile | Login, seleção de clube, Home, jogos, preparação, escalação, placar, eventos, estatísticas e entrada por convite |
+| Web/Desktop | Cadastro e manutenção de categorias, times, jogadores, competições, elencos e convites |
+| API | Regras de negócio, autenticação, autorização por clube/categoria, persistência e tempo real |
+| Scout IA | Processamento dos dados estatísticos dos jogadores |
+
+As rotas administrativas permanecem na API para serem consumidas pelo web e
+desktop. Os formulários antigos de cadastro foram retirados do aplicativo mobile.
+O mobile ainda permite organizar partidas e executar as operações necessárias
+durante o jogo.
 
 ## Papéis e permissões
 
@@ -138,11 +156,9 @@ A API está organizada por responsabilidade:
 ~~~text
 services/api/src/
 ├── app.ts                       Configuração do Express e montagem das rotas
-├── server.ts                    HTTP, Socket.IO, jobs e encerramento
+├── server.ts                    HTTP, Socket.IO e encerramento
 ├── auth/                        Leitura e validação de JWT
 ├── config/                      Ambiente, CORS, JWT e porta
-├── controllers/                 Controllers já separados
-├── jobs/                        Tarefas agendadas
 ├── lib/                         Instância compartilhada do Prisma
 ├── middlewares/                 Autenticação, permissões e rate limit
 ├── modules/
@@ -155,8 +171,7 @@ services/api/src/
 │   ├── partidas/
 │   └── scout/
 ├── realtime/                    Autenticação e salas do Socket.IO
-├── routes/                      Rotas legadas já separadas
-├── services/                    E-mail, IA, importação e campeonatos
+├── services/                    E-mail e integrações externas
 └── utils/                       Funções puras reutilizáveis
 ~~~
 
@@ -224,8 +239,6 @@ DIRECT_URL=postgresql://...
 
 JWT_SECRET=use-ao-menos-32-caracteres-aleatorios
 PYTHON_AI_URL=http://localhost:8000
-GEMINI_API_KEY=
-
 CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8081
 TRUST_PROXY_HOPS=0
 JSON_BODY_LIMIT=256kb
@@ -281,7 +294,8 @@ pnpm exec tsx watch src/server.ts
 ## Aplicativo mobile
 
 O aplicativo usa Expo Router e consome os pacotes compartilhados de design e
-ícones.
+ícones. Cadastros administrativos de times, jogadores, categorias, competições
+e elencos não fazem parte da interface mobile atual.
 
 ~~~powershell
 cd apps/mobile
@@ -373,9 +387,13 @@ pnpm --filter @ludora/icons run typecheck
 | POST | /clubes/:id/seguir | JWT |
 | DELETE | /clubes/:id/seguir | JWT |
 | GET | /categorias | Gestor do clube |
-| GET | /times | Gestor do clube |
-| GET | /competicoes | Gestor do clube |
-| GET | /jogadores | Gestor do clube |
+| GET/POST | /times | Gestor do clube e escopo de categoria |
+| PATCH/DELETE | /times/:id | Gestor do clube e escopo de categoria |
+| GET/POST | /competicoes | Gestor; criação exige acesso total |
+| PATCH/DELETE | /competicoes/:id | Gestor com acesso total |
+| GET/POST | /jogadores | Gestor do clube e escopo de categoria |
+| PATCH/DELETE | /jogadores/:id | Gestor do clube e escopo de categoria |
+| GET/PUT | /competicoes/:id/jogadores | Consulta e manutenção do elenco inscrito |
 
 As rotas vinculadas a um clube recebem:
 
@@ -443,6 +461,10 @@ ConviteCategoria
 O vínculo UsuarioClubeCategoria limita as categorias administradas por um
 gestor. ConviteCategoria aplica o mesmo escopo durante o fluxo de convite.
 
+O model `CampeonatoClassificacao` permanece temporariamente no schema por
+compatibilidade com bancos já migrados. O scraper e o job de sincronização que
+alimentavam essa tabela foram removidos e nenhuma tela atual depende dela.
+
 ## Segurança
 
 - Senhas armazenadas com bcrypt.
@@ -473,8 +495,9 @@ A documentação técnica complementar está em
 ## Próximos passos
 
 - Criar as telas mobile de entrada e aceite de convite.
-- Criar a aplicação web para gestão administrativa e links de convite.
-- Criar a aplicação desktop com Electron.
+- Criar a aplicação web para gestão de categorias, times, jogadores,
+  competições, elencos e links de convite.
+- Criar a aplicação desktop com Electron reutilizando o fluxo administrativo.
 - Verificar um domínio próprio para envio de e-mails.
 - Mover as rotas restantes para controllers e services menores.
 - Adicionar testes automatizados de integração e permissões.

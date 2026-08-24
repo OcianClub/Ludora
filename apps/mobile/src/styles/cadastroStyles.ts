@@ -2,163 +2,262 @@ import { StyleSheet } from 'react-native';
 import { colors, typography } from '@ludora/design-tokens';
 
 export const styles = StyleSheet.create({
-  scrollContainer: {
-    flexGrow: 1,
-    backgroundColor: colors.fundo,
-  },
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: colors.fundo,
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingTop: 80,
-    paddingBottom: 40,
   },
-
-  // ── Botão Voltar ──
-  btnVoltar: {
-    position: 'absolute',
-    top: 56,
-    left: 20,
+  keyboardView: {
+    flex: 1,
+  },
+  navigation: {
+    minHeight: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  backButton: {
     width: 42,
     height: 42,
     borderRadius: 10,
     backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-
-  // ── Cabeçalho e Títulos ──
-  header: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 32,
-  },
-  logoContainer: {
-    width: 70,
-    height: 70,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  titulo: {
-    fontFamily: typography.fontFamily.titulo.bold,
-    fontSize: 26,
-    color: colors.texto,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  subtitulo: {
-    fontFamily: typography.fontFamily.corpo.regular,
-    fontSize: typography.fontSize.sm,
-    color: colors.textoSecundario,
-    textAlign: 'center',
-    lineHeight: typography.lineHeight.normal * typography.fontSize.sm,
-  },
-
-  // ── Formulário e Inputs ──
-  form: {
-    width: '100%',
-    gap: 16, // Espaçamento entre os inputs
-  },
-  inputLabel: {
-    fontFamily: typography.fontFamily.corpo.semiBold,
-    fontSize: 10,
-    color: colors.textoSecundario,
-    letterSpacing: 1.2,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
     borderWidth: 1,
     borderColor: colors.borda,
-    gap: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  inputRowFocado: {
-    borderColor: colors.primaria + '80',
-    backgroundColor: colors.primaria + '08',
+  loginTopButton: {
+    minHeight: 42,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
   },
-  inputRowErro: {
-    borderColor: colors.vermelho + '60',
+  loginTopText: {
+    color: colors.primaria,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.sm,
   },
-  olho: {
-    padding: 6
-  },
-  input: {
+  scroll: {
     flex: 1,
-    fontFamily: typography.fontFamily.corpo.regular,
-    color: colors.texto,
-    fontSize: 15,
   },
-
-  // ── Alertas de Erro ──
-  erroContainer: {
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 14,
+    paddingBottom: 28,
+  },
+  intro: {
+    marginBottom: 28,
+  },
+  brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.fundoErro,
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.bordaErro,
+    marginBottom: 30,
   },
-  erroTxt: {
-    fontFamily: typography.fontFamily.corpo.semiBold,
-    color: colors.corpoErro,
-    fontSize: 13,
-    flex: 1,
-  },
-
-  // ── Botões Principais e Rodapé ──
-  bottomSection: {
-    marginTop: 32,
-    width: '100%',
-  },
-  btnContinuar: {
-    backgroundColor: colors.primaria,
-    borderRadius: 10,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  btnContinuarDisabled: {
-    opacity: 0.5,
-  },
-  txtBtnContinuar: {
-    fontFamily: typography.fontFamily.corpo.semiBold,
-    color: '#FFF',
-    fontSize: 14,
-    letterSpacing: 1.2,
-  },
-  rodape: {
-    alignItems: 'center',
-  },
-  linhaSeparadora: {
-    height: 1,
-    backgroundColor: colors.linha,
-    width: '100%',
-    marginBottom: 20,
-  },
-  linhaRodape: {
-    flexDirection: 'row',
+  logoContainer: {
+    width: 54,
+    height: 54,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  textoCinzaRodape: {
-    color: colors.textoSecundario,
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.corpo.regular,
+  brandName: {
+    color: colors.texto,
+    fontFamily: typography.fontFamily.titulo.bold,
+    fontSize: typography.fontSize.llg,
+    lineHeight: 26,
   },
-  textoAzulRodape: {
-    color: colors.primaria,
+  brandCaption: {
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: 9,
+    letterSpacing: 0.8,
+  },
+  title: {
+    color: colors.texto,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.xxl,
+    lineHeight: 38,
+  },
+  subtitle: {
+    maxWidth: 350,
+    marginTop: 8,
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.md,
+    lineHeight: 23,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 20,
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.bordaErro,
+    backgroundColor: colors.fundoErro,
+  },
+  errorText: {
+    flex: 1,
+    color: colors.corpoErro,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.sm,
+    lineHeight: 20,
+  },
+  form: {
+    gap: 17,
+  },
+  field: {
+    gap: 7,
+  },
+  label: {
+    color: colors.texto,
+    fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.corpo.medium,
+  },
+  inputRow: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borda,
+    backgroundColor: colors.card,
+  },
+  inputRowFocused: {
+    borderColor: colors.primaria,
+    backgroundColor: colors.fundoBotao,
+  },
+  inputRowError: {
+    borderColor: colors.bordaErro,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    color: colors.texto,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.sm,
+  },
+  eyeButton: {
+    padding: 5,
+  },
+  requirements: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: -5,
+  },
+  requirementItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  requirementText: {
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.xs,
+  },
+  requirementTextValid: {
+    color: colors.texto,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 2,
+  },
+  termsText: {
+    flex: 1,
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.xs,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: colors.primaria,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+  },
+  inviteCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 28,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borda,
+    backgroundColor: colors.card,
+  },
+  inviteIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.fundoBotao,
+    borderWidth: 1,
+    borderColor: colors.bordaBotao,
+  },
+  inviteCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  inviteTitle: {
+    color: colors.texto,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.sm,
+  },
+  inviteSubtitle: {
+    marginTop: 3,
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.xs,
+    lineHeight: 17,
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 14,
+    paddingBottom: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.linha,
+    backgroundColor: colors.fundo,
+  },
+  primaryButton: {
+    width: '100%',
+    height: 56,
+    borderRadius: 10,
+    backgroundColor: colors.primaria,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButtonDisabled: {
+    opacity: 0.45,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.sm,
+    letterSpacing: 0.3,
+  },
+  loginRow: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 12,
+  },
+  loginPrompt: {
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.xs,
+  },
+  loginLink: {
+    color: colors.primaria,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.xs,
   },
 });
