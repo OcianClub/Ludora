@@ -1,0 +1,80 @@
+.partida-detalhe { max-width: 900px; }
+
+.btn-voltar {
+  background: none; border: none; color: var(--texto-sec); font-size: 13px;
+  cursor: pointer; padding: 0; margin-bottom: 20px; display: flex; align-items: center; gap: 6px;
+  transition: color 0.12s;
+}
+.btn-voltar:hover { color: var(--primaria); }
+
+/* ── Placar Hero ── */
+.placar-hero {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 20px;
+  background: var(--fundo-card); border: 1px solid var(--borda);
+  border-radius: 14px; padding: 28px 24px; margin-bottom: 16px;
+}
+.placar-time { display: flex; flex-direction: column; gap: 4px; }
+.placar-time:last-child { text-align: right; align-items: flex-end; }
+.placar-time-nome { font-family: var(--font-titulo); font-size: 20px; font-weight: 700; }
+.placar-casa { font-size: 11px; color: var(--texto-sec); }
+.placar-centro { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.placar-gols { display: flex; align-items: center; gap: 10px; font-family: var(--font-titulo); font-size: 52px; font-weight: 700; color: var(--primaria); }
+.placar-x { font-size: 28px; color: var(--borda); }
+.placar-meta { font-size: 12px; color: var(--texto-sec); }
+
+/* ── Ações ── */
+.partida-acoes { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+
+/* ── Abas ── */
+.partida-abas { display: flex; gap: 0; border-bottom: 1px solid var(--borda); margin-bottom: 20px; }
+.aba {
+  background: none; border: none; color: var(--texto-sec);
+  padding: 10px 18px; font-size: 13px; font-weight: 500;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  transition: color 0.12s, border-color 0.12s; margin-bottom: -1px;
+}
+.aba:hover { color: var(--texto); }
+.aba-ativa { color: var(--primaria); border-bottom-color: var(--primaria); }
+.aba-content { }
+
+/* ── Resumo ── */
+.resumo-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.resumo-stat-card { padding: 16px; }
+
+/* ── Eventos ── */
+.eventos-list { display: flex; flex-direction: column; gap: 6px; }
+.evento-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; background: var(--fundo-card);
+  border: 1px solid var(--linha); border-radius: 8px;
+}
+.evento-tipo { font-size: 13px; min-width: 140px; }
+.evento-jog { flex: 1; font-weight: 500; font-size: 13px; }
+.evento-meta { font-size: 11px; color: var(--texto-sec); white-space: nowrap; }
+.btn-remover-ev {
+  background: none; border: none; color: var(--texto-sec);
+  font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
+}
+.btn-remover-ev:hover { color: var(--vermelho); background: var(--fundo-erro); }
+
+/* ── Escalação ── */
+.escalacao-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.escalacao-item {
+  background: var(--fundo-card); border: 1px solid var(--borda);
+  border-radius: 8px; padding: 12px; cursor: pointer;
+  transition: border-color 0.12s, background 0.12s; position: relative;
+}
+.escalacao-item:hover { border-color: var(--primaria-hover); }
+.escalacao-item.selecionado { border-color: var(--primaria); background: var(--fundo-botao); }
+.esc-camisa { font-family: var(--font-titulo); font-size: 20px; font-weight: 700; color: var(--primaria); margin-bottom: 4px; }
+.esc-nome { font-size: 13px; font-weight: 600; }
+.esc-posicao { font-size: 11px; color: var(--texto-sec); margin-top: 2px; }
+.esc-check { position: absolute; top: 8px; right: 10px; color: var(--primaria); font-size: 14px; font-weight: 700; }
+
+@media (max-width: 600px) {
+  .placar-hero { grid-template-columns: 1fr; text-align: center; }
+  .placar-time:last-child { align-items: center; text-align: center; }
+  .placar-gols { font-size: 40px; }
+}

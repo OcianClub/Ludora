@@ -1,0 +1,16 @@
+.elenco-top { display: flex; align-items: flex-end; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+.elenco-top .stat-grid { flex: 1; }
+.elenco-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.elenco-card { padding: 16px; }
+.elenco-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.elenco-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--fundo-botao); border: 2px solid var(--borda-botao); display: flex; align-items: center; justify-content: center; font-family: var(--font-titulo); font-size: 18px; font-weight: 700; color: var(--primaria); flex-shrink: 0; }
+.elenco-nome { font-size: 14px; font-weight: 600; }
+.elenco-posicao { font-size: 11px; color: var(--texto-sec); margin-top: 2px; }
+.elenco-perfil-badge { margin-left: auto; }
+.elenco-nota { display: flex; align-items: baseline; gap: 5px; padding: 8px 0; border-top: 1px solid var(--linha); border-bottom: 1px solid var(--linha); margin-bottom: 12px; }
+.nota-valor { font-family: var(--font-titulo); font-size: 28px; font-weight: 700; color: var(--primaria); }
+.nota-label { font-size: 11px; color: var(--texto-sec); }
+.elenco-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.elenco-stat { text-align: center; }
+.es-val { display: block; font-family: var(--font-titulo); font-size: 18px; font-weight: 700; }
+.es-lbl { display: block; font-size: 10px; color: var(--texto-sec); margin-top: 2px; }

@@ -1,0 +1,53 @@
+/* ── Ludora Design Tokens ── */
+:root {
+  --primaria: #0E78FF;
+  --primaria-hover: #1a85ff;
+  --fundo: #0B0D12;
+  --fundo-card: #14171F;
+  --fundo-card-sec: #212531;
+  --fundo-card-claro: #1B1E27;
+  --borda: #2A3040;
+  --linha: #191E2A;
+  --texto: #F2E9D8;
+  --texto-sec: #8B8D94;
+  --amarelo: #F0B84E;
+  --vermelho: #FF4D00;
+  --fundo-botao: #091526;
+  --borda-botao: #1E4C88;
+  --fundo-erro: #2B1319;
+  --borda-erro: #5C1F2A;
+  --titulo-erro: #F5677E;
+
+  --font-titulo: 'Oswald', sans-serif;
+  --font-corpo: 'Inter', sans-serif;
+
+  --sidebar-w: 220px;
+  --topbar-h: 56px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: var(--font-corpo);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: var(--font-corpo); }
+input, select, textarea { font-family: var(--font-corpo); }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--borda); border-radius: 4px; }
+
+/* utilities */
+.text-primaria { color: var(--primaria); }
+.text-sec { color: var(--texto-sec); }
+.text-amarelo { color: var(--amarelo); }
+.text-vermelho { color: var(--vermelho); }
+.font-titulo { font-family: var(--font-titulo); }
