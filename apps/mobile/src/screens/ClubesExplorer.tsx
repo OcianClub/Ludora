@@ -1,3 +1,4 @@
+import { Icon } from '@ludora/icons';
 // Caminho sugerido: src/screens/ClubesExplorer.tsx
 //
 // Componente compartilhado entre:
@@ -10,7 +11,7 @@
 // clube ativo no SecureStore e navega para (tabs) — de onde tudo (Header,
 // Home, estatísticas etc.) passa a ler dinamicamente.
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -19,7 +20,6 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@ludora/design-tokens';
 import { styles } from '@/src/styles/clubesStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,6 +34,8 @@ import {
   deixarDeSeguirClube,
   ClubeListado,
 } from '@/src/services/api';
+import { ListSkeleton } from '@/src/components/Skeleton';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 // ==========================================
 // HELPERS DE CACHE LOCAL (userData no SecureStore)
@@ -89,15 +91,23 @@ interface ClubesExplorerProps {
 // dois casos.
 const ESPACO_TOPO_SEM_HEADER = 20;
 
+function ehGestor(clube: ClubeListado): boolean {
+  return !!clube.papel && clube.papel !== 'TORCEDOR';
+}
+
 export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { clubeAtivo, definirClubeAtivo } = useClubeAtivo();
 
   const [busca, setBusca] = useState('');
   const [clubes, setClubes] = useState<ClubeListado[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [processandoId, setProcessandoId] = useState<number | null>(null);
+  const primeiraBusca = useRef(true);
+  const requestAtual = useRef(0);
+  const carregouUmaVez = useRef(false);
 
   const [clubeAtivoId, setClubeAtivoId] = useState<string | null>(null);
   const [nomeClubeAtivo, setNomeClubeAtivo] = useState(
@@ -106,14 +116,15 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
   const [escudoClubeAtivo, setEscudoClubeAtivo] = useState<string | null>(null);
 
   const carregarClubes = useCallback(async (termo?: string) => {
+    const requestId = ++requestAtual.current;
     try {
       setErro('');
       const lista = await fetchClubes(termo);
-      setClubes(lista);
+      if (requestId === requestAtual.current) setClubes(lista);
     } catch (e: any) {
-      setErro(e.message || 'Erro ao carregar clubes');
+      if (requestId === requestAtual.current) setErro(e.message || 'Erro ao carregar clubes');
     } finally {
-      setCarregando(false);
+      if (requestId === requestAtual.current) setCarregando(false);
     }
   }, []);
 
@@ -122,16 +133,19 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
     useCallback(() => {
       let ativo = true;
       (async () => {
-        setCarregando(true);
+        if (!carregouUmaVez.current) setCarregando(true);
         if (modo === 'trocar') {
-          const nomeAtivo = await SecureStore.getItemAsync('clubeAtivoNome');
-          const escudoAtivo = await SecureStore.getItemAsync('clubeAtivoEscudo');
+          const [nomeAtivo, escudoAtivo] = await Promise.all([
+            SecureStore.getItemAsync('clubeAtivoNome'),
+            SecureStore.getItemAsync('clubeAtivoEscudo'),
+          ]);
           if (ativo && nomeAtivo) setNomeClubeAtivo(nomeAtivo);
           if (ativo && escudoAtivo) setEscudoClubeAtivo(escudoAtivo);
         }
         const idAtivo = await SecureStore.getItemAsync('clubeAtivoId');
         if (ativo) setClubeAtivoId(idAtivo);
         await carregarClubes();
+        carregouUmaVez.current = true;
       })();
       return () => {
         ativo = false;
@@ -141,25 +155,32 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
 
   // Busca com um pequeno debounce pra não disparar request a cada letra
   useEffect(() => {
+    // O carregamento inicial já é feito pelo useFocusEffect.
+    if (primeiraBusca.current) {
+      primeiraBusca.current = false;
+      return;
+    }
     const timer = setTimeout(() => {
+      setCarregando(true);
       carregarClubes(busca.trim() || undefined);
     }, 400);
     return () => clearTimeout(timer);
   }, [busca, carregarClubes]);
 
   const meusClubes = clubes.filter((c) => c.isSeguindo);
+  const clubesGerenciados = meusClubes.filter(ehGestor);
+  const clubesSeguidos = meusClubes.filter((clube) => clube.papel === 'TORCEDOR');
   const outrosClubes = clubes.filter((c) => !c.isSeguindo);
+  const buscaAtiva = busca.trim().length > 0;
+  const mostrarDescoberta = outrosClubes.length > 0 || buscaAtiva || meusClubes.length === 0;
 
   const acessarClube = async (clube: ClubeListado) => {
-    await SecureStore.setItemAsync('clubeAtivoId', String(clube.id));
-    await SecureStore.setItemAsync('clubeAtivoNome', clube.nome || 'MEU CLUBE');
-    await SecureStore.setItemAsync('clubeAtivoEscudo', clube.escudo || '');
-    // Papel é por clube (ADMIN/MESARIO/TECNICO/TORCEDOR). Telas de gestão
-    // (jogos, organizar partida, detalhes da partida) leem essa chave pra
-    // decidir o que mostrar — em vez do antigo "userRole" global, que não
-    // fazia sentido agora que o mesmo usuário pode ter papéis diferentes
-    // em clubes diferentes.
-    await SecureStore.setItemAsync('clubeAtivoPapel', clube.papel || '');
+    await definirClubeAtivo({
+      id: clube.id,
+      nome: clube.nome || 'MEU CLUBE',
+      escudo: clube.escudo,
+      papel: clube.papel,
+    });
     router.replace('/(tabs)');
   };
 
@@ -219,6 +240,7 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
           btnNotificacao="bell"
           showLogo={true}
           showProfile={true}
+          papelUsuario={clubeAtivo?.papel ?? undefined}
         />
       ) : null}
 
@@ -253,7 +275,7 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
         {/* Busca */}
         <View style={styles.searchContainer}>
           <View style={styles.searchInputRow}>
-            <MaterialCommunityIcons name="magnify" size={20} color={colors.textoSecundario} />
+            <Icon name="magnify" size={20} color={colors.textoSecundario} />
             <TextInput
               style={styles.searchInput}
               placeholder="Buscar clube por nome..."
@@ -265,7 +287,7 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
         </View>
 
         {carregando ? (
-          <ActivityIndicator size="large" color="#0E78FF" style={{ marginVertical: 40 }} />
+          <ListSkeleton rows={5} />
         ) : (
           <>
             {/* Seus clubes */}
@@ -284,11 +306,14 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
                       onPress={() => acessarClube(clube)}
                       disabled={processandoId === clube.id}
                     >
-                      <EscudoClube
-                        uri={clube.escudo}
-                        tamanho="lg"
-                        style={styles.clubeAtalhoLogo}
-                      />
+                      <View style={styles.clubeAtalhoEscudoWrap}>
+                        <EscudoClube uri={clube.escudo} tamanho="lg" />
+                        {ehGestor(clube) && (
+                          <View style={styles.clubeAtalhoGestorBadge}>
+                            <Icon name="shield-star" size={12} color={colors.tituloAtencao} />
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.clubeAtalhoNome} numberOfLines={1}>
                         {clube.nome}
                       </Text>
@@ -298,75 +323,20 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
               </View>
             )}
 
-            {/* Descobrir clubes */}
-            <View style={styles.listaContainer}>
-              <View style={styles.locationHeader}>
-                <MaterialCommunityIcons name="shield-search" size={16} color={colors.textoSecundario} />
-                <Text style={styles.locationText}>
-                  {meusClubes.length > 0 ? 'DESCOBRIR CLUBES' : 'TODOS OS CLUBES'}
-                </Text>
-              </View>
-
-              {outrosClubes.length === 0 && !carregando && (
-                <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                  <Text style={{ fontFamily: 'Creato-Medium', color: '#666' }}>
-                    {busca ? 'Nenhum clube encontrado.' : 'Você já segue todos os clubes cadastrados.'}
-                  </Text>
-                </View>
-              )}
-
-              {outrosClubes.map((clube) => (
-                <TouchableOpacity
-                  key={clube.id}
-                  style={styles.clubeCard}
-                  activeOpacity={0.8}
-                  onPress={() => acessarClube(clube)}
-                  disabled={processandoId === clube.id}
-                >
-                  <EscudoClube
-                    uri={clube.escudo}
-                    tamanho="md"
-                    style={styles.clubeCardLogo}
-                  />
-
-                  <View style={styles.clubeCardInfo}>
-                    <View style={styles.clubeCardNomeRow}>
-                      <Text style={styles.clubeCardNome} numberOfLines={1}>
-                        {clube.nome}
-                      </Text>
-                    </View>
-                    <Text style={styles.clubeCardSub}>
-                      {[clube.cidade, clube.estado].filter(Boolean).join(' - ') || 'Local não informado'}
-                      {'   '}
-                      {clube.seguidores} seguidores
-                    </Text>
+            {/* Gestão vem antes da descoberta: é uma responsabilidade, não só um clube seguido. */}
+            {clubesGerenciados.length > 0 && (
+              <View style={[styles.listaContainer, { marginBottom: 8 }]}>
+                <View style={styles.gestaoSectionHeader}>
+                  <View style={styles.gestaoSectionIcon}>
+                    <Icon name="shield-star" size={16} color={colors.tituloAtencao} />
                   </View>
-
-                  <TouchableOpacity
-                    style={styles.btnSeguir}
-                    activeOpacity={0.7}
-                    onPress={() => handleSeguir(clube)}
-                    disabled={processandoId === clube.id}
-                  >
-                    {processandoId === clube.id ? (
-                      <ActivityIndicator size="small" color="#FFF" />
-                    ) : (
-                      <Text style={styles.txtBtnSeguir}>SEGUIR</Text>
-                    )}
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Clubes que já sigo, com opção de deixar de seguir (só quando modo=trocar) */}
-            {modo === 'trocar' && meusClubes.length > 0 && (
-              <View style={[styles.listaContainer, { marginTop: 8 }]}>
-                <View style={styles.locationHeader}>
-                  <MaterialCommunityIcons name="check-circle-outline" size={16} color={colors.textoSecundario} />
-                  <Text style={styles.locationText}>GERENCIAR CLUBES SEGUIDOS</Text>
+                  <View style={styles.gestaoSectionTextos}>
+                    <Text style={styles.gestaoSectionTitle}>CLUBES QUE VOCÊ GERENCIA</Text>
+                    <Text style={styles.gestaoSectionSub}>Acesso às ferramentas de gestão do clube</Text>
+                  </View>
                 </View>
 
-                {meusClubes.map((clube) => (
+                {clubesGerenciados.map((clube) => (
                   <TouchableOpacity
                     key={clube.id}
                     style={styles.clubeCard}
@@ -386,7 +356,7 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
                           {clube.nome}
                         </Text>
                         {String(clube.id) === clubeAtivoId && (
-                          <MaterialCommunityIcons name="check-decagram" size={16} color={colors.primaria} />
+                          <Icon name="check-decagram" size={16} color={colors.primaria} />
                         )}
                         {clube.papel && clube.papel !== 'TORCEDOR' && (
                           <View style={styles.badgeTecnico}>
@@ -397,20 +367,128 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
                       <Text style={styles.clubeCardSub}>{clube.seguidores} seguidores</Text>
                     </View>
 
-                    {clube.papel === 'TORCEDOR' && (
-                      <TouchableOpacity
-                        style={[styles.btnSeguir, styles.btnSeguindo]}
-                        activeOpacity={0.7}
-                        onPress={() => handleDeixarDeSeguir(clube)}
-                        disabled={processandoId === clube.id}
-                      >
-                        {processandoId === clube.id ? (
-                          <ActivityIndicator size="small" color={colors.primaria} />
-                        ) : (
-                          <Text style={[styles.txtBtnSeguir, styles.txtBtnSeguindo]}>SEGUINDO</Text>
+                    <View style={styles.gestaoAcesso}>
+                      <Icon name="chevron-right" size={18} color={colors.textoSecundario} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Clubes acompanhados como torcedor */}
+            {modo === 'trocar' && clubesSeguidos.length > 0 && (
+              <View style={[styles.listaContainer, { marginTop: 8 }]}>
+                <View style={styles.locationHeader}>
+                  <Icon name="check-circle-outline" size={16} color={colors.textoSecundario} />
+                  <Text style={styles.locationText}>CLUBES QUE VOCÊ SEGUE</Text>
+                </View>
+
+                {clubesSeguidos.map((clube) => (
+                  <TouchableOpacity
+                    key={clube.id}
+                    style={styles.clubeCard}
+                    activeOpacity={0.8}
+                    onPress={() => acessarClube(clube)}
+                    disabled={processandoId === clube.id}
+                  >
+                    <EscudoClube
+                      uri={clube.escudo}
+                      tamanho="md"
+                      style={styles.clubeCardLogo}
+                    />
+
+                    <View style={styles.clubeCardInfo}>
+                      <View style={styles.clubeCardNomeRow}>
+                        <Text style={styles.clubeCardNome} numberOfLines={1}>
+                          {clube.nome}
+                        </Text>
+                        {String(clube.id) === clubeAtivoId && (
+                          <Icon name="check-decagram" size={16} color={colors.primaria} />
                         )}
-                      </TouchableOpacity>
-                    )}
+                      </View>
+                      <Text style={styles.clubeCardSub}>{clube.seguidores} seguidores</Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={[styles.btnSeguir, styles.btnSeguindo]}
+                      activeOpacity={0.7}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        handleDeixarDeSeguir(clube);
+                      }}
+                      disabled={processandoId === clube.id}
+                    >
+                      {processandoId === clube.id ? (
+                        <ActivityIndicator size="small" color={colors.primaria} />
+                      ) : (
+                        <Text style={[styles.txtBtnSeguir, styles.txtBtnSeguindo]}>SEGUINDO</Text>
+                      )}
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Descoberta fica por último e some quando não há nada novo para mostrar. */}
+            {mostrarDescoberta && (
+              <View style={[styles.listaContainer, { marginTop: 8 }]}>
+                <View style={styles.locationHeader}>
+                  <Icon name="shield-search" size={16} color={colors.textoSecundario} />
+                  <Text style={styles.locationText}>
+                    {meusClubes.length > 0 ? 'DESCOBRIR CLUBES' : 'TODOS OS CLUBES'}
+                  </Text>
+                </View>
+
+                {outrosClubes.length === 0 && !carregando && (
+                  <View style={styles.descobertaVazia}>
+                    <Text style={styles.descobertaVaziaTxt}>
+                      {buscaAtiva ? 'Nenhum clube encontrado.' : 'Nenhum clube cadastrado.'}
+                    </Text>
+                  </View>
+                )}
+
+                {outrosClubes.map((clube) => (
+                  <TouchableOpacity
+                    key={clube.id}
+                    style={styles.clubeCard}
+                    activeOpacity={0.8}
+                    onPress={() => acessarClube(clube)}
+                    disabled={processandoId === clube.id}
+                  >
+                    <EscudoClube
+                      uri={clube.escudo}
+                      tamanho="md"
+                      style={styles.clubeCardLogo}
+                    />
+
+                    <View style={styles.clubeCardInfo}>
+                      <View style={styles.clubeCardNomeRow}>
+                        <Text style={styles.clubeCardNome} numberOfLines={1}>
+                          {clube.nome}
+                        </Text>
+                      </View>
+                      <Text style={styles.clubeCardSub}>
+                        {[clube.cidade, clube.estado].filter(Boolean).join(' - ') || 'Local não informado'}
+                        {'   '}
+                        {clube.seguidores} seguidores
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.btnSeguir}
+                      activeOpacity={0.7}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        handleSeguir(clube);
+                      }}
+                      disabled={processandoId === clube.id}
+                    >
+                      {processandoId === clube.id ? (
+                        <ActivityIndicator size="small" color="#FFF" />
+                      ) : (
+                        <Text style={styles.txtBtnSeguir}>SEGUIR</Text>
+                      )}
+                    </TouchableOpacity>
                   </TouchableOpacity>
                 ))}
               </View>

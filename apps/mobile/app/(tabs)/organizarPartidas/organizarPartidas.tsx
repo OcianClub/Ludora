@@ -1,7 +1,7 @@
+import { Icon } from '@ludora/icons';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Pressable, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
@@ -15,6 +15,7 @@ import TeamSelectorCard from '@/src/components/TeamSelectorCard';
 import MandoCampo from '@/src/components/mandoCampo';
 import InputDataHora from '@/src/components/InputDataHora';
 import { fetchTimes, fetchCompeticoes, fetchCategorias, criarPartida } from '@/src/services/api';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 const ORDEM_SUBS: Record<string, number> = {
   'SUB 7': 1, 'SUB-7': 1, 'SUB 8': 2, 'SUB-8': 2, 'SUB 9': 3, 'SUB-9': 3,
@@ -29,6 +30,7 @@ interface OrganizarPartidasProps { onFechar: () => void; noModal?: boolean; }
 
 export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartidasProps) {
   const router = useRouter();
+  const { clubeAtivo } = useClubeAtivo();
   
   // ── Estados ──
   const [times, setTimes] = useState<Time[]>([]);
@@ -109,16 +111,24 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
 
   return (
     <View style={styles.container}>
-      <Header title="ORGANIZAR PARTIDA" showLogo={false} showProfile={false} btnVoltar="arrow-left" onBtnVoltar={onFechar} semSafeArea={noModal} />
+      <Header
+        title="ORGANIZAR PARTIDA"
+        showLogo={false}
+        showProfile={false}
+        btnVoltar="arrow-left"
+        onBtnVoltar={onFechar}
+        semSafeArea={noModal}
+        papelUsuario={clubeAtivo?.papel ?? undefined}
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
         {/* ── SEÇÃO: COMPETIÇÃO ── */}
         <Text style={styles.sectionLabel}>COMPETIÇÃO</Text>
         <TouchableOpacity style={[styles.dropdownBtn, competicoes.length === 0 && { opacity: 0.5 }]} activeOpacity={0.8} onPress={() => competicoes.length > 0 && setModalCompeticao(true)}>
-          <MaterialCommunityIcons name="trophy-outline" size={20} color={colors.primaria} />
+          <Icon name="trophy-outline" size={20} color={colors.primaria} />
           <Text style={styles.dropdownText}>{carregandoDados ? 'Carregando...' : competicaoSelecionada ? competicaoSelecionada.nome : 'Nenhuma competição cadastrada'}</Text>
-          <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textoSecundario} />
+          <Icon name="chevron-down" size={20} color={colors.textoSecundario} />
         </TouchableOpacity>
 
         {/* ── SEÇÃO: CATEGORIA ── */}
@@ -169,7 +179,7 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
           <LinearGradient colors={[colors.primaria, '#0055FF']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.salvarGradient}>
             {salvando ? <ActivityIndicator color="#FFF" /> : (
               <View style={styles.salvarBtnInner}>
-                <MaterialCommunityIcons name="check" size={18} color="#FFF" />
+                <Icon name="check" size={18} color="#FFF" />
                 <Text style={styles.salvarText}>CRIAR PARTIDA</Text>
               </View>
             )}
@@ -185,22 +195,22 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Selecionar competição</Text>
               <TouchableOpacity style={styles.closeBtn} onPress={() => setModalCompeticao(false)}>
-                <MaterialCommunityIcons name="close" size={18} color={colors.textoSecundario} />
+                <Icon name="close" size={18} color={colors.textoSecundario} />
               </TouchableOpacity>
             </View>
             {competicoes.map((c, index) => (
               <TouchableOpacity key={c.id} style={[styles.modalItem, competicaoSelecionada?.id === c.id && styles.modalItemActive]} onPress={() => { setCompeticaoSelecionada(c); setModalCompeticao(false); }}>
                 <View style={[styles.modalIconCircle, { backgroundColor: competicaoSelecionada?.id === c.id ? colors.primaria : colors.cardSecundario }]}>
-                    <MaterialCommunityIcons name="trophy-outline" size={20} color={competicaoSelecionada?.id === c.id ? '#FFF' : colors.primaria} />
+                    <Icon name="trophy-outline" size={20} color={competicaoSelecionada?.id === c.id ? '#FFF' : colors.primaria} />
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.modalItemText}>{c.nome}</Text>
                     <Text style={styles.modalItemSub}>{'Base · ' + (Math.floor(Math.random() * 20) + 5) + ' partidas cadastradas'}</Text>
                 </View>
                 {competicaoSelecionada?.id === c.id ? (
-                    <MaterialCommunityIcons name="check-circle" size={24} color={colors.primaria} />
+                    <Icon name="check-circle" size={24} color={colors.primaria} />
                 ) : (
-                    <MaterialCommunityIcons name="circle-outline" size={24} color={colors.borda} />
+                    <Icon name="circle-outline" size={24} color={colors.borda} />
                 )}
               </TouchableOpacity>
             ))}
@@ -216,11 +226,11 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{modalTime === 'mandante' ? 'Selecionar mandante' : 'Selecionar visitante'}</Text>
               <TouchableOpacity style={styles.closeBtn} onPress={() => { setModalTime(null); setBuscaTime(''); }}>
-                <MaterialCommunityIcons name="close" size={18} color={colors.textoSecundario} />
+                <Icon name="close" size={18} color={colors.textoSecundario} />
               </TouchableOpacity>
             </View>
             <View style={styles.buscaContainer}>
-              <MaterialCommunityIcons name="magnify" size={20} color={colors.textoSecundario} />
+              <Icon name="magnify" size={20} color={colors.textoSecundario} />
               <TextInput style={styles.buscaText} placeholder="Buscar time..." placeholderTextColor={colors.textoSecundario} value={buscaTime} onChangeText={setBuscaTime} autoFocus />
             </View>
             {categoriaAtual && (
@@ -238,7 +248,7 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
                         {time.escudo ? (
                              <Image source={{ uri: time.escudo }} style={{ width: 24, height: 24, borderRadius: 12 }} />
                         ) : (
-                            <MaterialCommunityIcons name={sel ? "shield-check" : "shield"} size={20} color={sel ? '#FFF' : timeColor} />
+                            <Icon name={sel ? "shield-check" : "shield"} size={20} color={sel ? '#FFF' : timeColor} />
                         )}
                     </View>
                     <View style={{ flex: 1 }}>
@@ -246,9 +256,9 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
                         <Text style={styles.modalItemSub}>{sel ? (modalTime === 'mandante' ? 'Mandante de casa' : 'Visitante convidado') : ((Math.floor(Math.random() * 8) + 2) + ' partidas na competição')}</Text>
                     </View>
                     {sel ? (
-                        <MaterialCommunityIcons name="check-circle" size={24} color={colors.primaria} />
+                        <Icon name="check-circle" size={24} color={colors.primaria} />
                     ) : (
-                        <MaterialCommunityIcons name="circle-outline" size={24} color={colors.borda} />
+                        <Icon name="circle-outline" size={24} color={colors.borda} />
                     )}
                   </TouchableOpacity>
                 );

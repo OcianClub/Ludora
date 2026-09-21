@@ -1,6 +1,6 @@
+import { Icon } from '@ludora/icons';
 import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@ludora/design-tokens';
 import { styles } from '../styles/mandoCampoStyles';
 
@@ -24,7 +24,7 @@ export default function MandoCampo({ emCasa, onChange }: MandoCampoProps) {
           onPress={() => onChange(opt.value)}
           activeOpacity={0.8}
         >
-          <MaterialCommunityIcons 
+          <Icon
             name={opt.icon} 
             size={18} 
             color={emCasa === opt.value ? colors.primaria : colors.textoSecundario} 

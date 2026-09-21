@@ -52,7 +52,6 @@ export const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.fundo,
   },
-
   nomeUsuario: {
     fontFamily: typography.fontFamily.titulo.bold,
     fontSize: 24,
@@ -60,7 +59,6 @@ export const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 3,
   },
-
   dataMembro: {
     fontFamily: typography.fontFamily.corpo.medium,
     fontSize: typography.fontSize.xs,
@@ -82,14 +80,12 @@ export const styles = StyleSheet.create({
     gap: 9,
     marginBottom: 11,
   },
-
   sectionIndicator: {
     width: 4,
     height: 19,
     backgroundColor: colors.primaria,
     borderRadius: 1,
   },
-
   sectionTitle: {
     fontFamily: typography.fontFamily.titulo.semiBold,
     fontSize: typography.fontSize.md,
@@ -108,7 +104,6 @@ export const styles = StyleSheet.create({
     borderColor: colors.borda,
     overflow: "hidden",
   },
-
   menuItem: {
     minHeight: 70,
     flexDirection: "row",
@@ -118,7 +113,6 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.linha,
   },
-
   menuIcon: {
     width: 42,
     height: 42,
@@ -129,19 +123,16 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.bordaBotao,
   },
-
   menuContent: {
     flex: 1,
     justifyContent: "center",
     gap: 2,
   },
-
   menuTitulo: {
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: typography.fontSize.md,
     color: colors.texto,
   },
-
   menuSubtitulo: {
     fontFamily: typography.fontFamily.corpo.regular,
     fontSize: typography.fontSize.xs,
@@ -163,27 +154,22 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.bordaErro,
   },
-
   logoutIcon: {
     width: 42,
     height: 42,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.bordaErro,
     borderRadius: 10,
   },
-
   logoutContent: {
     flex: 1,
     gap: 2,
   },
-
   logoutTitle: {
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: typography.fontSize.md,
     color: colors.tituloErro,
   },
-
   logoutSubtitle: {
     fontFamily: typography.fontFamily.corpo.regular,
     fontSize: typography.fontSize.xs,
@@ -201,7 +187,6 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 22,
     backgroundColor: "rgba(0, 0, 0, 0.78)",
   },
-
   modalCard: {
     width: "100%",
     backgroundColor: colors.card,
@@ -211,7 +196,6 @@ export const styles = StyleSheet.create({
     padding: 24,
     alignItems: "center",
   },
-
   modalIcon: {
     width: 54,
     height: 54,
@@ -221,14 +205,12 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 15,
   },
-
   modalTitulo: {
     fontFamily: typography.fontFamily.titulo.semiBold,
     fontSize: 20,
     color: colors.texto,
     marginBottom: 6,
   },
-
   modalSubtitulo: {
     fontFamily: typography.fontFamily.corpo.regular,
     fontSize: typography.fontSize.sm,
@@ -237,13 +219,11 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 20,
   },
-
   modalButtons: {
     width: "100%",
     flexDirection: "row",
     gap: 9,
   },
-
   cancelButton: {
     flex: 1,
     height: 48,
@@ -254,14 +234,12 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borda,
   },
-
   cancelText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: typography.fontSize.sm,
     color: colors.textoSecundario,
     letterSpacing: 0.5,
   },
-
   confirmButton: {
     flex: 1,
     height: 48,
@@ -272,7 +250,6 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.bordaErro,
   },
-
   confirmText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: typography.fontSize.sm,

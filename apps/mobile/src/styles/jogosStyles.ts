@@ -50,19 +50,34 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.primaria,
     borderRadius: 2,
   },
+  dateBarHoje: {
+    backgroundColor: colors.primaria,
+    width: 4,
+  },
   dateText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
     color: colors.texto,
     fontSize: typography.fontSize.sm,
     textTransform: 'uppercase',
   },
+  dateTextHoje: {
+    color: colors.primaria,
+  },
 
   // ── CARD DA PARTIDA ──
   matchCard: {
     backgroundColor: colors.card,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
     marginBottom: 16,
     padding: 16,
+  },
+  matchCardHoje: {
+    borderColor: colors.primaria,
+  },
+  matchCardAoVivo: {
+    borderColor: colors.bordaBotao,
   },
   cardTop: {
     flexDirection: 'row',
@@ -74,6 +89,14 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
+    minWidth: 0,
+  },
+  cardBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
   },
   timeText: {
     fontFamily: typography.fontFamily.corpo.regular,
@@ -89,6 +112,34 @@ export const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.corpo.regular,
     color: colors.texto,
     fontSize: typography.fontSize.sm,
+  },
+  todayBadge: {
+    backgroundColor: colors.fundoBotao,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  todayBadgeText: {
+    color: colors.primaria,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: 9,
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.fundoErro,
+    borderWidth: 1,
+    borderColor: colors.bordaErro,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  liveBadgeText: {
+    color: colors.tituloErro,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: 9,
+    letterSpacing: 0.4,
   },
   badge: {
     flexDirection: 'row',

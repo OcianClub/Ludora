@@ -1,0 +1,300 @@
+import { StyleSheet } from 'react-native';
+import { colors, typography } from '@ludora/design-tokens';
+
+export const conviteStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.fundo,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    alignItems: 'flex-start',
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 22,
+    paddingBottom: 28,
+  },
+  centeredContent: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  intro: {
+    gap: 8,
+    marginBottom: 28,
+  },
+  title: {
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    color: colors.texto,
+    fontSize: typography.fontSize.xxl,
+    lineHeight: 38,
+  },
+  subtitle: {
+    fontFamily: typography.fontFamily.corpo.regular,
+    color: colors.textoSecundario,
+    fontSize: typography.fontSize.md,
+    lineHeight: 23,
+  },
+  emailHint: {
+    color: colors.texto,
+    fontFamily: typography.fontFamily.corpo.medium,
+  },
+  clubCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.borda,
+    borderRadius: 14,
+    padding: 16,
+  },
+  clubCardCompacto: {
+    marginBottom: 26,
+  },
+  clubHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  clubShield: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+  },
+  clubShieldFallback: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: colors.fundoBotao,
+    borderWidth: 1,
+    borderColor: colors.bordaBotao,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clubIdentity: {
+    flex: 1,
+    minWidth: 0,
+  },
+  clubName: {
+    color: colors.texto,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.md,
+  },
+  clubLocation: {
+    marginTop: 2,
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.xs,
+  },
+  invitedBy: {
+    marginTop: 4,
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.xs,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: colors.linha,
+    marginVertical: 16,
+  },
+  cardDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 22,
+  },
+  cardDetailBlock: {
+    gap: 7,
+  },
+  categoriesBlock: {
+    flex: 1,
+  },
+  cardDetailLabel: {
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.xs,
+  },
+  roleText: {
+    color: colors.primaria,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.sm,
+  },
+  categoryList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  categoryBadge: {
+    backgroundColor: colors.primaria,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  categoryBadgeText: {
+    color: '#FFFFFF',
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: 10,
+  },
+  emptyCategories: {
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.xs,
+  },
+  feedbackBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.bordaErro,
+    backgroundColor: colors.fundoErro,
+    padding: 14,
+    marginBottom: 20,
+  },
+  feedbackText: {
+    flex: 1,
+    color: colors.corpoErro,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.sm,
+    lineHeight: 20,
+  },
+  loadingText: {
+    marginTop: 14,
+    color: colors.textoSecundario,
+    textAlign: 'center',
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.sm,
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 18,
+    gap: 14,
+  },
+  primaryButton: {
+    width: '100%',
+    height: 56,
+    borderRadius: 10,
+    backgroundColor: colors.primaria,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.sm,
+  },
+  secondaryButton: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryButtonText: {
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.sm,
+  },
+  form: {
+    gap: 18,
+  },
+  field: {
+    gap: 7,
+  },
+  inputLabel: {
+    color: colors.texto,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: typography.fontSize.xs,
+  },
+  inputRow: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.card,
+    backgroundColor: colors.card,
+  },
+  inputRowFocused: {
+    borderColor: colors.primaria,
+  },
+  inputRowError: {
+    borderColor: colors.bordaErro,
+  },
+  input: {
+    flex: 1,
+    color: colors.texto,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.sm,
+    paddingVertical: 14,
+  },
+  eyeButton: {
+    padding: 5,
+  },
+  passwordHint: {
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.xs,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  termsText: {
+    flex: 1,
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.xs,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: colors.primaria,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+  },
+  successContent: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 30,
+  },
+  successIntro: {
+    alignItems: 'center',
+    marginBottom: 34,
+  },
+  successIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.primaria,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  successTitle: {
+    color: colors.texto,
+    fontFamily: typography.fontFamily.titulo.bold,
+    fontSize: typography.fontSize.xl,
+    textAlign: 'center',
+  },
+  successSubtitle: {
+    marginTop: 8,
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: typography.fontSize.sm,
+    lineHeight: 21,
+    textAlign: 'center',
+  },
+});

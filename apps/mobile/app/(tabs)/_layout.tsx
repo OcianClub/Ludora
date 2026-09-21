@@ -1,12 +1,13 @@
 import { Tabs } from 'expo-router';
 import { View, Text } from 'react-native';
 import { colors, typography } from '@ludora/design-tokens'
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts } from '@/src/theme/fonts';
+import { HomeIcon, Icon } from '@ludora/icons';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { podeGerenciar, carregandoClubeAtivo } = useClubeAtivo();
 
   return (
     <Tabs
@@ -18,9 +19,9 @@ export default function TabsLayout() {
           tabBarInactiveBackgroundColor: 'transparent',
           tabBarStyle: {
             backgroundColor: colors.fundo,
-            borderTopWidth: 0,
-            elevation: 0,
-            height: 60 + insets.bottom,
+            borderTopWidth: 1,
+            borderColor: colors.card,
+            height: 64 + insets.bottom,
           },
           tabBarItemStyle: {
             borderRadius: 10,
@@ -45,7 +46,7 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home" size={size} color={color} />
+            <HomeIcon size={size} color={color}/>
           ),
         }}
       />
@@ -54,7 +55,7 @@ export default function TabsLayout() {
         options={{
           title: 'Jogos',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="soccer" size={size} color={color} />
+            <Icon name="soccer" size={size} color={color} />
           ),
         }}
       />
@@ -63,7 +64,7 @@ export default function TabsLayout() {
         options={{
           title: 'Clubes',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="shield-outline" size={size} color={color} />
+            <Icon name="shield-outline" size={size} color={color} />
           ),
         }}
       />
@@ -71,8 +72,9 @@ export default function TabsLayout() {
         name="estatisticas/estatisticas"
         options={{
           title: 'Scout',
+          href: !carregandoClubeAtivo && podeGerenciar ? undefined : null,
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="radar" size={size} color={color} />
+            <Icon name="radar" size={size} color={color} />
           ),
         }}
       />
@@ -95,13 +97,6 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: 'dadosPessoais',
-        }}
-      />
-        <Tabs.Screen
-        name="perfil/equipes/equipes"
-        options={{
-          href: null,
-          title: 'equipes',
         }}
       />
     </Tabs>

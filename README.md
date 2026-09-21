@@ -1,155 +1,507 @@
 # Ludora
 
-Sistema de gestão de clubes de futsal/futebol — App, Web e Desktop, com backend compartilhado.
+Plataforma de gestão e estatísticas para clubes de futebol e futsal.
 
-## Estrutura do repositório
+O Ludora nasceu como um projeto de extensão acadêmica e está sendo construído
+como uma solução multiplataforma. O aplicativo mobile atende o acompanhamento
+do clube e as operações do dia de jogo. A gestão administrativa de categorias,
+times, jogadores, competições e convites será concentrada nas futuras aplicações
+web e desktop. A API centraliza autenticação, permissões, dados, convites e tempo
+real, enquanto um serviço Python processa os perfis estatísticos dos jogadores.
 
-Este é um **monorepo** gerenciado com [pnpm workspaces](https://pnpm.io/workspaces):
+## Estado atual
 
-```
-ludora/
+| Componente | Situação |
+|---|---|
+| Aplicativo mobile | Em desenvolvimento ativo |
+| API Node.js | Funcional |
+| Serviço de Scout IA | Funcional |
+| Aplicação web | Planejada para gestão administrativa |
+| Aplicação desktop | Planejada para gestão administrativa |
+
+A API publicada atualmente está disponível em
+[ludora-pgho.onrender.com](https://ludora-pgho.onrender.com).
+
+## Funcionalidades
+
+- Autenticação com JWT e armazenamento seguro do token no mobile.
+- Vínculos entre usuários e múltiplos clubes.
+- Papéis de administrador, técnico, mesário e torcedor.
+- Técnicos com acesso a todas as categorias ou apenas a categorias específicas.
+- API preparada para cadastro e gestão de categorias, times, jogadores e competições.
+- Partidas, escalações, placar e eventos em tempo real com Socket.IO.
+- Estatísticas de jogadores e perfis processados pelo serviço de Scout IA.
+- Descoberta e acompanhamento de clubes.
+- Convites para gestores com expiração, revogação e reenvio.
+- Aceite de convite por link seguro ou código curto, como 5KU2-BYK7.
+- Envio de convites por e-mail com Resend.
+- Design tokens e pacote de ícones compartilhados.
+
+## Responsabilidades por aplicação
+
+O mobile e os futuros clientes administrativos consomem a mesma API, mas possuem
+responsabilidades diferentes:
+
+| Aplicação | Responsabilidade |
+|---|---|
+| Mobile | Login, seleção de clube, Home, jogos, preparação, escalação, placar, eventos, estatísticas e entrada por convite |
+| Web/Desktop | Cadastro e manutenção de categorias, times, jogadores, competições, elencos e convites |
+| API | Regras de negócio, autenticação, autorização por clube/categoria, persistência e tempo real |
+| Scout IA | Processamento dos dados estatísticos dos jogadores |
+
+As rotas administrativas permanecem na API para serem consumidas pelo web e
+desktop. Os formulários antigos de cadastro foram retirados do aplicativo mobile.
+O mobile ainda permite organizar partidas e executar as operações necessárias
+durante o jogo.
+
+## Papéis e permissões
+
+O papel do usuário pertence ao vínculo com o clube, não ao usuário globalmente.
+Uma mesma pessoa pode, por exemplo, ser técnica em um clube e torcedora em outro.
+
+| Papel | Acesso |
+|---|---|
+| ADMIN | Administração do clube e acesso a todas as categorias |
+| TECNICO | Gestão de todas as categorias ou somente das categorias atribuídas |
+| MESARIO | Operações de gestão e dia de jogo dentro do clube |
+| TORCEDOR | Acompanhamento e dados públicos, sem operações administrativas |
+
+As permissões são validadas na API. Ocultar um botão no aplicativo não é
+considerado uma barreira de segurança.
+
+## Fluxo de convites
+
+~~~text
+Administrador cria o convite
+        ↓
+API gera token longo e código curto
+        ↓
+Somente os hashes são armazenados no banco
+        ↓
+Resend envia o e-mail
+        ↓
+Convidado abre o link ou cola o código no aplicativo
+        ↓
+API mostra clube, papel e categorias
+        ↓
+Conta nova ou conta existente aceita o convite
+        ↓
+Vínculo e permissões são criados
+        ↓
+Convite não pode ser reutilizado
+~~~
+
+O código curto contém oito caracteres, ignora diferenças entre maiúsculas,
+espaços e hífen e possui limite de tentativas. Um reenvio gera novas
+credenciais e invalida as anteriores.
+
+## Tecnologias
+
+| Área | Tecnologias |
+|---|---|
+| Monorepo | pnpm workspaces |
+| Mobile | React 19, React Native 0.81, Expo 54 e Expo Router |
+| API | Node.js, TypeScript, Express 5, Prisma e PostgreSQL |
+| Autenticação | JWT, bcrypt e Expo SecureStore |
+| Tempo real | Socket.IO |
+| Banco e arquivos | PostgreSQL e Supabase |
+| Scout IA | Python, FastAPI, pandas e scikit-learn |
+| E-mail | Resend |
+| Build mobile | EAS Build |
+
+## Estrutura do monorepo
+
+~~~text
+Ludora/
 ├── apps/
-│   ├── mobile/       React Native / Expo — dia de jogo, acompanhamento ao vivo
-│   ├── web/            React — institucional, cadastro de clubes, resultados públicos
-│   └── desktop/          Electron + React — gestão do clube (em construção)
+│   ├── mobile/                 Aplicativo React Native e Expo
+│   ├── web/                    Reservado para a aplicação web
+│   └── desktop/                Reservado para Electron e React
+│
 ├── services/
-│   ├── api/               Express + Prisma — API principal
-│   └── ml/                 FastAPI (Python) — geração de perfil dos jogadores
+│   ├── api/                    API principal
+│   └── ml/                     Microsserviço Python de Scout IA
+│
 ├── packages/
-│   ├── shared-types/      Tipos TypeScript compartilhados entre os apps
-│   └── ui/                  Componentes React compartilhados (web + desktop)
-├── docs/                       Documentação técnica, diagramas, decisões
+│   ├── design-tokens/          Cores e tipografia compartilhadas
+│   ├── icons/                  Ícones SVG para React Native
+│   └── shared-types/           Tipos TypeScript compartilhados
+│
+├── docs/
+│   └── ludora-documentacao-tecnica.pdf
+│
+├── package.json
 ├── pnpm-workspace.yaml
-└── .npmrc
-```
+└── README.md
+~~~
 
-> `apps/web` e `apps/desktop` ainda estão em construção — as pastas já existem, prontas para receber código.
+## Arquitetura da API
 
----
+~~~text
+Requisição HTTP
+      ↓
+app.ts
+      ↓
+router do módulo
+      ↓
+middlewares de autenticação e permissão
+      ↓
+service ou Prisma
+      ↓
+resposta HTTP
+~~~
 
-## Setup inicial (uma vez só)
+A API está organizada por responsabilidade:
 
-Pré-requisitos: [Node.js](https://nodejs.org/) 18+, [pnpm](https://pnpm.io/), Python 3.11+.
+~~~text
+services/api/src/
+├── app.ts                       Configuração do Express e montagem das rotas
+├── server.ts                    HTTP, Socket.IO e encerramento
+├── auth/                        Leitura e validação de JWT
+├── config/                      Ambiente, CORS, JWT e porta
+├── lib/                         Instância compartilhada do Prisma
+├── middlewares/                 Autenticação, permissões e rate limit
+├── modules/
+│   ├── auth/
+│   ├── cadastros/
+│   ├── clubes/
+│   ├── convites/
+│   ├── escalacoes/
+│   ├── jogadores/
+│   ├── partidas/
+│   └── scout/
+├── realtime/                    Autenticação e salas do Socket.IO
+├── services/                    E-mail e integrações externas
+└── utils/                       Funções puras reutilizáveis
+~~~
 
-```bash
-npm install -g pnpm
-```
+O arquivo server.ts contém apenas a inicialização da aplicação. As regras de
+negócio ficam nos módulos, middlewares e services.
 
-> **Evite rodar o projeto dentro de uma pasta sincronizada por OneDrive/Google Drive.** O processo de sincronização trava arquivos binários (engine do Prisma, `bcrypt.node`) e causa erro de permissão ao instalar/reinstalar dependências.
+## Pré-requisitos
+
+- Node.js com suporte ao Corepack.
+- pnpm.
+- Python 3.11 ou superior para o serviço de Scout IA.
+- Banco PostgreSQL.
+- Conta do Supabase para o ambiente utilizado pelo projeto.
+- Conta do Resend para testar o envio de e-mails.
+- Expo Go, development build ou emulador Android para o mobile.
+
+Evite instalar o projeto dentro de pastas sincronizadas por OneDrive ou Google
+Drive. Esses programas podem bloquear binários do Prisma, bcrypt e outras
+dependências nativas.
+
+## Instalação
 
 Na raiz do repositório:
 
-```bash
+~~~powershell
 pnpm install
-pnpm approve-builds   # libera build scripts de pacotes nativos (Prisma, bcrypt, esbuild) — apenas na primeira vez
-```
+pnpm approve-builds
+~~~
 
-Isso instala as dependências de todos os apps e serviços Node de uma vez.
+O workspace instala as dependências dos aplicativos, serviços e pacotes Node
+em uma única operação.
 
-Para o serviço de ML (Python), que não faz parte do workspace pnpm:
+### Serviço de Scout IA
 
-```bash
+~~~powershell
 cd services/ml
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-```
-
----
-
-## Deploy em produção (Render)
-
-Os backends estão hospedados no Render e sobem automaticamente a cada push na `main`:
-
-| Serviço | URL |
-|---|---|
-| API (Node) | https://ocianclub-node.onrender.com |
-| ML (Python) | https://ocianclub-ml.onrender.com |
-
-O app mobile já está configurado, por padrão, para apontar para a URL de produção.
-
----
-
-## Rodando localmente
-
-### 1. Backend de ML (Python)
-
-Responsável por processar dados e gerar o perfil dos jogadores.
-
-```bash
-cd services/ml
 uvicorn main:app --reload
-```
+~~~
 
-Roda em `http://localhost:8000`.
+O serviço inicia em:
 
-### 2. API principal (Node)
+~~~text
+http://localhost:8000
+~~~
 
-Antes de iniciar, crie um arquivo `.env` em `services/api/` com:
+Endpoint interno utilizado pela API:
 
-```
+~~~http
+POST /internal/ml/treinar-perfis
+~~~
+
+## Configuração da API
+
+Crie services/api/.env usando services/api/.env.example como base:
+
+~~~env
+NODE_ENV=development
+PORT=3000
+
 DATABASE_URL=postgresql://...
 DIRECT_URL=postgresql://...
-PYTHON_AI_URL=http://localhost:8000   # ou a URL do Render, em produção
-GEMINI_API_KEY=...
-JWT_SECRET=...
-```
 
-```bash
+JWT_SECRET=use-ao-menos-32-caracteres-aleatorios
+PYTHON_AI_URL=http://localhost:8000
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8081
+TRUST_PROXY_HOPS=0
+JSON_BODY_LIMIT=256kb
+
+RESEND_API_KEY=re_...
+EMAIL_FROM="Ludora <onboarding@resend.dev>"
+INVITE_BASE_URL=http://localhost:3000/convites
+~~~
+
+Nunca envie o arquivo .env para o Git.
+
+O remetente onboarding@resend.dev serve apenas para testes e envia somente
+para o endereço associado à conta do Resend. Para usuários reais, será
+necessário verificar um domínio próprio no serviço.
+
+### Preparar o Prisma
+
+~~~powershell
 cd services/api
-npx prisma generate
-npx tsx src/server.ts
-```
+pnpm exec prisma generate
+pnpm exec prisma migrate deploy
+~~~
 
-Roda em `http://localhost:3000`.
+Para desenvolvimento de uma alteração nova no schema:
 
-### 3. App mobile (Expo)
+~~~powershell
+pnpm exec prisma migrate dev --name nome_da_alteracao
+~~~
 
-```bash
+As migrations geradas em services/api/prisma/migrations devem ser commitadas.
+Não altere manualmente a estrutura das tabelas pelo painel do Supabase.
+
+### Compilar e iniciar a API
+
+~~~powershell
+cd services/api
+pnpm run build
+pnpm start
+~~~
+
+A API local inicia em:
+
+~~~text
+http://localhost:3000
+~~~
+
+Para executar diretamente o TypeScript com reinício automático:
+
+~~~powershell
+pnpm exec tsx watch src/server.ts
+~~~
+
+## Aplicativo mobile
+
+O aplicativo usa Expo Router e consome os pacotes compartilhados de design e
+ícones. Cadastros administrativos de times, jogadores, categorias, competições
+e elencos não fazem parte da interface mobile atual.
+
+~~~powershell
 cd apps/mobile
-npx expo start -c
-```
+pnpm start
+~~~
 
-Abra no celular com o Expo Go, ou use um emulador Android.
+Também é possível iniciar pela raiz:
 
-> Por padrão o app aponta para o backend de produção no Render. Para apontar para o backend local durante o desenvolvimento, altere `BASE_URL` em `apps/mobile/src/services/api.ts` para o **IP local (LAN) da sua máquina** — não `localhost`, pois o Expo Go roda no celular e precisa alcançar o computador pela rede Wi-Fi. Descubra o IP com `ipconfig` (Windows) e confirme que celular e computador estão na mesma rede.
+~~~powershell
+pnpm dev:mobile
+~~~
 
-### Atalho: subir tudo de uma vez
+Atualmente a URL da API é configurada em:
 
-O script `iniciar-os-terminais.bat` (Windows) abre os três serviços de uma vez, já com os caminhos corretos:
+~~~text
+apps/mobile/src/services/api.ts
+~~~
 
-```bash
-./iniciar-os-terminais.bat
-```
+Para testar em um celular físico, não use localhost. Utilize o IP da máquina na
+rede local:
 
----
+~~~ts
+export const BASE_URL = 'http://192.168.0.10:3000';
+~~~
 
-## Banco de dados (Prisma)
+O computador e o celular devem estar na mesma rede.
 
-**Não alterar o schema diretamente no Supabase.** Toda alteração de estrutura deve ser feita via código, através do Prisma.
+### Gerar APK de preview
 
-### Após um `git pull`
+~~~powershell
+cd apps/mobile
+npx eas-cli@latest build --platform android --profile preview
+~~~
 
-Sempre que o `schema.prisma` puder ter mudado, regenere o client:
+O identificador Android atual é:
 
-```bash
-cd services/api
-npx prisma generate
-```
+~~~text
+com.ludora.app
+~~~
 
-### Criar ou alterar tabelas
+## Pacotes compartilhados
 
-1. Edite `services/api/prisma/schema.prisma`
-2. Rode a migration:
-   ```bash
-   npx prisma migrate dev --name nome_da_alteracao
-   ```
-3. Commit e push das alterações (incluindo a pasta `prisma/migrations` gerada)
+### Design tokens
 
----
+O pacote @ludora/design-tokens centraliza cores e tipografia:
 
-## Observações
+~~~ts
+import { colors, typography } from '@ludora/design-tokens';
+~~~
 
-- Cada app/serviço tem suas próprias dependências, mas `pnpm install` na raiz resolve todas de uma vez — não é necessário rodar `pnpm install` dentro de cada pasta individualmente.
-- O serviço de ML (Python) é a exceção: gerencia dependências com `pip`, fora do workspace pnpm.
-- A API depende do `.env` em `services/api/` — sem ele, não sobe.
-- Em produção, as variáveis de ambiente são configuradas diretamente no painel do Render — nunca commitar `.env` (já está no `.gitignore`).
-- Documentação técnica detalhada (arquitetura, modelo de dados, decisões) está em [`docs/`](./docs).
+### Ícones
+
+O pacote @ludora/icons contém componentes SVG compatíveis com React Native:
+
+~~~tsx
+import { Icon } from '@ludora/icons';
+
+<Icon name="home" size={24} color={colors.primaria} />
+~~~
+
+Para regenerar o índice de ícones:
+
+~~~powershell
+pnpm --filter @ludora/icons run generate
+~~~
+
+Para validar seus tipos:
+
+~~~powershell
+pnpm --filter @ludora/icons run typecheck
+~~~
+
+## Principais rotas da API
+
+### Autenticação e usuário
+
+| Método | Rota | Proteção |
+|---|---|---|
+| POST | /auth/registrar | Rate limit |
+| POST | /auth/login | Rate limit |
+| PATCH | /usuarios/me | JWT |
+| DELETE | /usuarios/me | JWT |
+
+### Clubes e cadastros
+
+| Método | Rota | Proteção |
+|---|---|---|
+| GET | /clubes | Pública, com JWT opcional |
+| POST | /clubes/:id/seguir | JWT |
+| DELETE | /clubes/:id/seguir | JWT |
+| GET | /categorias | Gestor do clube |
+| GET/POST | /times | Gestor do clube e escopo de categoria |
+| PATCH/DELETE | /times/:id | Gestor do clube e escopo de categoria |
+| GET/POST | /competicoes | Gestor; criação exige acesso total |
+| PATCH/DELETE | /competicoes/:id | Gestor com acesso total |
+| GET/POST | /jogadores | Gestor do clube e escopo de categoria |
+| PATCH/DELETE | /jogadores/:id | Gestor do clube e escopo de categoria |
+| GET/PUT | /competicoes/:id/jogadores | Consulta e manutenção do elenco inscrito |
+
+As rotas vinculadas a um clube recebem:
+
+~~~http
+Authorization: Bearer JWT
+x-clube-id: 2
+~~~
+
+### Partidas
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | /partidas | Lista partidas do clube |
+| POST | /partidas | Cria partida |
+| PATCH | /partidas/:id | Atualiza partida |
+| DELETE | /partidas/:id | Exclui partida |
+| GET | /partidas/:id/eventos | Lista eventos |
+| POST | /partidas/:id/eventos | Registra evento |
+| GET | /partidas/:id/escalacao | Consulta escalação |
+| PUT | /partidas/:id/escalacao | Salva escalação |
+
+Eventos em tempo real são emitidos em salas com o formato clube:ID.
+
+### Convites
+
+| Método | Rota | Proteção |
+|---|---|---|
+| GET | /convites | Administrador do clube |
+| POST | /convites | Administrador do clube |
+| POST | /convites/:id/revogar | Administrador do clube |
+| POST | /convites/:id/reenviar | Administrador do clube |
+| GET | /convites/:token | Pública com rate limit |
+| GET | /convites/codigo/:codigo | Pública com rate limit |
+| POST | /convites/:token/aceitar | Pública com rate limit |
+| POST | /convites/codigo/:codigo/aceitar | Pública com rate limit |
+| POST | /convites/:token/aceitar-existente | JWT da conta convidada |
+| POST | /convites/codigo/:codigo/aceitar-existente | JWT da conta convidada |
+
+## Banco de dados
+
+O schema está em:
+
+~~~text
+services/api/prisma/schema.prisma
+~~~
+
+Principais entidades:
+
+~~~text
+Usuario
+Clube
+UsuarioClube
+UsuarioClubeCategoria
+Categoria
+Time
+Jogador
+Competicao
+Partida
+Evento
+EscalacaoPartida
+ConviteClube
+ConviteCategoria
+~~~
+
+O vínculo UsuarioClubeCategoria limita as categorias administradas por um
+gestor. ConviteCategoria aplica o mesmo escopo durante o fluxo de convite.
+
+O model `CampeonatoClassificacao` permanece temporariamente no schema por
+compatibilidade com bancos já migrados. O scraper e o job de sincronização que
+alimentavam essa tabela foram removidos e nenhuma tela atual depende dela.
+
+## Segurança
+
+- Senhas armazenadas com bcrypt.
+- JWT com algoritmo, emissor, destinatário e expiração definidos.
+- CORS configurável por ambiente.
+- Headers HTTP de segurança.
+- Limite de tamanho do JSON.
+- Rate limit em autenticação, convites e operações pesadas.
+- Verificação de vínculo e categoria na API.
+- Token e código de convite armazenados apenas como hash.
+- Tokens de convite rotacionados no reenvio.
+- Segredos mantidos fora do repositório.
+
+## Deploy
+
+A API pode ser publicada no Render apontando para services/api. Em produção,
+configure as variáveis do .env diretamente no painel do serviço e execute as
+migrations com prisma migrate deploy.
+
+O web service deve escutar a variável PORT e aceitar conexões em 0.0.0.0; a
+implementação atual já faz isso.
+
+## Documentação
+
+A documentação técnica complementar está em
+[docs/ludora-documentacao-tecnica.pdf](./docs/ludora-documentacao-tecnica.pdf).
+
+## Próximos passos
+
+- Criar as telas mobile de entrada e aceite de convite.
+- Criar a aplicação web para gestão de categorias, times, jogadores,
+  competições, elencos e links de convite.
+- Criar a aplicação desktop com Electron reutilizando o fluxo administrativo.
+- Verificar um domínio próprio para envio de e-mails.
+- Mover as rotas restantes para controllers e services menores.
+- Adicionar testes automatizados de integração e permissões.
+
+## Licença
+
+O projeto ainda não possui uma licença pública definida.

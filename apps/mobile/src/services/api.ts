@@ -1,33 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
 
 export const BASE_URL = 'http://192.168.7.2:3000';
-
-export interface ClassificacaoItem {
-  grupo: string;
-  posicao: number;
-  clube: string;
-  pontos: number;
-  jogos: number;
-  vitorias: number;
-  empates: number;
-  derrotas: number;
-  golsPro: number;
-  golsContra: number;
-  saldo: number;
-  average: number;
-  mediaGolsMarcados: number;
-  mediaGolsSofridos: number;
-  indiceTecnico: number;
-  destaque: boolean;
-  tipoTabela: string;
-}
-
-export interface FiltrosCampeonato {
-  temporada: string;
-  titulo: string;
-  divisao: string;
-  categoria: string;
-}
+// export const BASE_URL =
+//   process.env.EXPO_PUBLIC_API_URL ??
+//   'http://192.168.7.2:3000';
 
 // ==========================================
 // CENTRAL DE REQUISIÇÕES (API FETCH)
@@ -42,22 +18,27 @@ async function getToken() {
  * Ela automaticamente injeta o Token de Autenticação e o `x-clube-id`
  * em TODAS as requisições que saem do aplicativo.
  */
-async function apiFetch(endpoint: string, options: RequestInit = {}) {
+export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {});
 
   // Adiciona Content-Type padrão se tiver 'body'
-  if (!headers.has('Content-Type') && options.method && options.method !== 'GET' && options.method !== 'DELETE') {
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  if (!isFormData && !headers.has('Content-Type') && options.method && options.method !== 'GET' && options.method !== 'DELETE') {
     headers.set('Content-Type', 'application/json');
   }
 
   // Injeta o Token JWT
-  const token = await getToken();
+  // SecureStore cruza a ponte nativa. Ler as duas chaves em paralelo reduz
+  // a latência adicionada a toda chamada da API.
+  const [token, clubeId] = await Promise.all([
+    getToken(),
+    SecureStore.getItemAsync('clubeAtivoId'),
+  ]);
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
   // INJETA O CLUBE ATIVO (Multi-tenant)
-  const clubeId = await SecureStore.getItemAsync('clubeAtivoId');
   if (clubeId && !headers.has('x-clube-id')) {
     headers.set('x-clube-id', clubeId);
   }
@@ -283,27 +264,6 @@ export async function salvarElencoCompeticao(comp_id: number, jogador_ids: numbe
   if (!res.ok) throw new Error('Erro ao salvar elenco da competição');
 }
 
-export async function fetchClassificacaoCampeonato(
-  filtros: FiltrosCampeonato,
-): Promise<ClassificacaoItem[]> {
-  const params = new URLSearchParams({
-    temporada: filtros.temporada,
-    titulo:    filtros.titulo,
-    divisao:   filtros.divisao,
-    categoria: filtros.categoria,
-  });
-
-  const res = await apiFetch(`/campeonato/classificacao?${params}`);
-  
-  if (!res.ok) {
-    const body = await res.text().catch(() => '(sem body)');
-    throw new Error(`[${res.status}] ${body}`);
-  }
-
-  const json = await res.json();
-  return Array.isArray(json) ? json : json.data ?? [];
-}
-
 // ==========================================
 // ROTAS DE PARTIDAS
 // ==========================================
@@ -312,14 +272,16 @@ export async function fetchPartidas(params?: {
   categoria_id?: number;
   mes?: number;
   status?: string;
-}) {
+}, clubeId?: number) {
   const query = new URLSearchParams();
   if (params?.categoria_id != null) query.append('categoria_id', String(params.categoria_id));
   if (params?.mes          != null) query.append('mes',          String(params.mes));
   if (params?.status)               query.append('status',       params.status);
 
   const endpoint = `/partidas?${query.toString()}`;
-  const res = await apiFetch(endpoint);
+  const res = await apiFetch(endpoint, clubeId
+    ? { headers: { 'x-clube-id': String(clubeId) } }
+    : undefined);
 
   if (!res.ok) {
     const corpo = await res.text().catch(() => '');
@@ -413,6 +375,7 @@ export async function criarEvento(partida_id: number, dados: {
   minuto?: number | null;
   periodo?: number | null;
   jogador_id?: number | null;
+  doOcian?: boolean;
 }) {
   const res = await apiFetch(`/partidas/${partida_id}/eventos`, {
     method: 'POST',

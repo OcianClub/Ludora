@@ -17,6 +17,7 @@ export const colors = {
   // Cores sólidas puras
   amarelo: '#F0B84E',
   vermelho: '#FF4D00',
+  vermelhoDestaque: '#F05A4F',
 
   // Botões
   fundoBotao: '#091526',

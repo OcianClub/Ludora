@@ -1,6 +1,6 @@
+import { Icon } from '@ludora/icons';
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 
 interface Props {
@@ -27,7 +27,7 @@ export default function ModalTrocaCamisa({ visible, jogadorA, jogadorB, onConfir
 
           {/* Ícone */}
           <View style={s.iconWrap}>
-            <MaterialCommunityIcons name="tshirt-crew" size={28} color={colors.amarelo} />
+            <Icon name="tshirt-crew" size={28} color={colors.amarelo} />
           </View>
 
           <Text style={s.titulo}>Camisa #{camisaAlvo} em uso</Text>
@@ -47,7 +47,7 @@ export default function ModalTrocaCamisa({ visible, jogadorA, jogadorB, onConfir
             </View>
 
             {/* Seta bidirecional */}
-            <MaterialCommunityIcons name="swap-horizontal" size={26} color={colors.primary} style={s.seta} />
+            <Icon name="swap-horizontal" size={26} color={colors.primary} style={s.seta} />
 
             {/* Jogador B — recebe a camisa livre */}
             <View style={s.jogadorCard}>
@@ -66,7 +66,7 @@ export default function ModalTrocaCamisa({ visible, jogadorA, jogadorB, onConfir
               <Text style={s.btnCancelTxt}>CANCELAR</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.btnConfirm} onPress={onConfirmar} activeOpacity={0.8}>
-              <MaterialCommunityIcons name="check" size={16} color="#fff" />
+              <Icon name="check" size={16} color="#fff" />
               <Text style={s.btnConfirmTxt}>TROCAR</Text>
             </TouchableOpacity>
           </View>

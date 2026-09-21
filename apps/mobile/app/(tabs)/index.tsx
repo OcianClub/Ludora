@@ -1,17 +1,17 @@
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import { Icon } from '@ludora/icons';
+import { colors } from '@ludora/design-tokens';
+import { ActivityIndicator, Alert, View, Text, FlatList, TouchableOpacity, Modal } from 'react-native';
 import { styles } from '../../src/styles/indexStyles';
 import { Header } from '@/src/components/Header';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
-import Octicons from '@expo/vector-icons/Octicons';
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { Link, useFocusEffect } from 'expo-router';
 import PagerView from 'react-native-pager-view';
 import { HistoricoPartidas } from '@/src/components/HistoricoPartidas';
-import { fetchPartidas } from '@/src/services/api';
+import { atualizarStatusPartida, fetchEscalacaoPartida, fetchPartidas } from '@/src/services/api';
 import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/CarrosselSubs';
 import DetalhesPartida, { Partida as PartidaDetalhes } from '@/src/components/DetalhesPartida';
-import * as SecureStore from 'expo-secure-store';
+import { HomeSkeleton, Skeleton } from '@/src/components/Skeleton';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 interface Time { id: number; nome: string; escudo: string | null; }
 interface Partida {
@@ -23,7 +23,7 @@ interface Partida {
   data: string;
   horario: string | null;
   local: string | null;
-  status: 'AGENDADA' | 'AO_VIVO' | 'FINALIZADA';
+  status: 'AGENDADA' | 'PREPARADA' | 'AO_VIVO' | 'FINALIZADA' | 'CANCELADA';
   emCasa: boolean;
   categoria: { id: number; nome: string } | null;
   competicao?: { id: number; nome: string; ano: number } | null;
@@ -39,8 +39,10 @@ interface PageContentProps {
   proximoJogo: Partida | null;
   estatisticas: Estatisticas;
   historico: Partida[];
-  nomeClubeAtivo: string;
+  podeGerenciar: boolean;
+  iniciandoPartidaId: number | null;
   onVerDetalhes: (partida: Partida) => void;
+  onIniciarPartida: (partida: Partida) => void;
 }
 
 const formatarDataCard = (dataStr: string) => {
@@ -49,15 +51,31 @@ const formatarDataCard = (dataStr: string) => {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
 };
 
-const isClubeAtivo = (nomeTime: string, nomeClube: string) => {
-  if (!nomeClube) return false;
-  return nomeTime.toUpperCase().includes(nomeClube.toUpperCase());
+const isHoje = (dataStr: string) => {
+  const hoje = new Date();
+  const [ano, mes, dia] = dataStr.split('T')[0].split('-').map(Number);
+  return hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes && hoje.getDate() === dia;
 };
 
-const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClubeAtivo, onVerDetalhes }: PageContentProps) => {
+const PageContent = ({
+  carregando,
+  proximoJogo,
+  estatisticas,
+  historico,
+  podeGerenciar,
+  iniciandoPartidaId,
+  onVerDetalhes,
+  onIniciarPartida,
+}: PageContentProps) => {
   const adversario = proximoJogo 
-    ? (isClubeAtivo(proximoJogo.mandante.nome, nomeClubeAtivo) ? proximoJogo.visitante.nome : proximoJogo.mandante.nome) 
+    ? (proximoJogo.emCasa ? proximoJogo.visitante.nome : proximoJogo.mandante.nome)
     : '—';
+  const jogoHoje = !!proximoJogo && isHoje(proximoJogo.data);
+  const podeIniciar = !!proximoJogo
+    && podeGerenciar
+    && jogoHoje
+    && (proximoJogo.status === 'AGENDADA' || proximoJogo.status === 'PREPARADA');
+  const estaAoVivo = proximoJogo?.status === 'AO_VIVO';
 
   return (
     <View style={styles.pageContainer}>
@@ -79,20 +97,30 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
             <View style={styles.seasonCard}>
               <Text style={styles.seasonTitle}>PRÓXIMO JOGO</Text>
               <TouchableOpacity activeOpacity={0.6}>
-                <Text style={styles.seasonStatus}>{proximoJogo ? 'EM BREVE' : 'SEM JOGOS'}</Text>
+                <Text style={[styles.seasonStatus, estaAoVivo && styles.seasonStatusAoVivo]}>
+                  {estaAoVivo ? '● AO VIVO' : jogoHoje ? 'SEU JOGO • HOJE' : proximoJogo ? 'EM BREVE' : 'SEM JOGOS'}
+                </Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.mainCard}>
-              {carregando ? (
-                <ActivityIndicator size="large" color="#0E78FF" style={{ marginVertical: 40 }} />
-              ) : !proximoJogo ? (
-                <View style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
-                  <MaterialCommunityIcons name="calendar-remove-outline" size={40} color="#8B8D94" />
-                  <Text style={{ fontFamily: 'Creato-Bold', color: '#666' }}>Nenhuma partida agendada</Text>
-                </View>
-              ) : (
-                <>
+            {carregando ? (
+              <HomeSkeleton style={styles.mainCard} />
+            ) : (
+              <View style={[styles.mainCard, estaAoVivo && styles.mainCardAoVivo]}>
+                {!proximoJogo ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
+                    <Icon
+                      name="calendar-remove-outline"
+                      size={40}
+                      color="#8B8D94"
+                    />
+
+                    <Text style={{ fontFamily: 'Creato-Bold', color: '#666' }}>
+                      Nenhuma partida agendada
+                    </Text>
+                  </View>
+                ) : (
+                  <>
                   <View style={styles.containerIcon}>
                     <View style={styles.topCard}>
                       <Text style={styles.cardLabel} numberOfLines={1}>
@@ -103,7 +131,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
                       </View>
                     </View>
                     <View>
-                      <FontAwesome5 name={proximoJogo.emCasa ? 'home' : 'bus'} size={22} color="#0E78FF" />
+                      <Icon name={proximoJogo.emCasa ? 'home' : 'bus'} size={22} color="#0E78FF" />
                     </View>
                   </View>
 
@@ -112,7 +140,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
                   <View style={styles.rowSpaceBetween}>
                     <View style={styles.cardHoraData}>
                       <View style={styles.containerDataHora}>
-                        <FontAwesome5 name="calendar" size={18} color="#8B8D94" />
+                        <Icon name="calendar" size={18} color="#8B8D94" />
                         <View style={styles.containerTextDataHora}>
                           <Text style={styles.titleDataHora}>Data</Text>
                           <Text style={styles.subTitleDataHora}>{formatarDataCard(proximoJogo.data)}</Text>
@@ -120,7 +148,7 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
                       </View>
 
                       <View style={styles.containerDataHora}>
-                        <FontAwesome5 name="clock" size={18} color="#8B8D94" />
+                        <Icon name="clock" size={18} color="#8B8D94" />
                         <View style={styles.containerTextDataHora}>
                           <Text style={styles.titleDataHora}>Horário</Text>
                           <Text style={styles.subTitleDataHora}>{proximoJogo.horario || '--:--'}</Text>
@@ -129,40 +157,57 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
                     </View>
 
                     <View style={styles.containerLocalizacao}>
-                      <Octicons name="location" size={20} color="#8B8D94" />
+                      <Icon name="location" size={20} color="#8B8D94" />
                       <Text style={styles.txtLocalizacao} numberOfLines={2}>
                         {proximoJogo.local || 'Local não definido'}
                       </Text>
                     </View>
 
-                    <TouchableOpacity style={styles.btnDetalhes} activeOpacity={0.8} onPress={() => proximoJogo && onVerDetalhes(proximoJogo)}>
-                      <Text style={styles.txtDetalhes}>VER DETALHES DA PARTIDA</Text>
+                    <TouchableOpacity
+                      style={styles.btnDetalhes}
+                      activeOpacity={0.8}
+                      disabled={iniciandoPartidaId === proximoJogo.id}
+                      onPress={() => podeIniciar ? onIniciarPartida(proximoJogo) : onVerDetalhes(proximoJogo)}
+                    >
+                      {iniciandoPartidaId === proximoJogo.id ? (
+                        <ActivityIndicator color={colors.texto} />
+                      ) : (
+                        <View style={styles.btnDetalhesContent}>
+                          <Text style={styles.txtDetalhes}>
+                            {podeIniciar ? 'INICIAR PARTIDA' : estaAoVivo ? 'ACOMPANHAR AO VIVO' : 'VER DETALHES DA PARTIDA'}
+                          </Text>
+                          {(podeIniciar || estaAoVivo) && (
+                            <Icon name="live" size={20} color={colors.texto} />
+                          )}
+                        </View>
+                      )}
                     </TouchableOpacity>
                   </View>
                 </>
-              )}
-            </View>
+                )}
+              </View>
+            )}
 
             <View style={styles.rowCards}>
               <View style={styles.smallCard}>
                 <Text style={styles.cardLabel}>PONTUAÇÃO</Text>
                 <View style={styles.smallCardContent}>
-                  <Text style={styles.cardValue}>
-                    {carregando ? '...' : `${estatisticas.pontos}`}
-                  </Text>
+                  {carregando
+                    ? <Skeleton width={52} height={30} radius={6} />
+                    : <Text style={styles.cardValue}>{estatisticas.pontos}</Text>}
                   <Text style={styles.cardLabel}>Pontos ganhos</Text>
-                  <MaterialCommunityIcons name="trophy-outline" size={28} color="#0E78FF" style={styles.iconRight} />
+                  <Icon name="trophy-outline" size={28} color="#0E78FF" style={styles.iconRight} />
                 </View>
               </View>
 
               <View style={styles.smallCard}>
                 <Text style={styles.cardLabel}>VITÓRIAS</Text>
                 <View style={styles.smallCardContent}>
-                  <Text style={styles.cardValue}>
-                    {carregando ? '...' : `${estatisticas.vitorias}`}
-                  </Text>
+                  {carregando
+                    ? <Skeleton width={52} height={30} radius={6} />
+                    : <Text style={styles.cardValue}>{estatisticas.vitorias}</Text>}
                   <Text style={styles.cardLabel}>Na temporada</Text>
-                  <MaterialCommunityIcons name="medal-outline" size={28} color="#F0B84E" style={styles.iconRight} />
+                  <Icon name="medal-outline" size={28} color="#F0B84E" style={styles.iconRight} />
                 </View>
               </View>
             </View>
@@ -190,60 +235,72 @@ const PageContent = ({ carregando, proximoJogo, estatisticas, historico, nomeClu
 
 export default function Home() {
   const pagerRef = useRef<PagerView>(null);
+  const carregouUmaVez = useRef(false);
+  const clubeCarregadoId = useRef<number | null>(null);
 
-  const [isAdmin, setIsAdmin] = useState(false);
   const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(null);
+  const [iniciandoPartidaId, setIniciandoPartidaId] = useState<number | null>(null);
   const [faseAtiva, setFaseAtiva] = useState<'INICIACAO' | 'BASE'>('INICIACAO');
   const [subIndex, setSubIndex] = useState(0);
   
   const [partidasGlobais, setPartidasGlobais] = useState<Partida[]>([]);
   const [carregando, setCarregando] = useState(true);
 
-  // Estados para gerenciar o nome e o escudo dinâmico do clube
-  const [nomeClube, setNomeClube] = useState('CARREGANDO...');
-  const [escudoClube, setEscudoClube] = useState<string | null>(null);
-
   const subsAtuais = faseAtiva === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
+
+  const { clubeAtivo, podeGerenciar } = useClubeAtivo();
+
 
   useFocusEffect(
     useCallback(() => {
       const carregarDadosDoClube = async () => {
+        const clubeMudou = clubeCarregadoId.current !== (clubeAtivo?.id ?? null);
         try {
-          setCarregando(true);
-          
-          const nomeSalvo = await SecureStore.getItemAsync('clubeAtivoNome');
-          const escudoSalvo = await SecureStore.getItemAsync('clubeAtivoEscudo');
-          const clubeAtivoId = await SecureStore.getItemAsync('clubeAtivoId');
-
-          if (nomeSalvo) {
-            setNomeClube(nomeSalvo);
-            setEscudoClube(escudoSalvo || null);
-          } else {
-            setNomeClube('MEU CLUBE');
+          if (!carregouUmaVez.current || clubeMudou) setCarregando(true);
+          if (clubeMudou) setPartidasGlobais([]);
+          if (!clubeAtivo?.id) {
+            setPartidasGlobais([]);
+            return;
           }
-
-          const dadosUserString = await SecureStore.getItemAsync('userData');
-          if (dadosUserString && clubeAtivoId) {
-            const userData = JSON.parse(dadosUserString);
-            const vinculo = userData.clubes?.find((c: any) => String(c.clube_id) === String(clubeAtivoId));
-            if (vinculo) {
-              setIsAdmin(vinculo.papel === 'ADMIN' || vinculo.papel === 'TECNICO');
-            }
-          }
-
-          const partidas = await fetchPartidas({});
+          const partidas = await fetchPartidas({}, clubeAtivo.id);
           setPartidasGlobais(partidas);
+          clubeCarregadoId.current = clubeAtivo.id;
         } catch (error) {
           console.error('Erro ao carregar Home:', error);
-          setNomeClube('ERRO AO CARREGAR');
         } finally {
+          carregouUmaVez.current = true;
           setCarregando(false);
         }
       };
 
       carregarDadosDoClube();
-    }, [])
+    }, [clubeAtivo?.id])
   );
+
+  const handleIniciarPartida = useCallback(async (partida: Partida) => {
+    setIniciandoPartidaId(partida.id);
+    try {
+      const escalacao = await fetchEscalacaoPartida(partida.id);
+      const titulares = escalacao.filter((jogador: { titular?: boolean }) => jogador.titular).length;
+      if (titulares !== 5) {
+        Alert.alert(
+          'Escalação incompleta',
+          `Para iniciar é obrigatório definir exatamente 5 titulares. Atualmente há ${titulares}.`,
+        );
+        return;
+      }
+      await atualizarStatusPartida(partida.id, 'AO_VIVO');
+      const partidaAoVivo: Partida = { ...partida, status: 'AO_VIVO' };
+      setPartidasGlobais((atuais) =>
+        atuais.map((item) => item.id === partida.id ? partidaAoVivo : item),
+      );
+      setPartidaSelecionada(partidaAoVivo);
+    } catch {
+      Alert.alert('Erro', 'Não foi possível iniciar a partida. Tente novamente.');
+    } finally {
+      setIniciandoPartidaId(null);
+    }
+  }, []);
 
   const handleTrocarFase = (novaFase: 'INICIACAO' | 'BASE') => {
     setFaseAtiva(novaFase);
@@ -263,11 +320,12 @@ export default function Home() {
   return (
     <View style={styles.container}>
       <Header 
-        title={nomeClube} 
-        logoUrl={escudoClube} 
+        title={clubeAtivo?.nome ?? 'MEU CLUBE'}
+        logoUrl={clubeAtivo?.escudo ?? null}
         btnNotificacao="bell" 
         showLogo={true} 
-        showProfile={true} 
+        showProfile={true}
+        papelUsuario={clubeAtivo?.papel ?? undefined}
       />
 
       <CarrosselSubs 
@@ -285,15 +343,20 @@ export default function Home() {
         scrollEnabled={true}
       >
         {subsAtuais.map((sub) => {
-          const partidasDoSub = partidasGlobais.filter(p => 
-            p.categoria?.nome.replace(' ', '-').toUpperCase() === sub.title &&
-            (isClubeAtivo(p.mandante.nome, nomeClube) || isClubeAtivo(p.visitante.nome, nomeClube))
+          const partidasDoSub = partidasGlobais.filter(p =>
+            p.categoria?.nome.replace(' ', '-').toUpperCase() === sub.title
           );
 
-          const agendadas = partidasDoSub
-            .filter(p => p.status === 'AGENDADA')
+          const inicioHoje = new Date();
+          inicioHoje.setHours(0, 0, 0, 0);
+          const aoVivo = partidasDoSub.find(p => p.status === 'AO_VIVO') ?? null;
+          const proximas = partidasDoSub
+            .filter(p =>
+              (p.status === 'AGENDADA' || p.status === 'PREPARADA')
+              && new Date(`${p.data.split('T')[0]}T00:00:00`).getTime() >= inicioHoje.getTime()
+            )
             .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-          const proximoJogo = agendadas.length > 0 ? agendadas[0] : null;
+          const proximoJogo = aoVivo ?? proximas[0] ?? null;
 
           const finalizadas = partidasDoSub
             .filter(p => p.status === 'FINALIZADA')
@@ -304,9 +367,8 @@ export default function Home() {
           let pontos = 0;
           let vitorias = 0;
           finalizadas.forEach(p => {
-            const clubeAtivoMandante = isClubeAtivo(p.mandante.nome, nomeClube);
-            const golsClubeAtivo = clubeAtivoMandante ? p.gols_mandante : p.gols_visitante;
-            const golsAdv = clubeAtivoMandante ? p.gols_visitante : p.gols_mandante;
+            const golsClubeAtivo = p.emCasa ? p.gols_mandante : p.gols_visitante;
+            const golsAdv = p.emCasa ? p.gols_visitante : p.gols_mandante;
 
             if (golsClubeAtivo > golsAdv) {
               pontos += 3;
@@ -323,8 +385,10 @@ export default function Home() {
                 proximoJogo={proximoJogo}
                 estatisticas={{ pontos, vitorias }}
                 historico={historicoRecente}
-                nomeClubeAtivo={nomeClube}
+                podeGerenciar={podeGerenciar}
+                iniciandoPartidaId={iniciandoPartidaId}
                 onVerDetalhes={setPartidaSelecionada}
+                onIniciarPartida={handleIniciarPartida}
               />
             </View>
           );
@@ -340,7 +404,7 @@ export default function Home() {
         >
           <DetalhesPartida
             partida={partidaSelecionada as PartidaDetalhes}
-            isAdmin={isAdmin}
+            isAdmin={podeGerenciar}
             onBack={() => setPartidaSelecionada(null)}
           />
         </Modal>

@@ -1,6 +1,6 @@
+import { Icon } from '@ludora/icons';
 import React from 'react';
 import { TouchableOpacity, View, Text, Image } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@ludora/design-tokens';
 import { styles } from '../styles/teamSelectorCardStyles';
 
@@ -49,14 +49,14 @@ export default function TeamSelectorCard({ time, tipo, onPress }: TeamSelectorCa
           <Text style={styles.nomeTime} numberOfLines={2}>{time.nome}</Text>
           
           <View style={styles.trocarBtn}>
-            <MaterialCommunityIcons name="swap-horizontal" size={11} color={colors.primaria} />
+            <Icon name="swap-horizontal" size={11} color={colors.primaria} />
             <Text style={styles.trocarTxt}>TROCAR</Text>
           </View>
         </>
       ) : (
         <>
           <View style={styles.addIconCircle}>
-            <MaterialCommunityIcons name="plus" size={26} color={colors.primaria} />
+            <Icon name="plus" size={26} color={colors.primaria} />
           </View>
           <Text style={styles.label}>{tipo}</Text>
           <Text style={styles.subTexto}>Selecionar time</Text>

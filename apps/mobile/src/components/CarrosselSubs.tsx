@@ -1,6 +1,6 @@
+import { Icon } from '@ludora/icons';
 import { useRef, useEffect } from 'react';
 import { View, FlatList, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, typography } from '@ludora/design-tokens';
 
 const { width: windowWidth } = Dimensions.get('window');
@@ -97,7 +97,7 @@ export function CarrosselSubs({
           activeOpacity={0.7}
           disabled={isPrevDisabled}
         >
-          <MaterialCommunityIcons
+          <Icon
             name="chevron-left"
             size={24}
             color={isPrevDisabled ? colors.borda : colors.textoSecundario}
@@ -148,7 +148,7 @@ export function CarrosselSubs({
           activeOpacity={0.7}
           disabled={isNextDisabled}
         >
-          <MaterialCommunityIcons
+          <Icon
             name="chevron-right"
             size={24}
             color={isNextDisabled ? colors.borda : colors.textoSecundario}

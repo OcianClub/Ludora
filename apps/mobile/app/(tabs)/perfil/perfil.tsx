@@ -1,3 +1,4 @@
+import { Icon, type IconName } from '@ludora/icons';
 import {
   Modal,
   View,
@@ -8,18 +9,17 @@ import {
 import { useState, useEffect } from "react";
 import { styles } from "../../../src/styles/perfilStyles";
 import { Header } from "@/src/components/Header";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "@ludora/design-tokens";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
 
 import DadosPessoais from "./dadosPessoais/dadosPessoais";
-import Equipes from "./equipes/equipes";
 
 interface CardMenuProps {
   titulo: string;
   subtitulo: string;
-  icone: keyof typeof MaterialCommunityIcons.glyphMap;
+  icone: IconName;
   action: () => void;
 }
 
@@ -36,7 +36,7 @@ function CardMenu({
       onPress={action}
     >
       <View style={styles.menuIcon}>
-        <MaterialCommunityIcons
+        <Icon
           name={icone}
           size={21}
           color={colors.primaria}
@@ -53,7 +53,7 @@ function CardMenu({
         </Text>
       </View>
 
-      <MaterialCommunityIcons
+      <Icon
         name="chevron-right"
         size={22}
         color={colors.textoSecundario}
@@ -63,14 +63,12 @@ function CardMenu({
 }
 
 export default function Perfil() {
+  const { clubeAtivo } = useClubeAtivo();
   const [nome, setNome] = useState("");
   const [membroDesde, setMembroDesde] = useState("");
   const [modalSair, setModalSair] = useState(false);
   const [modalDadosPessoais, setModalDadosPessoais] =
     useState(false);
-  const [modalMinhasEquipes, setModalMinhasEquipes] =
-    useState(false);
-  const [ehAdmin, setEhAdmin] = useState(false);
 
   useEffect(() => {
     carregarDados();
@@ -99,10 +97,6 @@ export default function Perfil() {
       setMembroDesde(formatada.replace(".", ""));
     }
 
-    const role =
-      await SecureStore.getItemAsync("userRole");
-
-    setEhAdmin(role === "ADMIN");
   };
 
   const fecharDadosPessoais = async () => {
@@ -131,6 +125,7 @@ export default function Perfil() {
         showLogo={false}
         showProfile={false}
         btnVoltar="arrow-left"
+        papelUsuario={clubeAtivo?.papel ?? undefined}
       />
 
       <View style={styles.content}>
@@ -180,17 +175,6 @@ export default function Perfil() {
               }
             />
 
-            {ehAdmin && (
-              <CardMenu
-                titulo="Equipes"
-                subtitulo="Times e campeonatos cadastrados"
-                icone="account-group-outline"
-                action={() =>
-                  setModalMinhasEquipes(true)
-                }
-              />
-            )}
-
             <CardMenu
               titulo="Notificações"
               subtitulo="Alertas e preferências"
@@ -208,7 +192,7 @@ export default function Perfil() {
             onPress={() => setModalSair(true)}
           >
             <View style={styles.logoutIcon}>
-              <MaterialCommunityIcons
+              <Icon
                 name="logout"
                 size={20}
                 color={colors.tituloErro}
@@ -225,7 +209,7 @@ export default function Perfil() {
               </Text>
             </View>
 
-            <MaterialCommunityIcons
+            <Icon
               name="chevron-right"
               size={22}
               color={colors.tituloErro}
@@ -247,7 +231,7 @@ export default function Perfil() {
         >
           <Pressable style={styles.modalCard}>
             <View style={styles.modalIcon}>
-              <MaterialCommunityIcons
+              <Icon
                 name="logout"
                 size={26}
                 color={colors.tituloErro}
@@ -303,22 +287,6 @@ export default function Perfil() {
         />
       </Modal>
 
-      {/* EQUIPES */}
-      <Modal
-        visible={modalMinhasEquipes}
-        transparent={false}
-        animationType="slide"
-        onRequestClose={() =>
-          setModalMinhasEquipes(false)
-        }
-      >
-        <Equipes
-          noModal={true}
-          onFechar={() =>
-            setModalMinhasEquipes(false)
-          }
-        />
-      </Modal>
     </View>
   );
 }
