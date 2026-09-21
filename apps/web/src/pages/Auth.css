@@ -42,6 +42,17 @@
   gap: 14px;
 }
 
+.auth-info {
+  padding: 10px 12px;
+  border: 1px solid var(--borda-botao);
+  border-radius: 8px;
+  background: var(--fundo-botao);
+  color: var(--texto-sec);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.auth-info strong { color: var(--primaria); }
+
 .auth-erro {
   background: var(--fundo-erro);
   border: 1px solid var(--borda-erro);

@@ -33,6 +33,10 @@ export default function RegistrarPage() {
           <p className="auth-sub">Criar conta</p>
         </div>
         <form onSubmit={handleSubmit} className="auth-form">
+          <div className="auth-info">
+            Sua conta será criada como <strong>torcedor</strong>. Perfis de administrador,
+            técnico e mesário são cadastrados exclusivamente pela equipe no desktop.
+          </div>
           <div className="field">
             <label className="field-label">Nome</label>
             <input className="field-input" value={nome} onChange={e => setNome(e.target.value)} required placeholder="Seu nome" />

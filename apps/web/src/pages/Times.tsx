@@ -61,7 +61,7 @@ export default function TimesPage() {
         <div className="field"><label className="field-label">Buscar</label><input className="field-input" placeholder="Nome do time..." value={busca} onChange={e => setBusca(e.target.value)} /></div>
       </div>
 
-      {loading ? <Spinner /> : filtrados.length === 0 ? <Empty icon="🛡" message="Nenhum time encontrado" /> : (
+      {loading ? <Spinner /> : filtrados.length === 0 ? <Empty icon="🛡" message="O clube ainda não publicou seus times" /> : (
         <div className="table-wrap">
           <table>
             <thead><tr><th>Nome</th><th>Categoria</th>{podeGerenciar && <th>Ações</th>}</tr></thead>

@@ -3,7 +3,9 @@ import { Router } from 'express';
 import { prisma } from '../../lib/prisma';
 import {
   exigirGestorDoClube,
+  exigirMembroDoClube,
   exigirPartidaDoClube,
+  exigirPartidaVisivelDoClube,
 } from '../../middlewares/permissoes.middleware';
 
 const router = Router();
@@ -12,7 +14,11 @@ const router = Router();
 // ROTAS DE ESCALAÇÃO
 // ==========================================
 
-router.get('/partidas/:id/escalacao', async (req, res) => {
+router.get(
+  '/partidas/:id/escalacao',
+  exigirMembroDoClube,
+  exigirPartidaVisivelDoClube(req => Number(req.params.id)),
+  async (req, res) => {
   const partidaId = Number(req.params.id);
   try {
     const escalacao = await prisma.escalacaoPartida.findMany({
@@ -26,7 +32,8 @@ router.get('/partidas/:id/escalacao', async (req, res) => {
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar escalação' });
   }
-});
+  }
+);
 
 router.put<{ id: string }>(
   '/partidas/:id/escalacao',

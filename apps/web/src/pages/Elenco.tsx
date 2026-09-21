@@ -49,7 +49,7 @@ export default function ElencoPage() {
         <Select label="Filtrar por categoria" options={catOpts} value={filtroCategoria} onChange={e => mudarCategoria(e.target.value)} />
       </div>
 
-      {loading ? <Spinner /> : perfis.length === 0 ? <Empty icon="🏃" message="Nenhum atleta encontrado" /> : (
+      {loading ? <Spinner /> : perfis.length === 0 ? <Empty icon="🏃" message="O clube ainda não publicou informações do elenco" /> : (
         <div className="elenco-grid">
           {perfis.map(j => (
             <Card key={j.id} className="elenco-card">

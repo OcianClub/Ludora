@@ -51,7 +51,7 @@ export default function CompeticoesPage() {
         {podeGerenciar && <Btn onClick={abrirNovo}>+ Nova competição</Btn>}
       </div>
 
-      {loading ? <Spinner /> : competicoes.length === 0 ? <Empty icon="🏆" message="Nenhuma competição ainda" /> : (
+      {loading ? <Spinner /> : competicoes.length === 0 ? <Empty icon="🏆" message="O clube ainda não participa de competições publicadas" /> : (
         <div className="table-wrap">
           <table>
             <thead><tr><th>Nome</th><th>Ano</th><th>Tipo</th>{podeGerenciar && <th>Ações</th>}</tr></thead>

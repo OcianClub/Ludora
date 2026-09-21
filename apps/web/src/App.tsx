@@ -11,6 +11,7 @@ import PartidasPage from './pages/Partidas';
 import PartidaDetalhePage from './pages/PartidaDetalhe';
 import CompeticoesPage from './pages/Competicoes';
 import ElencoPage from './pages/Elenco';
+import PerfilPage from './pages/Perfil';
 
 function Protegida({ children }: { children: React.ReactNode }) {
   const { token, clube } = useAuth();
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="/partidas" element={<PartidasPage />} />
             <Route path="/partidas/:id" element={<PartidaDetalhePage />} />
             <Route path="/competicoes" element={<CompeticoesPage />} />
+            <Route path="/perfil" element={<PerfilPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

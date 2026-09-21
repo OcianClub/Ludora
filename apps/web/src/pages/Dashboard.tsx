@@ -2,15 +2,18 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchPartidas, fetchJogadores, fetchTimes, fetchCompeticoes, Partida, Jogador } from '../services/api';
 import { StatusBadge, Spinner, Card } from '../components/UI';
+import { useAuth } from '../contexts/AuthContext';
 import './Dashboard.css';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { usuario, clube, podeGerenciar } = useAuth();
   const [partidas, setPartidas] = useState<Partida[]>([]);
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
   const [totalTimes, setTotalTimes] = useState(0);
   const [totalCompeticoes, setTotalCompeticoes] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -23,7 +26,10 @@ export default function DashboardPage() {
       setJogadores(j);
       setTotalTimes(t.length);
       setTotalCompeticoes(c.length);
-    }).catch(console.error).finally(() => setLoading(false));
+    }).catch(err => {
+      console.error(err);
+      setErro('Não foi possível carregar os dados do clube. Tente novamente em instantes.');
+    }).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <Spinner />;
@@ -32,15 +38,30 @@ export default function DashboardPage() {
   const proximas = partidas.filter(p => p.status === 'AGENDADA').slice(0, 5);
   const recentes = partidas.filter(p => p.status === 'FINALIZADA').slice(0, 5);
   const jogadoresAtivos = jogadores.filter(j => j.ativo).length;
+  const semDados = partidas.length === 0 && jogadoresAtivos === 0 && totalTimes === 0 && totalCompeticoes === 0;
 
   return (
     <div className="dashboard">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Visão Geral</h1>
-          <p className="page-sub">Resumo do clube nesta sessão</p>
+          <h1 className="page-title">Olá, {usuario?.nome?.split(' ')[0] || 'torcedor'}!</h1>
+          <p className="page-sub">Acompanhe as novidades do {clube?.nome || 'seu clube'}.</p>
         </div>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/perfil')}>Meu perfil</button>
       </div>
+
+      {!podeGerenciar && (
+        <div className="torcedor-banner">
+          <div>
+            <span className="torcedor-kicker">ÁREA DO TORCEDOR</span>
+            <strong>Você está acompanhando {clube?.nome}</strong>
+            <p>Consulte partidas, elenco e competições. A gestão do clube é realizada no aplicativo desktop.</p>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/selecionar-clube')}>Trocar clube</button>
+        </div>
+      )}
+
+      {erro && <div className="dash-erro">{erro}</div>}
 
       <div className="stat-grid">
         <div className="stat-card">
@@ -65,6 +86,28 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {semDados && !erro && (
+        <Card className="dash-vazio">
+          <div className="dash-vazio-icon">⚽</div>
+          <div>
+            <h2>O clube ainda não publicou dados</h2>
+            <p>Quando a equipe cadastrar jogadores, partidas e competições pelo desktop, tudo aparecerá aqui automaticamente.</p>
+          </div>
+          <div className="dash-vazio-acoes">
+            <button className="btn btn-primary btn-sm" onClick={() => navigate('/partidas')}>Ver partidas</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/selecionar-clube')}>Encontrar outro clube</button>
+          </div>
+        </Card>
+      )}
+
+      {!semDados && (
+        <div className="atalhos-torcedor">
+          <button onClick={() => navigate('/partidas')}><span>⚽</span><strong>Partidas</strong><small>Agenda e resultados</small></button>
+          <button onClick={() => navigate('/elenco')}><span>👥</span><strong>Elenco</strong><small>Conheça os jogadores</small></button>
+          <button onClick={() => navigate('/competicoes')}><span>🏆</span><strong>Competições</strong><small>Campeonatos do clube</small></button>
+        </div>
+      )}
+
       {aoVivo.length > 0 && (
         <div className="dash-section">
           <h2 className="dash-section-title">⚡ Ao vivo agora</h2>
@@ -82,7 +125,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="dash-grid">
+      {!semDados && <div className="dash-grid">
         <Card>
           <h2 className="dash-section-title">Próximas partidas</h2>
           {proximas.length === 0
@@ -97,7 +140,7 @@ export default function DashboardPage() {
             : recentes.map(p => <PartidaRow key={p.id} partida={p} onClick={() => navigate(`/partidas/${p.id}`)} />)
           }
         </Card>
-      </div>
+      </div>}
     </div>
   );
 }

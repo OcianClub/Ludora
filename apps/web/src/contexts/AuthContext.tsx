@@ -1,15 +1,28 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getToken, setToken, removeToken, getClubeId, setClubeId, removeClubeId, login as apiLogin, Usuario, Clube } from '../services/api';
+import {
+  atualizarMeuPerfil,
+  fetchMeuPerfil,
+  getToken,
+  setToken,
+  removeToken,
+  setClubeId,
+  removeClubeId,
+  login as apiLogin,
+  Usuario,
+  Clube,
+} from '../services/api';
 
 interface AuthContextValue {
   usuario: Usuario | null;
-  clube: (Clube & { meuPapel?: string }) | null;
+  clube: Clube | null;
   token: string | null;
   podeGerenciar: boolean;
   fazendoLogin: boolean;
   login: (email: string, senha: string) => Promise<void>;
   logout: () => void;
-  definirClube: (c: Clube & { meuPapel?: string }) => void;
+  definirClube: (c: Clube) => void;
+  atualizarPerfil: (dados: { nome: string; email: string; senha?: string }) => Promise<void>;
+  recarregarPerfil: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -17,7 +30,7 @@ const PAPEIS_GESTORES = ['ADMIN', 'TECNICO', 'MESARIO'];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [clube, setClube] = useState<(Clube & { meuPapel?: string }) | null>(null);
+  const [clube, setClube] = useState<Clube | null>(null);
   const [token, setTokenState] = useState<string | null>(getToken());
   const [fazendoLogin, setFazendoLogin] = useState(false);
 
@@ -30,6 +43,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (u) setUsuario(JSON.parse(u));
       if (c) setClube(JSON.parse(c));
       setTokenState(t);
+      fetchMeuPerfil()
+        .then(perfil => {
+          const usuarioAtual = {
+            id: perfil.id,
+            nome: perfil.nome,
+            email: perfil.email,
+            criadoEm: perfil.criadoEm,
+          };
+          setUsuario(usuarioAtual);
+          localStorage.setItem('ludora_usuario', JSON.stringify(usuarioAtual));
+
+          if (c) {
+            const clubeSalvo = JSON.parse(c) as Clube;
+            const vinculoAtual = perfil.clubes.find(item => item.id === clubeSalvo.id);
+            if (vinculoAtual) {
+              setClube(vinculoAtual);
+              localStorage.setItem('ludora_clube', JSON.stringify(vinculoAtual));
+            }
+          }
+        })
+        .catch(() => undefined);
     }
   }, []);
 
@@ -41,6 +75,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setTokenState(data.token);
       setUsuario(data.usuario);
       localStorage.setItem('ludora_usuario', JSON.stringify(data.usuario));
+      removeClubeId();
+      localStorage.removeItem('ludora_clube');
+      setClube(null);
     } finally {
       setFazendoLogin(false);
     }
@@ -57,16 +94,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.href = '/login';
   }, []);
 
-  const definirClube = useCallback((c: Clube & { meuPapel?: string }) => {
+  const definirClube = useCallback((c: Clube) => {
     setClubeId(c.id);
     setClube(c);
     localStorage.setItem('ludora_clube', JSON.stringify(c));
   }, []);
 
+  const atualizarPerfil = useCallback(async (dados: { nome: string; email: string; senha?: string }) => {
+    const atualizado = await atualizarMeuPerfil(dados);
+    setUsuario(atualizado);
+    localStorage.setItem('ludora_usuario', JSON.stringify(atualizado));
+  }, []);
+
+  const recarregarPerfil = useCallback(async () => {
+    const perfil = await fetchMeuPerfil();
+    const atualizado = {
+      id: perfil.id,
+      nome: perfil.nome,
+      email: perfil.email,
+      criadoEm: perfil.criadoEm,
+    };
+    setUsuario(atualizado);
+    localStorage.setItem('ludora_usuario', JSON.stringify(atualizado));
+  }, []);
+
   const podeGerenciar = !!clube?.meuPapel && PAPEIS_GESTORES.includes(clube.meuPapel);
 
   return (
-    <AuthContext.Provider value={{ usuario, clube, token, podeGerenciar, fazendoLogin, login, logout, definirClube }}>
+    <AuthContext.Provider value={{ usuario, clube, token, podeGerenciar, fazendoLogin, login, logout, definirClube, atualizarPerfil, recarregarPerfil }}>
       {children}
     </AuthContext.Provider>
   );

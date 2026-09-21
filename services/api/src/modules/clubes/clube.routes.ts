@@ -33,9 +33,11 @@ router.get('/clubes', async (req, res) => {
       escudo: c.escudo,
       cidade: c.cidade,
       estado: c.estado,
+      plano: c.plano,
       seguidores: c._count.usuarios,
       isSeguindo: usuarioId ? c.usuarios.length > 0 : false,
       papel: usuarioId && c.usuarios.length > 0 ? c.usuarios[0].papel : null,
+      meuPapel: usuarioId && c.usuarios.length > 0 ? c.usuarios[0].papel : null,
     }));
 
     res.json(formatados);

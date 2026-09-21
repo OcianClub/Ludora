@@ -4,8 +4,9 @@ import type { Server } from 'socket.io';
 import { prisma } from '../../lib/prisma';
 import {
   exigirGestorDoClube,
-  exigirJogadorDoClube,
+  exigirMembroDoClube,
   exigirPartidaDoClube,
+  exigirPartidaVisivelDoClube,
   obterEscopoCategorias,
   podeAcessarCategoria,
 } from '../../middlewares/permissoes.middleware';
@@ -76,9 +77,8 @@ router.post('/partidas', exigirGestorDoClube, async (req, res) => {
   }
 });
 
-router.get('/partidas', async (req, res) => {
-  const clube_id = Number(req.headers['x-clube-id']);
-  if (!clube_id) return res.status(400).json({ error: 'Header x-clube-id é obrigatório' });
+router.get('/partidas', exigirMembroDoClube, async (req, res) => {
+  const clube_id = (req as any).clubeId as number;
 
   const { categoria_id, mes, status, competicao_id } = req.query;
   try {
@@ -220,8 +220,15 @@ router.patch<{ id: string }>(
   }
 );
 
-router.get('/jogadores/:id/estatisticas', exigirGestorDoClube, exigirJogadorDoClube, async (req, res) => {
+router.get('/jogadores/:id/estatisticas', exigirMembroDoClube, async (req, res) => {
   const jogadorId = Number(req.params.id);
+  const jogadorExiste = await prisma.jogador.count({
+    where: {
+      id: jogadorId,
+      categoria: { clube_id: (req as any).clubeId },
+    },
+  });
+  if (!jogadorExiste) return res.status(404).json({ error: 'Jogador não encontrado neste clube' });
   const estatisticas = await prisma.evento.groupBy({
     by: ['tipo'],
     where: { jogador_id: jogadorId },
@@ -293,16 +300,25 @@ router.post<{ id: string }>(
   }
 );
 
-router.get('/partidas/:id/eventos', async (req, res) => {
+router.get(
+  '/partidas/:id/eventos',
+  exigirMembroDoClube,
+  exigirPartidaVisivelDoClube(req => Number(req.params.id)),
+  async (req, res) => {
   try {
     const eventos = await prisma.evento.findMany({
       where: { partida_id: Number(req.params.id) },
-      include: { jogador: true },
+      include: {
+        jogador: {
+          select: { id: true, nome: true, posicao: true, numCamisa: true },
+        },
+      },
       orderBy: { id: 'asc' }
     });
     res.json(eventos);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar eventos' }); }
-});
+  }
+);
 
 router.delete<{ id: string }>('/eventos/:id', exigirGestorDoClube, async (req, res) => {
   try {

@@ -84,7 +84,7 @@ export default function PartidasPage() {
         {(filtroStatus || filtroCategoria) && <Btn variant="ghost" size="sm" onClick={() => mudarFiltro('', '')}>Limpar</Btn>}
       </div>
 
-      {loading ? <Spinner /> : partidas.length === 0 ? <Empty icon="⚽" message="Nenhuma partida encontrada" /> : (
+      {loading ? <Spinner /> : partidas.length === 0 ? <Empty icon="⚽" message="Nenhuma partida publicada para os filtros selecionados" /> : (
         <div className="table-wrap">
           <table>
             <thead><tr><th>Data</th><th>Mandante</th><th>Placar</th><th>Visitante</th><th>Categoria</th><th>Status</th>{podeGerenciar && <th>Ações</th>}</tr></thead>

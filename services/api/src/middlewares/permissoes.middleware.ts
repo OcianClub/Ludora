@@ -6,6 +6,49 @@ import { idPositivo } from '../utils/id';
 
 const PAPEIS_GESTORES = ['ADMIN', 'TECNICO', 'MESARIO'] as const;
 
+export function exigirMembroDoClube(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const usuarioId = getUsuarioId(req);
+  if (!usuarioId) {
+    return res.status(401).json({ error: 'Token inválido ou não enviado' });
+  }
+
+  const clubeId = idPositivo(req.headers['x-clube-id']);
+  if (!clubeId) {
+    return res
+      .status(400)
+      .json({ error: 'Header x-clube-id inválido ou ausente' });
+  }
+
+  prisma.usuarioClube
+    .findUnique({
+      where: {
+        usuario_id_clube_id: {
+          usuario_id: usuarioId,
+          clube_id: clubeId,
+        },
+      },
+    })
+    .then(vinculo => {
+      if (!vinculo) {
+        return res
+          .status(403)
+          .json({ error: 'Você não acompanha este clube' });
+      }
+
+      (req as any).usuarioId = usuarioId;
+      (req as any).clubeId = clubeId;
+      (req as any).papelUsuario = vinculo.papel;
+      next();
+    })
+    .catch(() =>
+      res.status(500).json({ error: 'Erro ao verificar vínculo com o clube' })
+    );
+}
+
 export function exigirGestorDoClube(
   req: Request,
   res: Response,
@@ -110,6 +153,30 @@ export async function obterEscopoCategorias(
   };
 }
 
+// Torcedores podem visualizar todo o conteúdo publicado pelo clube. Usuários de
+// gestão continuam respeitando o escopo de categorias definido pelo desktop.
+export async function obterEscopoCategoriasLeitura(
+  usuarioId: number,
+  clubeId: number
+): Promise<EscopoCategorias> {
+  const vinculo = await prisma.usuarioClube.findUnique({
+    where: {
+      usuario_id_clube_id: {
+        usuario_id: usuarioId,
+        clube_id: clubeId,
+      },
+    },
+    select: { papel: true },
+  });
+
+  if (!vinculo) return { acessoTotal: false, categoriaIds: [] };
+  if (vinculo.papel === 'TORCEDOR') {
+    return { acessoTotal: true, categoriaIds: [] };
+  }
+
+  return obterEscopoCategorias(usuarioId, clubeId);
+}
+
 export async function podeAcessarCategoria(
   usuarioId: number,
   clubeId: number,
@@ -182,6 +249,29 @@ export function exigirPartidaDoClube(idParam: (req: Request) => number) {
       return res
         .status(500)
         .json({ error: 'Erro ao verificar permissão da partida' });
+    }
+  };
+}
+
+export function exigirPartidaVisivelDoClube(
+  idParam: (req: Request) => number
+) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const partidaId = idPositivo(idParam(req));
+    const clubeId = (req as any).clubeId as number;
+    if (!partidaId) return res.status(400).json({ error: 'ID inválido' });
+
+    try {
+      const partida = await prisma.partida.findFirst({
+        where: { id: partidaId, categoria: { clube_id: clubeId } },
+        select: { id: true },
+      });
+      if (!partida) {
+        return res.status(404).json({ error: 'Partida não encontrada neste clube' });
+      }
+      next();
+    } catch {
+      return res.status(500).json({ error: 'Erro ao verificar a partida' });
     }
   };
 }

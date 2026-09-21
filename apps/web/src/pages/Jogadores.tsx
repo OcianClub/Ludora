@@ -75,7 +75,7 @@ export default function JogadoresPage() {
         {(busca || filtroCategoria || filtroPerfil) && <Btn variant="ghost" size="sm" onClick={() => { setBusca(''); setFiltroCategoria(''); setFiltroPerfil(''); }}>Limpar</Btn>}
       </div>
 
-      {loading ? <Spinner /> : filtrados.length === 0 ? <Empty message="Nenhum jogador encontrado" /> : (
+      {loading ? <Spinner /> : filtrados.length === 0 ? <Empty icon="🏃" message="O clube ainda não publicou jogadores nesta categoria" /> : (
         <div className="table-wrap">
           <table>
             <thead><tr><th>Nome</th><th>Posição</th><th>Camisa</th><th>Categoria</th><th>Perfil IA</th><th>Nota</th>{podeGerenciar && <th>Ações</th>}</tr></thead>
@@ -84,7 +84,7 @@ export default function JogadoresPage() {
                 const cat = categorias.find(c => c.id === j.categoria_id);
                 return (
                   <tr key={j.id}>
-                    <td><strong>{j.nome}</strong><br /><span style={{ fontSize: 11, color: 'var(--texto-sec)' }}>{j.cpf}</span></td>
+                    <td><strong>{j.nome}</strong></td>
                     <td>{j.posicao}</td>
                     <td>{j.numCamisa ?? '—'}</td>
                     <td>{cat?.nome || '—'}</td>

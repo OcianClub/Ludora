@@ -33,13 +33,19 @@ export default function Layout() {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <div className="sidebar-usuario">
+          <button
+            type="button"
+            className="sidebar-usuario"
+            onClick={() => navigate('/perfil')}
+            title="Abrir meu perfil"
+          >
             <div className="usuario-avatar">{usuario?.nome?.[0] || '?'}</div>
             <div className="usuario-info">
-              <span className="usuario-nome">{usuario?.nome}</span>
-              <span className="usuario-papel">{clube?.meuPapel || 'TORCEDOR'}</span>
+              <span className="usuario-nome">{usuario?.nome || 'Meu perfil'}</span>
+              <span className="usuario-papel">{clube?.meuPapel || 'SEM VÍNCULO'}</span>
             </div>
-          </div>
+            <span className="usuario-seta" aria-hidden="true">›</span>
+          </button>
           <button className="btn-logout" onClick={logout}>Sair</button>
         </div>
       </aside>

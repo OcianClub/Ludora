@@ -5,8 +5,10 @@ import {
   exigirAcessoTotalCategorias,
   exigirCompeticaoDoClube,
   exigirGestorDoClube,
+  exigirMembroDoClube,
   exigirTimeDoClube,
   obterEscopoCategorias,
+  obterEscopoCategoriasLeitura,
   podeAcessarCategoria,
 } from '../../middlewares/permissoes.middleware';
 import { idPositivo } from '../../utils/id';
@@ -58,10 +60,10 @@ router.patch('/times/:id', exigirGestorDoClube, exigirTimeDoClube, async (req, r
   } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar time' }); }
 });
 
-router.get('/times', exigirGestorDoClube, async (req, res) => {
+router.get('/times', exigirMembroDoClube, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
   try {
-    const escopo = await obterEscopoCategorias((req as any).usuarioId, clube_id);
+    const escopo = await obterEscopoCategoriasLeitura((req as any).usuarioId, clube_id);
     const times = await prisma.time.findMany({
       where: {
         categoria: {
@@ -109,10 +111,10 @@ router.patch('/competicoes/:id', exigirGestorDoClube, exigirAcessoTotalCategoria
   } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar competição' }); }
 });
 
-router.get('/competicoes', exigirGestorDoClube, async (req, res) => {
+router.get('/competicoes', exigirMembroDoClube, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
   try {
-    const escopo = await obterEscopoCategorias((req as any).usuarioId, clube_id);
+    const escopo = await obterEscopoCategoriasLeitura((req as any).usuarioId, clube_id);
     const competicoes = await prisma.competicao.findMany({ 
       where: {
         clube_id,
@@ -146,11 +148,11 @@ router.delete('/competicoes/:id', exigirGestorDoClube, exigirAcessoTotalCategori
   } catch (error: any) { res.status(500).json({ error: 'Erro ao excluir campeonato.' }); }
 });
 
-router.get('/competicoes/:id/jogadores', exigirGestorDoClube, exigirCompeticaoDoClube, async (req, res) => {
+router.get('/competicoes/:id/jogadores', exigirMembroDoClube, exigirCompeticaoDoClube, async (req, res) => {
   const competicao_id = Number(req.params.id);
   const categoria_id  = req.query.categoria_id ? Number(req.query.categoria_id) : undefined;
   try {
-    const escopo = await obterEscopoCategorias((req as any).usuarioId, (req as any).clubeId);
+    const escopo = await obterEscopoCategoriasLeitura((req as any).usuarioId, (req as any).clubeId);
     if (categoria_id && !escopo.acessoTotal && !escopo.categoriaIds.includes(categoria_id)) {
       return res.status(403).json({ error: 'Você não administra a categoria solicitada' });
     }
@@ -220,12 +222,12 @@ router.put('/competicoes/:id/jogadores', exigirGestorDoClube, exigirCompeticaoDo
   }
 });
 
-router.get('/categorias', exigirGestorDoClube, async (req, res) => {
+router.get('/categorias', exigirMembroDoClube, async (req, res) => {
   const usuario_id = (req as any).usuarioId as number;
   const clube_id = (req as any).clubeId as number;
 
   try {
-    const escopo = await obterEscopoCategorias(
+    const escopo = await obterEscopoCategoriasLeitura(
       usuario_id,
       clube_id
     );

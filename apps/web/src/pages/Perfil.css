@@ -1,0 +1,23 @@
+.perfil-page { max-width: 980px; }
+.perfil-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr); gap: 18px; align-items: start; }
+.perfil-identidade { display: flex; align-items: center; gap: 14px; padding-bottom: 20px; border-bottom: 1px solid var(--linha); }
+.perfil-avatar { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--primaria); color: #fff; font-family: var(--font-titulo); font-size: 24px; font-weight: 700; }
+.perfil-identidade h2, .perfil-clubes-header h2 { font-family: var(--font-titulo); font-size: 18px; }
+.perfil-identidade p, .perfil-clubes-header p { color: var(--texto-sec); font-size: 12px; margin-top: 3px; }
+.perfil-identidade span { display: block; color: var(--texto-sec); font-size: 11px; margin-top: 7px; }
+.perfil-form { display: flex; flex-direction: column; gap: 13px; margin-top: 20px; }
+.perfil-form .btn { align-self: flex-start; }
+.perfil-alerta { border-radius: 7px; padding: 9px 11px; font-size: 12px; }
+.perfil-alerta--erro { color: var(--titulo-erro); background: var(--fundo-erro); border: 1px solid var(--borda-erro); }
+.perfil-alerta--sucesso { color: #7bc47f; background: #13251a; border: 1px solid #255c35; }
+.perfil-clubes-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--linha); }
+.perfil-clubes { display: flex; flex-direction: column; gap: 9px; margin-top: 14px; }
+.perfil-clube { width: 100%; display: flex; align-items: center; gap: 11px; padding: 11px; border-radius: 9px; border: 1px solid var(--borda); background: var(--fundo-card-sec); color: var(--texto); text-align: left; }
+.perfil-clube:hover, .perfil-clube.ativo { border-color: var(--primaria); }
+.perfil-clube-escudo { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; display: grid; place-items: center; overflow: hidden; background: var(--fundo-botao); color: var(--primaria); font-weight: 700; }
+.perfil-clube-escudo img { width: 100%; height: 100%; object-fit: cover; }
+.perfil-clube-info { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.perfil-clube-info strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.perfil-clube-info small { color: var(--texto-sec); margin-top: 2px; }
+.perfil-sem-clube { display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--texto-sec); text-align: center; padding: 34px 16px; }
+@media (max-width: 850px) { .perfil-grid { grid-template-columns: 1fr; } }

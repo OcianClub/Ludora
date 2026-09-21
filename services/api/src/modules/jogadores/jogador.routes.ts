@@ -5,7 +5,9 @@ import {
   exigirAcessoTotalCategorias,
   exigirGestorDoClube,
   exigirJogadorDoClube,
+  exigirMembroDoClube,
   obterEscopoCategorias,
+  obterEscopoCategoriasLeitura,
   podeAcessarCategoria,
 } from '../../middlewares/permissoes.middleware';
 import { limitarOperacaoPesada } from '../../middlewares/rate-limit.middleware';
@@ -81,7 +83,7 @@ router.post('/jogadores', exigirGestorDoClube, async (req, res) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/jogadores/perfis', exigirGestorDoClube, async (req, res) => {
+router.get('/jogadores/perfis', exigirMembroDoClube, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
   const usuario_id = (req as any).usuarioId as number;
   const categoriaInformada = req.query.categoria_id !== undefined;
@@ -91,7 +93,7 @@ router.get('/jogadores/perfis', exigirGestorDoClube, async (req, res) => {
   }
 
   try {
-    const escopo = await obterEscopoCategorias(usuario_id, clube_id);
+    const escopo = await obterEscopoCategoriasLeitura(usuario_id, clube_id);
     if (categoria_id && !escopo.acessoTotal && !escopo.categoriaIds.includes(categoria_id)) {
       return res.status(403).json({ error: 'Você não administra a categoria solicitada' });
     }
@@ -144,11 +146,11 @@ router.get('/jogadores/perfis', exigirGestorDoClube, async (req, res) => {
   }
 });
 
-router.get('/jogadores', exigirGestorDoClube, async (req, res) => {
+router.get('/jogadores', exigirMembroDoClube, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
 
   try {
-    const escopo = await obterEscopoCategorias((req as any).usuarioId, clube_id);
+    const escopo = await obterEscopoCategoriasLeitura((req as any).usuarioId, clube_id);
     const jogadores = await prisma.jogador.findMany({
       where: { 
         ativo: true,

@@ -63,11 +63,62 @@ router.post('/auth/login', limitarAuth, async (req, res) => {
 
   res.json({ 
     token, 
+    usuario: {
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email,
+      criadoEm: usuario.criadoEm,
+    },
     nome: usuario.nome, 
     criadoEm: usuario.criadoEm, 
     email: usuario.email,
     clubes: clubesDoUsuario // <-- Lista de clubes enviada direto no login!
   });
+});
+
+router.get('/usuarios/me', exigirAutenticacao, async (req, res) => {
+  try {
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: (req as any).usuarioId },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        criadoEm: true,
+        clubes: {
+          orderBy: { clube: { nome: 'asc' } },
+          select: {
+            papel: true,
+            clube: {
+              select: {
+                id: true,
+                nome: true,
+                escudo: true,
+                cidade: true,
+                estado: true,
+                plano: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!usuario) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    res.json({
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email,
+      criadoEm: usuario.criadoEm,
+      clubes: usuario.clubes.map(vinculo => ({
+        ...vinculo.clube,
+        meuPapel: vinculo.papel,
+      })),
+    });
+  } catch {
+    res.status(500).json({ error: 'Não foi possível carregar o perfil' });
+  }
 });
 
 router.patch('/usuarios/me', exigirAutenticacao, async (req, res) => {
@@ -81,7 +132,12 @@ router.patch('/usuarios/me', exigirAutenticacao, async (req, res) => {
     const data: any = { nome, email };
     if (senha) data.senha = await bcrypt.hash(senha, 12);
     const usuario = await prisma.usuario.update({ where: { id: (req as any).usuarioId }, data });
-    res.json({ nome: usuario.nome, email: usuario.email });
+    res.json({
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email,
+      criadoEm: usuario.criadoEm,
+    });
   } catch { res.status(400).json({ error: 'Não foi possível atualizar os dados' }); }
 });
 

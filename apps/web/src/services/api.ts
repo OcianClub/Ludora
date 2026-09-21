@@ -26,13 +26,28 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
   if (clubeId) headers.set('x-clube-id', String(clubeId));
 
   const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
-  if (res.status === 401) { removeToken(); removeClubeId(); window.location.href = '/login'; }
+  if (res.status === 401 && token && !endpoint.startsWith('/auth/')) {
+    removeToken();
+    removeClubeId();
+    window.location.href = '/login';
+  }
   return res;
 }
 
 // ── Tipos ──
-export interface Clube { id: number; nome: string; escudo?: string; cidade?: string; estado?: string; plano: string; }
-export interface Usuario { id: number; nome: string; email: string; }
+export interface Clube {
+  id: number;
+  nome: string;
+  escudo?: string;
+  cidade?: string;
+  estado?: string;
+  plano?: string;
+  meuPapel?: string | null;
+  isSeguindo?: boolean;
+  seguidores?: number;
+}
+export interface Usuario { id: number; nome: string; email: string; criadoEm?: string; }
+export interface PerfilUsuario extends Usuario { clubes: Clube[]; }
 export interface Categoria { id: number; nome: string; tipo: string; clube_id: number; }
 export interface Time { id: number; nome: string; escudo?: string; categoria_id?: number; }
 export interface Jogador { id: number; nome: string; cpf: string; dtNasc: string; posicao: string; numCamisa?: number; ativo: boolean; perfil_ml?: string; nota_geral?: number; categoria_id: number; }
@@ -47,7 +62,14 @@ export interface Estatisticas { gols: number; assistencias: number; defesas: num
 export async function login(email: string, senha: string) {
   const res = await apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, senha }) });
   if (!res.ok) throw new Error((await res.json()).error || 'Erro ao fazer login');
-  return res.json() as Promise<{ token: string; usuario: Usuario }>;
+  const data = await res.json();
+  const usuario: Usuario = data.usuario || {
+    id: data.id,
+    nome: data.nome,
+    email: data.email,
+    criadoEm: data.criadoEm,
+  };
+  return { ...data, usuario } as { token: string; usuario: Usuario; clubes?: Clube[] };
 }
 export async function registrar(nome: string, email: string, senha: string) {
   const res = await apiFetch('/auth/registrar', { method: 'POST', body: JSON.stringify({ nome, email, senha }) });
@@ -55,8 +77,20 @@ export async function registrar(nome: string, email: string, senha: string) {
   return res.json();
 }
 
+export async function fetchMeuPerfil(): Promise<PerfilUsuario> {
+  const res = await apiFetch('/usuarios/me');
+  if (!res.ok) throw new Error((await res.json()).error || 'Erro ao carregar perfil');
+  return res.json();
+}
+
+export async function atualizarMeuPerfil(dados: { nome: string; email: string; senha?: string }): Promise<Usuario> {
+  const res = await apiFetch('/usuarios/me', { method: 'PATCH', body: JSON.stringify(dados) });
+  if (!res.ok) throw new Error((await res.json()).error || 'Erro ao atualizar perfil');
+  return res.json();
+}
+
 // ── CLUBES ──
-export async function fetchClubes(): Promise<(Clube & { meuPapel?: string })[]> {
+export async function fetchClubes(): Promise<Clube[]> {
   const res = await apiFetch('/clubes');
   if (!res.ok) throw new Error('Erro ao buscar clubes');
   return res.json();
@@ -81,12 +115,26 @@ export async function fetchTimes(): Promise<Time[]> {
   return res.json();
 }
 export async function criarTime(dados: { nome: string; escudo?: string; categorias_ids?: number[] }) {
-  const res = await apiFetch('/times', { method: 'POST', body: JSON.stringify(dados) });
+  const res = await apiFetch('/times', {
+    method: 'POST',
+    body: JSON.stringify({
+      nome: dados.nome,
+      escudo: dados.escudo,
+      categoria_id: dados.categorias_ids?.[0],
+    }),
+  });
   if (!res.ok) throw new Error('Erro ao criar time');
   return res.json();
 }
 export async function atualizarTime(id: number, dados: { nome: string; escudo?: string; categorias_ids?: number[] }) {
-  const res = await apiFetch(`/times/${id}`, { method: 'PATCH', body: JSON.stringify(dados) });
+  const res = await apiFetch(`/times/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      nome: dados.nome,
+      escudo: dados.escudo,
+      categoria_id: dados.categorias_ids?.[0],
+    }),
+  });
   if (!res.ok) throw new Error('Erro ao atualizar time');
   return res.json();
 }
@@ -106,7 +154,25 @@ export async function fetchJogadoresPerfis(categoria_id?: number): Promise<Perfi
   const q = categoria_id ? `?categoria_id=${categoria_id}` : '';
   const res = await apiFetch(`/jogadores/perfis${q}`);
   if (!res.ok) throw new Error('Erro ao buscar perfis');
-  return res.json();
+  const dados = await res.json();
+  return dados.map((j: any) => ({
+    id: j.id ?? j.id_jogador,
+    nome: j.nome,
+    cpf: '',
+    dtNasc: '',
+    posicao: j.posicao,
+    numCamisa: j.numCamisa,
+    ativo: true,
+    perfil_ml: j.perfil_ml,
+    nota_geral: j.nota_geral,
+    categoria_id: j.categoria_id,
+    totalGols: j.totalGols ?? j.gols ?? 0,
+    totalAssistencias: j.totalAssistencias ?? j.assistencias ?? 0,
+    totalCartoes: j.totalCartoes ?? ((j.cartoes_amarelos ?? 0) + (j.cartoes_vermelhos ?? 0)),
+    totalDefesas: j.totalDefesas ?? j.defesas ?? 0,
+    totalFaltas: j.totalFaltas ?? j.faltas_cometidas ?? 0,
+    totalPartidas: j.totalPartidas ?? j.jogos_disputados ?? 0,
+  }));
 }
 export async function criarJogador(dados: { nome: string; cpf: string; dtNasc: string; posicao: string; numCamisa?: number; categoria_id?: number }) {
   const res = await apiFetch('/jogadores', { method: 'POST', body: JSON.stringify(dados) });

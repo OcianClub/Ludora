@@ -1,13 +1,15 @@
 .selecionar-page { min-height: 100vh; background: var(--fundo); display: flex; flex-direction: column; }
 .selecionar-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 32px; border-bottom: 1px solid var(--linha); }
 .selecionar-body { flex: 1; max-width: 720px; margin: 0 auto; padding: 40px 20px; width: 100%; }
+.selecionar-intro { padding: 22px; margin-bottom: 24px; border: 1px solid var(--borda-botao); border-radius: 14px; background: linear-gradient(135deg, var(--fundo-botao), var(--fundo-card)); }
+.selecionar-kicker { display: block; color: var(--primaria); font-size: 10px; font-weight: 700; letter-spacing: 1.4px; margin-bottom: 8px; }
 .selecionar-titulo { font-family: var(--font-titulo); font-size: 28px; font-weight: 700; margin-bottom: 6px; }
-.selecionar-sub { color: var(--texto-sec); font-size: 14px; margin-bottom: 32px; }
+.selecionar-sub { color: var(--texto-sec); font-size: 13px; line-height: 1.55; }
 .clube-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
 .clube-card {
   background: var(--fundo-card); border: 1px solid var(--borda); border-radius: 12px;
   padding: 20px 16px; display: flex; flex-direction: column; align-items: center; gap: 10px;
-  text-align: center; transition: border-color 0.12s, background 0.12s; cursor: pointer;
+  text-align: center; transition: border-color 0.12s, background 0.12s;
   position: relative;
 }
 .clube-card:hover { border-color: var(--primaria); background: var(--fundo-card-sec); }
@@ -16,4 +18,6 @@
 .clube-escudo span { font-family: var(--font-titulo); font-size: 22px; font-weight: 700; color: var(--primaria); }
 .clube-nome { font-weight: 600; font-size: 14px; display: block; }
 .clube-cidade { font-size: 11px; color: var(--texto-sec); display: block; margin-top: 2px; }
+.clube-seguidores { font-size: 10px; color: var(--texto-sec); display: block; margin-top: 6px; }
 .clube-papel { position: absolute; top: 10px; right: 10px; font-size: 9px; font-weight: 700; background: var(--fundo-botao); border: 1px solid var(--borda-botao); color: var(--primaria); padding: 2px 7px; border-radius: 20px; letter-spacing: 0.5px; }
+.clube-acao { margin-top: auto; width: 100%; justify-content: center; }
