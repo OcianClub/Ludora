@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon, IconName } from './Icon';
 import './UI.css';
 
 // ── Badge de status de partida ──
@@ -45,11 +46,13 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 export function Input({ label, error, className = '', ...rest }: InputProps) {
+  const generatedId = React.useId();
+  const id = rest.id || generatedId;
   return (
     <div className={`field ${className}`}>
-      {label && <label className="field-label">{label}</label>}
-      <input className={`field-input${error ? ' field-input--error' : ''}`} {...rest} />
-      {error && <span className="field-error">{error}</span>}
+      {label && <label className="field-label" htmlFor={id}>{label}</label>}
+      <input className={`field-input${error ? ' field-input--error' : ''}`} {...rest} id={id} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : rest['aria-describedby']} />
+      {error && <span className="field-error" id={`${id}-error`}>{error}</span>}
     </div>
   );
 }
@@ -57,14 +60,17 @@ export function Input({ label, error, className = '', ...rest }: InputProps) {
 // ── Select ──
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
+  emptyLabel?: string;
   options: { value: string | number; label: string }[];
 }
-export function Select({ label, options, className = '', ...rest }: SelectProps) {
+export function Select({ label, options, emptyLabel = 'Selecionar...', className = '', ...rest }: SelectProps) {
+  const generatedId = React.useId();
+  const id = rest.id || generatedId;
   return (
     <div className={`field ${className}`}>
-      {label && <label className="field-label">{label}</label>}
-      <select className="field-input" {...rest}>
-        <option value="">Selecionar...</option>
+      {label && <label className="field-label" htmlFor={id}>{label}</label>}
+      <select className="field-input" {...rest} id={id}>
+        <option value="">{emptyLabel}</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </div>
@@ -73,17 +79,22 @@ export function Select({ label, options, className = '', ...rest }: SelectProps)
 
 // ── Modal ──
 export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+  const dialogRef = React.useRef<HTMLDialogElement>(null);
+  const titleId = React.useId();
+  React.useEffect(() => {
+    const dialog = dialogRef.current;
+    if (open && dialog && !dialog.open) dialog.showModal();
+    return () => { dialog?.close(); };
+  }, [open]);
   if (!open) return null;
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+      <dialog ref={dialogRef} className="modal" aria-labelledby={titleId} onCancel={e => { e.preventDefault(); onClose(); }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
         <div className="modal-header">
-          <h2 className="modal-title">{title}</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <h2 className="modal-title" id={titleId}>{title}</h2>
+          <button type="button" className="modal-close" aria-label="Fechar janela" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">{children}</div>
-      </div>
-    </div>
+      </dialog>
   );
 }
 
@@ -94,9 +105,10 @@ export function Spinner() {
 
 // ── Empty state ──
 export function Empty({ icon = '📭', message }: { icon?: string; message: string }) {
+  const name: IconName = ({ '⚽': 'ball', '👥': 'team', '🏆': 'trophy', '🛡': 'shield' } as Record<string, IconName>)[icon] || 'shield';
   return (
     <div className="empty">
-      <span className="empty-icon">{icon}</span>
+      <span className="empty-icon"><Icon name={name} size={36} /></span>
       <p className="empty-msg">{message}</p>
     </div>
   );

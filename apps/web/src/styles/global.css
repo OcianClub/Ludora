@@ -1,27 +1,13 @@
 /* ── Ludora Design Tokens ── */
 :root {
-  --primaria: #0E78FF;
+  color-scheme: dark;
+  /* As cores são carregadas de packages/design-tokens por theme.ts. */
   --primaria-hover: #1a85ff;
-  --fundo: #0B0D12;
-  --fundo-card: #14171F;
-  --fundo-card-sec: #212531;
-  --fundo-card-claro: #1B1E27;
-  --borda: #2A3040;
-  --linha: #191E2A;
-  --texto: #F2E9D8;
-  --texto-sec: #8B8D94;
-  --amarelo: #F0B84E;
-  --vermelho: #FF4D00;
-  --fundo-botao: #091526;
-  --borda-botao: #1E4C88;
-  --fundo-erro: #2B1319;
-  --borda-erro: #5C1F2A;
-  --titulo-erro: #F5677E;
 
   --font-titulo: 'Oswald', sans-serif;
   --font-corpo: 'Inter', sans-serif;
 
-  --sidebar-w: 220px;
+  --sidebar-w: 238px;
   --topbar-h: 56px;
 }
 
@@ -39,6 +25,23 @@ html, body, #root {
 a { color: inherit; text-decoration: none; }
 button { cursor: pointer; font-family: var(--font-corpo); }
 input, select, textarea { font-family: var(--font-corpo); }
+body { line-height: 1.5; }
+button:disabled { cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--primaria); outline-offset: 4px; }
+::selection { background: var(--borda-botao); color: var(--texto); }
+.icon { display: inline-block; flex-shrink: 0; background: currentColor; mask: no-repeat center / contain; -webkit-mask: no-repeat center / contain; vertical-align: middle; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-titulo); font-size: 22px; font-weight: 600; letter-spacing: 1px; }
+.brand img { width: 38px; height: 38px; border-radius: 10px; }
+.brand small { display: block; font-family: var(--font-corpo); font-size: 8px; letter-spacing: 1.5px; color: var(--texto-sec); font-weight: 500; }
+.club-badge { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--fundo-botao); color: var(--primaria); border: 1px solid var(--borda-botao); border-radius: 10px; overflow: hidden; }
+.club-badge img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+.section-title { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; border-left: 3px solid var(--primaria); padding-left: 10px; font-weight: 600; margin-bottom: 16px; }
+.eyebrow { display: block; font-size: 10px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: var(--primaria); margin-bottom: 10px; }
+.notice-error { padding: 14px 16px; background: var(--fundo-erro); color: var(--titulo-erro); border: 1px solid var(--borda-erro); border-radius: 8px; margin-bottom: 20px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
 
 /* scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }

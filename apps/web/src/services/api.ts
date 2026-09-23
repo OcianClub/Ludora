@@ -51,7 +51,7 @@ export interface PerfilUsuario extends Usuario { clubes: Clube[]; }
 export interface Categoria { id: number; nome: string; tipo: string; clube_id: number; }
 export interface Time { id: number; nome: string; escudo?: string; categoria_id?: number; }
 export interface Jogador { id: number; nome: string; cpf: string; dtNasc: string; posicao: string; numCamisa?: number; ativo: boolean; perfil_ml?: string; nota_geral?: number; categoria_id: number; }
-export interface Partida { id: number; mandante_id: number; visitante_id: number; gols_mandante: number; gols_visitante: number; data: string; horario?: string; local?: string; status: string; emCasa: boolean; categoria_id: number; competicao_id?: number; rodada?: number; grupo?: string; mandante?: Time; visitante?: Time; categoria?: Categoria; }
+export interface Partida { id: number; mandante_id: number; visitante_id: number; gols_mandante: number; gols_visitante: number; data: string; horario?: string; local?: string; status: string; emCasa: boolean; categoria_id: number; competicao_id?: number; rodada?: number; grupo?: string | null; mandante?: Time; visitante?: Time; categoria?: Categoria; }
 export interface Competicao { id: number; nome: string; ano: number; tipo: string; clube_id: number; }
 export interface Evento { id: number; partida_id: number; tipo: string; periodo: number; minuto?: number; jogador_id?: number; }
 export interface EscalacaoItem { jogador_id: number; numCamisa: number; titular: boolean; jogador?: Jogador; }
@@ -241,7 +241,12 @@ export async function atualizarPartida(id: number, dados: Partial<Partida>) {
 }
 export async function atualizarStatusPartida(id: number, status: string) {
   const res = await apiFetch(`/partidas/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
-  if (!res.ok) throw new Error('Erro ao atualizar status');
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro ao atualizar status'); }
+  return res.json();
+}
+export async function atualizarPlacarPartida(id: number, gols_mandante: number, gols_visitante: number): Promise<Partida> {
+  const res = await apiFetch(`/partidas/${id}/placar`, { method: 'PATCH', body: JSON.stringify({ gols_mandante, gols_visitante }) });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro ao atualizar placar'); }
   return res.json();
 }
 export async function deletarPartida(id: number) {
@@ -256,7 +261,7 @@ export async function fetchEventosPartida(id: number): Promise<Evento[]> {
 }
 export async function registrarEvento(partidaId: number, dados: { tipo: string; periodo: number; minuto?: number; jogador_id?: number }) {
   const res = await apiFetch(`/partidas/${partidaId}/eventos`, { method: 'POST', body: JSON.stringify(dados) });
-  if (!res.ok) throw new Error('Erro ao registrar evento');
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro ao registrar evento'); }
   return res.json();
 }
 export async function deletarEvento(id: number) {
