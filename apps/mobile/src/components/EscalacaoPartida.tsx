@@ -6,8 +6,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors } from '@ludora/design-tokens';
-import { styles } from '@/src/styles/escalacaoPartidaStyles';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { createStyles } from '@/src/styles/escalacaoPartidaStyles';
 
 import {
   fetchEscalacaoPartida,
@@ -48,6 +48,8 @@ const MAX_TITULARES = 5;
 // ── Sub-componente: linha de jogador escalado ─────────────────────────────────
 
 function JogadorRow({ escalado }: { escalado: JogadorEscalado }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   return (
     <View style={[styles.rowItem, escalado.titular && styles.rowItemTitular]}>
       <View style={styles.rowNumBox}>
@@ -71,6 +73,8 @@ function JogadorRow({ escalado }: { escalado: JogadorEscalado }) {
 export default function EscalacaoPartida({
   partidaId, categoriaId, competicaoId, isAdmin, partidaStatus, onEscalacaoAtualizada,
 }: EscalacaoPartidaProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const modoSubstituicao = partidaStatus === 'AO_VIVO';
   const MAX_SUBS = 3;
 

@@ -1,8 +1,8 @@
 import { Icon } from '@ludora/icons';
 import React from 'react';
 import { View, Text, TextInput } from 'react-native';
-import { colors } from '@ludora/design-tokens';
-import { styles } from '../styles/inputDataHoraStyles';
+import { createStyles } from '../styles/inputDataHoraStyles';
+import { useTheme } from '@/src/contexts/ThemeContext';
 
 interface InputDataHoraProps {
   data: string;
@@ -12,6 +12,8 @@ interface InputDataHoraProps {
 }
 
 export default function InputDataHora({ data, horario, onChangeData, onChangeHorario }: InputDataHoraProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   return (
     <View style={styles.rowDuplo}>
       <View style={styles.halfBlock}>

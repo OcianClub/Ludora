@@ -4,9 +4,9 @@ import {
   View, Text, TouchableOpacity, Image, ScrollView,
   Modal, Pressable, ActivityIndicator, RefreshControl,
 } from 'react-native';
-import { styles } from '@/src/styles/jogosStyles';
+import { createStyles } from '@/src/styles/jogosStyles';
 import { Header } from '@/src/components/Header';
-import { colors } from '@ludora/design-tokens';
+import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import PagerView from 'react-native-pager-view';
@@ -20,7 +20,7 @@ import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 const FILTROS_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 type StatusFiltro = 'TODOS' | 'AGENDADA' | 'AO_VIVO' | 'FINALIZADA';
-const STATUS_OPTIONS: { label: string; value: StatusFiltro; icon: IconName; iconColor: string }[] = [
+const getStatusOptions = (colors: ThemeColors): { label: string; value: StatusFiltro; icon: IconName; iconColor: string }[] => [
   { label: 'Todos os jogos', value: 'TODOS', icon: 'soccer', iconColor: colors.primaria },
   { label: 'Ao vivo',        value: 'AO_VIVO', icon: 'record-circle-outline', iconColor: colors.tituloErro },
   { label: 'Agendadas',      value: 'AGENDADA', icon: 'calendar-clock', iconColor: colors.textoSecundario },
@@ -81,6 +81,9 @@ function ordenarPartidas(partidas: Partida[]): Partida[] {
 }
 
 export default function Jogos() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+  const statusOptions = getStatusOptions(colors);
   const { clubeAtivo, podeGerenciar } = useClubeAtivo();
   const pagerRef = useRef<PagerView>(null);
   const carregouUmaVez = useRef(false);
@@ -203,7 +206,7 @@ export default function Jogos() {
         <TouchableOpacity activeOpacity={0.7} style={styles.singleFilterBtn} onPress={abrirFiltros}>
           <Icon name="filter-variant" size={20} color={colors.primaria} />
           <Text style={styles.filterBtnText}>
-            {FILTROS_MES[mesAtivo - 1]} • {STATUS_OPTIONS.find(o => o.value === statusFiltro)?.label}
+            {FILTROS_MES[mesAtivo - 1]} • {statusOptions.find(o => o.value === statusFiltro)?.label}
           </Text>
           <Icon name="chevron-down" size={20} color={colors.textoSecundario} />
         </TouchableOpacity>
@@ -278,8 +281,17 @@ export default function Jogos() {
                                 </View>
                               )}
                               <View style={[styles.badge, !partida.emCasa && { backgroundColor: colors.cardSecundario }]}>
-                                <Icon name={partida.emCasa ? 'home-outline' : 'bus'} size={14} color={colors.texto} />
-                                <Text style={styles.badgeText}>{partida.emCasa ? 'CASA' : 'FORA'}</Text>
+                                <Icon
+                                  name={partida.emCasa ? 'home-outline' : 'bus'}
+                                  size={14}
+                                  color={partida.emCasa ? colors.textoSobrePrimaria : colors.texto}
+                                />
+                                <Text style={[
+                                  styles.badgeText,
+                                  { color: partida.emCasa ? colors.textoSobrePrimaria : colors.texto },
+                                ]}>
+                                  {partida.emCasa ? 'CASA' : 'FORA'}
+                                </Text>
                               </View>
                             </View>
                           </View>
@@ -344,7 +356,7 @@ export default function Jogos() {
       {podeGerenciar && (
         <TouchableOpacity activeOpacity={0.8} style={styles.fab} onPress={() => setModalOrganizar(true)}>
           <LinearGradient colors={[colors.primaria, '#0055FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabGradient}>
-            <Icon name="plus" size={32} color={colors.texto} />
+            <Icon name="plus" size={32} color={colors.textoSobrePrimaria} />
           </LinearGradient>
         </TouchableOpacity>
       )}
@@ -393,7 +405,7 @@ export default function Jogos() {
             {/* SEÇÃO 2: STATUS */}
             <Text style={styles.filterSectionLabel}>Status dos Jogos</Text>
             <View style={styles.statusOptionsContainer}>
-              {STATUS_OPTIONS.map((status) => (
+              {statusOptions.map((status) => (
                 <TouchableOpacity
                   key={status.value}
                   style={[styles.statusItem, tempStatus === status.value && styles.statusItemActive]}

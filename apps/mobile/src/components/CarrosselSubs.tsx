@@ -1,7 +1,8 @@
 import { Icon } from '@ludora/icons';
 import { useRef, useEffect } from 'react';
 import { View, FlatList, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
-import { colors, typography } from '@ludora/design-tokens';
+import { typography } from '@ludora/design-tokens';
+import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 
 const { width: windowWidth } = Dimensions.get('window');
 const MARGEM_CONTEUDO = 20;
@@ -42,6 +43,8 @@ export function CarrosselSubs({
   indexAtual,
   onChangeIndex,
 }: CarrosselSubsProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const listRef = useRef<FlatList>(null);
   const dadosAtuais = tipoFiltro === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
 
@@ -159,7 +162,7 @@ export function CarrosselSubs({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   wrapper: {
     alignItems: 'center',
     paddingHorizontal: MARGEM_CONTEUDO,
@@ -234,7 +237,7 @@ const styles = StyleSheet.create({
   },
   textoAtivo: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: colors.texto,
+    color: colors.textoSobrePrimaria,
     fontSize: typography.fontSize.sm,
   },
 });

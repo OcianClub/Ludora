@@ -6,8 +6,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
 // ── Tipografia, Cores e Estilos Globais ──
-import { colors, typography } from '@ludora/design-tokens';
-import { styles } from '@/src/styles/organizarPartidasStyles';
+import { typography } from '@ludora/design-tokens';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { createStyles } from '@/src/styles/organizarPartidasStyles';
 
 // ── Componentes e Serviços ──
 import { Header } from '@/src/components/Header';
@@ -29,6 +30,8 @@ interface Competicao { id: number; nome: string; ano: number; }
 interface OrganizarPartidasProps { onFechar: () => void; noModal?: boolean; }
 
 export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartidasProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const router = useRouter();
   const { clubeAtivo } = useClubeAtivo();
   
@@ -177,9 +180,9 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
         {/* ── BOTAO SALVAR ── */}
         <TouchableOpacity activeOpacity={0.85} onPress={salvar} style={[styles.salvarBtn, !isFormValido && { opacity: 0.4 }]} disabled={!isFormValido || salvando}>
           <LinearGradient colors={[colors.primaria, '#0055FF']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.salvarGradient}>
-            {salvando ? <ActivityIndicator color="#FFF" /> : (
+            {salvando ? <ActivityIndicator color={colors.textoSobrePrimaria} /> : (
               <View style={styles.salvarBtnInner}>
-                <Icon name="check" size={18} color="#FFF" />
+                <Icon name="check" size={18} color={colors.textoSobrePrimaria} />
                 <Text style={styles.salvarText}>CRIAR PARTIDA</Text>
               </View>
             )}
@@ -201,7 +204,7 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
             {competicoes.map((c, index) => (
               <TouchableOpacity key={c.id} style={[styles.modalItem, competicaoSelecionada?.id === c.id && styles.modalItemActive]} onPress={() => { setCompeticaoSelecionada(c); setModalCompeticao(false); }}>
                 <View style={[styles.modalIconCircle, { backgroundColor: competicaoSelecionada?.id === c.id ? colors.primaria : colors.cardSecundario }]}>
-                    <Icon name="trophy-outline" size={20} color={competicaoSelecionada?.id === c.id ? '#FFF' : colors.primaria} />
+                    <Icon name="trophy-outline" size={20} color={competicaoSelecionada?.id === c.id ? colors.textoSobrePrimaria : colors.primaria} />
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.modalItemText}>{c.nome}</Text>
@@ -248,7 +251,7 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
                         {time.escudo ? (
                              <Image source={{ uri: time.escudo }} style={{ width: 24, height: 24, borderRadius: 12 }} />
                         ) : (
-                            <Icon name={sel ? "shield-check" : "shield"} size={20} color={sel ? '#FFF' : timeColor} />
+                            <Icon name={sel ? "shield-check" : "shield"} size={20} color={sel ? colors.textoSobrePrimaria : timeColor} />
                         )}
                     </View>
                     <View style={{ flex: 1 }}>

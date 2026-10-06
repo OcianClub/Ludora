@@ -1,8 +1,8 @@
 import { Icon } from '@ludora/icons';
 import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
-import { colors } from '@ludora/design-tokens';
-import { styles } from '../styles/mandoCampoStyles';
+import { createStyles } from '../styles/mandoCampoStyles';
+import { useTheme } from '@/src/contexts/ThemeContext';
 
 interface MandoCampoProps {
   emCasa: boolean;
@@ -10,6 +10,8 @@ interface MandoCampoProps {
 }
 
 export default function MandoCampo({ emCasa, onChange }: MandoCampoProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const opcoes = [
     { label: 'EM CASA', icon: 'home-outline' as const, value: true },
     { label: 'FORA', icon: 'bus-side' as const, value: false }

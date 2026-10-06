@@ -1,6 +1,6 @@
-import { colors } from '@ludora/design-tokens';
 import React, { memo, useEffect, useRef } from 'react';
 import { Animated, Easing, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 
 type SkeletonProps = {
   width?: number | `${number}%`;
@@ -15,6 +15,8 @@ export const Skeleton = memo(function Skeleton({
   radius = 8,
   style,
 }: SkeletonProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   return <View style={[styles.block, { width, height, borderRadius: radius }, style]} />;
 });
 
@@ -46,6 +48,8 @@ function SkeletonPulse({ children, style }: { children: React.ReactNode; style?:
 }
 
 export function ListSkeleton({ rows = 4 }: { rows?: number }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   return (
     <SkeletonPulse style={styles.list}>
       {Array.from({ length: rows }, (_, index) => (
@@ -63,6 +67,8 @@ export function ListSkeleton({ rows = 4 }: { rows?: number }) {
 }
 
 export function CardsSkeleton({ rows = 3 }: { rows?: number }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   return (
     <SkeletonPulse style={styles.cards}>
       {Array.from({ length: rows }, (_, index) => (
@@ -84,6 +90,8 @@ type HomeSkeletonProps = {
 };
 
 export function HomeSkeleton({ style }: HomeSkeletonProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   return (
     <SkeletonPulse style={[style, styles.homeContent]}>
       <Skeleton width="35%" height={11} radius={4} />
@@ -105,7 +113,7 @@ export function HomeSkeleton({ style }: HomeSkeletonProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   block: { 
     backgroundColor: colors.cardClaro,
     overflow: 'hidden'

@@ -1,7 +1,8 @@
 import { StyleSheet } from 'react-native';
-import { colors, typography } from '@ludora/design-tokens';
+import { typography } from '@ludora/design-tokens';
+import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.fundo,
@@ -152,7 +153,7 @@ export const styles = StyleSheet.create({
   },
   badgeText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: colors.texto,
+    color: colors.textoSobrePrimaria,
     fontSize: 10,
     letterSpacing: 0.5,
   },
@@ -339,7 +340,7 @@ export const styles = StyleSheet.create({
   },
   applyBtnText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: colors.texto,
+    color: colors.textoSobrePrimaria,
     fontSize: typography.fontSize.sm,
   },
 

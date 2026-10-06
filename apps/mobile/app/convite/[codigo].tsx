@@ -11,22 +11,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { Icon } from '@ludora/icons';
-import { colors } from '@ludora/design-tokens';
 
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
+import { useTheme } from '@/src/contexts/ThemeContext';
 import {
   aceitarConviteContaExistente,
   consultarConvite,
 } from '@/src/features/convites/api';
 import { ConviteClubeCard } from '@/src/features/convites/components/ConviteClubeCard';
 import type { ConviteConsultado, ResultadoConvite } from '@/src/features/convites/types';
-import { conviteStyles as styles } from '@/src/styles/conviteStyles';
+import { createStyles } from '@/src/styles/conviteStyles';
 
 function primeiroParametro(valor: string | string[] | undefined): string {
   return Array.isArray(valor) ? valor[0] ?? '' : valor ?? '';
 }
 
 export default function ConfirmarConvite() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const router = useRouter();
   const { codigo: codigoParam } = useLocalSearchParams<{ codigo?: string | string[] }>();
   const { definirClubeAtivo } = useClubeAtivo();
@@ -191,7 +193,7 @@ export default function ConfirmarConvite() {
               activeOpacity={0.8}
             >
               {processando ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={colors.textoSobrePrimaria} />
               ) : (
                 <Text style={styles.primaryButtonText}>
                   {convite.possui_conta ? 'ACEITAR CONVITE' : 'CONTINUAR'}

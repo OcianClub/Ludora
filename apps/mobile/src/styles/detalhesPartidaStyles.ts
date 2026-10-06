@@ -1,7 +1,8 @@
 import { StyleSheet } from 'react-native';
-import { colors, typography } from '@ludora/design-tokens';
+import { typography } from '@ludora/design-tokens';
+import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.fundo,
@@ -402,7 +403,7 @@ export const styles = StyleSheet.create({
   },
   finalizarBtnText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: '#FFF',
+    color: colors.textoSobrePrimaria,
     fontSize: 13,
     letterSpacing: 1,
   },
@@ -515,7 +516,7 @@ export const styles = StyleSheet.create({
   },
   jogadorNumeroTxt: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: '#FFF',
+    color: colors.textoSobrePrimaria,
     fontSize: 14,
   },
   jogadorSelectNome: {
@@ -550,7 +551,7 @@ export const styles = StyleSheet.create({
   },
   saveStatBtnText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: '#FFF',
+    color: colors.textoSobrePrimaria,
     fontSize: 13,
     letterSpacing: 1,
   },
@@ -786,7 +787,7 @@ export const styles = StyleSheet.create({
   },
   vsText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: '#FFF',
+    color: colors.textoSobrePrimaria,
     fontSize: 11,
   },
   stepperContainer: {
@@ -824,7 +825,7 @@ export const styles = StyleSheet.create({
   },
   salvarText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: '#FFF',
+    color: colors.textoSobrePrimaria,
     fontSize: 14,
     letterSpacing: 1,
   },

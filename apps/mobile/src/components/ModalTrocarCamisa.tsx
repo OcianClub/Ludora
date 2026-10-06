@@ -1,7 +1,7 @@
 import { Icon } from '@ludora/icons';
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
-import { colors } from '@/src/theme/colors';
+import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 
 interface Props {
   visible: boolean;
@@ -17,6 +17,8 @@ function nomeCurto(nome: string) {
 }
 
 export default function ModalTrocaCamisa({ visible, jogadorA, jogadorB, onConfirmar, onCancelar }: Props) {
+  const { colors } = useTheme();
+  const s = createStyles(colors);
   const camisaAlvo   = jogadorB.camisa;   // camisa disputada (que A quer)
   const camisaLivre  = jogadorA.camisa;   // camisa que A tinha antes (vai pro B)
 
@@ -47,12 +49,12 @@ export default function ModalTrocaCamisa({ visible, jogadorA, jogadorB, onConfir
             </View>
 
             {/* Seta bidirecional */}
-            <Icon name="swap-horizontal" size={26} color={colors.primary} style={s.seta} />
+            <Icon name="swap-horizontal" size={26} color={colors.primaria} style={s.seta} />
 
             {/* Jogador B — recebe a camisa livre */}
             <View style={s.jogadorCard}>
               <View style={[s.camisaBadge, { backgroundColor: '#252525' }]}>
-                <Text style={[s.camisaNum, { color: colors.text_secondary }]}>
+                <Text style={[s.camisaNum, { color: colors.textoSecundario }]}>
                   #{camisaLivre || '—'}
                 </Text>
               </View>
@@ -77,7 +79,7 @@ export default function ModalTrocaCamisa({ visible, jogadorA, jogadorB, onConfir
   );
 }
 
-const s = {
+const createStyles = (colors: ThemeColors) => ({
   overlay: {
     flex: 1, backgroundColor: '#000000cc',
     alignItems: 'center' as const, justifyContent: 'center' as const, padding: 28,
@@ -94,14 +96,14 @@ const s = {
     marginBottom: 14,
   },
   titulo: {
-    fontFamily: 'Creato-Bold', color: colors.text,
+    fontFamily: 'Creato-Bold', color: colors.texto,
     fontSize: 16, marginBottom: 8, textAlign: 'center' as const,
   },
   descricao: {
-    fontFamily: 'Creato-Regular', color: colors.text_secondary,
+    fontFamily: 'Creato-Regular', color: colors.textoSecundario,
     fontSize: 13, textAlign: 'center' as const, lineHeight: 20, marginBottom: 24,
   },
-  destaque: { fontFamily: 'Creato-Bold', color: colors.text },
+  destaque: { fontFamily: 'Creato-Bold', color: colors.texto },
 
   trocaRow: {
     flexDirection: 'row' as const, alignItems: 'center' as const,
@@ -113,12 +115,12 @@ const s = {
     borderWidth: 1, borderColor: '#2a2a2a',
   },
   camisaBadge: {
-    backgroundColor: colors.primary + '20', borderRadius: 10,
+    backgroundColor: colors.primaria + '20', borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 6,
   },
-  camisaNum: { fontFamily: 'Creato-Bold', color: colors.primary, fontSize: 20 },
+  camisaNum: { fontFamily: 'Creato-Bold', color: colors.primaria, fontSize: 20 },
   jogadorNome: {
-    fontFamily: 'Creato-Bold', color: colors.text,
+    fontFamily: 'Creato-Bold', color: colors.texto,
     fontSize: 12, textAlign: 'center' as const,
   },
   seta: { flexShrink: 0 },
@@ -128,11 +130,11 @@ const s = {
     flex: 1, paddingVertical: 13, borderRadius: 12,
     borderWidth: 1, borderColor: '#2a2a2a', alignItems: 'center' as const,
   },
-  btnCancelTxt: { fontFamily: 'Creato-Bold', color: colors.text_secondary, fontSize: 13 },
+  btnCancelTxt: { fontFamily: 'Creato-Bold', color: colors.textoSecundario, fontSize: 13 },
   btnConfirm: {
     flex: 1, paddingVertical: 13, borderRadius: 12,
-    backgroundColor: colors.primary, alignItems: 'center' as const,
+    backgroundColor: colors.primaria, alignItems: 'center' as const,
     flexDirection: 'row' as const, justifyContent: 'center' as const, gap: 6,
   },
   btnConfirmTxt: { fontFamily: 'Creato-Bold', color: '#FFF', fontSize: 13, letterSpacing: 0.5 },
-};
+});

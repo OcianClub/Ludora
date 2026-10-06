@@ -1,8 +1,8 @@
 import { Icon } from '@ludora/icons';
-import { colors } from '@ludora/design-tokens';
 import { Image, Text, View } from 'react-native';
 
-import { conviteStyles as styles } from '@/src/styles/conviteStyles';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { createStyles } from '@/src/styles/conviteStyles';
 
 import type { CategoriaConvite, ClubeConvite, PapelConvite } from '../types';
 
@@ -29,6 +29,8 @@ export function ConviteClubeCard({
   convidadoPor,
   compacto = false,
 }: ConviteClubeCardProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const local = [clube.cidade, clube.estado].filter(Boolean).join(', ');
 
   return (

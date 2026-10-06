@@ -14,17 +14,19 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import type { SvgProps } from 'react-native-svg';
 import { Icon } from '@ludora/icons';
-import { colors } from '@ludora/design-tokens';
 
 import LogoArquivo from '@/assets/logo.svg';
 import { BASE_URL } from '@/src/services/api';
-import { styles } from '@/src/styles/loginStyles';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { createStyles } from '@/src/styles/loginStyles';
 
 const Logo = LogoArquivo as unknown as React.FC<SvgProps>;
 
 type CampoFocado = 'email' | 'senha' | null;
 
 export default function Login() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const router = useRouter();
   const senhaRef = useRef<TextInput>(null);
 
@@ -240,7 +242,7 @@ export default function Login() {
             activeOpacity={0.85}
           >
             {carregando ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={colors.textoSobrePrimaria} />
             ) : (
               <Text style={styles.primaryButtonText}>ENTRAR</Text>
             )}

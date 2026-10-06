@@ -1,7 +1,8 @@
 import { StyleSheet } from 'react-native';
-import { colors, typography } from '@ludora/design-tokens';
+import { typography } from '@ludora/design-tokens';
+import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.fundo,
@@ -207,7 +208,7 @@ export const styles = StyleSheet.create({
     opacity: 0.45,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.textoSobrePrimaria,
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: typography.fontSize.sm,
     letterSpacing: 0.3,

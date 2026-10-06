@@ -1,5 +1,5 @@
 import { View, Image, StyleSheet, ViewStyle } from 'react-native';
-import { colors } from '@ludora/design-tokens';
+import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 
 // Tamanhos padronizados — cobre os 3 contextos que já existem no app hoje
 // (atalho de clube em carrossel, card de clube na lista, e o Header). Se
@@ -34,6 +34,8 @@ interface EscudoClubeProps {
 // cortado (diferente de "cover", que cropa e foi o que causava o visual
 // "grudado"/desalinhado antes).
 export function EscudoClube({ uri, tamanho = 'md', style }: EscudoClubeProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const tamanhoPx = typeof tamanho === 'number' ? tamanho : TAMANHOS[tamanho];
   const raioBorda = Math.round(tamanhoPx * 0.2); // mesma proporção usada hoje (10px pra 48-56px)
   const paddingInterno = Math.round(tamanhoPx * 0.14);
@@ -61,7 +63,7 @@ export function EscudoClube({ uri, tamanho = 'md', style }: EscudoClubeProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     borderWidth: 1,
     borderColor: colors.borda,

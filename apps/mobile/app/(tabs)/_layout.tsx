@@ -1,13 +1,17 @@
 import { Tabs } from 'expo-router';
 import { View, Text } from 'react-native';
-import { colors, typography } from '@ludora/design-tokens'
+import { typography } from '@ludora/design-tokens'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeIcon, Icon } from '@ludora/icons';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
+import { useTheme } from '@/src/contexts/ThemeContext';
+
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { podeGerenciar, carregandoClubeAtivo } = useClubeAtivo();
+
+  const { colors } = useTheme();
 
   return (
     <Tabs

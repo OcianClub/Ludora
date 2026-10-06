@@ -1,10 +1,12 @@
 import { StyleSheet } from 'react-native';
-import { colors, typography } from '@ludora/design-tokens';
+import { typography } from '@ludora/design-tokens';
+import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   cardWrapper: {
     flexDirection: 'row',
     backgroundColor: colors.card,
+    borderColor: colors.card,
     borderRadius: 10,
     marginBottom: 12,
     overflow: 'hidden',

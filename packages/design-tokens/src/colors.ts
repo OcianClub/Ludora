@@ -1,4 +1,4 @@
-export const colors = {
+export const darkColors  = {
   // Base
   primaria: '#0E78FF',
   fundo: '#0B0D12',
@@ -6,6 +6,7 @@ export const colors = {
   // Tipografia
   texto: '#F2E9D8',
   textoSecundario: '#8B8D94',
+  textoSobrePrimaria: '#F2E9D8',
 
   // Layout & Cards
   card: '#14171F',
@@ -36,3 +37,45 @@ export const colors = {
   corpoAtencao: '#C7A56E',
   iconeAtencao: '#6B4E12',
 } as const;
+
+export const lightColors = {
+   // Base
+  primaria: '#0E78FF',
+  fundo: '#F6F3EC',
+
+  // Tipografia
+  texto: '#0B0D12',
+  textoSecundario: '#5E616B',
+  textoSobrePrimaria: '#F2E9D8',
+
+  // Layout & Cards
+  card: '#FDFCF8',
+  cardSecundario: '#EDE9DF',
+  borda: '#DEDAD0',
+  linha: '#E9E5DB',
+  cardClaro: '#FAF8F3',
+
+  // Cores sólidas puras
+  amarelo: '#C98A0B',
+  vermelho: '#D63F00',
+  vermelhoDestaque: '#D14439',
+
+  // Botões
+  fundoBotao: '#E3EDFA',
+  bordaBotao: '#9DC1EE',
+
+  // Feedback: Erro
+  fundoErro: '#FAE6E4',
+  bordaErro: '#EBBDB8',
+  tituloErro: '#B3263E',
+  corpoErro: '#8C4452',
+
+  // Feedback: Atenção
+  fundoAtencao: '#FAEFD0',
+  bordaAtencao: '#E8D08A',
+  tituloAtencao: '#8A5A00',
+  corpoAtencao: '#7A5C1E',
+  iconeAtencao: '#C98A0B',
+} as const;
+
+export const colors = darkColors;

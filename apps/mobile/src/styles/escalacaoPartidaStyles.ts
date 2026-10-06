@@ -1,7 +1,8 @@
 import { StyleSheet } from 'react-native';
-import { colors, typography } from '@ludora/design-tokens';
+import { typography } from '@ludora/design-tokens';
+import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   // ── SEÇÃO PRINCIPAL (Na tela de Detalhes) ──
   section: {
     paddingHorizontal: 20, // <- Aqui está a correção do "grudado na tela"!
@@ -272,7 +273,7 @@ export const styles = StyleSheet.create({
   },
   cardCamisaNum: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: colors.texto,
+    color: colors.textoSobrePrimaria,
     fontSize: 14,
   },
   cardNome: {
@@ -294,7 +295,7 @@ export const styles = StyleSheet.create({
   },
   tagTitularTxt: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: colors.texto,
+    color: colors.textoSobrePrimaria,
     fontSize: 10,
   },
   tagBanco: {
@@ -337,7 +338,7 @@ export const styles = StyleSheet.create({
   },
   salvarBtnTxt: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: '#FFF',
+    color: colors.textoSobrePrimaria,
     fontSize: 14,
     letterSpacing: 1,
   },
@@ -408,7 +409,7 @@ export const styles = StyleSheet.create({
   },
   mcBtnSaveTxt: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: '#FFF',
+    color: colors.textoSobrePrimaria,
     fontSize: 13,
   },
 
@@ -520,7 +521,7 @@ export const styles = StyleSheet.create({
   },
   mtBtnConfirmTxt: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: '#FFF',
+    color: colors.textoSobrePrimaria,
     fontSize: 13,
     letterSpacing: 0.5,
   }

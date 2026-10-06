@@ -20,8 +20,8 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { colors } from '@ludora/design-tokens';
-import { styles } from '@/src/styles/clubesStyles';
+import { createStyles } from '@/src/styles/clubesStyles';
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
@@ -96,6 +96,8 @@ function ehGestor(clube: ClubeListado): boolean {
 }
 
 export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { clubeAtivo, definirClubeAtivo } = useClubeAtivo();
@@ -484,7 +486,7 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
                       disabled={processandoId === clube.id}
                     >
                       {processandoId === clube.id ? (
-                        <ActivityIndicator size="small" color="#FFF" />
+                        <ActivityIndicator size="small" color={colors.textoSobrePrimaria} />
                       ) : (
                         <Text style={styles.txtBtnSeguir}>SEGUIR</Text>
                       )}

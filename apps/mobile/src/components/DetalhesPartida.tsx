@@ -8,8 +8,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // ── Tipografia, Cores e Estilos ──
-import { colors, typography } from '@ludora/design-tokens';
-import { styles } from '@/src/styles/detalhesPartidaStyles';
+import { typography } from '@ludora/design-tokens';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { createStyles } from '@/src/styles/detalhesPartidaStyles';
 
 // ── Componentes Compartilhados ──
 import EscalacaoPartida, { JogadorEscalado } from '@/src/components/EscalacaoPartida';
@@ -66,6 +67,8 @@ function getPeriodos(nomeCategoria: string | undefined): string[] {
 }
 
 function LogoTime({ uri, size = 72 }: { uri: string | null; size?: number }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   if (uri) return <Image source={{ uri }} style={styles.logoTimeImg} />;
   return (
     <View style={styles.logoTimeWrap}>
@@ -75,6 +78,7 @@ function LogoTime({ uri, size = 72 }: { uri: string | null; size?: number }) {
 }
 
 function EventoIcon({ tipo, size = 18 }: { tipo: TipoEvento; size?: number }) {
+  const { colors } = useTheme();
   switch (tipo) {
     case 'GOL': return <Icon name="soccer" size={size} color={colors.texto} />;
     case 'CARTAO_AMARELO': return <View style={{ width: size * 0.65, height: size, borderRadius: 2, backgroundColor: '#F5C518' }} />;
@@ -107,6 +111,8 @@ function calcularStats(eventos: Evento[], jogador_id: number) {
 }
 
 function StatBadge({ icon, value, color }: { icon: React.ReactNode; value: number; color: string }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   if (value === 0) return null;
   return (
     <View style={styles.statsBadgesWrap}>
@@ -117,6 +123,8 @@ function StatBadge({ icon, value, color }: { icon: React.ReactNode; value: numbe
 }
 
 function MiniStats({ eventos, jogadorId }: { eventos: Evento[]; jogadorId: number }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const s = calcularStats(eventos, jogadorId);
   const temStat = s.gols > 0 || s.assistencias > 0 || s.faltas > 0 || s.amarelos > 0 || s.vermelhos > 0 || s.azuis > 0 || s.defesas > 0;
   if (!temStat) return null;
@@ -136,6 +144,8 @@ function MiniStats({ eventos, jogadorId }: { eventos: Evento[]; jogadorId: numbe
 
 // ── Componente Principal ──────────────────────────────────────────────────────
 export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBack }: Props) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [partida, setPartida] = useState<Partida>(partidaInicial);
   const [golsMandante, setGolsMandante] = useState(partidaInicial.gols_mandante);
   const [golsVisitante, setGolsVisitante] = useState(partidaInicial.gols_visitante);
@@ -381,7 +391,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {isAdmin && partida.status === 'FINALIZADA' && (
             <TouchableOpacity style={[styles.headerActionBtn, modoEdicao && { backgroundColor: colors.primaria, borderColor: colors.primaria }]} onPress={() => setModoEdicao(!modoEdicao)}>
-              <Text style={[styles.headerEditBtnText, modoEdicao && { color: '#FFF' }]}>{modoEdicao ? 'CONCLUIR' : 'SCOUT'}</Text>
+              <Text style={[styles.headerEditBtnText, modoEdicao && { color: colors.textoSobrePrimaria }]}>{modoEdicao ? 'CONCLUIR' : 'SCOUT'}</Text>
             </TouchableOpacity>
           )}
           {isAdmin && !modoEdicao && (partidaNaoIniciada || partida.status === 'FINALIZADA') && (
@@ -418,7 +428,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
                 <View style={styles.liveScoreRow}>
                   {isInterativo ? (
                     <View style={styles.scoreColumn}>
-                      <TouchableOpacity style={styles.stepBtn} onPress={() => onPlusLado('mandante')}><Icon name="plus" size={16} color="#FFF" /></TouchableOpacity>
+                      <TouchableOpacity style={styles.stepBtn} onPress={() => onPlusLado('mandante')}><Icon name="plus" size={16} color={colors.textoSobrePrimaria} /></TouchableOpacity>
                       <Text style={styles.heroScoreText}>{golsMandante}</Text>
                       <TouchableOpacity style={[styles.stepBtn, styles.stepBtnMinus, { opacity: golsMandante === 0 ? 0.3 : 1 }]} onPress={() => { if (golsMandante > 0) onMinusLado('mandante'); }} disabled={golsMandante === 0}><Icon name="minus" size={16} color={colors.textoSecundario} /></TouchableOpacity>
                     </View>
@@ -428,7 +438,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
 
                   {isInterativo ? (
                     <View style={styles.scoreColumn}>
-                      <TouchableOpacity style={styles.stepBtn} onPress={() => onPlusLado('visitante')}><Icon name="plus" size={16} color="#FFF" /></TouchableOpacity>
+                      <TouchableOpacity style={styles.stepBtn} onPress={() => onPlusLado('visitante')}><Icon name="plus" size={16} color={colors.textoSobrePrimaria} /></TouchableOpacity>
                       <Text style={styles.heroScoreText}>{golsVisitante}</Text>
                       <TouchableOpacity style={[styles.stepBtn, styles.stepBtnMinus, { opacity: golsVisitante === 0 ? 0.3 : 1 }]} onPress={() => { if (golsVisitante > 0) onMinusLado('visitante'); }} disabled={golsVisitante === 0}><Icon name="minus" size={16} color={colors.textoSecundario} /></TouchableOpacity>
                     </View>
@@ -476,7 +486,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
             <TouchableOpacity style={styles.finalizarBtn} onPress={iniciarPartida}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Text style={styles.finalizarBtnText}>INICIAR PARTIDA</Text>
-                <Icon name="play-circle-outline" size={20} color="#FFF" />
+                <Icon name="play-circle-outline" size={20} color={colors.textoSobrePrimaria} />
               </View>
             </TouchableOpacity>
           </View>
@@ -690,7 +700,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
                   <Text style={styles.modalPeriodText}>{periodos[periodoIdx]}</Text>
                   
                   <TouchableOpacity style={[styles.saveStatBtn, salvandoEvento && { opacity: 0.6 }]} onPress={() => confirmarGolOcian(jogadorGol, false)} disabled={salvandoEvento}>
-                    {salvandoEvento ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveStatBtnText}>CONFIRMAR GOL</Text>}
+                    {salvandoEvento ? <ActivityIndicator color={colors.textoSobrePrimaria} /> : <Text style={styles.saveStatBtnText}>CONFIRMAR GOL</Text>}
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.cancelLinkBtn} onPress={() => setJogadorGol(null)}><Text style={styles.cancelLinkText}>← VOLTAR</Text></TouchableOpacity>
                 </>
@@ -786,7 +796,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
                 <Text style={styles.modalPeriodText}>{periodos[periodoIdx]}</Text>
                 
                 <TouchableOpacity style={[styles.saveStatBtn, salvandoEvento && { opacity: 0.6 }]} onPress={confirmarEvento} disabled={salvandoEvento}>
-                  {salvandoEvento ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveStatBtnText}>CONFIRMAR</Text>}
+                  {salvandoEvento ? <ActivityIndicator color={colors.textoSobrePrimaria} /> : <Text style={styles.saveStatBtnText}>CONFIRMAR</Text>}
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.cancelLinkBtn} onPress={() => setJogadorEvento(null)}><Text style={styles.cancelLinkText}>← VOLTAR</Text></TouchableOpacity>
               </>
@@ -868,9 +878,9 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
 
               <TouchableOpacity onPress={salvarEdicaoPartida} disabled={salvandoEdicao} style={[styles.salvarBtn, salvandoEdicao && { opacity: 0.6 }, { marginBottom: 12 }]} activeOpacity={0.85}>
                 <LinearGradient colors={['#006AFF', '#009FFF']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.salvarGradient}>
-                  {salvandoEdicao ? <ActivityIndicator color="#FFF" /> : (
+                  {salvandoEdicao ? <ActivityIndicator color={colors.textoSobrePrimaria} /> : (
                     <View style={styles.salvarBtnInner}>
-                      <Icon name="content-save-edit-outline" size={18} color="#FFF" />
+                      <Icon name="content-save-edit-outline" size={18} color={colors.textoSobrePrimaria} />
                       <Text style={styles.salvarText}>SALVAR ALTERAÇÕES</Text>
                     </View>
                   )}
@@ -919,7 +929,7 @@ export default function DetalhesPartida({ partida: partidaInicial, isAdmin, onBa
                             {time.escudo ? (
                                  <Image source={{ uri: time.escudo }} style={{ width: 24, height: 24, borderRadius: 12 }} />
                             ) : (
-                                <Icon name={sel ? "shield-check" : "shield"} size={20} color={sel ? '#FFF' : timeColor} />
+                                <Icon name={sel ? "shield-check" : "shield"} size={20} color={sel ? colors.textoSobrePrimaria : timeColor} />
                             )}
                         </View>
                         <View style={{ flex: 1 }}>

@@ -1,8 +1,9 @@
 import { StyleSheet } from 'react-native';
-import { colors, typography } from '@ludora/design-tokens';
+import { typography } from '@ludora/design-tokens';
+import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.fundo,
@@ -17,7 +18,7 @@ export const styles = StyleSheet.create({
   sectionLabel: {
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: 12,
-    color: '#FFF',
+    color: colors.texto,
     marginBottom: 10,
     marginTop: 24,
     textTransform: 'uppercase',
@@ -65,7 +66,7 @@ export const styles = StyleSheet.create({
     color: colors.textoSecundario,
   },
   pillTextActive: {
-    color: '#FFF',
+    color: colors.textoSobrePrimaria,
   },
 
   // ── CONFRONTO ──
@@ -143,7 +144,7 @@ export const styles = StyleSheet.create({
   vsText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: 12,
-    color: '#FFF',
+    color: colors.textoSobrePrimaria,
   },
 
   // ── MANDO DE CAMPO ──
@@ -189,7 +190,7 @@ export const styles = StyleSheet.create({
   halfLabel: {
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: 12,
-    color: '#FFF',
+    color: colors.texto,
     marginBottom: 10,
     textTransform: 'uppercase',
   },
@@ -229,7 +230,7 @@ export const styles = StyleSheet.create({
   salvarText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: typography.fontSize.md,
-    color: '#FFF',
+    color: colors.textoSobrePrimaria,
   },
 
   // ── MODAL GENÉRICO E DE TIMES ──

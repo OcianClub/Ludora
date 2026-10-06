@@ -2,18 +2,20 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Icon } from '@ludora/icons';
-import { colors } from '@ludora/design-tokens';
 
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { ConviteClubeCard } from '@/src/features/convites/components/ConviteClubeCard';
 import type { PapelConvite } from '@/src/features/convites/types';
-import { conviteStyles as styles } from '@/src/styles/conviteStyles';
+import { createStyles } from '@/src/styles/conviteStyles';
 
 function primeiroParametro(valor: string | string[] | undefined): string {
   return Array.isArray(valor) ? valor[0] ?? '' : valor ?? '';
 }
 
 export default function ConviteSucesso() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const router = useRouter();
   const { clubeAtivo } = useClubeAtivo();
   const params = useLocalSearchParams<{
@@ -39,7 +41,7 @@ export default function ConviteSucesso() {
       <View style={styles.successContent}>
         <View style={styles.successIntro}>
           <View style={styles.successIcon}>
-            <Icon name="check" size={36} color="#FFFFFF" />
+            <Icon name="check" size={36} color={colors.textoSobrePrimaria} />
           </View>
 
           <Text style={styles.successTitle}>BEM-VINDO AO TIME!</Text>

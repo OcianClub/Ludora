@@ -13,9 +13,9 @@ import {
 
 import { useState, useEffect } from "react";
 
-import { styles } from "@/src/styles/dadosPessoaisStyles";
+import { createStyles } from "@/src/styles/dadosPessoaisStyles";
 import { Header } from "@/src/components/Header";
-import { colors } from "@ludora/design-tokens";
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
@@ -55,6 +55,8 @@ function Campo({
   onToggleSenha,
   keyboardType = "default",
 }: CampoProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   if (!editando) {
     return (
       <View style={styles.infoItem}>
@@ -134,6 +136,8 @@ export default function DadosPessoais({
   onFechar,
   noModal,
 }: DadosPessoaisProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const { clubeAtivo } = useClubeAtivo();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
@@ -394,13 +398,13 @@ export default function DadosPessoais({
                 disabled={salvando}
               >
                 {salvando ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={colors.textoSobrePrimaria} />
                 ) : (
                   <>
                     <Icon
                       name="check"
                       size={20}
-                      color="#FFFFFF"
+                      color={colors.textoSobrePrimaria}
                     />
 
                     <Text style={styles.saveButtonText}>
@@ -472,7 +476,7 @@ export default function DadosPessoais({
           <Icon
             name="check-circle"
             size={20}
-            color="#FFFFFF"
+            color={colors.textoSobrePrimaria}
           />
 
           <Text style={styles.successText}>

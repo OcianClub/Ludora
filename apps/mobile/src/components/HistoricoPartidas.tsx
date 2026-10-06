@@ -1,6 +1,6 @@
 import { View, Text, Image, TouchableOpacity } from 'react-native';
-import { styles } from './historicoPartidasStyles';
-import { colors } from '@ludora/design-tokens';
+import { createStyles } from './historicoPartidasStyles';
+import { useTheme } from '@/src/contexts/ThemeContext';
 
 interface Time { id: number; nome: string; escudo: string | null; }
 interface Partida {
@@ -18,6 +18,8 @@ interface HistoricoPartidasProps {
 }
 
 export function HistoricoPartidas({ partida }: HistoricoPartidasProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const formatarData = (dataStr: string) => {
     const [ano, mes, dia] = dataStr.split('T')[0].split('-');
     const d = new Date(Number(ano), Number(mes) - 1, Number(dia));

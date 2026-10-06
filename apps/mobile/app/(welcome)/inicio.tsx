@@ -3,12 +3,15 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SvgProps } from 'react-native-svg';
 
-import { colors, typography } from '@ludora/design-tokens';
+import { typography } from '@ludora/design-tokens';
+import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 
 import LogoArquivo from '@/assets/logo.svg';
 const Logo = LogoArquivo as unknown as React.FC<SvgProps>;
 
 export default function Inicio() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const router = useRouter();
 
   return (
@@ -52,7 +55,7 @@ export default function Inicio() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.fundo, 
@@ -89,7 +92,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   txtBtnEntrar: {
-    color: '#FFFFFF',
+    color: colors.textoSobrePrimaria,
     fontSize: typography.fontSize.md,
     fontFamily: typography.fontFamily.corpo.semiBold,
   },

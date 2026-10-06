@@ -7,9 +7,9 @@ import {
   Pressable,
 } from "react-native";
 import { useState, useEffect } from "react";
-import { styles } from "../../../src/styles/perfilStyles";
+import { createStyles } from "../../../src/styles/perfilStyles";
 import { Header } from "@/src/components/Header";
-import { colors } from "@ludora/design-tokens";
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
@@ -29,6 +29,8 @@ function CardMenu({
   icone,
   action,
 }: CardMenuProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   return (
     <TouchableOpacity
       style={styles.menuItem}
@@ -63,6 +65,8 @@ function CardMenu({
 }
 
 export default function Perfil() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const { clubeAtivo } = useClubeAtivo();
   const [nome, setNome] = useState("");
   const [membroDesde, setMembroDesde] = useState("");

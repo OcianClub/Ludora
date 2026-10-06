@@ -1,13 +1,15 @@
 import { View, Text, TouchableOpacity, TextInput, Alert } from 'react-native'
-import { styles } from '@/src/styles/indexConviteStyles'
+import { createStyles } from '@/src/styles/indexConviteStyles'
 import { Icon } from '@ludora/icons';
 import { useRouter } from 'expo-router';
-import { colors } from '@ludora/design-tokens'
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import * as Clipboard from 'expo-clipboard';
 
 export default function Index() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const router = useRouter();
 
   const [codigo, setCodigo] = useState('');

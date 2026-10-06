@@ -16,6 +16,7 @@ import {
 } from '@expo-google-fonts/oswald';
 
 import { ClubeAtivoProvider } from '@/src/contexts/ClubeAtivoContext';
+import { ThemeProvider } from '@/src/contexts/ThemeContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -45,13 +46,15 @@ export default function RootLayout() {
   }
 
   return (
-    <ClubeAtivoProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="convite" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
-    </ClubeAtivoProvider>
+    <ThemeProvider>
+      <ClubeAtivoProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="convite" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </ClubeAtivoProvider>
+    </ThemeProvider>
   );
 }

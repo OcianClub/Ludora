@@ -10,18 +10,18 @@ import Svg, { Polygon, Line, Text as SvgText } from 'react-native-svg';
 import { calcularResumo, obterPerfisJogadores, Jogador, ScoresMl } from '@/src/services/mlService';
 import { Header } from '@/src/components/Header';
 import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/CarrosselSubs';
-import { colors } from '@ludora/design-tokens';
-import { styles } from '@/src/styles/estatisticasStyles'; 
+import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
+import { createStyles } from '@/src/styles/estatisticasStyles';
 import { CardsSkeleton } from '@/src/components/Skeleton';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 // ── Cores por perfil ──────────────────────────────────────────────────────────
-const COR_PERFIL: Record<string, string> = {
+const getCoresPerfil = (colors: ThemeColors): Record<string, string> => ({
   'Artilheiro': colors.vermelhoDestaque,
   'Paredão':    colors.primaria,
   'Armador':    colors.amarelo,
   'Sem dados':  colors.textoSecundario,
-};
+});
 
 const DESCRICAO_PERFIL: Record<string, string> = {
   Artilheiro: 'Perfil associado ao grupo com maior índice médio de finalização.',
@@ -96,6 +96,7 @@ function HexagonoScout({ scores, size = 140 }: HexProps) {
 }
 
 function HexSVG({ cx, cy, R, eixos, pontoBase, gridPoly, valorPoly, size }: any) {
+  const { colors } = useTheme();
   return (
     <Svg width={size} height={size}>
       {[0.33, 0.66, 1].map((frac, idx) => (
@@ -151,7 +152,9 @@ function HexSVG({ cx, cy, R, eixos, pontoBase, gridPoly, valorPoly, size }: any)
 
 // ── Card da Lista ─────────────────────────────────────────────────────────────
 function CardJogador({ jogador, onPress }: { jogador: Jogador; onPress: () => void }) {
-  const corPerfil = COR_PERFIL[jogador.perfil_ml] ?? colors.textoSecundario;
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+  const corPerfil = getCoresPerfil(colors)[jogador.perfil_ml] ?? colors.textoSecundario;
   const idade = jogador.idade ?? null;
 
   return (
@@ -187,7 +190,9 @@ function CardJogador({ jogador, onPress }: { jogador: Jogador; onPress: () => vo
 
 // ── Modal de Scout ────────────────────────────────────────────────────────────
 function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => void }) {
-  const corPerfil = COR_PERFIL[jogador.perfil_ml] ?? colors.textoSecundario;
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+  const corPerfil = getCoresPerfil(colors)[jogador.perfil_ml] ?? colors.textoSecundario;
   const idade = jogador.idade ?? null;
 
   const stats = [
@@ -327,6 +332,8 @@ const normalizarCategoria = (s: string | undefined | null) =>
 
 // ── Tela Principal ────────────────────────────────────────────────────────────
 export default function Estatisticas() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const { clubeAtivo, podeGerenciar, carregandoClubeAtivo } = useClubeAtivo();
   const carregouUmaVez = useRef(false);
   const [jogadores, setJogadores]       = useState<Jogador[]>([]);

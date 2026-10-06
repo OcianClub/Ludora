@@ -1,7 +1,7 @@
 import { Icon } from '@ludora/icons';
-import { colors } from '@ludora/design-tokens';
 import { ActivityIndicator, Alert, View, Text, FlatList, TouchableOpacity, Modal } from 'react-native';
-import { styles } from '../../src/styles/indexStyles';
+import { createStyles } from '../../src/styles/indexStyles';
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { Header } from '@/src/components/Header';
 import { useRef, useState, useCallback } from 'react';
 import { Link, useFocusEffect } from 'expo-router';
@@ -67,6 +67,8 @@ const PageContent = ({
   onVerDetalhes,
   onIniciarPartida,
 }: PageContentProps) => {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const adversario = proximoJogo 
     ? (proximoJogo.emCasa ? proximoJogo.visitante.nome : proximoJogo.mandante.nome)
     : '—';
@@ -234,6 +236,8 @@ const PageContent = ({
 };
 
 export default function Home() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const pagerRef = useRef<PagerView>(null);
   const carregouUmaVez = useRef(false);
   const clubeCarregadoId = useRef<number | null>(null);

@@ -1,9 +1,11 @@
 import { Icon, type IconName } from '@ludora/icons';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, typography } from '@ludora/design-tokens';
+import { typography } from '@ludora/design-tokens';
+import { useTheme } from '@/src/contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 interface HeaderProps {
   title: string;
@@ -36,6 +38,9 @@ export function Header({
 }: HeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  const { colors, tema, alternarTema } = useTheme();
+  const styles = createStyles(colors);
 
   return (
     <View style={[styles.container, { paddingTop: semSafeArea ? 20 : insets.top + 20 }]}>
@@ -89,6 +94,16 @@ export function Header({
       </View>
 
       <View style={styles.rightContent}>
+
+        <TouchableOpacity
+          style={styles.actionButton}
+          activeOpacity={0.7}
+          onPress={alternarTema}
+        >
+          <Text style={{ color: colors.texto, fontSize: 10 }}>
+            {tema === 'dark' ? 'CLARO' : 'ESCURO'}
+          </Text>
+        </TouchableOpacity>
         {btnNotificacao && (
           <TouchableOpacity style={styles.actionButton} activeOpacity={0.7} onPress={onPressIcon}>
             <Icon name={btnNotificacao} size={24} color={colors.texto} />
@@ -108,7 +123,8 @@ export function Header({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

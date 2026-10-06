@@ -13,17 +13,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { SvgProps } from 'react-native-svg';
 import { Icon } from '@ludora/icons';
-import { colors } from '@ludora/design-tokens';
 
 import LogoArquivo from '@/assets/logo.svg';
 import { BASE_URL } from '@/src/services/api';
-import { styles } from '@/src/styles/cadastroStyles';
+import { useTheme } from '@/src/contexts/ThemeContext';
+import { createStyles } from '@/src/styles/cadastroStyles';
 
 const Logo = LogoArquivo as unknown as React.FC<SvgProps>;
 
 type CampoFocado = 'nome' | 'email' | 'senha' | 'confirmacao' | null;
 
 export default function Cadastro() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const router = useRouter();
   const emailRef = useRef<TextInput>(null);
   const senhaRef = useRef<TextInput>(null);
@@ -348,7 +350,7 @@ export default function Cadastro() {
             activeOpacity={0.85}
           >
             {carregando ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={colors.textoSobrePrimaria} />
             ) : (
               <Text style={styles.primaryButtonText}>CRIAR CONTA</Text>
             )}

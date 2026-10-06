@@ -1,8 +1,8 @@
 import { Icon } from '@ludora/icons';
 import React from 'react';
 import { TouchableOpacity, View, Text, Image } from 'react-native';
-import { colors } from '@ludora/design-tokens';
-import { styles } from '../styles/teamSelectorCardStyles';
+import { createStyles } from '../styles/teamSelectorCardStyles';
+import { useTheme } from '@/src/contexts/ThemeContext';
 
 interface Team {
   id: number;
@@ -18,6 +18,8 @@ interface TeamSelectorCardProps {
 
 // Sub-componente interno para renderizar o escudo ou as iniciais
 function EscudoTime({ escudo, nome, size = 48 }: { escudo: string | null; nome: string; size?: number }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   if (escudo) {
     return (
       <Image
@@ -36,6 +38,8 @@ function EscudoTime({ escudo, nome, size = 48 }: { escudo: string | null; nome: 
 }
 
 export default function TeamSelectorCard({ time, tipo, onPress }: TeamSelectorCardProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   return (
     <TouchableOpacity 
       style={[styles.card, time !== null && styles.cardSelecionado]} 
