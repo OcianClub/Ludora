@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -10,15 +11,18 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import type { SvgProps } from 'react-native-svg';
 import { Icon } from '@ludora/icons';
 
 import LogoArquivo from '@/assets/logo.svg';
 import { BASE_URL } from '@/src/services/api';
+import { fetchComTimeout } from '@/src/utils/request';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createStyles } from '@/src/styles/loginStyles';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
+import { emailValido as validarEmail, lerRespostaAuth } from '@/src/utils/autenticacao';
 
 const Logo = LogoArquivo as unknown as React.FC<SvgProps>;
 
@@ -28,16 +32,23 @@ export default function Login() {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const router = useRouter();
+  const params = useLocalSearchParams<{ cadastro?: string; email?: string }>();
+  const { limparClubeAtivo } = useClubeAtivo();
   const senhaRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const envioEmAndamento = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(params.email ?? '');
   const [senha, setSenha] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [campoFocado, setCampoFocado] = useState<CampoFocado>(null);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState('');
+  const [emailVisitado, setEmailVisitado] = useState(false);
+  const [tentouEnviar, setTentouEnviar] = useState(false);
 
-  const emailValido = /^\S+@\S+\.\S+$/.test(email.trim());
+  const emailValido = validarEmail(email);
   const formularioValido = emailValido && senha.length > 0;
 
   function limparErro() {
@@ -45,33 +56,38 @@ export default function Login() {
   }
 
   async function entrar() {
-    if (!formularioValido || carregando) return;
+    if (envioEmAndamento.current) return;
+    setTentouEnviar(true);
+    if (!formularioValido) {
+      if (!emailValido) emailRef.current?.focus();
+      else senhaRef.current?.focus();
+      return;
+    }
 
+    envioEmAndamento.current = true;
+    Keyboard.dismiss();
     setCarregando(true);
     setErro('');
 
     try {
-      const resposta = await fetch(`${BASE_URL}/auth/login`, {
+      const resposta = await fetchComTimeout(`${BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), senha }),
       });
-      const dados = await resposta.json();
+      const dados = await lerRespostaAuth(resposta, 'login');
 
-      if (!resposta.ok) {
-        throw new Error(dados.error || 'Não foi possível entrar. Confira seus dados.');
-      }
-
+      await SecureStore.deleteItemAsync('userToken');
+      await limparClubeAtivo();
       await Promise.all([
-        SecureStore.setItemAsync('userToken', String(dados.token || '')),
         SecureStore.setItemAsync('userName', String(dados.nome || '')),
         SecureStore.setItemAsync('userCriadoEm', String(dados.criadoEm || '')),
         SecureStore.setItemAsync('userEmail', String(dados.email || '')),
       ]);
 
-      if (dados.clubes) {
-        await SecureStore.setItemAsync('userData', JSON.stringify({ clubes: dados.clubes }));
-      }
+      await SecureStore.setItemAsync('userData', JSON.stringify({ clubes: Array.isArray(dados.clubes) ? dados.clubes : [] }));
+      // Publica a sessão apenas depois de persistir o perfil com sucesso.
+      await SecureStore.setItemAsync('userToken', dados.token);
 
       const convitePendente = await SecureStore.getItemAsync('convitePendente');
       if (convitePendente) {
@@ -81,7 +97,9 @@ export default function Login() {
       }
     } catch (error: any) {
       setErro(error.message || 'Não foi possível entrar. Tente novamente.');
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
     } finally {
+      envioEmAndamento.current = false;
       setCarregando(false);
     }
   }
@@ -95,7 +113,8 @@ export default function Login() {
         <View style={styles.navigation}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            disabled={carregando}
+            onPress={() => { if (router.canGoBack()) router.back(); }}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Voltar"
@@ -105,6 +124,7 @@ export default function Login() {
 
           <TouchableOpacity
             style={styles.registerTopButton}
+            disabled={carregando}
             onPress={() => router.push('/(auth)/cadastro')}
             activeOpacity={0.7}
           >
@@ -113,9 +133,11 @@ export default function Login() {
         </View>
 
         <ScrollView
+          ref={scrollRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.intro}>
@@ -135,8 +157,14 @@ export default function Login() {
             </Text>
           </View>
 
+          {params.cadastro === 'sucesso' && !erro && (
+            <View style={[styles.errorBox, { backgroundColor: colors.fundoBotao, borderColor: colors.bordaBotao }]} accessibilityRole="alert">
+              <Icon name="check-circle-outline" size={20} color={colors.primaria} />
+              <Text style={[styles.errorText, { color: colors.texto }]}>Conta criada! Entre com seu e-mail e senha para continuar.</Text>
+            </View>
+          )}
           {!!erro && (
-            <View style={styles.errorBox}>
+            <View style={styles.errorBox} accessibilityRole="alert" accessibilityLiveRegion="polite">
               <Icon name="alert-circle-outline" size={20} color={colors.tituloErro} />
               <Text style={styles.errorText}>{erro}</Text>
             </View>
@@ -148,7 +176,7 @@ export default function Login() {
               <View style={[
                 styles.inputRow,
                 campoFocado === 'email' && styles.inputRowFocused,
-                email.length > 0 && !emailValido && styles.inputRowError,
+                (emailVisitado || tentouEnviar) && !emailValido && styles.inputRowError,
               ]}>
                 <Icon
                   name="email-outline"
@@ -156,13 +184,17 @@ export default function Login() {
                   color={campoFocado === 'email' ? colors.primaria : colors.textoSecundario}
                 />
                 <TextInput
+                  ref={emailRef}
+                  editable={!carregando}
+                  maxLength={254}
+                  accessibilityLabel="E-mail"
                   style={styles.input}
                   placeholder="email@exemplo.com"
                   placeholderTextColor={colors.textoSecundario}
                   value={email}
                   onChangeText={valor => { setEmail(valor); limparErro(); }}
                   onFocus={() => setCampoFocado('email')}
-                  onBlur={() => setCampoFocado(null)}
+                  onBlur={() => { setCampoFocado(null); setEmailVisitado(true); }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -172,6 +204,7 @@ export default function Login() {
                   onSubmitEditing={() => senhaRef.current?.focus()}
                 />
               </View>
+              {(emailVisitado || tentouEnviar) && !emailValido && <Text style={styles.fieldError}>Informe um e-mail válido, como nome@exemplo.com.</Text>}
             </View>
 
             <View style={styles.field}>
@@ -189,6 +222,11 @@ export default function Login() {
                 />
                 <TextInput
                   ref={senhaRef}
+                  editable={!carregando}
+                  maxLength={128}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel="Senha"
                   style={styles.input}
                   placeholder="Digite sua senha"
                   placeholderTextColor={colors.textoSecundario}
@@ -215,11 +253,13 @@ export default function Login() {
                   />
                 </TouchableOpacity>
               </View>
+              {tentouEnviar && !senha && <Text style={styles.fieldError}>Informe sua senha para entrar.</Text>}
             </View>
           </View>
 
           <TouchableOpacity
             style={styles.inviteCard}
+            disabled={carregando}
             onPress={() => router.push('/convite')}
             activeOpacity={0.75}
           >
@@ -236,9 +276,12 @@ export default function Login() {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.primaryButton, (!formularioValido || carregando) && styles.primaryButtonDisabled]}
+            style={[styles.primaryButton, carregando && styles.primaryButtonDisabled]}
             onPress={entrar}
-            disabled={!formularioValido || carregando}
+            disabled={carregando}
+            accessibilityRole="button"
+            accessibilityLabel={carregando ? 'Entrando na sua conta' : 'Entrar'}
+            accessibilityState={{ disabled: carregando, busy: carregando }}
             activeOpacity={0.85}
           >
             {carregando ? (
@@ -250,7 +293,7 @@ export default function Login() {
 
           <View style={styles.registerRow}>
             <Text style={styles.registerPrompt}>Ainda não tem uma conta? </Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/cadastro')} activeOpacity={0.7}>
+            <TouchableOpacity disabled={carregando} onPress={() => router.push('/(auth)/cadastro')} activeOpacity={0.7}>
               <Text style={styles.registerLink}>Cadastre-se</Text>
             </TouchableOpacity>
           </View>

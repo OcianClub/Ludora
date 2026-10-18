@@ -1,10 +1,11 @@
 import { Icon } from '@ludora/icons';
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   View, Text, ActivityIndicator, TouchableOpacity,
   ScrollView, TextInput, Modal
 } from 'react-native';
 import { Redirect, useFocusEffect } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Polygon, Line, Text as SvgText } from 'react-native-svg';
 
 import { calcularResumo, obterPerfisJogadores, Jogador, ScoresMl } from '@/src/services/mlService';
@@ -13,7 +14,9 @@ import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/Carro
 import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 import { createStyles } from '@/src/styles/estatisticasStyles';
 import { CardsSkeleton } from '@/src/components/Skeleton';
+import { ErroCarregamento } from '@/src/components/ErroCarregamento';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
+import { criarControleRequisicoes } from '@/src/utils/request';
 
 // ── Cores por perfil ──────────────────────────────────────────────────────────
 const getCoresPerfil = (colors: ThemeColors): Record<string, string> => ({
@@ -214,9 +217,10 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
 
   return (
     <Modal visible animationType="slide" transparent={false} onRequestClose={onFechar}>
-      <View style={styles.scoutContainer}>
+      <SafeAreaView style={styles.scoutContainer} edges={['top', 'bottom', 'left', 'right']}>
         <Header
           title="FICHA DO ATLETA"
+          semSafeArea
           btnVoltar="arrow-left"
           showLogo={false}
           showProfile={false}
@@ -322,7 +326,7 @@ function ModalScout({ jogador, onFechar }: { jogador: Jogador; onFechar: () => v
 
           <View style={{ height: 60 }} />
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -336,6 +340,8 @@ export default function Estatisticas() {
   const styles = createStyles(colors);
   const { clubeAtivo, podeGerenciar, carregandoClubeAtivo } = useClubeAtivo();
   const carregouUmaVez = useRef(false);
+  const clubeCarregadoId = useRef<number | null>(null);
+  const controle = useRef(criarControleRequisicoes()).current;
   const [jogadores, setJogadores]       = useState<Jogador[]>([]);
   const [carregando, setCarregando]     = useState(true);
   const [erro, setErro]                 = useState<string | null>(null);
@@ -350,12 +356,17 @@ export default function Estatisticas() {
   const categoriaAtual = subsAtivos[subIndex]?.title ?? '';
 
   const carregarDados = useCallback(async (silencioso = false) => {
-    if (!silencioso) setCarregando(true);
+    const pedido = controle.iniciar();
+    const mudouClube = clubeCarregadoId.current !== clubeAtivo?.id;
+    if (!silencioso || mudouClube) setCarregando(true);
+    if (mudouClube) setJogadores([]);
     setErro(null);
     try {
       const todos = await obterPerfisJogadores();
+      if (!controle.atual(pedido)) return;
       setJogadores(todos);
-      if (todos.length > 0) {
+      clubeCarregadoId.current = clubeAtivo?.id ?? null;
+      if (todos.length > 0 && mudouClube) {
         const primeiro = todos[0];
         if (primeiro.categoria_tipo) setTipoAtivo(primeiro.categoria_tipo);
 
@@ -368,25 +379,29 @@ export default function Estatisticas() {
         if (idxSub >= 0) setSubIndex(idxSub);
       }
     } catch (e: any) {
-      setErro(e?.message ?? 'Erro na conexão');
+      if (controle.atual(pedido)) setErro(e?.message ?? 'Erro na conexão');
     } finally {
+      if (controle.atual(pedido)) {
       carregouUmaVez.current = true;
       setCarregando(false);
+      }
     }
-  }, []);
+  }, [clubeAtivo?.id, controle]);
 
   useFocusEffect(useCallback(() => {
     if (carregandoClubeAtivo || !podeGerenciar) return;
     carregarDados(carregouUmaVez.current);
+    return () => controle.invalidar();
   }, [carregarDados, carregandoClubeAtivo, podeGerenciar]));
+  useEffect(() => { setJogadorSelecionado(null); }, [clubeAtivo?.id]);
 
-  const jogadoresDaCategoria = jogadores.filter(j => {
+  const jogadoresDaCategoria = useMemo(() => jogadores.filter(j => {
     const matchCategoria = normalizarCategoria(j.categoria) === normalizarCategoria(categoriaAtual);
     const matchTipo      = (j.categoria_tipo ?? '') === tipoAtivo;
     return matchCategoria && matchTipo;
-  });
+  }), [jogadores, categoriaAtual, tipoAtivo]);
 
-  const jogadoresFiltrados = jogadoresDaCategoria.filter(j => {
+  const jogadoresFiltrados = useMemo(() => jogadoresDaCategoria.filter(j => {
     const matchBusca     = busca === '' ||
       (j.nome ?? '').toLowerCase().includes(busca.toLowerCase()) ||
       (j.posicao ?? '').toLowerCase().includes(busca.toLowerCase());
@@ -395,9 +410,9 @@ export default function Estatisticas() {
     if (ordenacao === 'GOLS') return b.gols - a.gols || b.nota_geral - a.nota_geral;
     if (ordenacao === 'ASSISTENCIAS') return b.assistencias - a.assistencias || b.nota_geral - a.nota_geral;
     return b.nota_geral - a.nota_geral;
-  });
+  }), [jogadoresDaCategoria, busca, ordenacao]);
 
-  const resumo = calcularResumo(jogadoresDaCategoria);
+  const resumo = useMemo(() => calcularResumo(jogadoresDaCategoria), [jogadoresDaCategoria]);
 
   if (carregandoClubeAtivo) {
     return (
@@ -435,13 +450,11 @@ export default function Estatisticas() {
         </ScrollView>
       ) : erro ? (
         <View style={styles.centralizado}>
-          <View style={styles.estadoIcone}>
-            <Icon name="wifi-off" size={28} color={colors.tituloErro} />
-          </View>
-          <Text style={styles.txtErro}>{erro}</Text>
-          <TouchableOpacity style={styles.btnRetry} onPress={() => carregarDados()}>
-            <Text style={styles.txtBtnRetry}>Tentar novamente</Text>
-          </TouchableOpacity>
+          <ErroCarregamento
+            titulo="Não foi possível carregar as estatísticas"
+            descricao="Confira sua conexão e tente atualizar os dados dos jogadores novamente."
+            onTentarNovamente={() => void carregarDados()}
+          />
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.telaContent}>

@@ -44,6 +44,7 @@ export function criarSocketServer() {
 
   io.on('connection', socket => {
     socket.join(`clube:${socket.data.clubeId}`);
+    socket.join(`usuario:${socket.data.usuarioId}`);
   });
 
   return io;

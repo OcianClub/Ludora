@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, TextInput, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { createStyles } from '@/src/styles/indexConviteStyles'
 import { Icon } from '@ludora/icons';
 import { useRouter } from 'expo-router';
@@ -94,6 +94,8 @@ function continuar() {
         </TouchableOpacity>
     </View>
 
+    <KeyboardAvoidingView style={styles.scroll} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
     <View style={styles.content}>
         <View>
         <Text style={styles.title}>
@@ -141,6 +143,8 @@ function continuar() {
             </Text>
         </TouchableOpacity>
     </View>
+    </ScrollView>
+    </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

@@ -11,33 +11,38 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   content: {
     paddingHorizontal: MARGEM,
-    paddingTop: 22,
+    paddingTop: 10,
+    paddingBottom: 32,
   },
   // ========================================
   // PERFIL
   // ========================================
   profileHeader: {
-    alignItems: "center",
-    marginBottom: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 10,
+    marginBottom: 26,
   },
+  profileIdentity: { flex: 1, minWidth: 0, gap: 4 },
   avatarWrapper: {
     position: "relative",
-    marginBottom: 12,
+    flexShrink: 0,
   },
   avatar: {
-    width: 78,
-    height: 78,
+    width: 52,
+    height: 52,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.cardSecundario,
-    borderRadius: 10,
+    backgroundColor: colors.fundoBotao,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borda,
+    borderColor: colors.bordaBotao,
   },
   avatarLetra: {
     fontFamily: typography.fontFamily.titulo.bold,
-    fontSize: 34,
-    color: colors.texto,
+    fontSize: 26,
+    color: colors.primaria,
   },
   avatarStatus: {
     position: "absolute",
@@ -52,17 +57,15 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   nomeUsuario: {
     fontFamily: typography.fontFamily.titulo.bold,
-    fontSize: 24,
+    fontSize: 21,
     color: colors.texto,
-    textTransform: "uppercase",
     marginBottom: 3,
   },
   membroDesde: {
     fontFamily: typography.fontFamily.corpo.medium,
     fontSize: typography.fontSize.xs,
     color: colors.textoSecundario,
-    textTransform: "uppercase",
-    letterSpacing: 0.7,
+    lineHeight: 18,
   },
   // ========================================
   // SEÇÃO
@@ -83,43 +86,45 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderRadius: 1,
   },
   sectionTitle: {
-    fontFamily: typography.fontFamily.titulo.semiBold,
-    fontSize: typography.fontSize.md,
-    color: colors.texto,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: 12,
+    letterSpacing: 0.8,
+    color: colors.textoSecundario,
   },
+  sectionDescription: { fontFamily: typography.fontFamily.corpo.regular, fontSize: 13, lineHeight: 20, color: colors.textoSecundario, marginBottom: 14 },
   // ========================================
   // CARD DE INFORMAÇÕES
   // ========================================
   infoCard: {
     backgroundColor: colors.card,
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.borda,
-    paddingHorizontal: 13,
+    paddingHorizontal: 16,
   },
   infoItem: {
-    minHeight: 70,
+    minHeight: 80,
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
   infoIcon: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.cardSecundario,
     borderRadius: 10,
   },
   infoContent: {
     flex: 1,
+    minWidth: 0,
     gap: 3,
   },
   infoLabel: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    fontSize: 10,
+    fontSize: 12,
     color: colors.textoSecundario,
-    letterSpacing: 0.8,
   },
   infoValue: {
     fontFamily: typography.fontFamily.corpo.medium,
@@ -132,38 +137,44 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: colors.linha,
-    marginLeft: 52,
+    marginLeft: 44,
   },
   // ========================================
   // EDIÇÃO
   // ========================================
   editField: {
-    paddingVertical: 10,
-    gap: 6,
+    paddingVertical: 16,
+    gap: 8,
   },
   editLabel: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    fontSize: 10,
+    fontSize: 12,
     color: colors.textoSecundario,
-    letterSpacing: 0.8,
   },
   inputWrapper: {
-    minHeight: 50,
+    minHeight: 54,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: colors.cardSecundario,
+    backgroundColor: colors.fundo,
     borderRadius: 10,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: colors.primaria,
+    borderColor: colors.borda,
   },
+  inputFocused: { borderColor: colors.primaria },
+  eyeButton: { width: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center', marginRight: -8 },
+  fieldHint: { fontFamily: typography.fontFamily.corpo.regular, color: colors.textoSecundario, fontSize: 12, lineHeight: 18, marginTop: 10 },
+  errorBox: { backgroundColor: colors.fundoErro, borderWidth: 1, borderColor: colors.bordaErro, borderRadius: 10, padding: 12, marginBottom: 12 },
+  errorText: { fontFamily: typography.fontFamily.corpo.regular, fontSize: 13, lineHeight: 20, color: colors.corpoErro },
+  disabledButton: { opacity: 0.45 },
   input: {
     flex: 1,
+    minWidth: 0,
     fontFamily: typography.fontFamily.corpo.regular,
     fontSize: typography.fontSize.md,
     color: colors.texto,
-    paddingVertical: 0,
+    paddingVertical: 12,
   },
   // ========================================
   // AÇÕES
@@ -220,6 +231,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   // ========================================
   dangerSection: {
     marginBottom: 20,
+    gap: 12,
+    marginTop: 8,
   },
   dangerIndicator: {
     width: 4,
@@ -238,10 +251,10 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: "center",
     gap: 12,
     paddingHorizontal: 12,
-    backgroundColor: colors.fundoErro,
-    borderRadius: 10,
+    backgroundColor: colors.card,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.bordaErro,
+    borderColor: colors.borda,
   },
   deleteIcon: {
     width: 40,

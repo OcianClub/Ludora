@@ -13,6 +13,8 @@ header: {
   paddingVertical: 12,
   alignItems: 'flex-start',
 },
+scroll: { flex: 1 },
+scrollContent: { flexGrow: 1 },
 btnVoltar: {
   width: 42,
   height: 42,
@@ -22,8 +24,9 @@ btnVoltar: {
   justifyContent: 'center',
 },
 content: {
-  flex: 1,
+  flexGrow: 1,
   paddingHorizontal: 24,
+  paddingVertical: 24,
   justifyContent: 'center',
   gap: 40,
 },

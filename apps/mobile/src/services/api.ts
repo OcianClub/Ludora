@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
+import { fetchComTimeout } from '../utils/request';
 
-export const BASE_URL = 'http://10.0.2.2:3000';
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.15.2:3000';
 // export const BASE_URL =
 //   process.env.EXPO_PUBLIC_API_URL ??
 //   'http://192.168.7.2:3000';
@@ -43,7 +44,7 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     headers.set('x-clube-id', clubeId);
   }
 
-  return fetch(`${BASE_URL}${endpoint}`, {
+  return fetchComTimeout(`${BASE_URL}${endpoint}`, {
     ...options,
     headers,
   });
@@ -97,14 +98,114 @@ export async function atualizarUsuario(dados: { nome: string; email: string; sen
     method: 'PATCH',
     body: JSON.stringify(dados),
   });
-  if (!res.ok) throw new Error('Erro ao atualizar dados');
+  if (!res.ok) {
+    const dados = await res.json().catch(() => null);
+    throw new Error(dados?.error || 'Não foi possível salvar seus dados. Tente novamente.');
+  }
   return res.json();
 }
 
 export async function excluirConta() {
   const res = await apiFetch('/usuarios/me', { method: 'DELETE' });
-  if (!res.ok) throw new Error('Erro ao excluir conta');
+  if (!res.ok) {
+    const dados = await res.json().catch(() => null);
+    throw new Error(dados?.error || 'Não foi possível excluir a conta. Tente novamente.');
+  }
   return res.json();
+}
+
+// ==========================================
+// NOTIFICAÇÕES
+// ==========================================
+
+export type TipoNotificacao =
+  | 'PARTIDA_AGENDADA'
+  | 'GOL_PARTIDA'
+  | 'RESULTADO_PARTIDA';
+
+export interface Notificacao {
+  id: number;
+  partida_id: number | null;
+  tipo: TipoNotificacao;
+  titulo: string;
+  corpo: string;
+  dados: Record<string, string | number | boolean | null> | null;
+  lida: boolean;
+  criada_em: string;
+}
+
+export async function fetchNotificacoes(limite = 50): Promise<{
+  notificacoes: Notificacao[];
+  totalNaoLidas: number;
+}> {
+  const res = await apiFetch(`/notificacoes?limite=${limite}`);
+  if (!res.ok) throw new Error('Erro ao buscar notificações');
+  return res.json();
+}
+
+export async function marcarNotificacaoComoLida(id: number) {
+  const res = await apiFetch(`/notificacoes/${id}/lida`, { method: 'PATCH' });
+  if (!res.ok) throw new Error('Erro ao atualizar notificação');
+  return res.json();
+}
+
+export async function marcarTodasNotificacoesComoLidas() {
+  const res = await apiFetch('/notificacoes/lidas', { method: 'PATCH' });
+  if (!res.ok) throw new Error('Erro ao atualizar notificações');
+  return res.json() as Promise<{ atualizadas: number }>;
+}
+
+export async function excluirNotificacao(id: number) {
+  const res = await apiFetch(`/notificacoes/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Erro ao excluir notificação');
+}
+
+export async function limparNotificacoesLidas() {
+  const res = await apiFetch('/notificacoes/lidas', { method: 'DELETE' });
+  if (!res.ok) throw new Error('Erro ao limpar notificações');
+}
+
+export async function atualizarPreferenciaNotificacoes(ativa: boolean) {
+  const res = await apiFetch('/usuarios/me/notificacoes', {
+    method: 'PATCH',
+    body: JSON.stringify({ ativa }),
+  });
+  if (!res.ok) throw new Error('Erro ao atualizar preferência de notificações');
+  return res.json() as Promise<{ ativa: boolean }>;
+}
+
+export async function registrarDispositivoPush(token: string, plataforma: string) {
+  const res = await apiFetch('/notificacoes/dispositivos', {
+    method: 'POST',
+    body: JSON.stringify({ token, plataforma }),
+  });
+  if (!res.ok) throw new Error('Erro ao registrar dispositivo para notificações');
+  return res.json();
+}
+
+export async function fetchPreferenciaNotificacoes(): Promise<boolean> {
+  const res = await apiFetch('/usuarios/me');
+  if (!res.ok) throw new Error('Erro ao buscar preferências do usuário');
+  const dados = await res.json();
+  return Boolean(dados.notificacoes_ativas);
+}
+
+export async function desvincularDispositivoPush() {
+  const token = await SecureStore.getItemAsync('expoPushToken');
+  if (!token) return;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5_000);
+  try {
+    const res = await apiFetch('/notificacoes/dispositivos', {
+      method: 'DELETE',
+      body: JSON.stringify({ token }),
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error('Não foi possível desvincular as notificações do dispositivo.');
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ==========================================
@@ -316,7 +417,10 @@ export async function criarPartida(dados: {
     method: 'POST',
     body: JSON.stringify(dados),
   });
-  if (!res.ok) throw new Error('Erro ao criar partida');
+  if (!res.ok) {
+    const erro = await res.json().catch(() => null);
+    throw new Error(erro?.error || 'Não foi possível criar a partida. Tente novamente.');
+  }
   return res.json();
 }
 

@@ -13,6 +13,9 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 40,
   },
+  scroll: { flex: 1 },
+  selectorList: { flexShrink: 1 },
+  emptyText: { color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.regular, fontSize: 14, lineHeight: 21, paddingVertical: 20, textAlign: 'center' },
   
   // ── SECTIONS ──
   sectionLabel: {
@@ -72,7 +75,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   // ── CONFRONTO ──
   confrontoContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'space-between',
     gap: 12,
     position: 'relative',
@@ -130,7 +133,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     position: 'absolute',
     left: '50%',
     top: '50%',
-    transform: [{ translateX: -16 }, { translateY: -16 }],
+    transform: [{ translateX: -18 }, { translateY: -18 }],
     zIndex: 10,
     width: 36,
     height: 36,
@@ -245,7 +248,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
     paddingBottom: 40,
-    maxHeight: '90%',
+    maxHeight: '100%',
+    flexShrink: 1,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -254,13 +258,17 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 24,
   },
   modalTitle: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 12,
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: typography.fontSize.lg,
     color: colors.texto,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
+    flexShrink: 0,
     borderRadius: 8,
     backgroundColor: colors.card,
     alignItems: 'center',

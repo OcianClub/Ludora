@@ -6,6 +6,46 @@ import { idPositivo } from '../utils/id';
 
 const PAPEIS_GESTORES = ['ADMIN', 'TECNICO', 'MESARIO'] as const;
 
+/**
+ * Valida o usuário e o clube ativo, sem exigir que exista vínculo entre eles.
+ *
+ * É usado apenas nas consultas públicas do aplicativo: qualquer usuário
+ * autenticado pode conhecer clubes, partidas, elencos e histórico. Vínculo
+ * continua sendo obrigatório para notificações e para qualquer alteração.
+ */
+export async function exigirClubePublico(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const usuarioId = getUsuarioId(req);
+  if (!usuarioId) {
+    return res.status(401).json({ error: 'Token inválido ou não enviado' });
+  }
+
+  const clubeId = idPositivo(req.headers['x-clube-id']);
+  if (!clubeId) {
+    return res
+      .status(400)
+      .json({ error: 'Header x-clube-id inválido ou ausente' });
+  }
+
+  try {
+    const clube = await prisma.clube.findUnique({
+      where: { id: clubeId },
+      select: { id: true },
+    });
+    if (!clube) return res.status(404).json({ error: 'Clube não encontrado' });
+
+    (req as any).usuarioId = usuarioId;
+    (req as any).clubeId = clubeId;
+    (req as any).papelUsuario = null;
+    next();
+  } catch {
+    res.status(500).json({ error: 'Erro ao verificar clube' });
+  }
+}
+
 export function exigirMembroDoClube(
   req: Request,
   res: Response,
@@ -169,7 +209,9 @@ export async function obterEscopoCategoriasLeitura(
     select: { papel: true },
   });
 
-  if (!vinculo) return { acessoTotal: false, categoriaIds: [] };
+  // Sem vínculo, o usuário está consultando o conteúdo público do clube.
+  // A limitação de categoria é uma regra de gestão, não de visualização.
+  if (!vinculo) return { acessoTotal: true, categoriaIds: [] };
   if (vinculo.papel === 'TORCEDOR') {
     return { acessoTotal: true, categoriaIds: [] };
   }

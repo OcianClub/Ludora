@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
+import { useNotificacoes } from '@/src/contexts/NotificacoesContext';
 
 interface HeaderProps {
   title: string;
@@ -15,6 +16,7 @@ interface HeaderProps {
   logoUrl?: string | null;
   icon?: IconName;
   onPressIcon?: () => void;
+  onPressNotificacao?: () => void;
   showProfile?: boolean;
   onBtnVoltar?: () => void; 
   semSafeArea?: boolean; 
@@ -30,6 +32,7 @@ export function Header({
   showLogo, 
   logoUrl,
   onPressIcon, 
+  onPressNotificacao,
   icon, 
   showProfile, 
   onBtnVoltar, 
@@ -38,8 +41,9 @@ export function Header({
 }: HeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { totalNaoLidas } = useNotificacoes();
 
-  const { colors, tema, alternarTema } = useTheme();
+  const { colors } = useTheme();
   const styles = createStyles(colors);
 
   return (
@@ -94,19 +98,16 @@ export function Header({
       </View>
 
       <View style={styles.rightContent}>
-
-        <TouchableOpacity
-          style={styles.actionButton}
-          activeOpacity={0.7}
-          onPress={alternarTema}
-        >
-          <Text style={{ color: colors.texto, fontSize: 10 }}>
-            {tema === 'dark' ? 'CLARO' : 'ESCURO'}
-          </Text>
-        </TouchableOpacity>
         {btnNotificacao && (
-          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7} onPress={onPressIcon}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            activeOpacity={0.7}
+            onPress={onPressNotificacao ?? (() => router.push('/(tabs)/perfil/notificacoes'))}
+            accessibilityRole="button"
+            accessibilityLabel={totalNaoLidas > 0 ? `Notificações, ${totalNaoLidas} ${totalNaoLidas === 1 ? 'aviso não lido' : 'avisos não lidos'}` : 'Notificações, nenhum aviso não lido'}
+          >
             <Icon name={btnNotificacao} size={24} color={colors.texto} />
+            {totalNaoLidas > 0 && <View style={styles.notificationDot} pointerEvents="none" accessible={false} />}
           </TouchableOpacity>
         )}
         {showProfile && (
@@ -132,6 +133,7 @@ const createStyles = (colors: ThemeColors) =>
     paddingHorizontal: 20,
     paddingBottom: 15,
     backgroundColor: colors.fundo,
+    flexShrink: 0,
   },
   leftContent: {
     flexDirection: 'row',
@@ -139,10 +141,11 @@ const createStyles = (colors: ThemeColors) =>
     gap: 10,
     flex: 1,
     minWidth: 0,
-    maxWidth: '65%',
+    marginRight: 12,
   },
   logoContainer: {
     width: 45,
+    flexShrink: 0,
     height: 45,
     borderRadius: 10,
     padding: 6,
@@ -152,6 +155,7 @@ const createStyles = (colors: ThemeColors) =>
   },
   logoContainerNeutro: {
     width: 45,
+    flexShrink: 0,
     height: 45,
     borderRadius: 10,
     padding: 6,
@@ -182,6 +186,7 @@ const createStyles = (colors: ThemeColors) =>
   },
   actionButton: {
     width: 46,
+    flexShrink: 0,
     height: 46,
     backgroundColor: colors.card,
     borderRadius: 10,
@@ -197,6 +202,17 @@ const createStyles = (colors: ThemeColors) =>
     borderColor: colors.bordaBotao,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: colors.primaria,
+    borderWidth: 2,
+    borderColor: colors.card,
   },
   papelBadge: {
     backgroundColor: colors.fundoAtencao,
@@ -215,7 +231,7 @@ const createStyles = (colors: ThemeColors) =>
   leftContainer: {
     flex: 1,
     minWidth: 0,
-    height: 45,
+    minHeight: 45,
     alignItems: 'flex-start',
     justifyContent: 'center',
     gap: 2,

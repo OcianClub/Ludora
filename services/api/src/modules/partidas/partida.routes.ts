@@ -4,14 +4,24 @@ import type { Server } from 'socket.io';
 import { prisma } from '../../lib/prisma';
 import {
   exigirGestorDoClube,
-  exigirMembroDoClube,
+  exigirClubePublico,
   exigirPartidaDoClube,
   exigirPartidaVisivelDoClube,
   obterEscopoCategorias,
   podeAcessarCategoria,
 } from '../../middlewares/permissoes.middleware';
 import { processarMachineLearning } from '../../services/scout-ia.service';
+import { criarNotificacoesDoClube } from '../../services/notificacoes.service';
 import { idPositivo } from '../../utils/id';
+
+function formatarDataPartida(data: Date, horario: string | null) {
+  const dataFormatada = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'UTC',
+  }).format(data);
+  return horario ? `${dataFormatada} às ${horario}` : dataFormatada;
+}
 
 export function criarPartidaRoutes(io: Server) {
   const router = Router();
@@ -70,6 +80,21 @@ router.post('/partidas', exigirGestorDoClube, async (req, res) => {
       },
       include: { mandante: true, visitante: true, categoria: true, competicao: true },
     });
+
+    try {
+      await criarNotificacoesDoClube({
+        io,
+        clubeId: (req as any).clubeId,
+        partidaId: partida.id,
+        tipo: 'PARTIDA_AGENDADA',
+        titulo: 'Nova partida marcada',
+        corpo: `${partida.mandante.nome} x ${partida.visitante.nome} · ${formatarDataPartida(partida.data, partida.horario)}`,
+        dados: { partidaId: partida.id, clubeId: (req as any).clubeId },
+      });
+    } catch (erro) {
+      console.error('Não foi possível criar notificações da partida:', erro);
+    }
+
     res.status(201).json(partida);
   } catch (error: any) {
     console.error('Erro ao criar partida:', error.message || error);
@@ -77,7 +102,7 @@ router.post('/partidas', exigirGestorDoClube, async (req, res) => {
   }
 });
 
-router.get('/partidas', exigirMembroDoClube, async (req, res) => {
+router.get('/partidas', exigirClubePublico, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
 
   const { categoria_id, mes, status, competicao_id } = req.query;
@@ -187,11 +212,43 @@ router.patch<{ id: string }>(
       return res.status(400).json({ error: 'Placar inválido' });
     }
     try {
+      const anterior = await prisma.partida.findUnique({
+        where: { id: Number(req.params.id) },
+        include: { mandante: true, visitante: true },
+      });
+      if (!anterior) return res.status(404).json({ error: 'Partida não encontrada' });
+
       const partida = await prisma.partida.update({
         where: { id: Number(req.params.id) },
         data: { gols_mandante: golsMandante, gols_visitante: golsVisitante },
+        include: { mandante: true, visitante: true },
       });
       io.to(`clube:${(req as any).clubeId}`).emit('placar_atualizado', partida);
+
+      const golsAnterioresDoClube = anterior.emCasa
+        ? anterior.gols_mandante
+        : anterior.gols_visitante;
+      const golsAtuaisDoClube = partida.emCasa
+        ? partida.gols_mandante
+        : partida.gols_visitante;
+
+      if (golsAtuaisDoClube > golsAnterioresDoClube) {
+        const timeDoClube = partida.emCasa ? partida.mandante : partida.visitante;
+        try {
+          await criarNotificacoesDoClube({
+            io,
+            clubeId: (req as any).clubeId,
+            partidaId: partida.id,
+            tipo: 'GOL_PARTIDA',
+            titulo: `Gol do ${timeDoClube.nome}!`,
+            corpo: `Placar agora: ${partida.mandante.nome} ${partida.gols_mandante} x ${partida.gols_visitante} ${partida.visitante.nome}`,
+            dados: { partidaId: partida.id, clubeId: (req as any).clubeId },
+          });
+        } catch (erro) {
+          console.error('Não foi possível criar notificações de gol:', erro);
+        }
+      }
+
       res.json(partida);
     } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar placar' }); }
   }
@@ -208,19 +265,56 @@ router.patch<{ id: string }>(
       return res.status(400).json({ error: 'Status inválido' });
     }
     try {
-      const partida = await prisma.partida.update({ where: { id: partidaId }, data: { status } });
-      if (status === 'FINALIZADA') {
+      const anterior = await prisma.partida.findUnique({
+        where: { id: partidaId },
+        select: { status: true },
+      });
+      const partida = await prisma.partida.update({
+        where: { id: partidaId },
+        data: { status },
+        include: { mandante: true, visitante: true },
+      });
+      io.to(`clube:${(req as any).clubeId}`).emit('partida_atualizada', partida);
+
+      if (status === 'FINALIZADA' && anterior?.status !== 'FINALIZADA') {
         const clubeId = (req as any).clubeId as number;
         setImmediate(() => {
           processarMachineLearning(clubeId).catch(err => console.error('Erro na IA:', err));
         });
+
+        const golsDoClube = partida.emCasa ? partida.gols_mandante : partida.gols_visitante;
+        const golsAdversario = partida.emCasa ? partida.gols_visitante : partida.gols_mandante;
+        const resultado = golsDoClube > golsAdversario
+          ? 'Vitória!'
+          : golsDoClube < golsAdversario
+            ? 'Partida finalizada'
+            : 'Empate!';
+        const resumo = golsDoClube > golsAdversario
+          ? 'Seu time venceu a partida.'
+          : golsDoClube < golsAdversario
+            ? 'Seu time foi derrotado nesta partida.'
+            : 'A partida terminou empatada.';
+
+        try {
+          await criarNotificacoesDoClube({
+            io,
+            clubeId,
+            partidaId: partida.id,
+            tipo: 'RESULTADO_PARTIDA',
+            titulo: resultado,
+            corpo: `${resumo} ${partida.mandante.nome} ${partida.gols_mandante} x ${partida.gols_visitante} ${partida.visitante.nome}`,
+            dados: { partidaId: partida.id, clubeId },
+          });
+        } catch (erro) {
+          console.error('Não foi possível criar notificações de resultado:', erro);
+        }
       }
       res.json(partida);
     } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar status' }); }
   }
 );
 
-router.get('/jogadores/:id/estatisticas', exigirMembroDoClube, async (req, res) => {
+router.get('/jogadores/:id/estatisticas', exigirClubePublico, async (req, res) => {
   const jogadorId = Number(req.params.id);
   const jogadorExiste = await prisma.jogador.count({
     where: {
@@ -302,7 +396,7 @@ router.post<{ id: string }>(
 
 router.get(
   '/partidas/:id/eventos',
-  exigirMembroDoClube,
+  exigirClubePublico,
   exigirPartidaVisivelDoClube(req => Number(req.params.id)),
   async (req, res) => {
   try {

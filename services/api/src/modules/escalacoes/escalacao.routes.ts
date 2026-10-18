@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { prisma } from '../../lib/prisma';
 import {
   exigirGestorDoClube,
-  exigirMembroDoClube,
+  exigirClubePublico,
   exigirPartidaDoClube,
   exigirPartidaVisivelDoClube,
 } from '../../middlewares/permissoes.middleware';
@@ -16,7 +16,7 @@ const router = Router();
 
 router.get(
   '/partidas/:id/escalacao',
-  exigirMembroDoClube,
+  exigirClubePublico,
   exigirPartidaVisivelDoClube(req => Number(req.params.id)),
   async (req, res) => {
   const partidaId = Number(req.params.id);

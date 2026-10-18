@@ -35,6 +35,7 @@ import {
   ClubeListado,
 } from '@/src/services/api';
 import { ListSkeleton } from '@/src/components/Skeleton';
+import { ErroCarregamento } from '@/src/components/ErroCarregamento';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 // ==========================================
@@ -176,15 +177,17 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
   const buscaAtiva = busca.trim().length > 0;
   const mostrarDescoberta = outrosClubes.length > 0 || buscaAtiva || meusClubes.length === 0;
 
-  const acessarClube = async (clube: ClubeListado) => {
+  const selecionarClube = async (clube: ClubeListado, papel = clube.papel) => {
     await definirClubeAtivo({
       id: clube.id,
       nome: clube.nome || 'MEU CLUBE',
       escudo: clube.escudo,
-      papel: clube.papel,
+      papel,
     });
     router.replace('/(tabs)');
   };
+
+  const acessarClube = async (clube: ClubeListado) => selecionarClube(clube);
 
   // Só segue (sem navegar) — usado pelo botão "SEGUIR"
   const handleSeguir = async (clube: ClubeListado) => {
@@ -263,14 +266,21 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
           </Text>
           <Text style={styles.subtituloMain}>
             {modo === 'entrada'
-              ? 'Toque em um clube pra acessar. Seguir é opcional, só pra deixar ele salvo aqui.'
-              : 'Toque em um clube pra acessar, ou siga os que você quer acompanhar de perto.'}
+              ? 'Toque em um clube para acessar partidas, histórico e informações.'
+              : 'Acesse qualquer clube. Seguir serve para deixar seus favoritos salvos aqui.'}
           </Text>
         </View>
 
         {erro !== '' && (
           <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-            <Text style={{ color: '#D64545', fontFamily: 'Creato-Medium' }}>{erro}</Text>
+            <ErroCarregamento
+              compacto={clubes.length > 0}
+              titulo="Não foi possível atualizar clubes"
+              descricao={clubes.length > 0
+                ? 'Os clubes já exibidos continuam disponíveis. Tente atualizar novamente.'
+                : 'Confira sua conexão e tente carregar a lista novamente.'}
+              onTentarNovamente={() => void carregarClubes(busca.trim() || undefined)}
+            />
           </View>
         )}
 

@@ -10,6 +10,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   halfBlock: {
     flex: 1,
+    minWidth: 0,
   },
   label: {
     fontFamily: typography.fontFamily.corpo.semiBold,
@@ -31,6 +32,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   inputText: {
     flex: 1,
+    minWidth: 0,
     fontFamily: typography.fontFamily.corpo.regular,
     color: colors.texto,
     fontSize: 14,

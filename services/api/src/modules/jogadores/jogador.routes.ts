@@ -5,7 +5,7 @@ import {
   exigirAcessoTotalCategorias,
   exigirGestorDoClube,
   exigirJogadorDoClube,
-  exigirMembroDoClube,
+  exigirClubePublico,
   obterEscopoCategorias,
   obterEscopoCategoriasLeitura,
   podeAcessarCategoria,
@@ -83,7 +83,7 @@ router.post('/jogadores', exigirGestorDoClube, async (req, res) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/jogadores/perfis', exigirMembroDoClube, async (req, res) => {
+router.get('/jogadores/perfis', exigirClubePublico, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
   const usuario_id = (req as any).usuarioId as number;
   const categoriaInformada = req.query.categoria_id !== undefined;
@@ -146,7 +146,7 @@ router.get('/jogadores/perfis', exigirMembroDoClube, async (req, res) => {
   }
 });
 
-router.get('/jogadores', exigirMembroDoClube, async (req, res) => {
+router.get('/jogadores', exigirClubePublico, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
 
   try {

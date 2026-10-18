@@ -1,5 +1,5 @@
 import { Icon, type IconName } from '@ludora/icons';
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, Image, ScrollView,
   Modal, Pressable, ActivityIndicator, RefreshControl,
@@ -15,7 +15,9 @@ import OrganizarPartidas from '../organizarPartidas/organizarPartidas';
 import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/CarrosselSubs';
 import DetalhesPartida, { Partida as PartidaDetalhes } from '@/src/components/DetalhesPartida';
 import { CardsSkeleton } from '@/src/components/Skeleton';
+import { ErroCarregamento } from '@/src/components/ErroCarregamento';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
+import { criarControleRequisicoes } from '@/src/utils/request';
 
 const FILTROS_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -88,6 +90,8 @@ export default function Jogos() {
   const pagerRef = useRef<PagerView>(null);
   const carregouUmaVez = useRef(false);
   const clubeCarregadoId = useRef<number | null>(null);
+  const controle = useRef(criarControleRequisicoes()).current;
+  const [erroCarregamento, setErroCarregamento] = useState('');
 
   const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(null);
 
@@ -109,6 +113,8 @@ export default function Jogos() {
   const [modalOrganizar, setModalOrganizar] = useState(false);
 
   const carregarPartidas = useCallback(async () => {
+    const pedido = controle.iniciar();
+    setErroCarregamento('');
     const clubeMudou = clubeCarregadoId.current !== (clubeAtivo?.id ?? null);
     try {
       if (clubeMudou) {
@@ -122,13 +128,16 @@ export default function Jogos() {
       const params: any = { mes: mesAtivo };
       if (statusFiltro !== 'TODOS') params.status = statusFiltro;
       const partidas: Partida[] = await fetchPartidas(params, clubeAtivo.id);
+      if (!controle.atual(pedido)) return;
       setDias(agruparPorDia(ordenarPartidas(partidas)));
       clubeCarregadoId.current = clubeAtivo.id;
     } catch (e) {
-      console.error(e);
+      if (controle.atual(pedido)) setErroCarregamento(e instanceof Error ? e.message : 'Não foi possível carregar os jogos.');
     } finally {
+      if (controle.atual(pedido)) {
       setCarregando(false);
       setRefreshing(false);
+      }
     }
   }, [clubeAtivo?.id, mesAtivo, statusFiltro]);
 
@@ -138,11 +147,20 @@ export default function Jogos() {
       carregarPartidas().finally(() => {
         carregouUmaVez.current = true;
       });
+      return () => controle.invalidar();
     }, [carregarPartidas])
   );
 
   const onRefresh = () => { setRefreshing(true); carregarPartidas(); };
   const dadosAtuais = tipoFiltro === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
+  useEffect(() => { setPartidaSelecionada(null); setModalOrganizar(false); }, [clubeAtivo?.id]);
+  const diasPorSub = useMemo(() => dadosAtuais.map(sub => ({
+    sub,
+    diasComPartidas: dias.map(dia => ({
+      ...dia,
+      filtradas: dia.partidas.filter(p => p.categoria?.nome.toUpperCase().replace(' ', '-') === sub.title),
+    })).filter(dia => dia.filtradas.length > 0),
+  })), [dias, dadosAtuais]);
 
   const handleTrocarFase = (novaFase: 'INICIACAO' | 'BASE') => {
     setTipoFiltro(novaFase);
@@ -179,7 +197,7 @@ export default function Jogos() {
     setMesAtivo(tempMes);
     setStatusFiltro(tempStatus);
     setModalFiltrosVisible(false);
-    setCarregando(true);
+    if (tempMes !== mesAtivo || tempStatus !== statusFiltro) setCarregando(true);
   };
 
   return (
@@ -213,11 +231,7 @@ export default function Jogos() {
       </View>
 
       <PagerView ref={pagerRef} style={{ flex: 1 }} initialPage={0} onPageSelected={onPageSelected}>
-        {dadosAtuais.map((sub) => {
-          const diasComPartidas = dias
-            .map(dia => ({ ...dia, filtradas: filtrarPartidasPorSub(dia.partidas, sub.title) }))
-            .filter(dia => dia.filtradas.length > 0);
-
+        {diasPorSub.map(({ sub, diasComPartidas }) => {
           return (
             <View key={`${tipoFiltro}-${sub.id}`} style={{ flex: 1 }}>
               <ScrollView
@@ -225,6 +239,16 @@ export default function Jogos() {
                 contentContainerStyle={styles.content}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaria} />}
               >
+                {!!erroCarregamento && (
+                  <ErroCarregamento
+                    compacto={dias.length > 0}
+                    titulo={dias.length > 0 ? 'Exibindo jogos já carregados' : 'Não foi possível carregar os jogos'}
+                    descricao={dias.length > 0
+                      ? 'Não conseguimos atualizar a lista agora. Tente novamente em instantes.'
+                      : 'Confira sua conexão e tente atualizar novamente.'}
+                    onTentarNovamente={onRefresh}
+                  />
+                )}
                 {carregando ? (
                   <CardsSkeleton rows={4} />
                 ) : diasComPartidas.length === 0 ? (

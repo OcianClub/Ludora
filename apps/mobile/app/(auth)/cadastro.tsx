@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,8 +17,10 @@ import { Icon } from '@ludora/icons';
 
 import LogoArquivo from '@/assets/logo.svg';
 import { BASE_URL } from '@/src/services/api';
+import { fetchComTimeout } from '@/src/utils/request';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createStyles } from '@/src/styles/cadastroStyles';
+import { emailValido as validarEmail, lerRespostaAuth } from '@/src/utils/autenticacao';
 
 const Logo = LogoArquivo as unknown as React.FC<SvgProps>;
 
@@ -30,6 +33,9 @@ export default function Cadastro() {
   const emailRef = useRef<TextInput>(null);
   const senhaRef = useRef<TextInput>(null);
   const confirmacaoRef = useRef<TextInput>(null);
+  const nomeRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const envioEmAndamento = useRef(false);
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -41,10 +47,17 @@ export default function Cadastro() {
   const [campoFocado, setCampoFocado] = useState<CampoFocado>(null);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState('');
+  const [visitados, setVisitados] = useState<Record<string, boolean>>({});
+  const [tentouEnviar, setTentouEnviar] = useState(false);
+  const mostrarErro = (campo: string) => tentouEnviar || visitados[campo];
+  const sairDoCampo = (campo: string) => {
+    setCampoFocado(null);
+    setVisitados(atuais => ({ ...atuais, [campo]: true }));
+  };
 
-  const nomeValido = nome.trim().length >= 2;
-  const emailValido = /^\S+@\S+\.\S+$/.test(email.trim());
-  const senhaValida = senha.length >= 8;
+  const nomeValido = nome.trim().length >= 2 && nome.trim().length <= 100;
+  const emailValido = validarEmail(email);
+  const senhaValida = senha.length >= 8 && senha.length <= 128;
   const senhasIguais = confirmarSenha.length > 0 && senha === confirmarSenha;
   const formularioValido = nomeValido && emailValido && senhaValida && senhasIguais && aceitouTermos;
 
@@ -53,32 +66,40 @@ export default function Cadastro() {
   }
 
   async function criarConta() {
-    if (!formularioValido || carregando) return;
+    if (envioEmAndamento.current) return;
+    setTentouEnviar(true);
+    if (!formularioValido) {
+      if (!nomeValido) nomeRef.current?.focus();
+      else if (!emailValido) emailRef.current?.focus();
+      else if (!senhaValida) senhaRef.current?.focus();
+      else if (!senhasIguais) confirmacaoRef.current?.focus();
+      else setErro('Confirme o aceite dos termos para continuar.');
+      return;
+    }
 
+    envioEmAndamento.current = true;
+    Keyboard.dismiss();
     setCarregando(true);
     setErro('');
 
     try {
-      const resposta = await fetch(`${BASE_URL}/auth/registrar`, {
+      const resposta = await fetchComTimeout(`${BASE_URL}/auth/registrar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nome: nome.trim(),
           email: email.trim().toLowerCase(),
           senha,
-          role: 'USER',
         }),
       });
-      const dados = await resposta.json();
+      await lerRespostaAuth(resposta, 'cadastro');
 
-      if (!resposta.ok) {
-        throw new Error(dados.error || 'Não foi possível criar sua conta.');
-      }
-
-      router.replace('/(auth)/login');
+      router.replace({ pathname: '/(auth)/login', params: { cadastro: 'sucesso', email: email.trim().toLowerCase() } });
     } catch (error: any) {
       setErro(error.message || 'Não foi possível criar sua conta. Tente novamente.');
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
     } finally {
+      envioEmAndamento.current = false;
       setCarregando(false);
     }
   }
@@ -92,7 +113,8 @@ export default function Cadastro() {
         <View style={styles.navigation}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            disabled={carregando}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login')}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Voltar"
@@ -102,6 +124,7 @@ export default function Cadastro() {
 
           <TouchableOpacity
             style={styles.loginTopButton}
+            disabled={carregando}
             onPress={() => router.replace('/(auth)/login')}
             activeOpacity={0.7}
           >
@@ -110,9 +133,11 @@ export default function Cadastro() {
         </View>
 
         <ScrollView
+          ref={scrollRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.intro}>
@@ -133,7 +158,7 @@ export default function Cadastro() {
           </View>
 
           {!!erro && (
-            <View style={styles.errorBox}>
+            <View style={styles.errorBox} accessibilityRole="alert" accessibilityLiveRegion="polite">
               <Icon name="alert-circle-outline" size={20} color={colors.tituloErro} />
               <Text style={styles.errorText}>{erro}</Text>
             </View>
@@ -145,7 +170,7 @@ export default function Cadastro() {
               <View style={[
                 styles.inputRow,
                 campoFocado === 'nome' && styles.inputRowFocused,
-                nome.length > 0 && !nomeValido && styles.inputRowError,
+                mostrarErro('nome') && !nomeValido && styles.inputRowError,
               ]}>
                 <Icon
                   name="account-outline"
@@ -153,13 +178,17 @@ export default function Cadastro() {
                   color={campoFocado === 'nome' ? colors.primaria : colors.textoSecundario}
                 />
                 <TextInput
+                  ref={nomeRef}
+                  editable={!carregando}
+                  maxLength={100}
+                  accessibilityLabel="Nome"
                   style={styles.input}
                   placeholder="Como você quer ser chamado?"
                   placeholderTextColor={colors.textoSecundario}
                   value={nome}
                   onChangeText={valor => { setNome(valor); limparErro(); }}
                   onFocus={() => setCampoFocado('nome')}
-                  onBlur={() => setCampoFocado(null)}
+                  onBlur={() => sairDoCampo('nome')}
                   autoCapitalize="words"
                   autoComplete="name"
                   textContentType="name"
@@ -167,6 +196,7 @@ export default function Cadastro() {
                   onSubmitEditing={() => emailRef.current?.focus()}
                 />
               </View>
+              {mostrarErro('nome') && !nomeValido && <Text style={styles.fieldError}>Informe um nome com pelo menos 2 caracteres.</Text>}
             </View>
 
             <View style={styles.field}>
@@ -174,7 +204,7 @@ export default function Cadastro() {
               <View style={[
                 styles.inputRow,
                 campoFocado === 'email' && styles.inputRowFocused,
-                email.length > 0 && !emailValido && styles.inputRowError,
+                mostrarErro('email') && !emailValido && styles.inputRowError,
               ]}>
                 <Icon
                   name="email-outline"
@@ -183,13 +213,16 @@ export default function Cadastro() {
                 />
                 <TextInput
                   ref={emailRef}
+                  editable={!carregando}
+                  maxLength={254}
+                  accessibilityLabel="E-mail"
                   style={styles.input}
                   placeholder="email@exemplo.com"
                   placeholderTextColor={colors.textoSecundario}
                   value={email}
                   onChangeText={valor => { setEmail(valor); limparErro(); }}
                   onFocus={() => setCampoFocado('email')}
-                  onBlur={() => setCampoFocado(null)}
+                  onBlur={() => sairDoCampo('email')}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -199,6 +232,7 @@ export default function Cadastro() {
                   onSubmitEditing={() => senhaRef.current?.focus()}
                 />
               </View>
+              {mostrarErro('email') && !emailValido && <Text style={styles.fieldError}>Informe um e-mail válido, como nome@exemplo.com.</Text>}
             </View>
 
             <View style={styles.field}>
@@ -206,7 +240,7 @@ export default function Cadastro() {
               <View style={[
                 styles.inputRow,
                 campoFocado === 'senha' && styles.inputRowFocused,
-                senha.length > 0 && !senhaValida && styles.inputRowError,
+                mostrarErro('senha') && !senhaValida && styles.inputRowError,
               ]}>
                 <Icon
                   name="lock-outline"
@@ -215,13 +249,18 @@ export default function Cadastro() {
                 />
                 <TextInput
                   ref={senhaRef}
+                  editable={!carregando}
+                  maxLength={128}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel="Crie uma senha"
                   style={styles.input}
                   placeholder="Crie uma senha"
                   placeholderTextColor={colors.textoSecundario}
                   value={senha}
                   onChangeText={valor => { setSenha(valor); limparErro(); }}
                   onFocus={() => setCampoFocado('senha')}
-                  onBlur={() => setCampoFocado(null)}
+                  onBlur={() => sairDoCampo('senha')}
                   secureTextEntry={!mostrarSenha}
                   autoComplete="new-password"
                   textContentType="newPassword"
@@ -241,6 +280,7 @@ export default function Cadastro() {
                   />
                 </TouchableOpacity>
               </View>
+              {mostrarErro('senha') && !senhaValida && <Text style={styles.fieldError}>Sua senha precisa ter pelo menos 8 caracteres.</Text>}
             </View>
 
             <View style={styles.field}>
@@ -248,7 +288,7 @@ export default function Cadastro() {
               <View style={[
                 styles.inputRow,
                 campoFocado === 'confirmacao' && styles.inputRowFocused,
-                confirmarSenha.length > 0 && !senhasIguais && styles.inputRowError,
+                mostrarErro('confirmacao') && !senhasIguais && styles.inputRowError,
               ]}>
                 <Icon
                   name="lock-outline"
@@ -257,17 +297,23 @@ export default function Cadastro() {
                 />
                 <TextInput
                   ref={confirmacaoRef}
+                  editable={!carregando}
+                  maxLength={128}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel="Confirme a senha"
                   style={styles.input}
                   placeholder="Digite a senha novamente"
                   placeholderTextColor={colors.textoSecundario}
                   value={confirmarSenha}
                   onChangeText={valor => { setConfirmarSenha(valor); limparErro(); }}
                   onFocus={() => setCampoFocado('confirmacao')}
-                  onBlur={() => setCampoFocado(null)}
+                  onBlur={() => sairDoCampo('confirmacao')}
                   secureTextEntry={!mostrarConfirmacao}
                   autoComplete="new-password"
                   textContentType="newPassword"
                   returnKeyType="done"
+                  onSubmitEditing={() => { Keyboard.dismiss(); }}
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
@@ -282,6 +328,7 @@ export default function Cadastro() {
                   />
                 </TouchableOpacity>
               </View>
+              {mostrarErro('confirmacao') && !senhasIguais && <Text style={styles.fieldError}>Digite a mesma senha nos dois campos.</Text>}
             </View>
 
             <View style={styles.requirements}>
@@ -309,7 +356,8 @@ export default function Cadastro() {
 
             <TouchableOpacity
               style={styles.termsRow}
-              onPress={() => setAceitouTermos(valor => !valor)}
+              disabled={carregando}
+              onPress={() => { setAceitouTermos(valor => !valor); limparErro(); }}
               activeOpacity={0.75}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: aceitouTermos }}
@@ -328,6 +376,7 @@ export default function Cadastro() {
 
           <TouchableOpacity
             style={styles.inviteCard}
+            disabled={carregando}
             onPress={() => router.push('/convite')}
             activeOpacity={0.75}
           >
@@ -344,9 +393,12 @@ export default function Cadastro() {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.primaryButton, (!formularioValido || carregando) && styles.primaryButtonDisabled]}
+            style={[styles.primaryButton, carregando && styles.primaryButtonDisabled]}
             onPress={criarConta}
-            disabled={!formularioValido || carregando}
+            disabled={carregando}
+            accessibilityRole="button"
+            accessibilityLabel={carregando ? 'Criando sua conta' : 'Criar conta'}
+            accessibilityState={{ disabled: carregando, busy: carregando }}
             activeOpacity={0.85}
           >
             {carregando ? (
@@ -358,7 +410,7 @@ export default function Cadastro() {
 
           <View style={styles.loginRow}>
             <Text style={styles.loginPrompt}>Já possui uma conta? </Text>
-            <TouchableOpacity onPress={() => router.replace('/(auth)/login')} activeOpacity={0.7}>
+            <TouchableOpacity disabled={carregando} onPress={() => router.replace('/(auth)/login')} activeOpacity={0.7}>
               <Text style={styles.loginLink}>Entrar</Text>
             </TouchableOpacity>
           </View>

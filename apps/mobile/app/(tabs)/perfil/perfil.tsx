@@ -5,14 +5,22 @@ import {
   Text,
   TouchableOpacity,
   Pressable,
+  Switch,
+  Alert,
+  ScrollView,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { createStyles } from "../../../src/styles/perfilStyles";
 import { Header } from "@/src/components/Header";
+import { ConfirmacaoConta } from '@/src/components/ConfirmacaoConta';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
+import { useNotificacoes } from '@/src/contexts/NotificacoesContext';
+import { desvincularDispositivoPush } from '@/src/services/api';
+import type { PreferenciaTema } from '@/src/utils/tema';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import DadosPessoais from "./dadosPessoais/dadosPessoais";
 
@@ -21,6 +29,7 @@ interface CardMenuProps {
   subtitulo: string;
   icone: IconName;
   action: () => void;
+  ultimo?: boolean;
 }
 
 function CardMenu({
@@ -28,12 +37,14 @@ function CardMenu({
   subtitulo,
   icone,
   action,
+  ultimo,
 }: CardMenuProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   return (
     <TouchableOpacity
-      style={styles.menuItem}
+      style={[styles.menuItem, ultimo && { borderBottomWidth: 0 }]}
+      accessibilityRole="button"
       activeOpacity={0.75}
       onPress={action}
     >
@@ -65,29 +76,42 @@ function CardMenu({
 }
 
 export default function Perfil() {
-  const { colors } = useTheme();
+  const { colors, preferenciaTema, carregandoTema, definirPreferenciaTema } = useTheme();
+  const insets = useSafeAreaInsets();
+  const [modalTema, setModalTema] = useState(false);
+  const [salvandoTema, setSalvandoTema] = useState(false);
   const styles = createStyles(colors);
-  const { clubeAtivo } = useClubeAtivo();
+  const { clubeAtivo, limparClubeAtivo } = useClubeAtivo();
+  const {
+    notificacoesAtivas,
+    carregandoPreferencia,
+    alterarNotificacoes,
+  } = useNotificacoes();
   const [nome, setNome] = useState("");
+  const [email, setEmail] = useState('');
   const [membroDesde, setMembroDesde] = useState("");
   const [modalSair, setModalSair] = useState(false);
+  const [saindo, setSaindo] = useState(false);
   const [modalDadosPessoais, setModalDadosPessoais] =
     useState(false);
+  const [dadosPendentes, setDadosPendentes] = useState(false);
+  const [dadosEmOperacao, setDadosEmOperacao] = useState(false);
 
   useEffect(() => {
     carregarDados();
   }, []);
 
   const carregarDados = async () => {
-    const nomeUsuario =
-      await SecureStore.getItemAsync("userName");
+    const [nomeUsuario, emailUsuario, dataCriacao] = await Promise.all([
+      SecureStore.getItemAsync('userName'),
+      SecureStore.getItemAsync('userEmail'),
+      SecureStore.getItemAsync('userCriadoEm'),
+    ]);
+    setEmail(emailUsuario ?? '');
 
     if (nomeUsuario) {
       setNome(nomeUsuario);
     }
-
-    const dataCriacao =
-      await SecureStore.getItemAsync("userCriadoEm");
 
     if (dataCriacao) {
       const data = new Date(dataCriacao);
@@ -104,22 +128,52 @@ export default function Perfil() {
   };
 
   const fecharDadosPessoais = async () => {
-    const nomeAtualizado =
-      await SecureStore.getItemAsync("userName");
-
-    if (nomeAtualizado) {
-      setNome(nomeAtualizado);
-    }
-
     setModalDadosPessoais(false);
+    await carregarDados();
   };
 
   const deslogar = async () => {
-    await SecureStore.deleteItemAsync("userToken");
-    await SecureStore.deleteItemAsync("userRole");
-    await SecureStore.deleteItemAsync("userName");
+    if (saindo) return;
+    setSaindo(true);
+    try {
+      // Desvincula o push enquanto a credencial da conta ainda está disponível.
+      await desvincularDispositivoPush();
+      await limparClubeAtivo();
+      await Promise.all(['userToken', 'userRole', 'userName', 'userEmail', 'userCriadoEm', 'userData', 'expoPushToken'].map(chave => SecureStore.deleteItemAsync(chave)));
+      router.replace("/(auth)/login");
+    } catch {
+      Alert.alert('Não foi possível sair', 'Confira sua conexão e tente novamente para desvincular as notificações desta conta com segurança.');
+    } finally {
+      setSaindo(false);
+    }
+  };
 
-    router.replace("/(auth)/login");
+  const alternarNotificacoes = async (ativa: boolean) => {
+    try {
+    const atualizado = await alterarNotificacoes(ativa);
+    if (!atualizado && ativa) {
+      Alert.alert(
+        'Permissão necessária',
+        'Permita notificações nas configurações do dispositivo para receber avisos sobre partidas.',
+      );
+    }
+    } catch (error) {
+      Alert.alert('Não foi possível atualizar', error instanceof Error ? error.message : 'Confira sua conexão e tente novamente.');
+    }
+  };
+
+  const escolherTema = async (preferencia: PreferenciaTema) => {
+    if (carregandoTema || salvandoTema) return;
+    if (preferencia === preferenciaTema) { setModalTema(false); return; }
+    setSalvandoTema(true);
+    try {
+      await definirPreferenciaTema(preferencia);
+      setModalTema(false);
+    } catch {
+      Alert.alert('Não foi possível salvar o tema', 'Tente novamente. Sua preferência anterior foi mantida.');
+    } finally {
+      setSalvandoTema(false);
+    }
   };
 
   return (
@@ -132,7 +186,11 @@ export default function Perfil() {
         papelUsuario={clubeAtivo?.papel ?? undefined}
       />
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* HEADER DO PERFIL */}
         <View style={styles.profileHeader}>
           <View style={styles.avatarWrapper}>
@@ -144,26 +202,24 @@ export default function Perfil() {
               </Text>
             </View>
 
-            <View style={styles.avatarStatus} />
           </View>
-
+          <View style={styles.profileIdentity}>
           <Text style={styles.nomeUsuario}>
             {nome || "Usuário"}
           </Text>
+          {!!email && <Text style={styles.profileEmail} numberOfLines={1}>{email}</Text>}
 
           {membroDesde ? (
             <Text style={styles.dataMembro}>
-              MEMBRO DESDE{" "}
-              {membroDesde.toUpperCase()}
+              Membro desde {membroDesde}
             </Text>
           ) : null}
+          </View>
         </View>
 
         {/* CONTA */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIndicator} />
-
             <Text style={styles.sectionTitle}>
               CONTA
             </Text>
@@ -181,10 +237,68 @@ export default function Perfil() {
 
             <CardMenu
               titulo="Notificações"
-              subtitulo="Alertas e preferências"
+              subtitulo="Histórico de avisos do clube"
               icone="bell-outline"
-              action={() => {}}
+              action={() => router.push('perfil/notificacoes')}
+              ultimo
             />
+          </View>
+        </View>
+
+        {/* NOTIFICAÇÕES */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              PREFERÊNCIAS
+            </Text>
+          </View>
+
+          <View style={styles.menu}>
+            <View style={styles.themeItem}>
+              <View style={styles.menuIcon}>
+                <Icon name="bell-outline" size={21} color={colors.primaria} />
+              </View>
+
+              <View style={styles.menuContent}>
+                <Text style={styles.menuTitulo}>
+                  Receber notificações
+                </Text>
+
+                <Text style={styles.menuSubtitulo}>
+                  {notificacoesAtivas
+                    ? 'Avisos de partidas, gols e resultados'
+                    : 'Avisos externos estão desativados'}
+                </Text>
+              </View>
+
+              <Switch
+                value={notificacoesAtivas}
+                onValueChange={alternarNotificacoes}
+                disabled={carregandoPreferencia}
+                trackColor={{
+                  false: colors.cardSecundario,
+                  true: colors.primaria,
+                }}
+                thumbColor={colors.textoSobrePrimaria}
+                ios_backgroundColor={colors.cardSecundario}
+                accessibilityLabel="Receber notificações"
+              />
+            </View>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.themeSettingRow}
+              onPress={() => setModalTema(true)}
+              disabled={carregandoTema}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={`Tema: ${preferenciaTema === 'system' ? 'Sistema' : preferenciaTema === 'light' ? 'Claro' : 'Escuro'}`}
+              accessibilityHint="Abre as opções de aparência"
+            >
+              <View style={styles.themePreviewWrapper} accessible={false}><View style={styles.themePreview}><View style={styles.themePreviewHalf} /></View></View>
+              <Text style={[styles.menuTitulo, styles.themeSettingTitle]}>Tema</Text>
+              <Text style={styles.themeCurrentValue}>{preferenciaTema === 'system' ? 'Sistema' : preferenciaTema === 'light' ? 'Claro' : 'Escuro'}</Text>
+              <Icon name="chevron-right" size={20} color={colors.textoSecundario} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -208,9 +322,6 @@ export default function Perfil() {
                 Sair da conta
               </Text>
 
-              <Text style={styles.logoutSubtitle}>
-                Encerrar sua sessão neste dispositivo
-              </Text>
             </View>
 
             <Icon
@@ -220,75 +331,69 @@ export default function Perfil() {
             />
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
+
+      <Modal visible={modalTema} transparent animationType="slide" onRequestClose={() => setModalTema(false)}>
+        <View style={styles.themeSheetOverlay}>
+          <Pressable style={styles.themeBackdrop} onPress={() => setModalTema(false)} accessibilityRole="button" accessibilityLabel="Fechar opções de tema" />
+          <View style={[styles.themeSheet, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]} accessibilityViewIsModal>
+            <View style={styles.themeSheetHeader}>
+              <Text style={styles.themeSheetTitle}>Tema</Text>
+              <TouchableOpacity style={styles.themeCloseButton} onPress={() => setModalTema(false)} accessibilityRole="button" accessibilityLabel="Fechar">
+                <Icon name="close" size={22} color={colors.textoSecundario} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.themeSheetList} showsVerticalScrollIndicator={false}>
+              {([
+                { valor: 'system', label: 'Usar tema do sistema' },
+                { valor: 'light', label: 'Claro' },
+                { valor: 'dark', label: 'Escuro' },
+              ] as const).map(({ valor, label }) => (
+                <TouchableOpacity key={valor} style={styles.themeChoice} onPress={() => void escolherTema(valor)} disabled={carregandoTema || salvandoTema} accessibilityRole="radio" accessibilityState={{ checked: preferenciaTema === valor, disabled: carregandoTema || salvandoTema }} activeOpacity={0.7}>
+                  <Text style={[styles.themeChoiceText, preferenciaTema === valor && styles.themeChoiceTextSelected]}>{label}</Text>
+                  <View style={[styles.themeRadio, preferenciaTema === valor && styles.themeRadioSelected]}>
+                    {preferenciaTema === valor && <View style={styles.themeRadioDot} />}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* MODAL SAIR */}
-      <Modal
+      <ConfirmacaoConta
         visible={modalSair}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalSair(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setModalSair(false)}
-        >
-          <Pressable style={styles.modalCard}>
-            <View style={styles.modalIcon}>
-              <Icon
-                name="logout"
-                size={26}
-                color={colors.tituloErro}
-              />
-            </View>
-
-            <Text style={styles.modalTitulo}>
-              Sair da conta?
-            </Text>
-
-            <Text style={styles.modalSubtitulo}>
-              Sua sessão será encerrada neste
-              dispositivo.
-            </Text>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setModalSair(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelText}>
-                  CANCELAR
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={deslogar}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.confirmText}>
-                  SAIR
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        titulo="Sair da sua conta?"
+        descricao="Você sairá do Ludora neste aparelho. Sua conta será mantida e você poderá entrar novamente quando quiser."
+        icone="logout"
+        confirmarTexto="Sair da conta"
+        carregandoTexto="Encerrando sessão..."
+        carregando={saindo}
+        onConfirmar={() => void deslogar()}
+        onFechar={() => setModalSair(false)}
+      />
 
       {/* DADOS PESSOAIS */}
       <Modal
         visible={modalDadosPessoais}
         transparent={false}
         animationType="slide"
-        onRequestClose={() =>
-          setModalDadosPessoais(false)
-        }
+        onRequestClose={() => {
+          if (dadosEmOperacao) return;
+          if (!dadosPendentes) { void fecharDadosPessoais(); return; }
+          Alert.alert('Descartar alterações?', 'Suas alterações ainda não foram salvas.', [
+            { text: 'Continuar editando', style: 'cancel' },
+            { text: 'Descartar', style: 'destructive', onPress: () => void fecharDadosPessoais() },
+          ]);
+        }}
       >
-        <DadosPessoais
+        {modalDadosPessoais && <DadosPessoais
           noModal={true}
           onFechar={fecharDadosPessoais}
-        />
+          onAlteracoesPendentes={setDadosPendentes}
+          onOperacaoEmAndamento={setDadosEmOperacao}
+        />}
       </Modal>
 
     </View>

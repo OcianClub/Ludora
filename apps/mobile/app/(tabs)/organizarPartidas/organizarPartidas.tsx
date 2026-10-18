@@ -1,7 +1,7 @@
 import { Icon } from '@ludora/icons';
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Pressable, Image, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Pressable, Image, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
@@ -17,6 +17,8 @@ import MandoCampo from '@/src/components/mandoCampo';
 import InputDataHora from '@/src/components/InputDataHora';
 import { fetchTimes, fetchCompeticoes, fetchCategorias, criarPartida } from '@/src/services/api';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
+import { criarControleRequisicoes } from '@/src/utils/request';
+import { dataPartidaISO, erroFormularioPartida } from '@/src/utils/validarPartida';
 
 const ORDEM_SUBS: Record<string, number> = {
   'SUB 7': 1, 'SUB-7': 1, 'SUB 8': 2, 'SUB-8': 2, 'SUB 9': 3, 'SUB-9': 3,
@@ -27,12 +29,14 @@ const ORDEM_SUBS: Record<string, number> = {
 interface Categoria { id: number; nome: string; tipo: 'INICIACAO' | 'BASE'; }
 interface Time { id: number; nome: string; escudo: string | null; categoria_id: number; }
 interface Competicao { id: number; nome: string; ano: number; }
-interface OrganizarPartidasProps { onFechar: () => void; noModal?: boolean; }
+interface OrganizarPartidasProps { onFechar?: () => void; noModal?: boolean; }
 
 export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartidasProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const fechar = onFechar ?? (() => router.back());
   const { clubeAtivo } = useClubeAtivo();
   
   // ── Estados ──
@@ -53,23 +57,47 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
   const [horario, setHorario] = useState('');
   const [emCasa, setEmCasa] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [erroDados, setErroDados] = useState('');
+  const [erroSalvar, setErroSalvar] = useState('');
+  const envioEmAndamento = useRef(false);
+  const controle = useRef(criarControleRequisicoes()).current;
 
   // ── Efeitos ──
-  useEffect(() => {
-    Promise.all([fetchTimes(), fetchCompeticoes(), fetchCategorias()]).then(([timesData, competicoesData, categoriasData]) => {
+  const carregarDados = useCallback(async () => {
+    const id = controle.iniciar();
+    setCarregandoDados(true);
+    setErroDados('');
+    try {
+      const [timesData, competicoesData, categoriasData] = await Promise.all([fetchTimes(), fetchCompeticoes(), fetchCategorias()]);
+      if (!controle.atual(id)) return;
       setTimes(timesData);
       setCompeticoes(competicoesData);
       const catOrdenadas = categoriasData.sort((a: Categoria, b: Categoria) => (ORDEM_SUBS[a.nome.toUpperCase()] ?? 99) - (ORDEM_SUBS[b.nome.toUpperCase()] ?? 99));
       setCategorias(catOrdenadas);
       if (competicoesData.length > 0) setCompeticaoSelecionada(competicoesData[0]);
       if (catOrdenadas.length > 0) setCategoriaId(catOrdenadas[0].id);
-    }).finally(() => setCarregandoDados(false));
-  }, []);
+    } catch (error) {
+      if (controle.atual(id)) setErroDados(error instanceof Error ? error.message : 'Não foi possível carregar os dados da partida.');
+    } finally {
+      if (controle.atual(id)) setCarregandoDados(false);
+    }
+  }, [controle, clubeAtivo?.id]);
+
+  useEffect(() => {
+    setTimes([]); setCategorias([]); setCompeticoes([]);
+    setMandante(null); setVisitante(null); setCategoriaId(null); setCompeticaoSelecionada(null);
+    void carregarDados();
+    return () => controle.invalidar();
+  }, [carregarDados, controle]);
 
   // ── Variáveis Computadas ──
-  const timesFiltrados = times.filter(t => t.nome.toLowerCase().includes(buscaTime.toLowerCase()) && t.categoria_id === categoriaId);
+  const timesFiltrados = useMemo(() => times.filter(t =>
+    t.nome.toLowerCase().includes(buscaTime.trim().toLowerCase()) && t.categoria_id === categoriaId
+    && t.id !== (modalTime === 'mandante' ? visitante?.id : mandante?.id)
+  ), [times, buscaTime, categoriaId, modalTime, mandante?.id, visitante?.id]);
   const categoriaAtual = categorias.find(c => c.id === categoriaId);
-  const isFormValido = mandante && visitante && data.length === 5 && horario.length === 5 && categoriaId !== null;
+  const erroFormulario = erroFormularioPartida({ mandanteId: mandante?.id, visitanteId: visitante?.id, categoriaId, data, horario });
+  const isFormValido = !carregandoDados && !erroDados && !erroFormulario;
 
   // ── Handlers ──
   const selecionarTime = (time: Time) => {
@@ -90,41 +118,48 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
   };
 
   const salvar = async () => {
-    if (!isFormValido) return;
+    if (!isFormValido || !mandante || !visitante || !categoriaId || envioEmAndamento.current) return;
+    envioEmAndamento.current = true;
     setSalvando(true);
+    setErroSalvar('');
     try {
-      const [dia, mes] = data.split('/');
       await criarPartida({
         mandante_id: mandante.id,
         visitante_id: visitante.id,
-        data: `${new Date().getFullYear()}-${mes}-${dia}`,
+        data: dataPartidaISO(data)!,
         horario,
         local: "Local não definido",
         emCasa,
         categoria_id: categoriaId,
         competicao_id: competicaoSelecionada?.id,
       });
-      onFechar();
+      fechar();
     } catch (e) {
-      console.error(e);
+      setErroSalvar(e instanceof Error ? e.message : 'Não foi possível criar a partida. Tente novamente.');
     } finally {
+      envioEmAndamento.current = false;
       setSalvando(false);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={noModal ? ['top', 'bottom', 'left', 'right'] : ['top', 'left', 'right']}>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Header
         title="ORGANIZAR PARTIDA"
         showLogo={false}
         showProfile={false}
         btnVoltar="arrow-left"
-        onBtnVoltar={onFechar}
-        semSafeArea={noModal}
+        onBtnVoltar={fechar}
+        semSafeArea
         papelUsuario={clubeAtivo?.papel ?? undefined}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+        {!!erroDados && <View accessibilityRole="alert">
+          <Text style={[styles.emptyText, { color: colors.tituloErro }]}>{erroDados}</Text>
+          <TouchableOpacity onPress={() => void carregarDados()} style={styles.dropdownBtn}><Text style={styles.dropdownText}>Tentar novamente</Text></TouchableOpacity>
+        </View>}
 
         {/* ── SEÇÃO: COMPETIÇÃO ── */}
         <Text style={styles.sectionLabel}>COMPETIÇÃO</Text>
@@ -178,6 +213,8 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
         />
 
         {/* ── BOTAO SALVAR ── */}
+        {!!erroSalvar && <Text accessibilityRole="alert" style={[styles.emptyText, { color: colors.tituloErro }]}>{erroSalvar}</Text>}
+        {!carregandoDados && !erroDados && !!erroFormulario && <Text style={styles.emptyText}>{erroFormulario}</Text>}
         <TouchableOpacity activeOpacity={0.85} onPress={salvar} style={[styles.salvarBtn, !isFormValido && { opacity: 0.4 }]} disabled={!isFormValido || salvando}>
           <LinearGradient colors={[colors.primaria, '#0055FF']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.salvarGradient}>
             {salvando ? <ActivityIndicator color={colors.textoSobrePrimaria} /> : (
@@ -191,24 +228,25 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
       </ScrollView>
 
       {/* ── MODAL COMPETICAO (MANTIDO) ── */}
-      <Modal visible={modalCompeticao} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => setModalCompeticao(false)}>
+      <Modal visible={modalCompeticao} transparent animationType="fade" onRequestClose={() => setModalCompeticao(false)}>
+        <Pressable style={[styles.modalOverlay, { paddingTop: insets.top + 12 }]} onPress={() => setModalCompeticao(false)}>
           {/* O conteúdo do modal pode virar um <ModalCompeticao /> futuramente */}
-          <View style={styles.modalContent}>
+          <Pressable style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]} onPress={(event) => event.stopPropagation()}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Selecionar competição</Text>
               <TouchableOpacity style={styles.closeBtn} onPress={() => setModalCompeticao(false)}>
                 <Icon name="close" size={18} color={colors.textoSecundario} />
               </TouchableOpacity>
             </View>
-            {competicoes.map((c, index) => (
+            <ScrollView style={styles.selectorList} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {competicoes.map((c) => (
               <TouchableOpacity key={c.id} style={[styles.modalItem, competicaoSelecionada?.id === c.id && styles.modalItemActive]} onPress={() => { setCompeticaoSelecionada(c); setModalCompeticao(false); }}>
                 <View style={[styles.modalIconCircle, { backgroundColor: competicaoSelecionada?.id === c.id ? colors.primaria : colors.cardSecundario }]}>
                     <Icon name="trophy-outline" size={20} color={competicaoSelecionada?.id === c.id ? colors.textoSobrePrimaria : colors.primaria} />
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.modalItemText}>{c.nome}</Text>
-                    <Text style={styles.modalItemSub}>{'Base · ' + (Math.floor(Math.random() * 20) + 5) + ' partidas cadastradas'}</Text>
+                    <Text style={styles.modalItemSub}>{c.ano ? `Temporada ${c.ano}` : 'Competição do clube'}</Text>
                 </View>
                 {competicaoSelecionada?.id === c.id ? (
                     <Icon name="check-circle" size={24} color={colors.primaria} />
@@ -217,15 +255,17 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
                 )}
               </TouchableOpacity>
             ))}
-          </View>
+            </ScrollView>
+          </Pressable>
         </Pressable>
       </Modal>
 
       {/* ── MODAL TIMES (MANTIDO) ── */}
-      <Modal visible={modalTime !== null} transparent animationType="slide">
-        <Pressable style={styles.modalOverlay} onPress={() => { setModalTime(null); setBuscaTime(''); }}>
+      <Modal visible={modalTime !== null} transparent animationType="slide" onRequestClose={() => { setModalTime(null); setBuscaTime(''); }}>
+        <KeyboardAvoidingView style={styles.scroll} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={[styles.modalOverlay, { paddingTop: insets.top + 12 }]} onPress={() => { setModalTime(null); setBuscaTime(''); }}>
           {/* O conteúdo do modal pode virar um <ModalBuscaTime /> futuramente */}
-          <View style={styles.modalContent}>
+          <Pressable style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]} onPress={(event) => event.stopPropagation()}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{modalTime === 'mandante' ? 'Selecionar mandante' : 'Selecionar visitante'}</Text>
               <TouchableOpacity style={styles.closeBtn} onPress={() => { setModalTime(null); setBuscaTime(''); }}>
@@ -239,7 +279,8 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
             {categoriaAtual && (
                 <Text style={styles.subCategoriaText}>{categoriaAtual.nome} · {categoriaAtual.tipo}</Text>
             )}
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.selectorList} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+              {timesFiltrados.length === 0 && <Text style={styles.emptyText}>Nenhum time encontrado nesta categoria.</Text>}
               {timesFiltrados.map((time, index) => {
                 const sel = modalTime === 'mandante' ? mandante?.id === time.id : visitante?.id === time.id;
                 const iconColors = ['#0E78FF', '#F0B84E', '#FF4D00', '#2E7D32'];
@@ -256,7 +297,7 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.modalItemText}>{time.nome}</Text>
-                        <Text style={styles.modalItemSub}>{sel ? (modalTime === 'mandante' ? 'Mandante de casa' : 'Visitante convidado') : ((Math.floor(Math.random() * 8) + 2) + ' partidas na competição')}</Text>
+                        <Text style={styles.modalItemSub}>{sel ? 'Time selecionado' : categoriaAtual?.nome}</Text>
                     </View>
                     {sel ? (
                         <Icon name="check-circle" size={24} color={colors.primaria} />
@@ -267,9 +308,11 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
                 );
               })}
             </ScrollView>
-          </View>
+          </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
-    </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

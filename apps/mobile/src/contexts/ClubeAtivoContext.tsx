@@ -44,13 +44,14 @@ export function ClubeAtivoProvider({ children }: { children: React.ReactNode }) 
   // reler durante a navegação — só quando o próprio clube ativo muda.
   useEffect(() => {
     (async () => {
+      try {
       const [id, nome, escudo, papel] = await Promise.all([
         SecureStore.getItemAsync('clubeAtivoId'),
         SecureStore.getItemAsync('clubeAtivoNome'),
         SecureStore.getItemAsync('clubeAtivoEscudo'),
         SecureStore.getItemAsync('clubeAtivoPapel'),
       ]);
-      if (id) {
+      if (id && Number.isSafeInteger(Number(id)) && Number(id) > 0) {
         setClubeAtivo({
           id: Number(id),
           nome: nome || 'MEU CLUBE',
@@ -58,20 +59,24 @@ export function ClubeAtivoProvider({ children }: { children: React.ReactNode }) 
           papel: (papel as PapelClube) || null,
         });
       }
-      setCarregandoClubeAtivo(false);
+      } catch {
+        setClubeAtivo(null);
+      } finally {
+        setCarregandoClubeAtivo(false);
+      }
     })();
   }, []);
 
   const definirClubeAtivo = useCallback(async (clube: ClubeAtivo) => {
-    // Atualiza a memória (síncrono, dispara re-render em quem usa o hook)
-    // e o SecureStore (persistência entre sessões) ao mesmo tempo.
-    setClubeAtivo(clube);
+    // A API lê o clube no SecureStore: persiste antes de disparar os efeitos
+    // das telas para evitar requisições com o identificador do clube anterior.
     await Promise.all([
       SecureStore.setItemAsync('clubeAtivoId', String(clube.id)),
       SecureStore.setItemAsync('clubeAtivoNome', clube.nome),
       SecureStore.setItemAsync('clubeAtivoEscudo', clube.escudo || ''),
       SecureStore.setItemAsync('clubeAtivoPapel', clube.papel || ''),
     ]);
+    setClubeAtivo(clube);
   }, []);
 
   const limparClubeAtivo = useCallback(async () => {

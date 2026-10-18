@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Icon } from '@ludora/icons';
@@ -38,6 +38,7 @@ export default function ConviteSucesso() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
       <View style={styles.successContent}>
         <View style={styles.successIntro}>
           <View style={styles.successIcon}>
@@ -67,6 +68,7 @@ export default function ConviteSucesso() {
           <Text style={styles.primaryButtonText}>IR PARA O CLUBE</Text>
         </TouchableOpacity>
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

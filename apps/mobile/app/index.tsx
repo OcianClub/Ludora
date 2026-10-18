@@ -9,6 +9,8 @@ import { Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SecureStore from 'expo-secure-store';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
+import { BASE_URL } from '@/src/services/api';
+import { fetchComTimeout } from '@/src/utils/request';
 
 type Destino = '/(auth)/login' | '/clubes' | '/(tabs)';
 
@@ -37,7 +39,7 @@ function StartupScreen() {
 export default function Index() {
   const [carregando, setCarregando] = useState(true);
   const [destino, setDestino] = useState<Destino | null>(null);
-  const { clubeAtivo } = useClubeAtivo();
+  const { clubeAtivo, limparClubeAtivo } = useClubeAtivo();
 
   useEffect(() => {
   async function verificarSessao() {
@@ -50,6 +52,33 @@ export default function Index() {
       if (!token) {
         setDestino('/(auth)/login');
         return;
+      }
+
+      // A presença de um token no aparelho não garante que ele ainda esteja
+      // válido: a API expira JWTs após um período. Só encerramos a sessão
+      // automaticamente quando a própria API confirmar um 401.
+      try {
+        const sessao = await fetchComTimeout(`${BASE_URL}/usuarios/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }, 8_000);
+
+        if (sessao.status === 401) {
+          await limparClubeAtivo();
+          await Promise.all([
+            SecureStore.deleteItemAsync('userToken'),
+            SecureStore.deleteItemAsync('userName'),
+            SecureStore.deleteItemAsync('userCriadoEm'),
+            SecureStore.deleteItemAsync('userEmail'),
+            SecureStore.deleteItemAsync('userData'),
+            SecureStore.deleteItemAsync('userRole'),
+            SecureStore.deleteItemAsync('clubeAtivoId'),
+          ]);
+          setDestino('/(auth)/login');
+          return;
+        }
+      } catch {
+        // Em caso de indisponibilidade momentânea da rede/API, preservamos a
+        // sessão local em vez de desconectar o usuário sem necessidade.
       }
 
       const clubeAtivoId =

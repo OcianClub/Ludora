@@ -19,10 +19,11 @@ model Clube {
   plano     String   @default("FREE")
   criado_em DateTime @default(now())
 
-  usuarios    UsuarioClube[]
-  categorias  Categoria[]
-  competicoes Competicao[]
-  convites    ConviteClube[]
+  usuarios     UsuarioClube[]
+  categorias   Categoria[]
+  competicoes  Competicao[]
+  convites     ConviteClube[]
+  notificacoes Notificacao[]
 }
 
 model UsuarioClube {
@@ -54,13 +55,16 @@ model UsuarioClubeCategoria {
 // ── MODELOS ATUALIZADOS ──
 
 model Usuario {
-  id       Int      @id @default(autoincrement())
-  nome     String
-  email    String   @unique
-  senha    String
-  criadoEm DateTime @default(now())
+  id                  Int      @id @default(autoincrement())
+  nome                String
+  email               String   @unique
+  senha               String
+  criadoEm            DateTime @default(now())
+  notificacoes_ativas Boolean  @default(true)
 
-  clubes UsuarioClube[]
+  clubes            UsuarioClube[]
+  notificacoes      Notificacao[]
+  dispositivos_push DispositivoPush[]
 
   convitesCriados ConviteClube[] @relation("ConvitesCriados")
   convitesAceitos ConviteClube[] @relation("ConvitesAceitos")
@@ -172,6 +176,7 @@ model Partida {
   competicao            Competicao?        @relation(fields: [competicao_id], references: [id])
   mandante              Time               @relation("Mandante", fields: [mandante_id], references: [id])
   visitante             Time               @relation("Visitante", fields: [visitante_id], references: [id])
+  notificacoes          Notificacao[]
 
   @@index([data])
   @@index([categoria_id])
@@ -211,6 +216,40 @@ model EscalacaoPartida {
 
   @@unique([partida_id, jogador_id])
   @@unique([partida_id, numCamisa])
+}
+
+model Notificacao {
+  id         Int             @id @default(autoincrement())
+  usuario_id Int
+  clube_id   Int
+  partida_id Int?
+  tipo       TipoNotificacao
+  titulo     String
+  corpo      String
+  dados      Json?
+  lida       Boolean         @default(false)
+  criada_em  DateTime        @default(now())
+
+  usuario Usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  clube   Clube    @relation(fields: [clube_id], references: [id], onDelete: Cascade)
+  partida Partida? @relation(fields: [partida_id], references: [id], onDelete: Cascade)
+
+  @@index([usuario_id, clube_id, lida])
+  @@index([partida_id])
+  @@index([criada_em])
+}
+
+model DispositivoPush {
+  id            String   @id @default(cuid())
+  usuario_id    Int
+  token         String   @unique
+  plataforma    String?
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+
+  usuario Usuario @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@index([usuario_id])
 }
 
 model CampeonatoClassificacao {
@@ -321,4 +360,10 @@ enum TipoEvento {
   CARTAO_VERMELHO
   CARTAO_AZUL
   FALTA
+}
+
+enum TipoNotificacao {
+  PARTIDA_AGENDADA
+  GOL_PARTIDA
+  RESULTADO_PARTIDA
 }

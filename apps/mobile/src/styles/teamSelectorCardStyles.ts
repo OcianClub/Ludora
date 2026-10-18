@@ -5,6 +5,9 @@ import type { ThemeColors } from '@/src/contexts/ThemeContext';
 export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     flex: 1,
+    minWidth: 0,
+    minHeight: 160,
+    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.card,
     borderRadius: 12,
@@ -37,6 +40,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 4,
   },
   nomeTime: {
+    width: '100%',
     fontFamily: typography.fontFamily.corpo.semiBold,
     color: colors.texto,
     fontSize: 13,

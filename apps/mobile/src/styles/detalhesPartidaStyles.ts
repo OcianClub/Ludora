@@ -771,11 +771,12 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   confrontoContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'space-between',
     gap: 12,
   },
   vsBadgeContainer: {
+    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
     width: 28,

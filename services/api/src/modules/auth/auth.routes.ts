@@ -14,7 +14,7 @@ router.post('/auth/registrar', limitarAuth, async (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase();
   const senha = String(req.body?.senha || '');
   const nome = String(req.body?.nome || '').trim();
-  if (!/^\S+@\S+\.\S+$/.test(email) || nome.length < 2 || nome.length > 100 || senha.length < 8 || senha.length > 128) {
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || nome.length < 2 || nome.length > 100 || senha.length < 8 || senha.length > 128) {
     return res.status(400).json({ error: 'Nome, e-mail ou senha inválidos. A senha deve ter ao menos 8 caracteres.' });
   }
   try {
@@ -24,7 +24,10 @@ router.post('/auth/registrar', limitarAuth, async (req, res) => {
     });
     res.status(201).json({ mensagem: 'Usuário criado', id: usuario.id });
   } catch (error: any) { 
-    res.status(400).json({ error: 'Erro ao criar usuário' }); 
+    if (error?.code === 'P2002') {
+      return res.status(409).json({ error: 'Este e-mail já possui uma conta' });
+    }
+    res.status(500).json({ error: 'Não foi possível criar a conta no momento' });
   }
 });
 
@@ -85,6 +88,7 @@ router.get('/usuarios/me', exigirAutenticacao, async (req, res) => {
         nome: true,
         email: true,
         criadoEm: true,
+      notificacoes_ativas: true,
         clubes: {
           orderBy: { clube: { nome: 'asc' } },
           select: {
@@ -111,6 +115,7 @@ router.get('/usuarios/me', exigirAutenticacao, async (req, res) => {
       nome: usuario.nome,
       email: usuario.email,
       criadoEm: usuario.criadoEm,
+      notificacoes_ativas: usuario.notificacoes_ativas,
       clubes: usuario.clubes.map(vinculo => ({
         ...vinculo.clube,
         meuPapel: vinculo.papel,
@@ -118,6 +123,24 @@ router.get('/usuarios/me', exigirAutenticacao, async (req, res) => {
     });
   } catch {
     res.status(500).json({ error: 'Não foi possível carregar o perfil' });
+  }
+});
+
+router.patch('/usuarios/me/notificacoes', exigirAutenticacao, async (req, res) => {
+  const ativa = req.body?.ativa;
+  if (typeof ativa !== 'boolean') {
+    return res.status(400).json({ error: 'A preferência de notificações deve ser booleana' });
+  }
+
+  try {
+    const usuario = await prisma.usuario.update({
+      where: { id: (req as any).usuarioId },
+      data: { notificacoes_ativas: ativa },
+      select: { notificacoes_ativas: true },
+    });
+    res.json({ ativa: usuario.notificacoes_ativas });
+  } catch {
+    res.status(500).json({ error: 'Não foi possível atualizar a preferência de notificações' });
   }
 });
 

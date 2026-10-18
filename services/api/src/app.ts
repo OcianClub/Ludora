@@ -9,6 +9,7 @@ import clubeRoutes from './modules/clubes/clube.routes';
 import conviteRoutes from './modules/convites/convite.routes';
 import escalacaoRoutes from './modules/escalacoes/escalacao.routes';
 import jogadorRoutes from './modules/jogadores/jogador.routes';
+import criarNotificacaoRoutes from './modules/notificacoes/notificacao.routes';
 import { criarPartidaRoutes } from './modules/partidas/partida.routes';
 import scoutRoutes from './modules/scout/scout.routes';
 
@@ -44,6 +45,7 @@ export function criarApp(io: Server) {
   app.use(conviteRoutes);
   app.use(cadastroRoutes);
   app.use(jogadorRoutes);
+  app.use(criarNotificacaoRoutes());
   app.use(criarPartidaRoutes(io));
   app.use(escalacaoRoutes);
   app.use(scoutRoutes);

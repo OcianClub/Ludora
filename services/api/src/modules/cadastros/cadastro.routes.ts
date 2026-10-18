@@ -4,8 +4,8 @@ import { prisma } from '../../lib/prisma';
 import {
   exigirAcessoTotalCategorias,
   exigirCompeticaoDoClube,
+  exigirClubePublico,
   exigirGestorDoClube,
-  exigirMembroDoClube,
   exigirTimeDoClube,
   obterEscopoCategorias,
   obterEscopoCategoriasLeitura,
@@ -60,7 +60,7 @@ router.patch('/times/:id', exigirGestorDoClube, exigirTimeDoClube, async (req, r
   } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar time' }); }
 });
 
-router.get('/times', exigirMembroDoClube, async (req, res) => {
+router.get('/times', exigirClubePublico, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
   try {
     const escopo = await obterEscopoCategoriasLeitura((req as any).usuarioId, clube_id);
@@ -111,7 +111,7 @@ router.patch('/competicoes/:id', exigirGestorDoClube, exigirAcessoTotalCategoria
   } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar competição' }); }
 });
 
-router.get('/competicoes', exigirMembroDoClube, async (req, res) => {
+router.get('/competicoes', exigirClubePublico, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
   try {
     const escopo = await obterEscopoCategoriasLeitura((req as any).usuarioId, clube_id);
@@ -148,7 +148,7 @@ router.delete('/competicoes/:id', exigirGestorDoClube, exigirAcessoTotalCategori
   } catch (error: any) { res.status(500).json({ error: 'Erro ao excluir campeonato.' }); }
 });
 
-router.get('/competicoes/:id/jogadores', exigirMembroDoClube, exigirCompeticaoDoClube, async (req, res) => {
+router.get('/competicoes/:id/jogadores', exigirClubePublico, exigirCompeticaoDoClube, async (req, res) => {
   const competicao_id = Number(req.params.id);
   const categoria_id  = req.query.categoria_id ? Number(req.query.categoria_id) : undefined;
   try {
@@ -222,7 +222,7 @@ router.put('/competicoes/:id/jogadores', exigirGestorDoClube, exigirCompeticaoDo
   }
 });
 
-router.get('/categorias', exigirMembroDoClube, async (req, res) => {
+router.get('/categorias', exigirClubePublico, async (req, res) => {
   const usuario_id = (req as any).usuarioId as number;
   const clube_id = (req as any).clubeId as number;
 

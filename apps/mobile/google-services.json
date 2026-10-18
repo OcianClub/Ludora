@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "208002670034",
+    "project_id": "ludora-89dc8",
+    "storage_bucket": "ludora-89dc8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:208002670034:android:5a8420a29fc5b3a44abc0b",
+        "android_client_info": {
+          "package_name": "com.ludora.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBkIPLMmtliYRAsm5i_UNU473icm4K334"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

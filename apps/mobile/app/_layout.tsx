@@ -17,6 +17,7 @@ import {
 
 import { ClubeAtivoProvider } from '@/src/contexts/ClubeAtivoContext';
 import { ThemeProvider } from '@/src/contexts/ThemeContext';
+import { NotificacoesProvider } from '@/src/contexts/NotificacoesContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -48,12 +49,14 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <ClubeAtivoProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="convite" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+        <NotificacoesProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="convite" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </NotificacoesProvider>
       </ClubeAtivoProvider>
     </ThemeProvider>
   );

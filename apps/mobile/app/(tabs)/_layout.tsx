@@ -103,6 +103,13 @@ export default function TabsLayout() {
           title: 'dadosPessoais',
         }}
       />
+      <Tabs.Screen
+        name="perfil/notificacoes"
+        options={{
+          href: null,
+          title: 'Notificações',
+        }}
+      />
     </Tabs>
   );
 }

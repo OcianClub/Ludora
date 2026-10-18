@@ -110,6 +110,12 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   form: {
     gap: 17,
   },
+  fieldError: {
+    color: colors.tituloErro,
+    fontFamily: typography.fontFamily.corpo.regular,
+    fontSize: 12,
+    lineHeight: 18,
+  },
   field: {
     gap: 7,
   },

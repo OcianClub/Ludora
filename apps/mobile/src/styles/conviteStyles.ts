@@ -266,7 +266,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontFamily: typography.fontFamily.corpo.semiBold,
   },
   successContent: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 30,
