@@ -4,7 +4,8 @@ import { useTheme } from '@/src/contexts/ThemeContext';
 import { Header } from '@/src/components/Header';
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
-import PagerView from 'react-native-pager-view';
+import PagerView, { type PagerViewOnPageScrollEvent } from 'react-native-pager-view';
+import Animated, { useEvent, useSharedValue } from 'react-native-reanimated';
 import { atualizarStatusPartida, fetchEscalacaoPartida, fetchPartidas } from '@/src/services/api';
 import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/CarrosselSubs';
 import DetalhesPartida, { Partida as PartidaDetalhes } from '@/src/components/DetalhesPartida';
@@ -15,10 +16,17 @@ import { useNotificacoes } from '@/src/contexts/NotificacoesContext';
 import { criarControleRequisicoes } from '@/src/utils/request';
 import { agendaDaCategoria, resumirPartidas } from '@/src/utils/resumoPartidas';
 
+const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
+
 export default function Home() {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const pagerRef = useRef<PagerView>(null);
+  const progressoPagina = useSharedValue(0);
+  const acompanharPagina = useEvent<PagerViewOnPageScrollEvent>((event) => {
+    'worklet';
+    progressoPagina.value = event.position + event.offset;
+  }, ['onPageScroll']);
   const carregouUmaVez = useRef(false);
   const clubeCarregadoId = useRef<number | null>(null);
   const controle = useRef(criarControleRequisicoes()).current;
@@ -120,15 +128,16 @@ export default function Home() {
     }
   }, []);
 
-  const handleTrocarFase = (novaFase: 'INICIACAO' | 'BASE') => {
+  const handleTrocarFase = useCallback((novaFase: 'INICIACAO' | 'BASE') => {
     setFaseAtiva(novaFase);
-    handleSubChange(0); 
-  };
+    setSubIndex(0);
+    progressoPagina.value = 0;
+    pagerRef.current?.setPageWithoutAnimation(0);
+  }, [progressoPagina]);
 
-  const handleSubChange = (index: number) => {
-    setSubIndex(index);
+  const handleSubChange = useCallback((index: number) => {
     pagerRef.current?.setPage(index);
-  };
+  }, []);
 
   const onPageSelected = (e: any) => {
     const index = e.nativeEvent.position;
@@ -151,6 +160,7 @@ export default function Home() {
         onTrocarTipo={handleTrocarFase}
         indexAtual={subIndex} 
         onChangeIndex={handleSubChange} 
+        progressoPagina={progressoPagina}
       />
       {!!erroCarregamento && (
         <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
@@ -165,22 +175,23 @@ export default function Home() {
         </View>
       )}
 
-      <PagerView
+      <AnimatedPagerView
         ref={pagerRef}
         style={styles.pagerView}
         initialPage={0}
         onPageSelected={onPageSelected}
+        onPageScroll={acompanharPagina}
         scrollEnabled={true}
       >
         {resumos.map(({ sub, proximoJogo, historico, agenda }, index) => {
           return (
-            <View key={`${clubeAtivo?.id}-${faseAtiva}-${sub.id}`} style={styles.pageContainer} collapsable={false}>
+            <View key={`${clubeAtivo?.id}-pagina-${index}`} style={styles.pageContainer} collapsable={false}>
               <HomeCategoria
                 ativa={index === subIndex && !partidaSelecionada}
                 carregando={carregando}
                 atualizando={atualizando}
                 revisao={revisao}
-                onAtualizar={() => void atualizarHome()}
+                onAtualizar={atualizarHome}
                 proximoJogo={proximoJogo}
                 agenda={agenda}
                 historico={historico}
@@ -192,7 +203,7 @@ export default function Home() {
             </View>
           );
         })}
-      </PagerView>
+      </AnimatedPagerView>
 
       {partidaSelecionada && (
         <Modal

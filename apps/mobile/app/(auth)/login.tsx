@@ -18,11 +18,10 @@ import { Icon } from '@ludora/icons';
 
 import LogoArquivo from '@/assets/logo.svg';
 import { BASE_URL } from '@/src/services/api';
-import { fetchComTimeout } from '@/src/utils/request';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createStyles } from '@/src/styles/loginStyles';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
-import { emailValido as validarEmail, lerRespostaAuth } from '@/src/utils/autenticacao';
+import { emailValido as validarEmail, enviarAutenticacao } from '@/src/utils/autenticacao';
 
 const Logo = LogoArquivo as unknown as React.FC<SvgProps>;
 
@@ -69,13 +68,10 @@ export default function Login() {
     setCarregando(true);
     setErro('');
 
+    let autenticado = false;
     try {
-      const resposta = await fetchComTimeout(`${BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), senha }),
-      });
-      const dados = await lerRespostaAuth(resposta, 'login');
+      const dados = await enviarAutenticacao(`${BASE_URL}/auth/login`, { email: email.trim().toLowerCase(), senha }, 'login');
+      autenticado = true;
 
       await SecureStore.deleteItemAsync('userToken');
       await limparClubeAtivo();
@@ -96,7 +92,9 @@ export default function Login() {
         router.replace('/clubes');
       }
     } catch (error: any) {
-      setErro(error.message || 'Não foi possível entrar. Tente novamente.');
+      setErro(autenticado
+        ? 'Seus dados foram confirmados, mas não conseguimos concluir o acesso neste aparelho. Tente entrar novamente.'
+        : error.message || 'Não foi possível entrar. Tente novamente.');
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     } finally {
       envioEmAndamento.current = false;
@@ -111,17 +109,6 @@ export default function Login() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.navigation}>
-          <TouchableOpacity
-            style={styles.backButton}
-            disabled={carregando}
-            onPress={() => { if (router.canGoBack()) router.back(); }}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Voltar"
-          >
-            <Icon name="arrow-left" size={22} color={colors.texto} />
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.registerTopButton}
             disabled={carregando}
@@ -176,7 +163,7 @@ export default function Login() {
               <View style={[
                 styles.inputRow,
                 campoFocado === 'email' && styles.inputRowFocused,
-                (emailVisitado || tentouEnviar) && !emailValido && styles.inputRowError,
+                ((emailVisitado && !!email.trim()) || tentouEnviar) && !emailValido && styles.inputRowError,
               ]}>
                 <Icon
                   name="email-outline"
@@ -204,7 +191,7 @@ export default function Login() {
                   onSubmitEditing={() => senhaRef.current?.focus()}
                 />
               </View>
-              {(emailVisitado || tentouEnviar) && !emailValido && <Text style={styles.fieldError}>Informe um e-mail válido, como nome@exemplo.com.</Text>}
+              {((emailVisitado && !!email.trim()) || tentouEnviar) && !emailValido && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{email.trim() ? 'Digite um e-mail válido, como nome@exemplo.com.' : 'Informe seu e-mail para entrar.'}</Text>}
             </View>
 
             <View style={styles.field}>

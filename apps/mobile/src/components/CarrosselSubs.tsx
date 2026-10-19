@@ -1,20 +1,17 @@
 import { Icon } from '@ludora/icons';
-import { useRef, useEffect } from 'react';
-import { View, FlatList, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
+import { memo, useRef, useEffect, useMemo, useState } from 'react';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { typography } from '@ludora/design-tokens';
+import Animated, { scrollTo, useAnimatedRef, useAnimatedReaction, useSharedValue, useAnimatedStyle, interpolateColor, type SharedValue } from 'react-native-reanimated';
 import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 
-const { width: windowWidth } = Dimensions.get('window');
 const MARGEM_CONTEUDO = 20;
-const LARGURA_DISPONIVEL = windowWidth - MARGEM_CONTEUDO * 2;
 const LARGURA_ITEM = 100;
 const GAP_ITEM = 8;
 const ITEM_INTERVAL = LARGURA_ITEM + GAP_ITEM;
 
 const LARGURA_BOTAO = 32;
 const PADDING_H = 8;
-const LARGURA_TRACK = LARGURA_DISPONIVEL - LARGURA_BOTAO * 2 - PADDING_H * 2;
-const PADDING_CENTRALIZADOR = (LARGURA_TRACK - LARGURA_ITEM) / 2;
 
 export const SUBS_INICIACAO = [
   { id: '1', title: 'SUB-7' },
@@ -35,30 +32,81 @@ interface CarrosselSubsProps {
   onTrocarTipo: (tipo: 'INICIACAO' | 'BASE') => void;
   indexAtual: number;
   onChangeIndex: (index: number) => void;
+  progressoPagina?: SharedValue<number>;
 }
 
-export function CarrosselSubs({
+function SubItem({ title, index, ativo, progresso, onPress, styles, colors }: {
+  title: string; index: number; ativo: boolean; progresso?: SharedValue<number>;
+  onPress: () => void; styles: ReturnType<typeof createStyles>; colors: ThemeColors;
+}) {
+  const fundo = useAnimatedStyle(() => {
+    const proximidade = progresso ? Math.max(0, 1 - Math.abs(progresso.value - index)) : Number(ativo);
+    return { backgroundColor: interpolateColor(proximidade, [0, 1], [colors.card, colors.primaria]) };
+  });
+  const texto = useAnimatedStyle(() => {
+    const proximidade = progresso ? Math.max(0, 1 - Math.abs(progresso.value - index)) : Number(ativo);
+    return { color: interpolateColor(proximidade, [0, 1], [colors.textoSecundario, colors.textoSobrePrimaria]) };
+  });
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: ativo }}>
+      <Animated.View style={[styles.item, { borderRadius: 8 }, fundo]}>
+        <Animated.Text style={[ativo ? styles.textoAtivo : styles.texto, texto]}>{title}</Animated.Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+export const CarrosselSubs = memo(function CarrosselSubs({
   tipoFiltro,
   onTrocarTipo,
   indexAtual,
   onChangeIndex,
+  progressoPagina,
 }: CarrosselSubsProps) {
   const { colors } = useTheme();
-  const styles = createStyles(colors);
-  const listRef = useRef<FlatList>(null);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const listRef = useAnimatedRef<Animated.ScrollView>();
+  const [larguraTrack, setLarguraTrack] = useState(0);
+  const deslocamentoAtual = useRef(0);
+  const arrastando = useRef(false);
+  const gestoSeletor = useSharedValue(false);
+  const aguardandoPagina = useSharedValue(-1);
+  const ultimaSelecao = useRef(indexAtual);
+  ultimaSelecao.current = indexAtual;
   const dadosAtuais = tipoFiltro === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
 
+  useAnimatedReaction(
+    () => progressoPagina?.value,
+    (progresso) => {
+      if (progresso === undefined || gestoSeletor.value || !larguraTrack) return;
+      if (aguardandoPagina.value >= 0 && Math.abs(progresso - aguardandoPagina.value) > 0.01) return;
+      aguardandoPagina.value = -1;
+      scrollTo(listRef, progresso * ITEM_INTERVAL, 0, false);
+    },
+    [progressoPagina, larguraTrack],
+  );
+
   useEffect(() => {
-    setTimeout(() => {
-      if (indexAtual >= 0 && indexAtual < dadosAtuais.length) {
-        listRef.current?.scrollToIndex({
-          index: indexAtual,
-          animated: true,
-          viewPosition: 0.5,
-        });
-      }
-    }, 50);
-  }, [indexAtual, dadosAtuais.length]);
+    if (!larguraTrack || indexAtual < 0 || indexAtual >= dadosAtuais.length) return;
+    if (progressoPagina) return;
+    const destino = indexAtual * ITEM_INTERVAL;
+    if (Math.abs(deslocamentoAtual.current - destino) < 1) return;
+    arrastando.current = false;
+    listRef.current?.scrollTo({ x: destino, animated: true });
+  }, [indexAtual, tipoFiltro, larguraTrack, dadosAtuais.length, progressoPagina]);
+
+  function concluirGesto(deslocamento: number) {
+    if (!arrastando.current) return;
+    arrastando.current = false;
+    deslocamentoAtual.current = deslocamento;
+    const novoIndex = Math.max(0, Math.min(dadosAtuais.length - 1, Math.round(deslocamento / ITEM_INTERVAL)));
+    aguardandoPagina.value = novoIndex;
+    gestoSeletor.value = false;
+    if (novoIndex !== ultimaSelecao.current) {
+      ultimaSelecao.current = novoIndex;
+      onChangeIndex(novoIndex);
+    }
+  }
 
   const irParaAnterior = () => {
     if (indexAtual > 0) onChangeIndex(indexAtual - 1);
@@ -81,7 +129,6 @@ export function CarrosselSubs({
             onPress={() => {
               if (tipo !== tipoFiltro) {
                 onTrocarTipo(tipo);
-                onChangeIndex(0);
               }
             }}
             activeOpacity={0.8}
@@ -107,43 +154,29 @@ export function CarrosselSubs({
           />
         </TouchableOpacity>
 
-        <FlatList
+        <Animated.ScrollView
           ref={listRef}
-          data={dadosAtuais}
           horizontal
           showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={true}
           snapToInterval={ITEM_INTERVAL}
           decelerationRate="fast"
-          contentContainerStyle={styles.listContent}
-          getItemLayout={(_, index) => ({
-            length: ITEM_INTERVAL,
-            offset: ITEM_INTERVAL * index,
-            index,
-          })}
-          renderItem={({ item, index }) => {
-            const isActive = index === indexAtual;
-
-            if (isActive) {
-              return (
-                <View style={styles.itemAtivo}>
-                  <Text style={styles.textoAtivo}>{item.title}</Text>
-                </View>
-              );
-            }
-
-            return (
-              <TouchableOpacity
-                style={styles.item}
-                onPress={() => onChangeIndex(index)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.texto}>{item.title}</Text>
-              </TouchableOpacity>
-            );
+          directionalLockEnabled
+          bounces={false}
+          onLayout={({ nativeEvent }) => setLarguraTrack(nativeEvent.layout.width)}
+          onScrollBeginDrag={() => { arrastando.current = true; gestoSeletor.value = true; aguardandoPagina.value = -1; }}
+          onScroll={({ nativeEvent }) => { deslocamentoAtual.current = nativeEvent.contentOffset.x; }}
+          scrollEventThrottle={32}
+          onScrollEndDrag={({ nativeEvent }) => {
+            if (nativeEvent.velocity?.x === 0) concluirGesto(nativeEvent.contentOffset.x);
           }}
-        />
+          onMomentumScrollEnd={({ nativeEvent }) => concluirGesto(nativeEvent.contentOffset.x)}
+          contentContainerStyle={[styles.listContent, { paddingHorizontal: Math.max(0, (larguraTrack - ITEM_INTERVAL) / 2) }]}
+        >
+          {dadosAtuais.map((item, index) => (
+            <SubItem key={index} title={item.title} index={index} ativo={index === indexAtual}
+              progresso={progressoPagina} colors={colors} styles={styles} onPress={() => onChangeIndex(index)} />
+          ))}
+        </Animated.ScrollView>
 
         <TouchableOpacity
           onPress={irParaProximo}
@@ -160,7 +193,7 @@ export function CarrosselSubs({
       </View>
     </View>
   );
-}
+});
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   wrapper: {
@@ -212,7 +245,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   listContent: {
     alignItems: 'center',
-    paddingHorizontal: PADDING_CENTRALIZADOR,
   },
   item: {
     width: LARGURA_ITEM,

@@ -43,6 +43,8 @@ content: {
   input: {
     backgroundColor: colors.card,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borda,
     paddingHorizontal: 16,
     paddingVertical: 14,
     height: 54,

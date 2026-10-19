@@ -104,19 +104,23 @@ function continuar() {
 
         <Text style={styles.subtitle}>
             Alguém te chamou pro time?{'\n'}
-            Cola o código ou o link do convite aqui embaixo.
+            Digite ou cole os 8 caracteres do código recebido por e-mail.
         </Text>
         </View>
 
         <View style={styles.inputRow}>
         <TextInput
             style={styles.input}
-            placeholder="Código ou link do convite"
+            placeholder="Ex.: ABCD-1234"
             placeholderTextColor={colors.textoSecundario}
             value={codigo}
             onChangeText={(texto) =>
             setCodigo(formatarCodigoConvite(texto))}
             autoCapitalize="characters"
+            autoCorrect={false}
+            accessibilityLabel="Código de convite com 8 caracteres"
+            returnKeyType="go"
+            onSubmitEditing={continuar}
             maxLength={9}
         />
 

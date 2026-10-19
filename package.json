@@ -5,6 +5,11 @@
   "packageManager": "pnpm@11.20.0",
   "scripts": {
     "dev:api": "pnpm --filter @ludora/api run start",
-    "dev:mobile": "pnpm --filter @ludora/mobile run start"
+    "dev:mobile": "pnpm --filter @ludora/mobile run start",
+    "dev:mobile:go": "pnpm --filter @ludora/mobile run start:go",
+    "dev:mobile:clean": "pnpm --filter @ludora/mobile run start:clean",
+    "dev:mobile:tunnel": "pnpm --filter @ludora/mobile run start:tunnel",
+    "dev:mobile:android": "pnpm --filter @ludora/mobile run android",
+    "dev:mobile:check": "pnpm --filter @ludora/mobile run check"
   }
 }

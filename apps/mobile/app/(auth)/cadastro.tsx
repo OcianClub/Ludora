@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -11,16 +12,15 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import type { SvgProps } from 'react-native-svg';
 import { Icon } from '@ludora/icons';
 
 import LogoArquivo from '@/assets/logo.svg';
 import { BASE_URL } from '@/src/services/api';
-import { fetchComTimeout } from '@/src/utils/request';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createStyles } from '@/src/styles/cadastroStyles';
-import { emailValido as validarEmail, lerRespostaAuth } from '@/src/utils/autenticacao';
+import { emailValido as validarEmail, enviarAutenticacao } from '@/src/utils/autenticacao';
 
 const Logo = LogoArquivo as unknown as React.FC<SvgProps>;
 
@@ -49,7 +49,10 @@ export default function Cadastro() {
   const [erro, setErro] = useState('');
   const [visitados, setVisitados] = useState<Record<string, boolean>>({});
   const [tentouEnviar, setTentouEnviar] = useState(false);
-  const mostrarErro = (campo: string) => tentouEnviar || visitados[campo];
+  const [etapa, setEtapa] = useState<1 | 2>(1);
+  const valoresCampos = { nome: nome.trim(), email: email.trim(), senha, confirmacao: confirmarSenha };
+  const mostrarErro = (campo: keyof typeof valoresCampos) =>
+    tentouEnviar || (visitados[campo] && valoresCampos[campo].length > 0);
   const sairDoCampo = (campo: string) => {
     setCampoFocado(null);
     setVisitados(atuais => ({ ...atuais, [campo]: true }));
@@ -65,6 +68,34 @@ export default function Cadastro() {
     if (erro) setErro('');
   }
 
+  function mudarEtapa(proxima: 1 | 2) {
+    Keyboard.dismiss();
+    setCampoFocado(null);
+    setErro('');
+    setTentouEnviar(false);
+    setEtapa(proxima);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }
+
+  useFocusEffect(useCallback(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (envioEmAndamento.current) return true;
+      if (etapa === 2) {
+        mudarEtapa(1);
+        return true;
+      }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [etapa]));
+
+  function continuar() {
+    setTentouEnviar(true);
+    if (!nomeValido) { nomeRef.current?.focus(); return; }
+    if (!emailValido) { emailRef.current?.focus(); return; }
+    mudarEtapa(2);
+  }
+
   async function criarConta() {
     if (envioEmAndamento.current) return;
     setTentouEnviar(true);
@@ -73,7 +104,10 @@ export default function Cadastro() {
       else if (!emailValido) emailRef.current?.focus();
       else if (!senhaValida) senhaRef.current?.focus();
       else if (!senhasIguais) confirmacaoRef.current?.focus();
-      else setErro('Confirme o aceite dos termos para continuar.');
+      else {
+        Keyboard.dismiss();
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }
       return;
     }
 
@@ -83,16 +117,11 @@ export default function Cadastro() {
     setErro('');
 
     try {
-      const resposta = await fetchComTimeout(`${BASE_URL}/auth/registrar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await enviarAutenticacao(`${BASE_URL}/auth/registrar`, {
           nome: nome.trim(),
           email: email.trim().toLowerCase(),
           senha,
-        }),
-      });
-      await lerRespostaAuth(resposta, 'cadastro');
+      }, 'cadastro');
 
       router.replace({ pathname: '/(auth)/login', params: { cadastro: 'sucesso', email: email.trim().toLowerCase() } });
     } catch (error: any) {
@@ -114,10 +143,10 @@ export default function Cadastro() {
           <TouchableOpacity
             style={styles.backButton}
             disabled={carregando}
-            onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login')}
+            onPress={() => etapa === 2 ? mudarEtapa(1) : router.canGoBack() ? router.back() : router.replace('/(auth)/login')}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Voltar"
+            accessibilityLabel={etapa === 2 ? 'Voltar aos dados da conta' : 'Voltar'}
           >
             <Icon name="arrow-left" size={22} color={colors.texto} />
           </TouchableOpacity>
@@ -151,9 +180,16 @@ export default function Cadastro() {
               </View>
             </View>
 
-            <Text style={styles.title}>Crie sua conta</Text>
+            <View style={styles.stepRow} accessibilityLabel={`Etapa ${etapa} de 2: ${etapa === 1 ? 'Dados da conta' : 'Segurança'}`}>
+              <Text style={styles.stepText}>ETAPA {etapa} DE 2</Text>
+              <View style={styles.stepTracks}>
+                <View style={[styles.stepTrack, styles.stepTrackActive]} />
+                <View style={[styles.stepTrack, etapa === 2 && styles.stepTrackActive]} />
+              </View>
+            </View>
+            <Text style={styles.title}>{etapa === 1 ? 'Crie sua conta' : 'Proteja sua conta'}</Text>
             <Text style={styles.subtitle}>
-              Acompanhe seus clubes, partidas e tudo o que acontece dentro de campo.
+              {etapa === 1 ? 'Vamos começar pelo seu nome e e-mail.' : 'Escolha uma senha para acessar o Ludora.'}
             </Text>
           </View>
 
@@ -165,6 +201,7 @@ export default function Cadastro() {
           )}
 
           <View style={styles.form}>
+            {etapa === 1 ? <>
             <View style={styles.field}>
               <Text style={styles.label}>NOME COMPLETO</Text>
               <View style={[
@@ -196,7 +233,7 @@ export default function Cadastro() {
                   onSubmitEditing={() => emailRef.current?.focus()}
                 />
               </View>
-              {mostrarErro('nome') && !nomeValido && <Text style={styles.fieldError}>Informe um nome com pelo menos 2 caracteres.</Text>}
+              {mostrarErro('nome') && !nomeValido && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{nome.trim() ? 'Seu nome precisa ter pelo menos 2 caracteres.' : 'Informe seu nome para continuar.'}</Text>}
             </View>
 
             <View style={styles.field}>
@@ -229,12 +266,19 @@ export default function Cadastro() {
                   autoComplete="email"
                   textContentType="emailAddress"
                   returnKeyType="next"
-                  onSubmitEditing={() => senhaRef.current?.focus()}
+                  onSubmitEditing={continuar}
                 />
               </View>
-              {mostrarErro('email') && !emailValido && <Text style={styles.fieldError}>Informe um e-mail válido, como nome@exemplo.com.</Text>}
+              {mostrarErro('email') && !emailValido && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{email.trim() ? 'Digite um e-mail válido, como nome@exemplo.com.' : 'Informe seu e-mail para continuar.'}</Text>}
             </View>
-
+            </> : <>
+            <TouchableOpacity style={styles.accountSummary} onPress={() => mudarEtapa(1)} disabled={carregando} accessibilityRole="button" accessibilityLabel={`Editar e-mail ${email.trim()}`}>
+              <View style={styles.inviteCopy}>
+                <Text style={styles.summaryLabel}>SUA CONTA</Text>
+                <Text style={styles.inviteTitle}>{email.trim()}</Text>
+              </View>
+              <Text style={styles.termsLink}>Editar</Text>
+            </TouchableOpacity>
             <View style={styles.field}>
               <Text style={styles.label}>SENHA</Text>
               <View style={[
@@ -280,7 +324,9 @@ export default function Cadastro() {
                   />
                 </TouchableOpacity>
               </View>
-              {mostrarErro('senha') && !senhaValida && <Text style={styles.fieldError}>Sua senha precisa ter pelo menos 8 caracteres.</Text>}
+              <Text style={[styles.requirementText, senhaValida && styles.requirementTextValid]} accessibilityLiveRegion="polite">
+                {mostrarErro('senha') && !senha ? 'Crie uma senha para proteger sua conta.' : senhaValida ? 'Sua senha atende ao mínimo de 8 caracteres.' : 'Use pelo menos 8 caracteres.'}
+              </Text>
             </View>
 
             <View style={styles.field}>
@@ -328,21 +374,11 @@ export default function Cadastro() {
                   />
                 </TouchableOpacity>
               </View>
-              {mostrarErro('confirmacao') && !senhasIguais && <Text style={styles.fieldError}>Digite a mesma senha nos dois campos.</Text>}
+              {mostrarErro('confirmacao') && !senhasIguais && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{confirmarSenha ? 'As senhas não coincidem. Digite a mesma senha nos dois campos.' : 'Digite sua senha novamente para confirmar.'}</Text>}
             </View>
 
             <View style={styles.requirements}>
-              <View style={styles.requirementItem}>
-                <Icon
-                  name="check-circle-outline"
-                  size={16}
-                  color={senhaValida ? colors.primaria : colors.textoSecundario}
-                />
-                <Text style={[styles.requirementText, senhaValida && styles.requirementTextValid]}>
-                  Mínimo de 8 caracteres
-                </Text>
-              </View>
-              <View style={styles.requirementItem}>
+              {senhasIguais && <View style={styles.requirementItem}>
                 <Icon
                   name="check-circle-outline"
                   size={16}
@@ -351,7 +387,7 @@ export default function Cadastro() {
                 <Text style={[styles.requirementText, senhasIguais && styles.requirementTextValid]}>
                   Senhas iguais
                 </Text>
-              </View>
+              </View>}
             </View>
 
             <TouchableOpacity
@@ -372,41 +408,47 @@ export default function Cadastro() {
                 <Text style={styles.termsLink}>Política de privacidade</Text> do Ludora.
               </Text>
             </TouchableOpacity>
+            {tentouEnviar && !aceitouTermos && (
+              <Text style={styles.fieldError} accessibilityLiveRegion="polite">
+                Aceite os Termos de uso e a Política de privacidade para criar sua conta.
+              </Text>
+            )}
+            </>}
           </View>
 
-          <TouchableOpacity
-            style={styles.inviteCard}
-            disabled={carregando}
-            onPress={() => router.push('/convite')}
-            activeOpacity={0.75}
-          >
-            <View style={styles.inviteIcon}>
-              <Icon name="shield-check" size={22} color={colors.primaria} />
-            </View>
-            <View style={styles.inviteCopy}>
-              <Text style={styles.inviteTitle}>Recebeu um convite de um clube?</Text>
-              <Text style={styles.inviteSubtitle}>Use o código para entrar como gestor ou técnico.</Text>
-            </View>
-            <Icon name="chevron-right" size={20} color={colors.textoSecundario} />
-          </TouchableOpacity>
         </ScrollView>
 
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.primaryButton, carregando && styles.primaryButtonDisabled]}
-            onPress={criarConta}
+            onPress={etapa === 1 ? continuar : criarConta}
             disabled={carregando}
             accessibilityRole="button"
-            accessibilityLabel={carregando ? 'Criando sua conta' : 'Criar conta'}
+            accessibilityLabel={carregando ? 'Criando sua conta' : etapa === 1 ? 'Continuar para segurança' : 'Criar conta'}
             accessibilityState={{ disabled: carregando, busy: carregando }}
             activeOpacity={0.85}
           >
             {carregando ? (
               <ActivityIndicator color={colors.textoSobrePrimaria} />
             ) : (
-              <Text style={styles.primaryButtonText}>CRIAR CONTA</Text>
+              <Text style={styles.primaryButtonText}>{etapa === 1 ? 'CONTINUAR' : 'CRIAR CONTA'}</Text>
             )}
           </TouchableOpacity>
+
+          {etapa === 1 && (
+            <TouchableOpacity
+              style={styles.inviteCard}
+              disabled={carregando}
+              onPress={() => router.push('/convite')}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Entrar com código de convite"
+            >
+              <Icon name="shield-check" size={20} color={colors.primaria} />
+              <Text style={styles.inviteButtonText}>Entrar com código de convite</Text>
+              <Icon name="chevron-right" size={18} color={colors.primaria} />
+            </TouchableOpacity>
+          )}
 
           <View style={styles.loginRow}>
             <Text style={styles.loginPrompt}>Já possui uma conta? </Text>

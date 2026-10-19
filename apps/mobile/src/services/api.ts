@@ -1,10 +1,10 @@
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { fetchComTimeout } from '../utils/request';
 
-export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.56.1:3000';
-// export const BASE_URL =
-//   process.env.EXPO_PUBLIC_API_URL ??
-//   'http://192.168.7.2:3000';
+// No celular físico, configure o IP da sua máquina em apps/mobile/.env.
+export const BASE_URL = (process.env.EXPO_PUBLIC_API_URL?.trim() ||
+  (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000')).replace(/\/+$/, '');
 
 // ==========================================
 // CENTRAL DE REQUISIÇÕES (API FETCH)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -38,6 +38,7 @@ export default function ConfirmarConvite() {
   const [carregando, setCarregando] = useState(true);
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState('');
+  const envioEmAndamento = useRef(false);
 
   const carregar = useCallback(async () => {
     if (!codigo) {
@@ -48,6 +49,7 @@ export default function ConfirmarConvite() {
 
     setCarregando(true);
     setErro('');
+    setConvite(null);
 
     try {
       setConvite(await consultarConvite(codigo));
@@ -76,25 +78,27 @@ export default function ConfirmarConvite() {
   }
 
   async function continuar() {
-    if (!convite || processando) return;
+    if (!convite || envioEmAndamento.current) return;
 
     if (!convite.possui_conta) {
       router.push({ pathname: '/convite/cadastro', params: { codigo } });
       return;
     }
 
-    const token = await SecureStore.getItemAsync('userToken');
-    if (!token) {
-      await SecureStore.setItemAsync('convitePendente', codigo);
-      router.push('/(auth)/login');
-      return;
-    }
-
+    envioEmAndamento.current = true;
     setProcessando(true);
     setErro('');
 
+    let aceito = false;
     try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) {
+        await SecureStore.setItemAsync('convitePendente', codigo);
+        router.push('/(auth)/login');
+        return;
+      }
       const resultado = await aceitarConviteContaExistente(codigo);
+      aceito = true;
       await Promise.all([
         SecureStore.setItemAsync('userName', resultado.usuario.nome),
         SecureStore.setItemAsync('userEmail', resultado.usuario.email),
@@ -108,8 +112,9 @@ export default function ConfirmarConvite() {
       ]);
       irParaSucesso(resultado);
     } catch (error: any) {
-      setErro(error.message || 'Não foi possível aceitar este convite.');
+      setErro(aceito ? 'O convite foi aceito, mas não conseguimos atualizar o acesso neste aparelho. Entre novamente na sua conta para acessar o clube.' : error.message || 'Não foi possível aceitar este convite.');
     } finally {
+      envioEmAndamento.current = false;
       setProcessando(false);
     }
   }
@@ -135,7 +140,7 @@ export default function ConfirmarConvite() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.backButton} disabled={processando} onPress={() => router.canGoBack() ? router.back() : router.replace('/convite')} activeOpacity={0.7}>
           <Icon name="arrow-left" size={22} color={colors.texto} />
         </TouchableOpacity>
       </View>
@@ -201,7 +206,7 @@ export default function ConfirmarConvite() {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryButton} onPress={recusar} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.secondaryButton} disabled={processando} onPress={recusar} activeOpacity={0.7}>
               <Text style={styles.secondaryButtonText}>Agora não</Text>
             </TouchableOpacity>
           </View>

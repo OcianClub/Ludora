@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, memo, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Icon } from '@ludora/icons';
@@ -83,7 +83,7 @@ function hoje(data: string) {
   return ano === agora.getFullYear() && mes === agora.getMonth() + 1 && dia === agora.getDate();
 }
 
-export default function HomeCategoria(props: Props) {
+const HomeCategoria = memo(function HomeCategoria(props: Props) {
   const { ativa, carregando, atualizando, revisao, proximoJogo: jogo, historico, agenda, podeGerenciar,
     iniciandoPartidaId, onAtualizar, onVerDetalhes, onIniciarPartida } = props;
   const { colors, tema } = useTheme();
@@ -316,4 +316,6 @@ export default function HomeCategoria(props: Props) {
       </>}
     </ScrollView>
   );
-}
+});
+
+export default HomeCategoria;

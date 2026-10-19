@@ -180,8 +180,8 @@ negócio ficam nos módulos, middlewares e services.
 
 ## Pré-requisitos
 
-- Node.js com suporte ao Corepack.
-- pnpm.
+- Node.js 22 (o development build está configurado com 22.14.0).
+- pnpm 11.20.0, conforme o campo `packageManager` da raiz.
 - Python 3.11 ou superior para o serviço de Scout IA.
 - Banco PostgreSQL.
 - Conta do Supabase para o ambiente utilizado pelo projeto.
@@ -203,6 +203,15 @@ pnpm approve-builds
 
 O workspace instala as dependências dos aplicativos, serviços e pacotes Node
 em uma única operação.
+
+Execute a instalação na raiz, onde ficam `pnpm-lock.yaml` e
+`pnpm-workspace.yaml`. Evite misturar `npm install` ou `yarn` com o pnpm.
+Depois de um `git pull` que altere dependências, execute `pnpm install` novamente.
+Se `pnpm` não for reconhecido, instale a versão usada pelo projeto:
+
+~~~powershell
+npm install --global pnpm@11.20.0
+~~~
 
 ### Serviço de Scout IA
 
@@ -297,31 +306,85 @@ O aplicativo usa Expo Router e consome os pacotes compartilhados de design e
 ícones. Cadastros administrativos de times, jogadores, categorias, competições
 e elencos não fazem parte da interface mobile atual.
 
+### Primeira execução ou outra máquina
+
+Na raiz do repositório, instale as dependências e copie o exemplo de ambiente
+(se ainda não houver um `.env` do mobile):
+
+~~~powershell
+pnpm install
+Copy-Item apps/mobile/.env.example apps/mobile/.env
+~~~
+
+Edite `apps/mobile/.env` e mantenha apenas uma `EXPO_PUBLIC_API_URL` ativa:
+
+| Onde o aplicativo roda | URL da API local |
+|---|---|
+| Emulador do Android Studio | `http://10.0.2.2:3000` |
+| Celular físico | `http://IP_DO_COMPUTADOR:3000` |
+| Simulador iOS no macOS | `http://localhost:3000` |
+
+No Windows, use `ipconfig` para descobrir o IPv4 da interface conectada à rede.
+Não copie o IP de outro desenvolvedor nem use o IP de adaptadores virtuais.
+Para celular físico, computador e celular precisam se comunicar na rede local.
+O `.env` não é versionado: cada pessoa configura sua própria máquina.
+Variáveis `EXPO_PUBLIC_*` ficam visíveis no aplicativo; não inclua segredos.
+
+Também é possível configurar a URL publicada indicada neste README, dispensando
+a API e o banco locais para testar o aplicativo. Para usar a API local, prepare
+o ambiente e inicie o backend conforme a seção anterior, em outro terminal.
+Depois de mudar a URL, encerre o Metro e inicie-o novamente.
+
+### Comandos de desenvolvimento
+
+Execute os comandos abaixo **na raiz do repositório**:
+
+| Comando | Uso |
+|---|---|
+| `pnpm dev:mobile` | Development build instalado no aparelho, pela rede local |
+| `pnpm dev:mobile:go` | Abrir pelo Expo Go, para funcionalidades compatíveis |
+| `pnpm dev:mobile:android` | Iniciar e abrir no Android conectado ou emulador já iniciado |
+| `pnpm dev:mobile:clean` | Development build com limpeza do cache do Metro |
+| `pnpm dev:mobile:tunnel` | Development build com túnel para o Metro |
+| `pnpm dev:mobile:check` | Conferir versões das dependências Expo e tipos TypeScript |
+
+Dentro de `apps/mobile`, os equivalentes são `pnpm start`, `pnpm start:go`,
+`pnpm android`, `pnpm start:clean`, `pnpm start:tunnel` e `pnpm check`.
+Para limpar o cache no Expo Go, use `pnpm dev:mobile:go --clear`.
+
+O modo padrão é development build porque o aplicativo utiliza módulos nativos
+e notificações push. Instale primeiro o APK de desenvolvimento do projeto no
+aparelho. O Expo Go não substitui esse APK para testar notificações push Android.
+O simulador iOS exige macOS.
+
+Para gerar um novo development build, execute na pasta do mobile:
+
 ~~~powershell
 cd apps/mobile
-pnpm start
+npx eas-cli@latest build --platform android --profile development
 ~~~
 
-Também é possível iniciar pela raiz:
+A configuração Android referencia `apps/mobile/google-services.json`, do app
+Firebase com pacote `com.ludora.app`. Para compilar, obtenha esse arquivo com o
+responsável pelo projeto. A chave privada de conta de serviço usada pelo EAS
+para FCM é outro arquivo e não deve ser colocada no app ou no Git.
+Mudanças em módulos nativos exigem recompilar e reinstalar o development build;
+alterações comuns em telas e estilos podem ser carregadas pelo Metro.
 
-~~~powershell
-pnpm dev:mobile
-~~~
+### Problemas frequentes
 
-Atualmente a URL da API é configurada em:
+| Sintoma | O que conferir |
+|---|---|
+| O QR Code abre no cliente errado | Use explicitamente `dev:mobile` para development build ou `dev:mobile:go` para Expo Go |
+| Não conecta na porta 8081 | Metro aberto, IP correto, rede acessível e permissão de firewall para o Node na rede privada |
+| App abre, mas login dá erro de conexão | `EXPO_PUBLIC_API_URL`, API rodando na porta 3000 e acesso à rede; reinicie o Metro após mudar o `.env` |
+| Túnel abre o app, mas a API não funciona | O túnel do Expo expõe o Metro, não a API local; a URL da API ainda precisa ser acessível pelo aparelho |
+| Módulo nativo ausente | Instale o development build compatível com as dependências atuais |
+| Erros após o pull | Execute `pnpm install`, confira `pnpm dev:mobile:check` e, se necessário, limpe o cache |
 
-~~~text
-apps/mobile/src/services/api.ts
-~~~
-
-Para testar em um celular físico, não use localhost. Utilize o IP da máquina na
-rede local:
-
-~~~ts
-export const BASE_URL = 'http://192.168.0.10:3000';
-~~~
-
-O computador e o celular devem estar na mesma rede.
+A porta 8081 entrega o JavaScript pelo Metro; a porta 3000 atende as requisições
+da API. São conexões independentes. O túnel pode solicitar a instalação do
+suporte ao ngrok na primeira execução.
 
 ### Gerar APK de preview
 
@@ -494,7 +557,7 @@ A documentação técnica complementar está em
 
 ## Próximos passos
 
-- Criar as telas mobile de entrada e aceite de convite.
+- Evoluir e validar os fluxos mobile de entrada e aceite de convite.
 - Criar a aplicação web para gestão de categorias, times, jogadores,
   competições, elencos e links de convite.
 - Criar a aplicação desktop com Electron reutilizando o fluxo administrativo.
