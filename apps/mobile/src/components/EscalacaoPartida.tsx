@@ -195,8 +195,7 @@ export default function EscalacaoPartida({
 
     const conflito = disponiveis.find(d =>
       Number(d.id_jogador) !== Number(modalCamisa.id_jogador) &&
-      d.numCamisa === num &&
-      convocados.includes(Number(d.id_jogador))
+      d.numCamisa === num
     );
 
     if (conflito) {
@@ -208,10 +207,10 @@ export default function EscalacaoPartida({
           setModalTroca(null);
           setSalvandoCamisa(true);
           try {
-            await atualizarJogador(Number(modalCamisa.id_jogador), { numCamisa: num });
-            if (camisaAtual && camisaAtual > 0) {
-              await atualizarJogador(Number(conflito.id_jogador), { numCamisa: camisaAtual });
-            }
+            await atualizarJogador(Number(modalCamisa.id_jogador), {
+              numCamisa: num,
+              confirmar_camisa: { jogador_id: Number(conflito.id_jogador), camisa_anterior: camisaAtual },
+            });
             setDisponiveis(prev => prev.map(d => {
               if (Number(d.id_jogador) === Number(modalCamisa.id_jogador)) return { ...d, numCamisa: num };
               if (Number(d.id_jogador) === Number(conflito.id_jogador))    return { ...d, numCamisa: camisaAtual ?? null };

@@ -1,4 +1,5 @@
 import http from 'http';
+import { iniciarAtualizacaoTemporada } from './modules/jogadores/elenco.service';
 
 import { criarApp } from './app';
 import { PORT } from './config/env';
@@ -15,7 +16,10 @@ server.requestTimeout = 130_000;
 server.headersTimeout = 15_000;
 server.keepAliveTimeout = 5_000;
 
+let pararAtualizacao: (() => void) | undefined;
+
 server.listen(PORT, '0.0.0.0', () => {
+  if (process.env.NODE_ENV !== 'test' && process.env.ATUALIZACAO_TEMPORADA !== 'false') pararAtualizacao = iniciarAtualizacaoTemporada();
   console.log(`Core Service rodando na porta ${PORT}`);
 });
 
@@ -24,6 +28,7 @@ let encerrando = false;
 async function encerrar(signal: string) {
   if (encerrando) return;
   encerrando = true;
+  pararAtualizacao?.();
 
   console.log(`Recebido ${signal}; encerrando API...`);
 

@@ -1,4 +1,6 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
+import { salvarAluno, ErroElenco, categoriaCalculada, atualizarTemporada } from './elenco.service';
+import { anoTemporada } from './elenco.rules';
 
 import { prisma } from '../../lib/prisma';
 import {
@@ -19,68 +21,25 @@ const router = Router();
 // JOGADORES
 // ==========================================
 
-router.post('/jogadores', exigirGestorDoClube, async (req, res) => {
-  const clube_id = (req as any).clubeId as number;
-  const usuario_id = (req as any).usuarioId as number;
+function responderErro(res: Response, erro: unknown) {
+  if (erro instanceof ErroElenco) return res.status(erro.status).json({ error: erro.message, ...erro.detalhes });
+  console.error('Falha na operação do elenco');
+  return res.status(500).json({ error: 'Não foi possível salvar o elenco. Tente novamente.' });
+}
 
-  const { nome, cpf, dtNasc, posicao, numCamisa } = req.body;
-  if (!nome || !cpf || !dtNasc) return res.status(400).json({ error: 'Nome, CPF e data de nascimento obrigatórios' });
+router.get('/jogadores/categoria', exigirGestorDoClube, async (req, res) => {
   try {
-    const cpfExistente = await prisma.jogador.findUnique({ where: { cpf } });
-    if (cpfExistente) return res.status(409).json({ error: 'Este CPF já está cadastrado' });
-
-    const anoNasc = new Date(dtNasc).getFullYear();
-    const idade = new Date().getFullYear() - anoNasc;
-    const regrasCategorias = [
-      { limite: 7,  nome: 'sub-7'  }, { limite: 8,  nome: 'sub-8'  },
-      { limite: 9,  nome: 'sub-9'  }, { limite: 10, nome: 'sub-10' },
-      { limite: 12, nome: 'sub-12' }, { limite: 14, nome: 'sub-14' },
-      { limite: 16, nome: 'sub-16' }, { limite: 18, nome: 'sub-18' },
-    ];
-    const categoriaAdequada = regrasCategorias.find(r => idade <= r.limite);
-    if (!categoriaAdequada) return res.status(403).json({ error: 'Idade fora das categorias permitidas.' });
-
-    const categoria = await prisma.categoria.findFirst({
-      where: { nome: categoriaAdequada.nome, clube_id }
-    });
-    
-    if (!categoria) {
-      return res.status(404).json({
-        error: `Categoria ${categoriaAdequada.nome} não encontrada no banco do clube.`,
-      });
+    const categoria = await categoriaCalculada(prisma, (req as any).clubeId, String(req.query.nascimento ?? ''));
+    if (!(await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, categoria.id))) {
+      return res.status(403).json({ error: 'Você não pode administrar esta categoria.' });
     }
+    res.json({ categoria, temporada: anoTemporada() });
+  } catch (erro) { responderErro(res, erro); }
+});
 
-    const temAcessoCategoria = await podeAcessarCategoria(
-      usuario_id,
-      clube_id,
-      categoria.id
-    );
-
-    if (!temAcessoCategoria) {
-      return res.status(403).json({
-        error: `Você não tem permissão para administrar a categoria ${categoria.nome}.`,
-      });
-    }
-
-    if (numCamisa) {
-      const camisaEmUso = await prisma.jogador.findFirst({
-        where: { categoria_id: categoria.id, numCamisa: Number(numCamisa) }
-      });
-      if (camisaEmUso) return res.status(409).json({ error: `A camisa ${numCamisa} já está sendo usada na categoria.` });
-    }
-
-    const jogador = await prisma.jogador.create({
-      data: {
-        nome, cpf, dtNasc: new Date(dtNasc),
-        posicao: posicao || 'Ala',
-        numCamisa: numCamisa ? Number(numCamisa) : null,
-        categoria_id: categoria.id,
-        perfil_ml: 'Sem dados',
-      },
-      include: { categoria: true }
-    });
-    res.status(201).json(jogador);
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+router.post('/jogadores', exigirGestorDoClube, async (req, res) => {
+  try { res.status(201).json(await salvarAluno((req as any).clubeId, (req as any).usuarioId, req.body)); }
+  catch (erro) { responderErro(res, erro); }
 });
 
 router.get('/jogadores/perfis', exigirClubePublico, async (req, res) => {
@@ -173,41 +132,10 @@ router.get('/jogadores', exigirClubePublico, async (req, res) => {
 });
 
 router.patch('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async (req, res) => {
-  const clube_id = (req as any).clubeId as number;
-  const usuario_id = (req as any).usuarioId as number;
-  const { nome, dtNasc, posicao, numCamisa } = req.body;
-  try {
-    let dados: any = { nome, posicao, numCamisa: numCamisa ? Number(numCamisa) : null };
-    if (dtNasc) {
-      const anoNasc = new Date(dtNasc).getFullYear();
-      const idade = new Date().getFullYear() - anoNasc;
-      const regras = [
-        { limite: 7,  nome: 'sub-7'  }, { limite: 8,  nome: 'sub-8'  },
-        { limite: 9,  nome: 'sub-9'  }, { limite: 10, nome: 'sub-10' },
-        { limite: 12, nome: 'sub-12' }, { limite: 14, nome: 'sub-14' },
-        { limite: 16, nome: 'sub-16' }, { limite: 18, nome: 'sub-18' },
-      ];
-      const catAdequada = regras.find(r => idade <= r.limite);
-      if (catAdequada) {
-        const cat = await prisma.categoria.findFirst({
-          where: { nome: catAdequada.nome, clube_id }
-        });
-        if (cat) {
-          if (!(await podeAcessarCategoria(usuario_id, clube_id, cat.id))) {
-            return res.status(403).json({ error: `Você não administra a categoria ${cat.nome}` });
-          }
-          dados.dtNasc = new Date(dtNasc);
-          dados.categoria_id = cat.id;
-        }
-      }
-    }
-    const jogador = await prisma.jogador.update({
-      where: { id: Number(req.params.id) },
-      data: dados,
-      include: { categoria: true },
-    });
-    res.json(jogador);
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  const id = idPositivo(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
+  try { res.json(await salvarAluno((req as any).clubeId, (req as any).usuarioId, req.body, id)); }
+  catch (erro) { responderErro(res, erro); }
 });
 
 router.delete('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async (req, res) => {
@@ -222,41 +150,8 @@ router.delete('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async
 // ==========================================
 
 router.patch('/admin/atualizar-idades', exigirGestorDoClube, exigirAcessoTotalCategorias, limitarOperacaoPesada, async (req, res) => {
-  const clube_id = (req as any).clubeId as number;
-
-  try {
-    const anoAtual = new Date().getFullYear();
-    const regras = [
-      { limite: 7,  nome: 'sub-7'  }, { limite: 8,  nome: 'sub-8'  },
-      { limite: 9,  nome: 'sub-9'  }, { limite: 10, nome: 'sub-10' },
-      { limite: 12, nome: 'sub-12' }, { limite: 14, nome: 'sub-14' },
-      { limite: 16, nome: 'sub-16' }, { limite: 18, nome: 'sub-18' },
-    ];
-    const [jogadores, categorias] = await Promise.all([
-      prisma.jogador.findMany({ 
-        where: { categoria: { clube_id } },
-        select: { id: true, dtNasc: true, categoria_id: true, ativo: true } 
-      }),
-      prisma.categoria.findMany({ where: { clube_id } }),
-    ]);
-    
-    let atualizados = 0, desativados = 0;
-    for (const j of jogadores) {
-      const idade = anoAtual - new Date(j.dtNasc).getFullYear();
-      const catAdequada = regras.find(r => idade <= r.limite);
-      if (!catAdequada) {
-        if (j.ativo) { await prisma.jogador.update({ where: { id: j.id }, data: { ativo: false } }); desativados++; }
-      } else {
-        const cat = categorias.find(c => c.nome.toLowerCase() === catAdequada.nome.toLowerCase());
-        if (cat && (cat.id !== j.categoria_id || !j.ativo)) {
-          await prisma.jogador.update({ where: { id: j.id }, data: { categoria_id: cat.id, ativo: true } });
-          atualizados++;
-        }
-      }
-    }
-    res.json({ ok: true, atualizados, desativados, total: jogadores.length });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  try { res.json(await atualizarTemporada((req as any).clubeId)); }
+  catch (erro) { responderErro(res, erro); }
 });
-
 
 export default router;

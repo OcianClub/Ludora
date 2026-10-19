@@ -6,6 +6,7 @@ import { MatchCard } from '../components/MatchCard';
 import { Icon } from '../components/Icon';
 import { groupMatches, matchPeriod, sortMatches, GroupMode, SortMode } from '../utils/matchSchedule';
 import './Partidas.css';
+import { ViewToggle } from '../components/CollectionControls';
 
 const STATUSES = [
   { value: 'AGENDADA', label: 'Agendada' }, { value: 'PREPARADA', label: 'Preparada' },
@@ -116,10 +117,7 @@ export default function PartidasPage() {
           <button aria-pressed={groupMode === 'month'} onClick={() => { setGroupMode('month'); setPeriod(''); }}>Mês</button>
           <button aria-pressed={groupMode === 'week'} onClick={() => { setGroupMode('week'); setPeriod(''); }}>Semana</button>
         </div></div>
-        <div className="segmented-control view-control" data-second={viewMode === 'list'} role="group" aria-label="Visualização das partidas">
-          <button aria-label="Visualização em cartões" title="Cartões" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}><Icon name="grid" /></button>
-          <button aria-label="Visualização em lista" title="Lista" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}><Icon name="list" /></button>
-        </div>
+        <ViewToggle value={viewMode} onChange={setViewMode} />
       </div>
       <p className="schedule-help">{sortMode === 'priority' ? 'Ao vivo em destaque. Em cada dia: preparadas, agendadas, finalizadas e canceladas.' : 'Partidas organizadas por data e horário, independentemente da situação.'}</p>
 

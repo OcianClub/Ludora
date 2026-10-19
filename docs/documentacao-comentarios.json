@@ -1,0 +1,673 @@
+{
+  "file": "C:\\Users\\CoquinhaGelada\\AppData\\Local\\Temp\\MicrosoftEdgeDownloads\\ebc7c459-7cf0-43e9-b8a0-06115df367ab\\Ludora_Documentacao_v2.docx",
+  "comment_count": 29,
+  "comments": [
+    {
+      "id": "0",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:39:36Z",
+      "initials": null,
+      "resolved": false,
+      "text": "definir de forma única quem utiliza o Desktop e qual é sua finalidade.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "O presente trabalho tem como tema o desenvolvimento do Ludora, um sistema de gestão esportiva multiplataforma com suporte de Inteligência Artificial, voltado a escolinhas e clubes de futebol de base. "
+            },
+            {
+              "where": "end",
+              "text": "O presente trabalho tem como tema o desenvolvimento do Ludora, um sistema de gestão esportiva multiplataforma com suporte de Inteligência Artificial, voltado a escolinhas e clubes de futebol de base. "
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:40:40Z",
+      "initials": null,
+      "resolved": false,
+      "text": "O objetivo geral afirma que a IA classificará automaticamente o perfil de desempenho de cada jogador “ao término das partidas”, mas os objetivos específicos e a documentação do sistema não estabelecem que o processamento necessariamente ocorrerá nesse momento.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "Desenvolver um sistema multiplataforma de gestão esportiva, composto por aplicativo mobile, plataforma web e aplicação desktop, integrando backend API, banco de dados relacional, comunicação em tempo "
+            },
+            {
+              "where": "end",
+              "text": "Desenvolver um sistema multiplataforma de gestão esportiva, composto por aplicativo mobile, plataforma web e aplicação desktop, integrando backend API, banco de dados relacional, comunicação em tempo "
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:42:44Z",
+      "initials": null,
+      "resolved": false,
+      "text": "O objetivo específico do aplicativo mobile afirma que ele permitirá acesso a “administradores de clube”, mas o restante da documentação define o Mobile principalmente para acompanhamento e operações relacionadas às partidas, enquanto as funcionalidades administrativas estão concentradas em Web/Desktop.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "Desenvolver um aplicativo mobile em React Native com Expo, permitindo que usuários comuns (como responsáveis por atletas) e administradores de clube acompanhem partidas, visualizem escalações e receba"
+            },
+            {
+              "where": "end",
+              "text": "Desenvolver um aplicativo mobile em React Native com Expo, permitindo que usuários comuns (como responsáveis por atletas) e administradores de clube acompanhem partidas, visualizem escalações e receba"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:42:15Z",
+      "initials": null,
+      "resolved": false,
+      "text": "O objetivo específico da aplicação desktop restringe seu uso à “equipe de desenvolvimento” e a caracteriza como “superadmin”, enquanto o objetivo geral apresenta o Desktop apenas como parte da solução multiplataforma. Isso precisa estar coerente com a definição dos envolvidos e permissões do sistema.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "Desenvolver uma aplicação desktop de uso exclusivo da equipe de desenvolvimento, funcionando como superadmin para gerenciamento centralizado dos bancos de dados dos diferentes clubes cadastrados na pl"
+            },
+            {
+              "where": "end",
+              "text": "Desenvolver uma aplicação desktop de uso exclusivo da equipe de desenvolvimento, funcionando como superadmin para gerenciamento centralizado dos bancos de dados dos diferentes clubes cadastrados na pl"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:44:43Z",
+      "initials": null,
+      "resolved": false,
+      "text": "Há uma inconsistência entre a problematização e os requisitos quanto ao registro de eventos. A problematização menciona “desarmes” como evento de jogo, enquanto a RN18 e o RF11 listam gols, assistências, defesas, faltas e cartões, sem incluir desarmes.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "Ausência de ferramentas de scout acessíveis: o registro de eventos de jogo — gols, assistências, desarmes e cartões — depende de anotações manuais, tornando os dados imprecisos ou inexistentes;"
+            },
+            {
+              "where": "end",
+              "text": "Ausência de ferramentas de scout acessíveis: o registro de eventos de jogo — gols, assistências, desarmes e cartões — depende de anotações manuais, tornando os dados imprecisos ou inexistentes;"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:45:22Z",
+      "initials": null,
+      "resolved": false,
+      "text": "A problematização afirma que responsáveis por atletas não têm acesso fácil a informações sobre “convocações e desempenho”, mas a documentação de requisitos não apresenta uma funcionalidade específica de convocações.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "Ausência de canais de comunicação integrados: responsáveis por atletas não têm acesso fácil a informações sobre partidas, convocações e desempenho dos jogadores;"
+            },
+            {
+              "where": "end",
+              "text": "Ausência de canais de comunicação integrados: responsáveis por atletas não têm acesso fácil a informações sobre partidas, convocações e desempenho dos jogadores;"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:43:42Z",
+      "initials": null,
+      "resolved": false,
+      "text": "apresentar uma fonte/levantamento que sustente essa afirmação ou reformulá-la como uma necessidade identificada no contexto do projeto, sem afirmar que nenhuma solução existente oferece essa funcionalidade.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "Inexistência de gestão centralizada para múltiplos clubes: soluções existentes no mercado não oferecem uma camada administrativa que permita gerenciar diferentes clubes de forma unificada a partir de "
+            },
+            {
+              "where": "end",
+              "text": "Inexistência de gestão centralizada para múltiplos clubes: soluções existentes no mercado não oferecem uma camada administrativa que permita gerenciar diferentes clubes de forma unificada a partir de "
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:45:58Z",
+      "initials": null,
+      "resolved": false,
+      "text": "apresentar fonte que sustente essa afirmação ou substituir por uma formulação baseada no contexto observado no clube",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "O futebol é o esporte mais popular do Brasil, com milhares de escolinhas e clubes de base espalhados por todo o território nacional. Apesar disso, a grande maioria dessas organizações opera com recurs"
+            },
+            {
+              "where": "end",
+              "text": "O futebol é o esporte mais popular do Brasil, com milhares de escolinhas e clubes de base espalhados por todo o território nacional. Apesar disso, a grande maioria dessas organizações opera com recurs"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:46:34Z",
+      "initials": null,
+      "resolved": false,
+      "text": "apresentar fonte que sustente essa afirmação ou reformulá-la para destacar que o projeto busca tornar recursos de análise automatizada mais acessíveis a organizações de menor porte.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "Inovação acessível: a solução democratiza recursos de análise de desempenho por Inteligência Artificial — antes restritos a clubes profissionais com grandes orçamentos — tornando-os disponíveis para e"
+            },
+            {
+              "where": "end",
+              "text": "Inovação acessível: a solução democratiza recursos de análise de desempenho por Inteligência Artificial — antes restritos a clubes profissionais com grandes orçamentos — tornando-os disponíveis para e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:47:57Z",
+      "initials": null,
+      "resolved": false,
+      "text": "há uma inconsistência entre a justificativa e a documentação quanto ao público do aplicativo mobile. A justificativa afirma que o Mobile atende “usuários e administradores de clube”, enquanto a arquitetura e os requisitos apresentados anteriormente atribuem ao Mobile principalmente acompanhamento de clubes/partidas, sem definir nele todas as funcionalidades administrativas.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "Abrangência multiplataforma: ao oferecer simultaneamente um aplicativo mobile para usuários e administradores de clube, uma plataforma web com funcionalidades avançadas de gestão e uma aplicação deskt"
+            },
+            {
+              "where": "end",
+              "text": "Abrangência multiplataforma: ao oferecer simultaneamente um aplicativo mobile para usuários e administradores de clube, uma plataforma web com funcionalidades avançadas de gestão e uma aplicação deskt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:24:06Z",
+      "initials": null,
+      "resolved": false,
+      "text": "Há uma inconsistência na distribuição das responsabilidades entre Web e Desktop. A seção 2 define a plataforma Web como voltada à gestão dos clubes e a aplicação Desktop como gerenciamento administrativo centralizado da solução. Porém, o RF19 afirma que Web e Desktop concentram funcionalidades administrativas, incluindo gerenciamento de categorias, equipes, jogadores, competições, elencos e convites.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "2. DESCRIÇÃO GERAL DO SISTEMA"
+            },
+            {
+              "where": "end",
+              "text": "2. DESCRIÇÃO GERAL DO SISTEMA"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:24:59Z",
+      "initials": null,
+      "resolved": false,
+      "text": "Esta regra determina que somente usuários com função de gestão poderão cadastrar, alterar ou remover informações esportivas e administrativas. Entretanto, a RN10 permite que técnicos e mesários modifiquem informações das categorias autorizadas, e os RF10 e RF11 permitem que usuários envolvidos nas partidas realizem operações sobre escalações e eventos.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "RN05 – Acesso administrativo: somente usuários com função de gestão poderão cadastrar, alterar ou remover informações esportivas e administrativas."
+            },
+            {
+              "where": "end",
+              "text": "RN05 – Acesso administrativo: somente usuários com função de gestão poderão cadastrar, alterar ou remover informações esportivas e administrativas."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:25:38Z",
+      "initials": null,
+      "resolved": false,
+      "text": "A regra determina que notificações sejam enviadas considerando clubes, vínculos e categorias, porém os RF01–RF19 não especificam o sistema de notificações.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "RN23 – Notificações: as notificações deverão considerar os clubes acompanhados pelo usuário, seus vínculos e as categorias às quais possui acesso, evitando o envio de informações sem relação com suas "
+            },
+            {
+              "where": "end",
+              "text": "RN23 – Notificações: as notificações deverão considerar os clubes acompanhados pelo usuário, seus vínculos e as categorias às quais possui acesso, evitando o envio de informações sem relação com suas "
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:28:06Z",
+      "initials": null,
+      "resolved": false,
+      "text": "O requisito afirma que o mesário possui acesso às operações relacionadas ao funcionamento do clube e do dia de jogo, enquanto a RN05 restringe alterações de informações esportivas e administrativas aos usuários de gestão.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "RF03 – Controle de papéis e permissões"
+            },
+            {
+              "where": "end",
+              "text": "RF03 – Controle de papéis e permissões"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:29:59Z",
+      "initials": null,
+      "resolved": false,
+      "text": "define comunicação em tempo real apenas para “placar e eventos”, enquanto a RN23 estabelece regras para notificações e não foi mencionada",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "RF12 – Atualização de informações em tempo real"
+            },
+            {
+              "where": "end",
+              "text": "RF12 – Atualização de informações em tempo real"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:26:21Z",
+      "initials": null,
+      "resolved": false,
+      "text": "Não é um requisito funcional",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "RF19 – Gerenciamento administrativo multiplataforma"
+            },
+            {
+              "where": "end",
+              "text": "RF19 – Gerenciamento administrativo multiplataforma"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:31:44Z",
+      "initials": null,
+      "resolved": false,
+      "text": "descreve uma decisão tecnológica e não um requisito não funcional",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "RNF11 – Integração com serviço de Inteligência Artificial"
+            },
+            {
+              "where": "end",
+              "text": "RNF11 – Integração com serviço de Inteligência Artificial"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:30:54Z",
+      "initials": null,
+      "resolved": false,
+      "text": "especificar as plataformas e ambientes efetivamente suportados por cada cliente.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "A solução deve possibilitar a utilização de diferentes clientes sobre uma mesma camada de backend."
+            },
+            {
+              "where": "end",
+              "text": "A solução deve possibilitar a utilização de diferentes clientes sobre uma mesma camada de backend."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:33:35Z",
+      "initials": null,
+      "resolved": false,
+      "text": "As tecnologias do Web e do Desktop devem ser especificadas.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "O aplicativo mobile utiliza React, React Native, Expo e Expo Router, sendo responsável pelas funcionalidades destinadas aos usuários e pelo acompanhamento das atividades relacionadas às partidas."
+            },
+            {
+              "where": "end",
+              "text": "O aplicativo mobile utiliza React, React Native, Expo e Expo Router, sendo responsável pelas funcionalidades destinadas aos usuários e pelo acompanhamento das atividades relacionadas às partidas."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "19",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:35:41Z",
+      "initials": null,
+      "resolved": false,
+      "text": "Mas como essa comunicação com a API ocorre?",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "O serviço de Scout IA funciona de forma independente da API principal. A API pode encaminhar os dados necessários ao serviço, que realiza o processamento estatístico e retorna a classificação do perfi"
+            },
+            {
+              "where": "end",
+              "text": "O serviço de Scout IA funciona de forma independente da API principal. A API pode encaminhar os dados necessários ao serviço, que realiza o processamento estatístico e retorna a classificação do perfi"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "20",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-07T19:37:07Z",
+      "initials": null,
+      "resolved": false,
+      "text": "incluir no fluxo de como a API gera, envia, valida, aceita, revoga ou invalida as credenciais dos convites.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "O serviço de Scout IA funciona de forma independente da API principal. A API pode encaminhar os dados necessários ao serviço, que realiza o processamento estatístico e retorna a classificação do perfi"
+            },
+            {
+              "where": "end",
+              "text": "O serviço de Scout IA funciona de forma independente da API principal. A API pode encaminhar os dados necessários ao serviço, que realiza o processamento estatístico e retorna a classificação do perfi"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "21",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-14T17:27:01Z",
+      "initials": null,
+      "resolved": false,
+      "text": "Informar que o design será detalhado por meio da modelagem do banco de dados, dos protótipos de interface e da estrutura da API. E adicionar os diagramas e modelos citados nas respectivas subseções.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "O design do sistema Ludora foi definido considerando a necessidade de disponibilizar as funcionalidades da solução de forma organizada e adequada aos diferentes perfis de usuários. A estrutura do sist"
+            },
+            {
+              "where": "end",
+              "text": "A definição do design foi realizada considerando a arquitetura centralizada do Ludora, na qual as aplicações clientes utilizam uma API para acessar os dados e executar as regras de negócio. Dessa form"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "22",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-14T17:29:58Z",
+      "initials": null,
+      "resolved": false,
+      "text": "Apresentar o diagrama do banco de dados (MER ou diagrama de classes), com entidades, atributos e chaves primárias (PK) e estrangeiras (FK).\nDefinir os relacionamentos e as cardinalidades entre usuários, atletas, clubes, equipes e partidas.\nExplicar a origem das estatísticas, diferenciando os dados armazenados dos calculados e como os resultados da classificação dos atletas são registrados.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "5.1 Modelagem de Banco de Dados"
+            },
+            {
+              "where": "end",
+              "text": "5.1 Modelagem de Banco de Dados"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "23",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-14T17:33:08Z",
+      "initials": null,
+      "resolved": false,
+      "text": "Inserir imagens das telas ou protótipos e identificar cada figura.\nOrganizar a descrição por fluxo de uso.\nAgrupar as telas por funcionalidades, como cadastro e login, busca de clubes, acompanhamento de partidas, gestão administrativa e registro de eventos.\nEsclarecer as diferenças entre os perfis de acesso. Mostrar o que o usuário comum pode visualizar e o que o administrador pode gerenciar. Quando houver permissões específicas para técnicos, explicar as diferenças pertinentes.\nJustificar as decisões de interface. Explicar brevemente como a organização das telas, a navegação, as cores e os elementos de ação favorecem a utilização do sistema.\nnão é necessário inserir todas as telas existentes. Priorizem as principais telas e os fluxos que representam as funcionalidades.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "5.2 Design de Interface (UI/UX)"
+            },
+            {
+              "where": "end",
+              "text": "5.2 Design de Interface (UI/UX)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "24",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-14T17:35:00Z",
+      "initials": null,
+      "resolved": false,
+      "text": "Apresentar um diagrama da arquitetura.\nRepresentar as aplicações clientes, a API, o banco PostgreSQL, o Socket.IO e o serviço Scout IA, mostrando como esses componentes se comunicam.\nInformar como a API está organizada em módulos, rotas, controladores, serviços ou outras camadas, de acordo com a estrutura realmente adotada no projeto.\nApresentar os principais recursos da API.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "5.3 Estrutura da API"
+            },
+            {
+              "where": "end",
+              "text": "5.3 Estrutura da API"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "25",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-14T17:36:13Z",
+      "initials": null,
+      "resolved": false,
+      "text": "Pode complementar com um fluxo que demonstre:\nComo o usuário realiza login.\nComo a API valida as credenciais e emite o token.\nComo o token é utilizado nas requisições protegidas.\nComo são verificadas as permissões relacionadas ao clube e às categorias.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "5.3.1 Autenticação e autorização"
+            },
+            {
+              "where": "end",
+              "text": "5.3.1 Autenticação e autorização"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "26",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-14T17:37:16Z",
+      "initials": null,
+      "resolved": false,
+      "text": "corrigir:\nIdentificar quais eventos podem ser transmitidos em tempo real.\nExplicar como os clientes são associados à partida ou ao contexto correto de comunicação.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "5.3.3 Comunicação em tempo real"
+            },
+            {
+              "where": "end",
+              "text": "5.3.3 Comunicação em tempo real"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "27",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-14T17:37:50Z",
+      "initials": null,
+      "resolved": false,
+      "text": "corrigir:\nIdentificar quais dados estatísticos são enviados ao serviço.\nMostrar como a API solicita o processamento e recebe o resultado.\nExplicar como a classificação retornada é utilizada ou armazenada.",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "5.3.4 Integração com o Scout IA"
+            },
+            {
+              "where": "end",
+              "text": "5.3.4 Integração com o Scout IA"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "28",
+      "author": "Eulaliane Gonçalves",
+      "date": "2026-10-14T17:38:33Z",
+      "initials": null,
+      "resolved": false,
+      "text": "seria interessante incluir um diagrama de sequência ou de fluxo",
+      "anchors": [
+        {
+          "part": "word/document.xml",
+          "paragraphs": [
+            {
+              "where": "start",
+              "text": "5.3.5 Fluxo geral de comunicação"
+            },
+            {
+              "where": "end",
+              "text": "5.3.5 Fluxo geral de comunicação"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

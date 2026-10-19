@@ -174,16 +174,33 @@ export async function fetchJogadoresPerfis(categoria_id?: number): Promise<Perfi
     totalPartidas: j.totalPartidas ?? j.jogos_disputados ?? 0,
   }));
 }
-export async function criarJogador(dados: { nome: string; cpf: string; dtNasc: string; posicao: string; numCamisa?: number; categoria_id?: number }) {
-  const res = await apiFetch('/jogadores', { method: 'POST', body: JSON.stringify(dados) });
+export interface ConflitoCamisa {
+  jogador_id: number; nome: string; camisa: number; categoria: string; camisa_anterior: number | null;
+}
+export class ErroJogador extends Error {
+  constructor(mensagem: string, public conflito?: ConflitoCamisa) { super(mensagem); }
+}
+export type DadosJogador = {
+  nome?: string; cpf?: string; dtNasc?: string; posicao?: string; numCamisa?: number | null;
+  confirmar_camisa?: { jogador_id: number; camisa_anterior: number | null };
+};
+export async function preverCategoria(nascimento: string): Promise<{ categoria: Categoria; temporada: number }> {
+  const res = await apiFetch(`/jogadores/categoria?nascimento=${encodeURIComponent(nascimento)}`);
   const json = await res.json();
-  if (!res.ok) throw new Error(json.error || 'Erro ao criar jogador');
+  if (!res.ok) throw new Error(json.error || 'Não foi possível calcular a categoria');
   return json;
 }
-export async function atualizarJogador(id: number, dados: Partial<Jogador>) {
-  const res = await apiFetch(`/jogadores/${id}`, { method: 'PATCH', body: JSON.stringify(dados) });
-  if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro ao atualizar jogador'); }
-  return res.json();
+async function salvarDadosJogador(endpoint: string, method: string, dados: DadosJogador) {
+  const res = await apiFetch(endpoint, { method, body: JSON.stringify(dados) });
+  const json = await res.json();
+  if (!res.ok) throw new ErroJogador(json.error || 'Não foi possível salvar o jogador', json.conflito_camisa);
+  return json;
+}
+export async function criarJogador(dados: DadosJogador) {
+  return salvarDadosJogador('/jogadores', 'POST', dados);
+}
+export async function atualizarJogador(id: number, dados: DadosJogador) {
+  return salvarDadosJogador(`/jogadores/${id}`, 'PATCH', dados);
 }
 export async function deletarJogador(id: number) {
   const res = await apiFetch(`/jogadores/${id}`, { method: 'DELETE' });
