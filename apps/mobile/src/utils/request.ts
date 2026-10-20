@@ -1,3 +1,12 @@
+export class ErroConexao extends Error {}
+export class ErroConsulta extends Error {
+  constructor(public status: number, mensagem: string) { super(mensagem); }
+}
+
+export function permiteConsultaLocal(erro: unknown) {
+  return erro instanceof ErroConexao || (erro instanceof ErroConsulta && (erro.status === 408 || erro.status >= 500));
+}
+
 /** Limita a espera sem repetir operações de escrita automaticamente. */
 export async function fetchComTimeout(url: string, options: RequestInit = {}, timeoutMs = 20_000): Promise<Response> {
   const controller = new AbortController();
@@ -10,8 +19,8 @@ export async function fetchComTimeout(url: string, options: RequestInit = {}, ti
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
     if (options.signal?.aborted) throw error;
-    if (expirou) throw new Error('A conexão demorou demais. Confira sua internet e tente novamente.');
-    throw new Error('Não foi possível conectar ao servidor. Confira sua conexão e tente novamente.');
+    if (expirou) throw new ErroConexao('A conexão demorou demais. Confira sua internet e tente novamente.');
+    throw new ErroConexao('Não foi possível conectar ao servidor. Confira sua conexão e tente novamente.');
   } finally {
     clearTimeout(timer);
     options.signal?.removeEventListener('abort', cancelar);

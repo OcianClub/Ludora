@@ -10,6 +10,8 @@
     "dev:mobile:clean": "pnpm --filter @ludora/mobile run start:clean",
     "dev:mobile:tunnel": "pnpm --filter @ludora/mobile run start:tunnel",
     "dev:mobile:android": "pnpm --filter @ludora/mobile run android",
-    "dev:mobile:check": "pnpm --filter @ludora/mobile run check"
+    "dev:mobile:check": "pnpm --filter @ludora/mobile run check",
+    "perf:scout": "pnpm --filter @ludora/api exec tsx ../../apps/mobile/tests/scout.bench.ts",
+    "test:app": "pnpm --filter @ludora/api exec tsx --test tests/*.test.ts ../../apps/mobile/tests/*.test.ts"
   }
 }

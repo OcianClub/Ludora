@@ -5,7 +5,10 @@ import { corsOptions } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { idPositivo } from '../utils/id';
 
-export function criarSocketServer() {
+export function criarSocketServer(
+  autenticarToken = getUsuarioIdPeloToken,
+  banco = prisma
+) {
   const io = new Server({ cors: corsOptions });
 
   io.use(async (socket, next) => {
@@ -14,25 +17,19 @@ export function criarSocketServer() {
       socket.handshake.auth?.token || authHeader.replace(/^Bearer\s+/i, '')
     );
     const clubeId = idPositivo(
-      socket.handshake.auth?.clubeId ||
-        socket.handshake.headers['x-clube-id']
+      socket.handshake.auth?.clubeId || socket.handshake.headers['x-clube-id']
     );
-    const usuarioId = getUsuarioIdPeloToken(tokenInformado);
+    const usuarioId = await autenticarToken(tokenInformado);
 
     if (!usuarioId || !clubeId) return next(new Error('Não autorizado'));
 
     try {
-      const vinculo = await prisma.usuarioClube.findUnique({
-        where: {
-          usuario_id_clube_id: {
-            usuario_id: usuarioId,
-            clube_id: clubeId,
-          },
-        },
+      const clube = await banco.clube.findUnique({
+        where: { id: clubeId },
         select: { id: true },
       });
 
-      if (!vinculo) return next(new Error('Não autorizado'));
+      if (!clube) return next(new Error('Não autorizado'));
 
       socket.data.clubeId = clubeId;
       socket.data.usuarioId = usuarioId;
@@ -42,7 +39,7 @@ export function criarSocketServer() {
     }
   });
 
-  io.on('connection', socket => {
+  io.on('connection', (socket) => {
     socket.join(`clube:${socket.data.clubeId}`);
     socket.join(`usuario:${socket.data.usuarioId}`);
   });

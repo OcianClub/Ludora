@@ -115,5 +115,5 @@ test('histórico limita a cinco jogos sem modificar a lista original', () => {
   assert.equal(JSON.stringify(lista), antes);
 });
 test('clube sem partidas mantém um estado vazio coerente', () => {
-  assert.deepEqual(resumirPartidas([], agora), { proximoJogo: null, historico: [], estatisticas: { pontos: 0, vitorias: 0 } });
+  assert.deepEqual(resumirPartidas([], agora), { proximoJogo: null, agenda: [], historico: [], estatisticas: { pontos: 0, vitorias: 0 } });
 });

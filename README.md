@@ -433,14 +433,149 @@ pnpm --filter @ludora/icons run typecheck
 
 ## Principais rotas da API
 
+### Performance do mobile
+
+Home e Jogos solicitam `GET /partidas?resumo=1`, sem carregar a lista de eventos
+de cada partida. A consulta sem esse parâmetro preserva a resposta anterior para
+web/desktop; os detalhes continuam consultando os eventos completos.
+
+O Scout agrega estatísticas no PostgreSQL e usa contagem de escalações, sem trazer
+cada evento e escalação para a memória da API. Os campos retornados e as regras de
+escopo por clube/categoria foram preservados. No mobile, o catálogo de categorias,
+resumos e quantidades por perfil é preparado quando os jogadores mudam, sem repetir
+esse trabalho a cada letra na busca. Os cards usam memoização e a filtragem tem
+prioridade menor que a atualização do campo de texto. A aparência do carrossel não mudou.
+
+Benchmark reproduzível, executado na raiz com as dependências instaladas:
+
+~~~powershell
+pnpm perf:scout
+~~~
+
+Compara os cálculos anteriores e atuais em Node usando 1600 atletas fictícios,
+oito categorias e buscas repetidas, verificando igualdade dos resultados.
+Não utiliza o banco real, não envia dados e não mede FPS, rede ou renderização
+no Android. Para essa validação, use um aparelho conectado e compare o mesmo fluxo
+em uma build de release: abrir Home/Scout, trocar Iniciação/Base, deslizar entre subs
+e digitar na busca. Não compare fluidez de release com o modo de desenvolvimento.
+
+### Consultas sem conexão no mobile
+
+Home e Scout guardam cópias das consultas bem-sucedidas para leitura enquanto
+o servidor não estiver acessível. A tela mostra a data da consulta, informa que
+os dados podem estar antigos e oferece atualização manual. Ao voltar ao app ou
+enquanto houver cópia local em uma tela aberta, tenta consultar novamente o
+servidor; a tentativa periódica é feita a cada 30 segundos, somente em primeiro plano.
+
+Na Home, ações de gestão ficam indisponíveis ao exibir dados locais. Um placar
+salvo não é apresentado como atualização ao vivo. Gols e outras alterações nunca
+são enfileirados para envio posterior. O cache não inclui eventos completos de
+partidas, escalações, imagens baixadas, nem todas as demais telas.
+
+O cache é separado por sessão, clube e recurso, não permite login offline e
+exige que a sessão salva ainda esteja dentro da validade. São mantidas até seis
+cópias de até aproximadamente 1 MB cada, com validade máxima de 24 horas
+(limitada também pela expiração da sessão). Consultas maiores não são persistidas.
+Uma resposta 401, 403 ou 404 não é substituída por dados locais. O 401 limpa as
+cópias e bloqueia o cache daquela sessão até um novo login; o 403/404 descarta a
+cópia afetada. Login, criação de conta por convite, saída e exclusão de conta limpam o cache.
+
+Somente campos necessários à consulta são gravados: não são incluídos senhas,
+JWT, e-mail, CPF ou data de nascimento. Os arquivos ficam no diretório privado de
+cache do aplicativo, sem criptografia adicional; o sistema operacional pode
+removê-los. O Expo FileSystem, já dependência do Expo SDK 54, foi declarado no mobile.
+Se o módulo nativo não estiver disponível no APK instalado, a consulta funciona
+com cache em memória, sem persistência ao fechar o app.
+
+Para testar: carregue Home e Scout conectado; ative o modo avião e reabra essas
+telas; confira o aviso e os dados; restaure a conexão e use Atualizar. Depois saia
+da conta e confira que outra sessão não recupera as cópias da sessão anterior.
+
 ### Autenticação e usuário
 
 | Método | Rota | Proteção |
 |---|---|---|
-| POST | /auth/registrar | Rate limit |
+| POST | /auth/cadastro/solicitar-codigo | Pública, limite por IP e intervalo por e-mail |
+| POST | /auth/registrar | Código de confirmação, uso único e limite por IP |
 | POST | /auth/login | Rate limit |
+| POST | /auth/recuperar-senha | Pública, com limite por IP |
+| POST | /auth/redefinir-senha | Pública, código de uso único e limite por IP |
 | PATCH | /usuarios/me | JWT |
 | DELETE | /usuarios/me | JWT |
+
+### Recuperação de senha no mobile
+
+No login, use **Esqueci minha senha**. Informe o e-mail da conta e copie o
+código de oito caracteres recebido por e-mail. O código expira em 15 minutos,
+permite até cinco tentativas incorretas e pode ser reenviado após 60 segundos.
+Um novo envio invalida o código anterior. A redefinição encerra as sessões antigas.
+
+Para habilitar o fluxo, pare a API e execute na raiz:
+
+~~~powershell
+pnpm --filter @ludora/api exec prisma generate
+pnpm --filter @ludora/api exec prisma migrate deploy
+pnpm --filter @ludora/api run build
+pnpm dev:api
+~~~
+
+O envio utiliza `RESEND_API_KEY` e `EMAIL_FROM` do backend. A restrição do remetente
+de testes do Resend também se aplica à recuperação. A resposta da solicitação
+não revela se existe uma conta com o e-mail informado; códigos não são retornados
+pela API nem registrados em logs.
+
+Exemplos para testar a API:
+
+~~~http
+POST /auth/recuperar-senha
+Content-Type: application/json
+
+{"email":"seu-email@exemplo.com"}
+~~~
+
+~~~http
+POST /auth/redefinir-senha
+Content-Type: application/json
+
+{"email":"seu-email@exemplo.com","codigo":"ABCD-2345","senha":"sua-nova-senha"}
+~~~
+
+### Confirmação de e-mail no cadastro
+
+O cadastro mobile possui três etapas: dados pessoais, senha e confirmação de
+e-mail. A conta só é criada após confirmar o código recebido. Senhas ficam apenas
+na memória da tela até a conclusão; o registro temporário no banco guarda o e-mail,
+o hash do código e os controles de validade/tentativas, nunca a senha.
+
+O código tem oito caracteres, vale por 15 minutos, permite cinco erros e pode
+ser reenviado após 60 segundos. Um reenvio invalida o desafio/código anterior.
+Os códigos de cadastro, recuperação e convite não são intercambiáveis.
+Contas existentes continuam acessando normalmente e o fluxo por convite não mudou.
+Solicitações temporárias expiradas não dão acesso e são substituídas no próximo envio.
+
+Para ativar, pare a API e execute os comandos de geração, migração, build e início
+descritos na recuperação de senha. O envio usa as mesmas variáveis do Resend e
+as mesmas restrições de destinatários do remetente de testes.
+
+~~~http
+POST /auth/cadastro/solicitar-codigo
+Content-Type: application/json
+
+{"email":"seu-email@exemplo.com"}
+~~~
+
+A resposta retorna `cadastro_id` e `expira_em`, mas nunca o código. Após receber o e-mail:
+
+~~~http
+POST /auth/registrar
+Content-Type: application/json
+
+{"nome":"Seu nome","email":"seu-email@exemplo.com","senha":"sua-senha-segura","cadastro_id":"valor-retornado-na-solicitacao","codigo":"ABCD-2345"}
+~~~
+
+**Compatibilidade:** `/auth/registrar` agora exige `cadastro_id` e `codigo`.
+As telas web/desktop não foram alteradas e seu cadastro precisa ser adaptado a
+esse contrato antes de ser utilizado. Login e contas já existentes não mudam.
 
 ### Clubes e cadastros
 
@@ -474,11 +609,91 @@ x-clube-id: 2
 | PATCH | /partidas/:id | Atualiza partida |
 | DELETE | /partidas/:id | Exclui partida |
 | GET | /partidas/:id/eventos | Lista eventos |
+| GET | /partidas/:id | Consulta partida e eventos em uma leitura consistente |
 | POST | /partidas/:id/eventos | Registra evento |
 | GET | /partidas/:id/escalacao | Consulta escalação |
 | PUT | /partidas/:id/escalacao | Salva escalação |
 
 Eventos em tempo real são emitidos em salas com o formato clube:ID.
+
+Nos detalhes da partida, placar, status e eventos são atualizados pelo Socket.IO.
+Ao reconectar ou voltar do segundo plano, o mobile consulta novamente o servidor.
+Uma consulta a cada 30 segundos, enquanto o app está ativo, também cobre eventos
+perdidos. A tela informa quando está salvando, atualizando ou sem conseguir atualizar;
+uma falha mantém os últimos dados visíveis e bloqueia novas alterações até a consulta funcionar.
+
+O cadastro de gol pelo mobile envia evento e mudança de placar em uma única
+transação. A remoção pelo painel de gols também remove o evento e ajusta o placar
+juntos. O campo opcional `placar` nas operações de eventos contém `anterior` e `novo`,
+ambos com `gols_mandante` e `gols_visitante`; a diferença deve ser exatamente um gol.
+Correções diretas de placar podem enviar `anterior`; alterações de status podem
+enviar `status_anterior`. Uma divergência retorna HTTP 409 para evitar sobrescrever
+uma mudança de outro dispositivo. Esses campos são opcionais para preservar os
+clientes existentes, mas a proteção contra dados desatualizados exige que o cliente os envie.
+
+Operações de escrita não são repetidas automaticamente em caso de falha de rede.
+Se a resposta se perder, o app consulta o estado salvo antes de orientar uma nova
+tentativa. Isso não substitui uma chave de idempotência persistida para cada operação.
+O botão de gol contra do adversário soma o gol ao clube selecionado, sem atribuí-lo
+a um jogador. O acompanhamento público em tempo real não exige seguir o clube;
+editar partidas e receber notificações de clube continuam seguindo suas permissões.
+
+### Resumo pós-partida e compartilhamento
+
+Nos detalhes de uma partida finalizada, o mobile exibe resultado pela perspectiva
+do clube, contagem dos eventos registrados e destaques de gols, assistências e
+defesas, preservando empates. O placar salvo é a fonte do resultado: se os gols
+dos eventos divergirem dele, a interface avisa e não divulga destaques de autoria
+dos gols. Ausência de eventos não é apresentada como ausência de ações.
+
+O botão **Compartilhar resultado** abre o menu nativo com um texto, sem publicar
+automaticamente. Por padrão, compartilha somente times, placar, data, categoria
+e competição. Incluir nomes dos atletas é uma escolha explícita, acompanhada de
+aviso de autorização. O compartilhamento fica indisponível até a confirmação
+dos dados pela API e durante a edição da partida. Não depende do Scout IA,
+não gera imagens e não requer migration ou nova build nativa.
+
+### Scout: contexto e histórico do atleta
+
+Ao abrir uma ficha no mobile, o bloco **Momento do atleta** consulta
+`GET /jogadores/:id/scout-contexto` com JWT e o cabeçalho `x-clube-id`.
+A leitura respeita o mesmo escopo de clube e categorias da listagem de perfis.
+
+O recorte reúne até dez partidas finalizadas em que o atleta tenha uma escalação
+ou algum evento atribuído. Mostra gols, assistências e defesas registrados por
+partida, além das médias dos cinco registros mais recentes. Com dez registros,
+mostra também as médias dos cinco anteriores. Não inclui agendadas, canceladas
+ou partidas em andamento e não cria um histórico retroativo de notas da IA.
+
+Menos de cinco registros recebe um aviso de amostra inicial; esse limite é uma
+orientação da interface, não uma medida estatística de confiança. Escalação não
+comprova minutos jogados e zero eventos não comprova ausência de ações.
+Os totais acumulados continuam separados do recorte recente. O histórico por
+partida exige conexão, não integra a cópia offline e só é buscado ao abrir a ficha.
+Essa melhoria não requer migration nem outra build nativa do aplicativo.
+
+### Preferências de notificações por clube
+
+No mobile, acesse **Perfil → Avisos por clube** para escolher os avisos externos
+de gols, partidas agendadas e resultados em cada clube acompanhado ou gerenciado.
+As preferências pertencem à conta e são aplicadas a todos os seus dispositivos.
+O controle geral **Receber notificações** pausa todos os pushes sem apagar as
+escolhas individuais. A permissão do sistema operacional também é necessária.
+O histórico e o indicador de não lidas dentro do app continuam funcionando.
+
+| Método | Rota | Proteção |
+|---|---|---|
+| GET | /notificacoes/preferencias | JWT; somente vínculos da própria conta |
+| PATCH | /notificacoes/preferencias/:clubeId | JWT; vínculo com o clube informado |
+
+O PATCH aceita um ou mais campos booleanos: `push_gols`, `push_agendamentos` e
+`push_resultados`. Campos desconhecidos ou valores que não sejam booleanos são
+recusados. Todos começam ativados para preservar o comportamento anterior.
+
+Antes de iniciar a API atualizada, aplique a migration
+`20261020120000_preferencias_push_por_clube` com `pnpm exec prisma migrate deploy`
+e execute `pnpm exec prisma generate` em `services/api`. No Windows, pare a API
+antes de regenerar o cliente para evitar o bloqueio da DLL do Prisma.
 
 ### Convites
 
@@ -556,6 +771,11 @@ A documentação técnica complementar está em
 [docs/ludora-documentacao-tecnica.pdf](./docs/ludora-documentacao-tecnica.pdf).
 
 ## Próximos passos
+
+O roteiro de validação no aparelho está em
+[docs/validacao-mobile.md](./docs/validacao-mobile.md). Execute `pnpm test:app`
+para a suíte automatizada; entrega real de push e cenários de app encerrado
+precisam ser verificados separadamente no Android.
 
 - Evoluir e validar os fluxos mobile de entrada e aceite de convite.
 - Criar a aplicação web para gestão de categorias, times, jogadores,

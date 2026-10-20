@@ -26,7 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
-import { Header } from '@/src/components/Header';
+import { HeaderClube } from '@/src/components/HeaderClube';
 import { EscudoClube } from '@/src/components/EscudoClube';
 import {
   fetchClubes,
@@ -36,7 +36,7 @@ import {
 } from '@/src/services/api';
 import { ListSkeleton } from '@/src/components/Skeleton';
 import { ErroCarregamento } from '@/src/components/ErroCarregamento';
-import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
+import { useClubeAtivo, type PapelClube } from '@/src/contexts/ClubeAtivoContext';
 
 // ==========================================
 // HELPERS DE CACHE LOCAL (userData no SecureStore)
@@ -102,6 +102,8 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { clubeAtivo, definirClubeAtivo } = useClubeAtivo();
+  const clubeAtual = useRef(clubeAtivo);
+  clubeAtual.current = clubeAtivo;
 
   const [busca, setBusca] = useState('');
   const [clubes, setClubes] = useState<ClubeListado[]>([]);
@@ -113,10 +115,6 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
   const carregouUmaVez = useRef(false);
 
   const [clubeAtivoId, setClubeAtivoId] = useState<string | null>(null);
-  const [nomeClubeAtivo, setNomeClubeAtivo] = useState(
-    modo === 'trocar' ? 'CLUBES' : 'ESCOLHA SEU CLUBE'
-  );
-  const [escudoClubeAtivo, setEscudoClubeAtivo] = useState<string | null>(null);
 
   const carregarClubes = useCallback(async (termo?: string) => {
     const requestId = ++requestAtual.current;
@@ -137,14 +135,6 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
       let ativo = true;
       (async () => {
         if (!carregouUmaVez.current) setCarregando(true);
-        if (modo === 'trocar') {
-          const [nomeAtivo, escudoAtivo] = await Promise.all([
-            SecureStore.getItemAsync('clubeAtivoNome'),
-            SecureStore.getItemAsync('clubeAtivoEscudo'),
-          ]);
-          if (ativo && nomeAtivo) setNomeClubeAtivo(nomeAtivo);
-          if (ativo && escudoAtivo) setEscudoClubeAtivo(escudoAtivo);
-        }
         const idAtivo = await SecureStore.getItemAsync('clubeAtivoId');
         if (ativo) setClubeAtivoId(idAtivo);
         await carregarClubes();
@@ -195,6 +185,9 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
     try {
       const vinculo = await seguirClube(clube.id);
       await upsertClubeNoCacheLocal(clube, vinculo.papel);
+      if (clubeAtual.current?.id === clube.id) {
+        await definirClubeAtivo({ ...clubeAtual.current, papel: vinculo.papel as PapelClube });
+      }
       setClubes((prev) =>
         prev.map((c) =>
           c.id === clube.id
@@ -222,12 +215,8 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
             : c
         )
       );
-      if (clubeAtivoId === String(clube.id)) {
-        await SecureStore.deleteItemAsync('clubeAtivoId');
-        await SecureStore.deleteItemAsync('clubeAtivoNome');
-        await SecureStore.deleteItemAsync('clubeAtivoEscudo');
-        await SecureStore.deleteItemAsync('clubeAtivoPapel');
-        setClubeAtivoId(null);
+      if (clubeAtual.current?.id === clube.id) {
+        await definirClubeAtivo({ ...clubeAtual.current, papel: null });
       }
     } catch (e: any) {
       setErro(e.message || 'Erro ao deixar de seguir clube');
@@ -238,16 +227,7 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
 
   return (
     <View style={styles.container}>
-      {modo === 'trocar' ? (
-        <Header
-          title={nomeClubeAtivo}
-          logoUrl={escudoClubeAtivo}
-          btnNotificacao="bell"
-          showLogo={true}
-          showProfile={true}
-          papelUsuario={clubeAtivo?.papel ?? undefined}
-        />
-      ) : null}
+      {modo === 'trocar' ? <HeaderClube /> : null}
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View

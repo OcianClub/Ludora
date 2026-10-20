@@ -1,8 +1,8 @@
 import { Icon } from '@ludora/icons';
 import { memo, useRef, useEffect, useMemo, useState } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, PanResponder } from 'react-native';
 import { typography } from '@ludora/design-tokens';
-import Animated, { scrollTo, useAnimatedRef, useAnimatedReaction, useSharedValue, useAnimatedStyle, interpolateColor, type SharedValue } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 
 const MARGEM_CONTEUDO = 20;
@@ -35,26 +35,22 @@ interface CarrosselSubsProps {
   progressoPagina?: SharedValue<number>;
 }
 
-function SubItem({ title, index, ativo, progresso, onPress, styles, colors }: {
-  title: string; index: number; ativo: boolean; progresso?: SharedValue<number>;
+const SubItem = memo(function SubItem({ title, index, ativo, progresso, onPress, styles }: {
+  title: string; index: number; ativo: boolean; progresso: SharedValue<number>;
   onPress: () => void; styles: ReturnType<typeof createStyles>; colors: ThemeColors;
 }) {
-  const fundo = useAnimatedStyle(() => {
-    const proximidade = progresso ? Math.max(0, 1 - Math.abs(progresso.value - index)) : Number(ativo);
-    return { backgroundColor: interpolateColor(proximidade, [0, 1], [colors.card, colors.primaria]) };
-  });
-  const texto = useAnimatedStyle(() => {
-    const proximidade = progresso ? Math.max(0, 1 - Math.abs(progresso.value - index)) : Number(ativo);
-    return { color: interpolateColor(proximidade, [0, 1], [colors.textoSecundario, colors.textoSobrePrimaria]) };
-  });
+  const destaque = useAnimatedStyle(() => ({ opacity: Math.max(0, 1 - Math.abs(progresso.value - index)) }));
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: ativo }}>
-      <Animated.View style={[styles.item, { borderRadius: 8 }, fundo]}>
-        <Animated.Text style={[ativo ? styles.textoAtivo : styles.texto, texto]}>{title}</Animated.Text>
-      </Animated.View>
+      <View style={styles.item}>
+        <Text style={styles.texto}>{title}</Text>
+        <Animated.View pointerEvents="none" style={[styles.itemDestaque, destaque]}>
+          <Text style={styles.textoAtivo}>{title}</Text>
+        </Animated.View>
+      </View>
     </TouchableOpacity>
   );
-}
+});
 
 export const CarrosselSubs = memo(function CarrosselSubs({
   tipoFiltro,
@@ -65,48 +61,37 @@ export const CarrosselSubs = memo(function CarrosselSubs({
 }: CarrosselSubsProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const listRef = useAnimatedRef<Animated.ScrollView>();
   const [larguraTrack, setLarguraTrack] = useState(0);
-  const deslocamentoAtual = useRef(0);
-  const arrastando = useRef(false);
-  const gestoSeletor = useSharedValue(false);
-  const aguardandoPagina = useSharedValue(-1);
-  const ultimaSelecao = useRef(indexAtual);
-  ultimaSelecao.current = indexAtual;
+  const progressoLocal = useSharedValue(indexAtual);
+  const progresso = progressoPagina ?? progressoLocal;
+  const arrasto = useSharedValue(0);
+  const inicioGesto = useRef(indexAtual);
   const dadosAtuais = tipoFiltro === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
 
-  useAnimatedReaction(
-    () => progressoPagina?.value,
-    (progresso) => {
-      if (progresso === undefined || gestoSeletor.value || !larguraTrack) return;
-      if (aguardandoPagina.value >= 0 && Math.abs(progresso - aguardandoPagina.value) > 0.01) return;
-      aguardandoPagina.value = -1;
-      scrollTo(listRef, progresso * ITEM_INTERVAL, 0, false);
-    },
-    [progressoPagina, larguraTrack],
-  );
-
   useEffect(() => {
-    if (!larguraTrack || indexAtual < 0 || indexAtual >= dadosAtuais.length) return;
-    if (progressoPagina) return;
-    const destino = indexAtual * ITEM_INTERVAL;
-    if (Math.abs(deslocamentoAtual.current - destino) < 1) return;
-    arrastando.current = false;
-    listRef.current?.scrollTo({ x: destino, animated: true });
-  }, [indexAtual, tipoFiltro, larguraTrack, dadosAtuais.length, progressoPagina]);
+    if (!progressoPagina) progressoLocal.value = withTiming(indexAtual, { duration: 180 });
+  }, [indexAtual, progressoPagina, progressoLocal]);
 
-  function concluirGesto(deslocamento: number) {
-    if (!arrastando.current) return;
-    arrastando.current = false;
-    deslocamentoAtual.current = deslocamento;
-    const novoIndex = Math.max(0, Math.min(dadosAtuais.length - 1, Math.round(deslocamento / ITEM_INTERVAL)));
-    aguardandoPagina.value = novoIndex;
-    gestoSeletor.value = false;
-    if (novoIndex !== ultimaSelecao.current) {
-      ultimaSelecao.current = novoIndex;
-      onChangeIndex(novoIndex);
-    }
-  }
+  const movimento = useAnimatedStyle(() => ({
+    transform: [{ translateX: (larguraTrack - ITEM_INTERVAL) / 2 -
+      Math.max(0, Math.min(dadosAtuais.length - 1, progresso.value)) * ITEM_INTERVAL + arrasto.value }],
+  }));
+
+  const gesto = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, movimento) => Math.abs(movimento.dx) > 8 && Math.abs(movimento.dx) > Math.abs(movimento.dy) * 1.4,
+    onPanResponderGrant: () => { inicioGesto.current = indexAtual; },
+    onPanResponderMove: (_, movimento) => {
+      arrasto.value = Math.max(-(dadosAtuais.length - 1 - inicioGesto.current) * ITEM_INTERVAL,
+        Math.min(inicioGesto.current * ITEM_INTERVAL, movimento.dx));
+    },
+    onPanResponderRelease: (_, movimento) => {
+      const deslocamento = Math.abs(movimento.dx) > 20 ? Math.sign(movimento.dx) * Math.max(1, Math.round(Math.abs(movimento.dx) / ITEM_INTERVAL)) : 0;
+      const destino = Math.max(0, Math.min(dadosAtuais.length - 1, inicioGesto.current - deslocamento));
+      arrasto.value = withTiming(0, { duration: 160 });
+      if (destino !== indexAtual) onChangeIndex(destino);
+    },
+    onPanResponderTerminate: () => { arrasto.value = withTiming(0, { duration: 160 }); },
+  }), [indexAtual, onChangeIndex, dadosAtuais.length, arrasto]);
 
   const irParaAnterior = () => {
     if (indexAtual > 0) onChangeIndex(indexAtual - 1);
@@ -154,29 +139,18 @@ export const CarrosselSubs = memo(function CarrosselSubs({
           />
         </TouchableOpacity>
 
-        <Animated.ScrollView
-          ref={listRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={ITEM_INTERVAL}
-          decelerationRate="fast"
-          directionalLockEnabled
-          bounces={false}
+        <View
+          style={styles.trackViewport}
           onLayout={({ nativeEvent }) => setLarguraTrack(nativeEvent.layout.width)}
-          onScrollBeginDrag={() => { arrastando.current = true; gestoSeletor.value = true; aguardandoPagina.value = -1; }}
-          onScroll={({ nativeEvent }) => { deslocamentoAtual.current = nativeEvent.contentOffset.x; }}
-          scrollEventThrottle={32}
-          onScrollEndDrag={({ nativeEvent }) => {
-            if (nativeEvent.velocity?.x === 0) concluirGesto(nativeEvent.contentOffset.x);
-          }}
-          onMomentumScrollEnd={({ nativeEvent }) => concluirGesto(nativeEvent.contentOffset.x)}
-          contentContainerStyle={[styles.listContent, { paddingHorizontal: Math.max(0, (larguraTrack - ITEM_INTERVAL) / 2) }]}
+          {...gesto.panHandlers}
         >
+          <Animated.View style={[styles.track, { width: dadosAtuais.length * ITEM_INTERVAL }, movimento]}>
           {dadosAtuais.map((item, index) => (
             <SubItem key={index} title={item.title} index={index} ativo={index === indexAtual}
-              progresso={progressoPagina} colors={colors} styles={styles} onPress={() => onChangeIndex(index)} />
+              progresso={progresso} colors={colors} styles={styles} onPress={() => onChangeIndex(index)} />
           ))}
-        </Animated.ScrollView>
+          </Animated.View>
+        </View>
 
         <TouchableOpacity
           onPress={irParaProximo}
@@ -246,6 +220,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   listContent: {
     alignItems: 'center',
   },
+  trackViewport: { flex: 1, height: 34, overflow: 'hidden' },
+  track: { flexDirection: 'row', alignItems: 'center' },
+  itemDestaque: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: colors.primaria },
   item: {
     width: LARGURA_ITEM,
     height: 34,

@@ -14,7 +14,7 @@ const router = Router();
 // mas só quem é TORCEDOR pode "deixar de seguir" por aqui.
 
 router.get('/clubes', async (req, res) => {
-  const usuarioId = getUsuarioId(req);
+  const usuarioId = await getUsuarioId(req);
   const busca = String(req.query.busca || '').trim();
 
   try {
@@ -47,7 +47,7 @@ router.get('/clubes', async (req, res) => {
 });
 
 router.post('/clubes/:id/seguir', async (req, res) => {
-  const usuarioId = getUsuarioId(req);
+  const usuarioId = await getUsuarioId(req);
   if (!usuarioId) return res.status(401).json({ error: 'Token inválido ou não enviado' });
 
   const clube_id = Number(req.params.id);
@@ -70,7 +70,7 @@ router.post('/clubes/:id/seguir', async (req, res) => {
 });
 
 router.delete('/clubes/:id/seguir', async (req, res) => {
-  const usuarioId = getUsuarioId(req);
+  const usuarioId = await getUsuarioId(req);
   if (!usuarioId) return res.status(401).json({ error: 'Token inválido ou não enviado' });
 
   const clube_id = Number(req.params.id);

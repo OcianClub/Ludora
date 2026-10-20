@@ -18,10 +18,14 @@ import { Icon } from '@ludora/icons';
 
 import LogoArquivo from '@/assets/logo.svg';
 import { BASE_URL } from '@/src/services/api';
+import { limparCacheConsultas } from '@/src/services/cacheConsultas';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createStyles } from '@/src/styles/loginStyles';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
-import { emailValido as validarEmail, enviarAutenticacao } from '@/src/utils/autenticacao';
+import {
+  emailValido as validarEmail,
+  enviarAutenticacao,
+} from '@/src/utils/autenticacao';
 
 const Logo = LogoArquivo as unknown as React.FC<SvgProps>;
 
@@ -31,7 +35,11 @@ export default function Login() {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const router = useRouter();
-  const params = useLocalSearchParams<{ cadastro?: string; email?: string }>();
+  const params = useLocalSearchParams<{
+    cadastro?: string;
+    email?: string;
+    senha?: string;
+  }>();
   const { limparClubeAtivo } = useClubeAtivo();
   const senhaRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
@@ -70,10 +78,15 @@ export default function Login() {
 
     let autenticado = false;
     try {
-      const dados = await enviarAutenticacao(`${BASE_URL}/auth/login`, { email: email.trim().toLowerCase(), senha }, 'login');
+      const dados = await enviarAutenticacao(
+        `${BASE_URL}/auth/login`,
+        { email: email.trim().toLowerCase(), senha },
+        'login'
+      );
       autenticado = true;
 
       await SecureStore.deleteItemAsync('userToken');
+      await limparCacheConsultas();
       await limparClubeAtivo();
       await Promise.all([
         SecureStore.setItemAsync('userName', String(dados.nome || '')),
@@ -81,7 +94,12 @@ export default function Login() {
         SecureStore.setItemAsync('userEmail', String(dados.email || '')),
       ]);
 
-      await SecureStore.setItemAsync('userData', JSON.stringify({ clubes: Array.isArray(dados.clubes) ? dados.clubes : [] }));
+      await SecureStore.setItemAsync(
+        'userData',
+        JSON.stringify({
+          clubes: Array.isArray(dados.clubes) ? dados.clubes : [],
+        })
+      );
       // Publica a sessão apenas depois de persistir o perfil com sucesso.
       await SecureStore.setItemAsync('userToken', dados.token);
 
@@ -92,9 +110,11 @@ export default function Login() {
         router.replace('/clubes');
       }
     } catch (error: any) {
-      setErro(autenticado
-        ? 'Seus dados foram confirmados, mas não conseguimos concluir o acesso neste aparelho. Tente entrar novamente.'
-        : error.message || 'Não foi possível entrar. Tente novamente.');
+      setErro(
+        autenticado
+          ? 'Seus dados foram confirmados, mas não conseguimos concluir o acesso neste aparelho. Tente entrar novamente.'
+          : error.message || 'Não foi possível entrar. Tente novamente.'
+      );
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     } finally {
       envioEmAndamento.current = false;
@@ -103,7 +123,10 @@ export default function Login() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
+    <SafeAreaView
+      style={styles.safeArea}
+      edges={['top', 'bottom', 'left', 'right']}
+    >
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -134,7 +157,9 @@ export default function Login() {
               </View>
               <View>
                 <Text style={styles.brandName}>LUDORA</Text>
-                <Text style={styles.brandCaption}>SUA EXPERIÊNCIA NO FUTEBOL</Text>
+                <Text style={styles.brandCaption}>
+                  SUA EXPERIÊNCIA NO FUTEBOL
+                </Text>
               </View>
             </View>
 
@@ -144,15 +169,41 @@ export default function Login() {
             </Text>
           </View>
 
-          {params.cadastro === 'sucesso' && !erro && (
-            <View style={[styles.errorBox, { backgroundColor: colors.fundoBotao, borderColor: colors.bordaBotao }]} accessibilityRole="alert">
-              <Icon name="check-circle-outline" size={20} color={colors.primaria} />
-              <Text style={[styles.errorText, { color: colors.texto }]}>Conta criada! Entre com seu e-mail e senha para continuar.</Text>
-            </View>
-          )}
+          {(params.cadastro === 'sucesso' || params.senha === 'redefinida') &&
+            !erro && (
+              <View
+                style={[
+                  styles.errorBox,
+                  {
+                    backgroundColor: colors.fundoBotao,
+                    borderColor: colors.bordaBotao,
+                  },
+                ]}
+                accessibilityRole="alert"
+              >
+                <Icon
+                  name="check-circle-outline"
+                  size={20}
+                  color={colors.primaria}
+                />
+                <Text style={[styles.errorText, { color: colors.texto }]}>
+                  {params.senha === 'redefinida'
+                    ? 'Senha alterada! Entre com sua nova senha.'
+                    : 'Conta criada! Entre com seu e-mail e senha para continuar.'}
+                </Text>
+              </View>
+            )}
           {!!erro && (
-            <View style={styles.errorBox} accessibilityRole="alert" accessibilityLiveRegion="polite">
-              <Icon name="alert-circle-outline" size={20} color={colors.tituloErro} />
+            <View
+              style={styles.errorBox}
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+            >
+              <Icon
+                name="alert-circle-outline"
+                size={20}
+                color={colors.tituloErro}
+              />
               <Text style={styles.errorText}>{erro}</Text>
             </View>
           )}
@@ -160,15 +211,23 @@ export default function Login() {
           <View style={styles.form}>
             <View style={styles.field}>
               <Text style={styles.label}>EMAIL</Text>
-              <View style={[
-                styles.inputRow,
-                campoFocado === 'email' && styles.inputRowFocused,
-                ((emailVisitado && !!email.trim()) || tentouEnviar) && !emailValido && styles.inputRowError,
-              ]}>
+              <View
+                style={[
+                  styles.inputRow,
+                  campoFocado === 'email' && styles.inputRowFocused,
+                  ((emailVisitado && !!email.trim()) || tentouEnviar) &&
+                    !emailValido &&
+                    styles.inputRowError,
+                ]}
+              >
                 <Icon
                   name="email-outline"
                   size={20}
-                  color={campoFocado === 'email' ? colors.primaria : colors.textoSecundario}
+                  color={
+                    campoFocado === 'email'
+                      ? colors.primaria
+                      : colors.textoSecundario
+                  }
                 />
                 <TextInput
                   ref={emailRef}
@@ -179,9 +238,15 @@ export default function Login() {
                   placeholder="email@exemplo.com"
                   placeholderTextColor={colors.textoSecundario}
                   value={email}
-                  onChangeText={valor => { setEmail(valor); limparErro(); }}
+                  onChangeText={(valor) => {
+                    setEmail(valor);
+                    limparErro();
+                  }}
                   onFocus={() => setCampoFocado('email')}
-                  onBlur={() => { setCampoFocado(null); setEmailVisitado(true); }}
+                  onBlur={() => {
+                    setCampoFocado(null);
+                    setEmailVisitado(true);
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -191,21 +256,50 @@ export default function Login() {
                   onSubmitEditing={() => senhaRef.current?.focus()}
                 />
               </View>
-              {((emailVisitado && !!email.trim()) || tentouEnviar) && !emailValido && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{email.trim() ? 'Digite um e-mail válido, como nome@exemplo.com.' : 'Informe seu e-mail para entrar.'}</Text>}
+              {((emailVisitado && !!email.trim()) || tentouEnviar) &&
+                !emailValido && (
+                  <Text
+                    style={styles.fieldError}
+                    accessibilityLiveRegion="polite"
+                  >
+                    {email.trim()
+                      ? 'Digite um e-mail válido, como nome@exemplo.com.'
+                      : 'Informe seu e-mail para entrar.'}
+                  </Text>
+                )}
             </View>
 
             <View style={styles.field}>
               <View style={styles.passwordLabelRow}>
                 <Text style={styles.label}>SENHA</Text>
+                <TouchableOpacity
+                  disabled={carregando}
+                  style={styles.forgotButton}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(auth)/recuperar-senha',
+                      params: { email },
+                    })
+                  }
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.forgotText}>Esqueci minha senha</Text>
+                </TouchableOpacity>
               </View>
-              <View style={[
-                styles.inputRow,
-                campoFocado === 'senha' && styles.inputRowFocused,
-              ]}>
+              <View
+                style={[
+                  styles.inputRow,
+                  campoFocado === 'senha' && styles.inputRowFocused,
+                ]}
+              >
                 <Icon
                   name="lock-outline"
                   size={20}
-                  color={campoFocado === 'senha' ? colors.primaria : colors.textoSecundario}
+                  color={
+                    campoFocado === 'senha'
+                      ? colors.primaria
+                      : colors.textoSecundario
+                  }
                 />
                 <TextInput
                   ref={senhaRef}
@@ -218,7 +312,10 @@ export default function Login() {
                   placeholder="Digite sua senha"
                   placeholderTextColor={colors.textoSecundario}
                   value={senha}
-                  onChangeText={valor => { setSenha(valor); limparErro(); }}
+                  onChangeText={(valor) => {
+                    setSenha(valor);
+                    limparErro();
+                  }}
                   onFocus={() => setCampoFocado('senha')}
                   onBlur={() => setCampoFocado(null)}
                   secureTextEntry={!mostrarSenha}
@@ -229,9 +326,11 @@ export default function Login() {
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
-                  onPress={() => setMostrarSenha(valor => !valor)}
+                  onPress={() => setMostrarSenha((valor) => !valor)}
                   accessibilityRole="button"
-                  accessibilityLabel={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                  accessibilityLabel={
+                    mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'
+                  }
                 >
                   <Icon
                     name={mostrarSenha ? 'eye-outline' : 'eye-off-outline'}
@@ -240,7 +339,11 @@ export default function Login() {
                   />
                 </TouchableOpacity>
               </View>
-              {tentouEnviar && !senha && <Text style={styles.fieldError}>Informe sua senha para entrar.</Text>}
+              {tentouEnviar && !senha && (
+                <Text style={styles.fieldError}>
+                  Informe sua senha para entrar.
+                </Text>
+              )}
             </View>
           </View>
 
@@ -255,15 +358,24 @@ export default function Login() {
             </View>
             <View style={styles.inviteCopy}>
               <Text style={styles.inviteTitle}>Tem um código de convite?</Text>
-              <Text style={styles.inviteSubtitle}>Consulte o convite e entre para a equipe do clube.</Text>
+              <Text style={styles.inviteSubtitle}>
+                Consulte o convite e entre para a equipe do clube.
+              </Text>
             </View>
-            <Icon name="chevron-right" size={20} color={colors.textoSecundario} />
+            <Icon
+              name="chevron-right"
+              size={20}
+              color={colors.textoSecundario}
+            />
           </TouchableOpacity>
         </ScrollView>
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.primaryButton, carregando && styles.primaryButtonDisabled]}
+            style={[
+              styles.primaryButton,
+              carregando && styles.primaryButtonDisabled,
+            ]}
             onPress={entrar}
             disabled={carregando}
             accessibilityRole="button"
@@ -280,7 +392,11 @@ export default function Login() {
 
           <View style={styles.registerRow}>
             <Text style={styles.registerPrompt}>Ainda não tem uma conta? </Text>
-            <TouchableOpacity disabled={carregando} onPress={() => router.push('/(auth)/cadastro')} activeOpacity={0.7}>
+            <TouchableOpacity
+              disabled={carregando}
+              onPress={() => router.push('/(auth)/cadastro')}
+              activeOpacity={0.7}
+            >
               <Text style={styles.registerLink}>Cadastre-se</Text>
             </TouchableOpacity>
           </View>

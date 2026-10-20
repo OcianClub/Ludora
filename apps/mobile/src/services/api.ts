@@ -1,6 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { fetchComTimeout } from '../utils/request';
+import { ErroConsulta, fetchComTimeout } from '../utils/request';
+import type { Placar, MudancaPlacar } from '../utils/placarPartida';
+import { headersClubeNotificacoes } from '../utils/escopoNotificacoes';
 
 // No celular físico, configure o IP da sua máquina em apps/mobile/.env.
 export const BASE_URL = (process.env.EXPO_PUBLIC_API_URL?.trim() ||
@@ -123,6 +125,39 @@ export type TipoNotificacao =
   | 'GOL_PARTIDA'
   | 'RESULTADO_PARTIDA';
 
+export interface PreferenciaNotificacoesClube {
+  clube_id: number;
+  clube: { nome: string };
+  push_gols: boolean;
+  push_agendamentos: boolean;
+  push_resultados: boolean;
+}
+
+export type CampoPreferenciaPush = 'push_gols' | 'push_agendamentos' | 'push_resultados';
+
+export async function fetchPreferenciasPorClube(signal?: AbortSignal): Promise<PreferenciaNotificacoesClube[]> {
+  const res = await apiFetch('/notificacoes/preferencias', { signal });
+  if (!res.ok) throw new Error('Não foi possível carregar suas preferências. Tente novamente.');
+  const dados = await res.json();
+  return dados.preferencias;
+}
+
+export async function salvarPreferenciaPorClube(
+  clubeId: number,
+  campo: CampoPreferenciaPush,
+  ativa: boolean
+): Promise<PreferenciaNotificacoesClube> {
+  const res = await apiFetch(`/notificacoes/preferencias/${clubeId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ [campo]: ativa }),
+  });
+  if (!res.ok) {
+    const dados = await res.json().catch(() => null);
+    throw new Error(dados?.error || 'Não foi possível salvar sua preferência.');
+  }
+  return res.json();
+}
+
 export interface Notificacao {
   id: number;
   partida_id: number | null;
@@ -134,34 +169,34 @@ export interface Notificacao {
   criada_em: string;
 }
 
-export async function fetchNotificacoes(limite = 50): Promise<{
+export async function fetchNotificacoes(limite: number, clubeId: number): Promise<{
   notificacoes: Notificacao[];
   totalNaoLidas: number;
 }> {
-  const res = await apiFetch(`/notificacoes?limite=${limite}`);
+  const res = await apiFetch(`/notificacoes?limite=${limite}`, { headers: headersClubeNotificacoes(clubeId) });
   if (!res.ok) throw new Error('Erro ao buscar notificações');
   return res.json();
 }
 
-export async function marcarNotificacaoComoLida(id: number) {
-  const res = await apiFetch(`/notificacoes/${id}/lida`, { method: 'PATCH' });
+export async function marcarNotificacaoComoLida(id: number, clubeId: number) {
+  const res = await apiFetch(`/notificacoes/${id}/lida`, { method: 'PATCH', headers: headersClubeNotificacoes(clubeId) });
   if (!res.ok) throw new Error('Erro ao atualizar notificação');
   return res.json();
 }
 
-export async function marcarTodasNotificacoesComoLidas() {
-  const res = await apiFetch('/notificacoes/lidas', { method: 'PATCH' });
+export async function marcarTodasNotificacoesComoLidas(clubeId: number) {
+  const res = await apiFetch('/notificacoes/lidas', { method: 'PATCH', headers: headersClubeNotificacoes(clubeId) });
   if (!res.ok) throw new Error('Erro ao atualizar notificações');
   return res.json() as Promise<{ atualizadas: number }>;
 }
 
-export async function excluirNotificacao(id: number) {
-  const res = await apiFetch(`/notificacoes/${id}`, { method: 'DELETE' });
+export async function excluirNotificacao(id: number, clubeId: number) {
+  const res = await apiFetch(`/notificacoes/${id}`, { method: 'DELETE', headers: headersClubeNotificacoes(clubeId) });
   if (!res.ok) throw new Error('Erro ao excluir notificação');
 }
 
-export async function limparNotificacoesLidas() {
-  const res = await apiFetch('/notificacoes/lidas', { method: 'DELETE' });
+export async function limparNotificacoesLidas(clubeId: number) {
+  const res = await apiFetch('/notificacoes/lidas', { method: 'DELETE', headers: headersClubeNotificacoes(clubeId) });
   if (!res.ok) throw new Error('Erro ao limpar notificações');
 }
 
@@ -373,11 +408,13 @@ export async function fetchPartidas(params?: {
   categoria_id?: number;
   mes?: number;
   status?: string;
+  resumo?: boolean;
 }, clubeId?: number) {
   const query = new URLSearchParams();
   if (params?.categoria_id != null) query.append('categoria_id', String(params.categoria_id));
   if (params?.mes          != null) query.append('mes',          String(params.mes));
   if (params?.status)               query.append('status',       params.status);
+  if (params?.resumo) query.append('resumo', '1');
 
   const endpoint = `/partidas?${query.toString()}`;
   const res = await apiFetch(endpoint, clubeId
@@ -387,10 +424,12 @@ export async function fetchPartidas(params?: {
   if (!res.ok) {
     const corpo = await res.text().catch(() => '');
     console.error(`[fetchPartidas] ${res.status} ${res.statusText} — ${BASE_URL}${endpoint}\n`, corpo);
-    throw new Error(`Erro ao buscar partidas (${res.status}): ${corpo || res.statusText}`);
+    throw new ErroConsulta(res.status, 'Não foi possível carregar as partidas.');
   }
 
-  return res.json();
+  const dados = await res.json().catch(() => null);
+  if (!Array.isArray(dados)) throw new ErroConsulta(502, 'Não foi possível confirmar os dados das partidas.');
+  return dados;
 }
 
 export async function fetchPartidasPorCompeticao(competicao_id: number, categoria_id?: number) {
@@ -437,22 +476,64 @@ export async function atualizarPartida(id: number, dados: {
   return res.json();
 }
 
-export async function atualizarStatusPartida(id: number, status: string) {
-  const res = await apiFetch(`/partidas/${id}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  });
-  if (!res.ok) throw new Error('Erro ao atualizar status');
-  return res.json();
+async function lerOperacaoPartida(resposta: Response) {
+  if (resposta.status === 409)
+    throw new Error(
+      'A partida mudou em outro dispositivo. Confira os dados atuais antes de tentar novamente.'
+    );
+  if (resposta.status === 401)
+    throw new Error('Sua sessão expirou. Entre novamente para continuar.');
+  if (resposta.status === 403)
+    throw new Error('Você não tem permissão para alterar esta partida.');
+  if (!resposta.ok)
+    throw new Error(
+      'Não foi possível concluir a operação. Confira os dados atualizados antes de tentar novamente.'
+    );
+  return resposta.json();
 }
 
-export async function atualizarPlacarPartida(id: number, gols_mandante: number, gols_visitante: number) {
+export async function fetchDetalhesPartida(id: number, clubeId: number) {
+  const resposta = await apiFetch(`/partidas/${id}`, {
+    headers: { 'x-clube-id': String(clubeId) },
+  });
+  if (!resposta.ok) throw new Error('Não foi possível atualizar a partida.');
+  const dados = await resposta.json();
+  if (
+    dados?.id !== id ||
+    !dados.mandante ||
+    !dados.visitante ||
+    !Array.isArray(dados.eventos) ||
+    !Number.isSafeInteger(dados.gols_mandante) ||
+    !Number.isSafeInteger(dados.gols_visitante)
+  ) {
+    throw new Error('Não foi possível confirmar os dados da partida.');
+  }
+  return dados;
+}
+
+export async function atualizarStatusPartida(
+  id: number,
+  status: string,
+  anterior?: string
+) {
+  const res = await apiFetch(`/partidas/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, status_anterior: anterior }),
+  });
+  return lerOperacaoPartida(res);
+}
+
+export async function atualizarPlacarPartida(
+  id: number,
+  gols_mandante: number,
+  gols_visitante: number,
+  anterior?: Placar
+) {
   const res = await apiFetch(`/partidas/${id}/placar`, {
     method: 'PATCH',
-    body: JSON.stringify({ gols_mandante, gols_visitante }),
+    body: JSON.stringify({ gols_mandante, gols_visitante, anterior }),
   });
-  if (!res.ok) throw new Error('Erro ao atualizar placar');
-  return res.json();
+  return lerOperacaoPartida(res);
 }
 
 export async function deletarPartida(id: number) {
@@ -474,25 +555,35 @@ export async function fetchEventosDaPartida(partidaId: number) {
   return await response.json();
 }
 
-export async function criarEvento(partida_id: number, dados: {
-  tipo: string;
-  minuto?: number | null;
-  periodo?: number | null;
-  jogador_id?: number | null;
-  doOcian?: boolean;
-}) {
+export async function criarEvento(
+  partida_id: number,
+  dados: {
+    tipo: string;
+    minuto?: number | null;
+    periodo?: number | null;
+    jogador_id?: number | null;
+    doOcian?: boolean;
+    placar?: MudancaPlacar;
+  }
+) {
   const res = await apiFetch(`/partidas/${partida_id}/eventos`, {
     method: 'POST',
     body: JSON.stringify(dados),
   });
-  if (!res.ok) throw new Error('Erro ao criar evento');
-  return res.json();
+  return lerOperacaoPartida(res);
 }
 
-export async function deletarEvento(eventoId: number) {
-  const response = await apiFetch(`/eventos/${eventoId}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Falha ao deletar evento');
-  return await response.json();
+export async function deletarEvento(eventoId: number, placar?: MudancaPlacar) {
+  const response = await apiFetch(`/eventos/${eventoId}`, {
+    method: 'DELETE',
+    ...(placar
+      ? {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ placar }),
+        }
+      : {}),
+  });
+  return lerOperacaoPartida(response);
 }
 
 export async function fetchEscalacaoPartida(partida_id: number): Promise<any[]> {

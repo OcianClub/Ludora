@@ -146,7 +146,7 @@ export default function OrganizarPartidas({ onFechar, noModal }: OrganizarPartid
     <SafeAreaView style={styles.container} edges={noModal ? ['top', 'bottom', 'left', 'right'] : ['top', 'left', 'right']}>
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Header
-        title="ORGANIZAR PARTIDA"
+        title="Organizar partida"
         showLogo={false}
         showProfile={false}
         btnVoltar="arrow-left"

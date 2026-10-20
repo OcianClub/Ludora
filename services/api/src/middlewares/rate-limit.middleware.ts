@@ -7,14 +7,18 @@ function limitarRequisicoes({
   janelaMs,
   limite,
   prefixo,
+  porEmail = true,
 }: {
   janelaMs: number;
   limite: number;
   prefixo: string;
+  porEmail?: boolean;
 }) {
   return (req: Request, res: Response, next: NextFunction) => {
     const agora = Date.now();
-    const identidade = `${req.ip}:${String(req.body?.email || '')
+    const identidade = `${req.ip}:${String(
+      porEmail ? req.body?.email || '' : ''
+    )
       .trim()
       .toLowerCase()}`;
     const chave = `${prefixo}:${identidade}`;
@@ -58,6 +62,20 @@ export const limitarOperacaoPesada = limitarRequisicoes({
   janelaMs: 10 * 60_000,
   limite: 5,
   prefixo: 'heavy',
+});
+
+export const limitarRecuperacao = limitarRequisicoes({
+  janelaMs: 15 * 60_000,
+  limite: 10,
+  prefixo: 'recuperacao',
+  porEmail: false,
+});
+
+export const limitarCadastro = limitarRequisicoes({
+  janelaMs: 15 * 60_000,
+  limite: 20,
+  prefixo: 'cadastro-confirmacao',
+  porEmail: false,
 });
 
 const rateCleanup = setInterval(() => {

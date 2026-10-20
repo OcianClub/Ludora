@@ -18,7 +18,7 @@ export async function exigirClubePublico(
   res: Response,
   next: NextFunction
 ) {
-  const usuarioId = getUsuarioId(req);
+  const usuarioId = await getUsuarioId(req);
   if (!usuarioId) {
     return res.status(401).json({ error: 'Token inválido ou não enviado' });
   }
@@ -46,12 +46,12 @@ export async function exigirClubePublico(
   }
 }
 
-export function exigirMembroDoClube(
+export async function exigirMembroDoClube(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  const usuarioId = getUsuarioId(req);
+  const usuarioId = await getUsuarioId(req);
   if (!usuarioId) {
     return res.status(401).json({ error: 'Token inválido ou não enviado' });
   }
@@ -89,12 +89,12 @@ export function exigirMembroDoClube(
     );
 }
 
-export function exigirGestorDoClube(
+export async function exigirGestorDoClube(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  const usuarioId = getUsuarioId(req);
+  const usuarioId = await getUsuarioId(req);
   if (!usuarioId) {
     return res.status(401).json({ error: 'Token inválido ou não enviado' });
   }

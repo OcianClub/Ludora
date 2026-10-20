@@ -5,7 +5,8 @@ import {
   Modal, Pressable, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { createStyles } from '@/src/styles/jogosStyles';
-import { Header } from '@/src/components/Header';
+import { HeaderClube } from '@/src/components/HeaderClube';
+import { PaginaCategoria } from '@/src/components/PaginaCategoria';
 import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -133,7 +134,7 @@ export default function Jogos() {
         setDias([]);
         return;
       }
-      const params: any = { mes: mesAtivo };
+      const params: any = { mes: mesAtivo, resumo: true };
       if (statusFiltro !== 'TODOS') params.status = statusFiltro;
       const partidas: Partida[] = await fetchPartidas(params, clubeAtivo.id);
       if (!controle.atual(pedido)) return;
@@ -211,14 +212,7 @@ export default function Jogos() {
 
   return (
     <View style={styles.container}>
-      <Header
-        title={clubeAtivo?.nome ?? 'MEU CLUBE'}
-        logoUrl={clubeAtivo?.escudo ?? null}
-        btnNotificacao="bell"
-        showLogo={true}
-        showProfile={true}
-        papelUsuario={clubeAtivo?.papel ?? undefined}
-      />
+      <HeaderClube />
 
       {/* 1. Mova o CarrosselSubs para FORA do filtersContainer para não dobrar o padding */}
       <CarrosselSubs
@@ -240,10 +234,11 @@ export default function Jogos() {
         </TouchableOpacity>
       </View>
 
-      <AnimatedPagerView ref={pagerRef} style={{ flex: 1 }} initialPage={0} onPageSelected={onPageSelected} onPageScroll={acompanharPagina}>
+      <AnimatedPagerView ref={pagerRef} style={{ flex: 1 }} initialPage={0} onPageSelected={onPageSelected} onPageScroll={acompanharPagina} offscreenPageLimit={1}>
         {diasPorSub.map(({ sub, diasComPartidas }, indexPagina) => {
           return (
             <View key={`pagina-${indexPagina}`} style={{ flex: 1 }} collapsable={false}>
+              <PaginaCategoria grupo={`${clubeAtivo?.id}-${tipoFiltro}`} preparar={Math.abs(indexPagina - subIndex) <= 1}>
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.content}
@@ -381,6 +376,7 @@ export default function Jogos() {
                 )}
                 <View style={{ height: 100 }} />
               </ScrollView>
+              </PaginaCategoria>
             </View>
           );
         })}

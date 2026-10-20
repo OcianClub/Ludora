@@ -1,0 +1,4 @@
+ALTER TABLE "UsuarioClube"
+ADD COLUMN "push_gols" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN "push_agendamentos" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN "push_resultados" BOOLEAN NOT NULL DEFAULT true;

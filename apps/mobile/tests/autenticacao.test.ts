@@ -32,6 +32,13 @@ test('cadastro reconhece criação sem exigir token de login', async () => {
   assert.equal((await lerRespostaAuth(new Response('{"id":6}', { status: 201 }), 'cadastro')).id, 6);
 });
 
+test('cadastro orienta sobre código inválido sem expor detalhes internos', async () => {
+  await assert.rejects(
+    lerRespostaAuth(new Response('{"error":"detalhe interno"}', { status: 400 }), 'cadastro'),
+    /Confira o código/
+  );
+});
+
 test('cadastro rejeita sucesso sem confirmação de criação', async () => {
   for (const dados of [{}, [], { id: null }, { id: '6' }, { id: -1 }]) {
     await assert.rejects(lerRespostaAuth(new Response(JSON.stringify(dados)), 'cadastro'), /confirmar a resposta/);

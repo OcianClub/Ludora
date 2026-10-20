@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { limparCacheConsultas } from '@/src/services/cacheConsultas';
 import { Icon } from '@ludora/icons';
 
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
@@ -108,6 +109,7 @@ export default function CadastroConvite() {
         throw new Error('A conta foi criada, mas a sessão não pôde ser iniciada.');
       }
 
+      await limparCacheConsultas();
       await Promise.all([
         SecureStore.setItemAsync('userName', resultado.usuario.nome),
         SecureStore.setItemAsync('userEmail', resultado.usuario.email),

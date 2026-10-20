@@ -1,8 +1,9 @@
 import { Tabs } from 'expo-router';
-import { View, Text } from 'react-native';
-import { typography } from '@ludora/design-tokens'
+import { Text } from 'react-native';
+import { useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HomeIcon, Icon } from '@ludora/icons';
+import { IconeAba } from '@/src/components/IconeAba';
+import { createStyles } from '@/src/styles/tabBarStyles';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -12,45 +13,39 @@ export default function TabsLayout() {
   const { podeGerenciar, carregandoClubeAtivo } = useClubeAtivo();
 
   const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: colors.primaria, 
-          tabBarInactiveTintColor: colors.textoSecundario,
-          tabBarActiveBackgroundColor: 'transparent',
-          tabBarInactiveBackgroundColor: 'transparent',
-          tabBarStyle: {
-            backgroundColor: colors.fundo,
-            borderTopWidth: 1,
-            borderColor: colors.card,
-            height: 64 + insets.bottom,
-          },
-          tabBarItemStyle: {
-            borderRadius: 10,
-            marginHorizontal: 10,
-            marginVertical: 4, 
-          },
-          tabBarLabel: ({ focused, color, children }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ 
-                fontFamily: typography.fontFamily.corpo.semiBold, 
-                fontSize: 12, 
-                color: color 
-              }}>
-                {children}
-              </Text>
-            </View>
-          )
-        }}
-      >
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: colors.primaria,
+        tabBarInactiveTintColor: colors.textoSecundario,
+        tabBarActiveBackgroundColor: 'transparent',
+        tabBarInactiveBackgroundColor: 'transparent',
+        tabBarStyle: [styles.barra, { height: 56 + insets.bottom }],
+        tabBarItemStyle: styles.item,
+        tabBarIconStyle: styles.areaIcone,
+        tabBarLabelPosition: 'below-icon',
+        tabBarLabel: ({ focused, color, children }) => (
+          <Text
+            style={[
+              styles.label,
+              focused && styles.labelSelecionado,
+              { color },
+            ]}
+          >
+            {children}
+          </Text>
+        ),
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <HomeIcon size={size} color={color}/>
+          title: 'Início',
+          tabBarIcon: ({ color, focused }) => (
+            <IconeAba inicio cor={color} selecionado={focused} />
           ),
         }}
       />
@@ -58,8 +53,8 @@ export default function TabsLayout() {
         name="jogos/jogos"
         options={{
           title: 'Jogos',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="soccer" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <IconeAba nome="soccer" cor={color} selecionado={focused} />
           ),
         }}
       />
@@ -67,8 +62,8 @@ export default function TabsLayout() {
         name="clubes/clubes"
         options={{
           title: 'Clubes',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="shield-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <IconeAba nome="shield-outline" cor={color} selecionado={focused} />
           ),
         }}
       />
@@ -77,8 +72,8 @@ export default function TabsLayout() {
         options={{
           title: 'Scout',
           href: !carregandoClubeAtivo && podeGerenciar ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="radar" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <IconeAba nome="radar" cor={color} selecionado={focused} />
           ),
         }}
       />
@@ -86,17 +81,17 @@ export default function TabsLayout() {
         name="perfil/perfil"
         options={{
           title: 'Perfil',
-          href: null
+          href: null,
         }}
       />
-        <Tabs.Screen
+      <Tabs.Screen
         name="organizarPartidas/organizarPartidas"
         options={{
           href: null,
           title: 'Detalhes',
         }}
       />
-        <Tabs.Screen
+      <Tabs.Screen
         name="perfil/dadosPessoais/dadosPessoais"
         options={{
           href: null,

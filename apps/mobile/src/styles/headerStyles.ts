@@ -1,0 +1,102 @@
+import { StyleSheet } from 'react-native';
+import { typography } from '@ludora/design-tokens';
+import type { ThemeColors } from '@/src/contexts/ThemeContext';
+
+export const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingBottom: 15,
+      backgroundColor: colors.fundo,
+      flexShrink: 0,
+    },
+    leftContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flex: 1,
+      minWidth: 0,
+      marginRight: 12,
+    },
+    logoContainerNeutro: {
+      width: 42,
+      height: 42,
+      flexShrink: 0,
+      borderRadius: 8,
+      padding: 4,
+      backgroundColor: colors.card,
+      overflow: 'hidden',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    logoInicial: {
+      fontFamily: typography.fontFamily.titulo.semiBold,
+      fontSize: 25,
+      color: colors.primaria,
+    },
+    logo: {
+      width: '100%',
+      height: '100%',
+    },
+    title: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 17,
+      lineHeight: 23,
+      color: colors.texto,
+      flexShrink: 1,
+      maxWidth: '100%',
+    },
+    rightContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      flexShrink: 0,
+    },
+    actionButton: {
+      width: 46,
+      flexShrink: 0,
+      height: 46,
+      backgroundColor: colors.card,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    profileButton: {
+      width: 46,
+      height: 46,
+      backgroundColor: colors.fundoBotao,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: colors.bordaBotao,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    notificationDot: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 11,
+      height: 11,
+      borderRadius: 6,
+      backgroundColor: colors.primaria,
+      borderWidth: 2,
+      borderColor: colors.card,
+    },
+    papelTexto: {
+      color: colors.textoSecundario,
+      fontFamily: typography.fontFamily.corpo.regular,
+      fontSize: 12,
+      lineHeight: 16,
+    },
+    leftContainer: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: 46,
+      alignItems: 'flex-start',
+      justifyContent: 'center',
+      gap: 2,
+    },
+  });

@@ -1,13 +1,13 @@
 import type { Request } from 'express';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../lib/prisma';
 
-import {
-  JWT_AUDIENCE,
-  JWT_ISSUER,
-  JWT_SECRET,
-} from '../config/env';
+import { JWT_AUDIENCE, JWT_ISSUER, JWT_SECRET } from '../config/env';
 
-export function getUsuarioIdPeloToken(token: string): number | null {
+export async function getUsuarioIdPeloToken(
+  token: string,
+  banco = prisma
+): Promise<number | null> {
   try {
     if (!token) return null;
     const decoded = jwt.verify(token, JWT_SECRET, {
@@ -16,13 +16,20 @@ export function getUsuarioIdPeloToken(token: string): number | null {
       audience: JWT_AUDIENCE,
     }) as jwt.JwtPayload;
     const id = Number(decoded.id);
-    return Number.isSafeInteger(id) && id > 0 ? id : null;
+    if (!Number.isSafeInteger(id) || id <= 0) return null;
+    const usuario = await banco.usuario.findUnique({
+      where: { id },
+      select: { versao_sessao: true },
+    });
+    return usuario && usuario.versao_sessao === (decoded.versao_sessao ?? 0)
+      ? id
+      : null;
   } catch {
     return null;
   }
 }
 
-export function getUsuarioId(req: Request): number | null {
+export async function getUsuarioId(req: Request): Promise<number | null> {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return null;
   return getUsuarioIdPeloToken(authHeader.slice(7).trim());
