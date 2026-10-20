@@ -81,7 +81,7 @@ export const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.card,
     },
     notificationCardUnread: {
-      backgroundColor: colors.cardClaro,
+      backgroundColor: colors.card,
       borderColor: colors.bordaBotao,
     },
     notificationIcon: {

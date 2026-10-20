@@ -1,0 +1,165 @@
+import { StyleSheet } from 'react-native';
+import { typography } from '@ludora/design-tokens';
+import type { ThemeColors } from '../contexts/ThemeContext';
+
+export const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.fundo,
+    },
+    navigation: {
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+    },
+    backButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 10,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.borda,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    content: {
+      flexGrow: 1,
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 28,
+      gap: 24,
+    },
+    heroIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 14,
+      backgroundColor: colors.fundoBotao,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 20,
+    },
+    title: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 28,
+      lineHeight: 36,
+      color: colors.texto,
+    },
+    subtitle: {
+      fontFamily: typography.fontFamily.corpo.regular,
+      fontSize: 14,
+      lineHeight: 22,
+      color: colors.textoSecundario,
+      marginTop: 10,
+    },
+    form: {
+      gap: 20,
+    },
+    field: {
+      gap: 7,
+    },
+    label: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 12,
+      color: colors.texto,
+    },
+    inputRow: {
+      minHeight: 56,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 15,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borda,
+      backgroundColor: colors.card,
+    },
+    inputFocused: {
+      borderColor: colors.primaria,
+      backgroundColor: colors.fundoBotao,
+    },
+    input: {
+      flex: 1,
+      paddingVertical: 14,
+      fontFamily: typography.fontFamily.corpo.regular,
+      fontSize: 14,
+      color: colors.texto,
+    },
+    codeInput: {
+      letterSpacing: 3,
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 20,
+    },
+    hint: {
+      fontFamily: typography.fontFamily.corpo.regular,
+      fontSize: 12,
+      lineHeight: 18,
+      color: colors.textoSecundario,
+    },
+    smallButton: {
+      minWidth: 40,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      borderRadius: 10,
+      backgroundColor: colors.card,
+      padding: 14,
+    },
+    emailText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.corpo.medium,
+      fontSize: 13,
+      color: colors.texto,
+    },
+    link: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 13,
+      lineHeight: 20,
+      color: colors.primaria,
+      textAlign: 'center',
+    },
+    feedback: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      padding: 14,
+      borderRadius: 10,
+      backgroundColor: colors.fundoErro,
+      borderWidth: 1,
+      borderColor: colors.bordaErro,
+    },
+    feedbackText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.corpo.regular,
+      fontSize: 13,
+      lineHeight: 20,
+      color: colors.corpoErro,
+    },
+    footer: {
+      paddingHorizontal: 24,
+      paddingVertical: 16,
+      borderTopWidth: 1,
+      borderTopColor: colors.linha,
+      backgroundColor: colors.fundo,
+    },
+    primaryButton: {
+      minHeight: 54,
+      padding: 14,
+      borderRadius: 10,
+      backgroundColor: colors.primaria,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    primaryText: {
+      color: colors.textoSobrePrimaria,
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 14,
+    },
+    disabled: {
+      opacity: 0.5,
+    },
+  });

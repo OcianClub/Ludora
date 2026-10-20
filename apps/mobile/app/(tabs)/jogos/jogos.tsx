@@ -5,11 +5,13 @@ import {
   Modal, Pressable, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { createStyles } from '@/src/styles/jogosStyles';
-import { Header } from '@/src/components/Header';
+import { HeaderClube } from '@/src/components/HeaderClube';
+import { PaginaCategoria } from '@/src/components/PaginaCategoria';
 import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import PagerView from 'react-native-pager-view';
+import PagerView, { type PagerViewOnPageScrollEvent } from 'react-native-pager-view';
+import Animated, { useEvent, useSharedValue } from 'react-native-reanimated';
 import { fetchPartidas } from '@/src/services/api';
 import OrganizarPartidas from '../organizarPartidas/organizarPartidas';
 import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/CarrosselSubs';
@@ -82,12 +84,19 @@ function ordenarPartidas(partidas: Partida[]): Partida[] {
   return [...aoVivo, ...agendadas, ...finalizadas, ...canceladas];
 }
 
+const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
+
 export default function Jogos() {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const statusOptions = getStatusOptions(colors);
   const { clubeAtivo, podeGerenciar } = useClubeAtivo();
   const pagerRef = useRef<PagerView>(null);
+  const progressoPagina = useSharedValue(0);
+  const acompanharPagina = useEvent<PagerViewOnPageScrollEvent>((event) => {
+    'worklet';
+    progressoPagina.value = event.position + event.offset;
+  }, ['onPageScroll']);
   const carregouUmaVez = useRef(false);
   const clubeCarregadoId = useRef<number | null>(null);
   const controle = useRef(criarControleRequisicoes()).current;
@@ -125,7 +134,7 @@ export default function Jogos() {
         setDias([]);
         return;
       }
-      const params: any = { mes: mesAtivo };
+      const params: any = { mes: mesAtivo, resumo: true };
       if (statusFiltro !== 'TODOS') params.status = statusFiltro;
       const partidas: Partida[] = await fetchPartidas(params, clubeAtivo.id);
       if (!controle.atual(pedido)) return;
@@ -162,15 +171,16 @@ export default function Jogos() {
     })).filter(dia => dia.filtradas.length > 0),
   })), [dias, dadosAtuais]);
 
-  const handleTrocarFase = (novaFase: 'INICIACAO' | 'BASE') => {
+  const handleTrocarFase = useCallback((novaFase: 'INICIACAO' | 'BASE') => {
     setTipoFiltro(novaFase);
-    handleSubChange(0);
-  };
+    setSubIndex(0);
+    progressoPagina.value = 0;
+    pagerRef.current?.setPageWithoutAnimation(0);
+  }, [progressoPagina]);
 
-  const handleSubChange = (index: number) => {
-    setSubIndex(index);
+  const handleSubChange = useCallback((index: number) => {
     pagerRef.current?.setPage(index);
-  };
+  }, []);
 
   const onPageSelected = (e: any) => {
     const index = e.nativeEvent.position;
@@ -202,14 +212,7 @@ export default function Jogos() {
 
   return (
     <View style={styles.container}>
-      <Header
-        title={clubeAtivo?.nome ?? 'MEU CLUBE'}
-        logoUrl={clubeAtivo?.escudo ?? null}
-        btnNotificacao="bell"
-        showLogo={true}
-        showProfile={true}
-        papelUsuario={clubeAtivo?.papel ?? undefined}
-      />
+      <HeaderClube />
 
       {/* 1. Mova o CarrosselSubs para FORA do filtersContainer para não dobrar o padding */}
       <CarrosselSubs
@@ -217,6 +220,7 @@ export default function Jogos() {
         onTrocarTipo={handleTrocarFase}
         indexAtual={subIndex}
         onChangeIndex={handleSubChange}
+        progressoPagina={progressoPagina}
       />
 
       {/* 2. O filtersContainer agora envolve APENAS o botão do modal de filtros */}
@@ -230,10 +234,11 @@ export default function Jogos() {
         </TouchableOpacity>
       </View>
 
-      <PagerView ref={pagerRef} style={{ flex: 1 }} initialPage={0} onPageSelected={onPageSelected}>
-        {diasPorSub.map(({ sub, diasComPartidas }) => {
+      <AnimatedPagerView ref={pagerRef} style={{ flex: 1 }} initialPage={0} onPageSelected={onPageSelected} onPageScroll={acompanharPagina} offscreenPageLimit={1}>
+        {diasPorSub.map(({ sub, diasComPartidas }, indexPagina) => {
           return (
-            <View key={`${tipoFiltro}-${sub.id}`} style={{ flex: 1 }}>
+            <View key={`pagina-${indexPagina}`} style={{ flex: 1 }} collapsable={false}>
+              <PaginaCategoria grupo={`${clubeAtivo?.id}-${tipoFiltro}`} preparar={Math.abs(indexPagina - subIndex) <= 1}>
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.content}
@@ -371,10 +376,11 @@ export default function Jogos() {
                 )}
                 <View style={{ height: 100 }} />
               </ScrollView>
+              </PaginaCategoria>
             </View>
           );
         })}
-      </PagerView>
+      </AnimatedPagerView>
 
       {/* FAB ICON */}
       {podeGerenciar && (

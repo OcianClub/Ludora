@@ -32,6 +32,9 @@ model UsuarioClube {
   clube_id                Int
   papel                   PapelUsuario @default(TORCEDOR)
   acesso_todas_categorias Boolean      @default(false)
+  push_gols               Boolean      @default(true)
+  push_agendamentos       Boolean      @default(true)
+  push_resultados         Boolean      @default(true)
 
   usuario    Usuario                 @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
   clube      Clube                   @relation(fields: [clube_id], references: [id], onDelete: Cascade)
@@ -55,12 +58,14 @@ model UsuarioClubeCategoria {
 // ── MODELOS ATUALIZADOS ──
 
 model Usuario {
-  id                  Int      @id @default(autoincrement())
+  id                  Int               @id @default(autoincrement())
   nome                String
-  email               String   @unique
+  email               String            @unique
   senha               String
-  criadoEm            DateTime @default(now())
-  notificacoes_ativas Boolean  @default(true)
+  criadoEm            DateTime          @default(now())
+  notificacoes_ativas Boolean           @default(true)
+  versao_sessao       Int               @default(0)
+  recuperacao_senha   RecuperacaoSenha?
 
   clubes            UsuarioClube[]
   notificacoes      Notificacao[]
@@ -68,6 +73,30 @@ model Usuario {
 
   convitesCriados ConviteClube[] @relation("ConvitesCriados")
   convitesAceitos ConviteClube[] @relation("ConvitesAceitos")
+}
+
+model ConfirmacaoCadastro {
+  email       String   @id
+  desafio     String   @unique
+  codigo_hash String
+  tentativas  Int      @default(0)
+  criado_em   DateTime @default(now())
+  expira_em   DateTime
+
+  @@index([expira_em])
+}
+
+model RecuperacaoSenha {
+  id          String    @id @default(cuid())
+  usuario_id  Int       @unique
+  codigo_hash String
+  tentativas  Int       @default(0)
+  criado_em   DateTime  @default(now())
+  expira_em   DateTime
+  usado_em    DateTime?
+  usuario     Usuario   @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@index([expira_em])
 }
 
 model Categoria {

@@ -1,20 +1,17 @@
 import { Icon } from '@ludora/icons';
-import { useRef, useEffect } from 'react';
-import { View, FlatList, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
+import { memo, useRef, useEffect, useMemo, useState } from 'react';
+import { View, TouchableOpacity, Text, StyleSheet, PanResponder } from 'react-native';
 import { typography } from '@ludora/design-tokens';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 
-const { width: windowWidth } = Dimensions.get('window');
 const MARGEM_CONTEUDO = 20;
-const LARGURA_DISPONIVEL = windowWidth - MARGEM_CONTEUDO * 2;
 const LARGURA_ITEM = 100;
 const GAP_ITEM = 8;
 const ITEM_INTERVAL = LARGURA_ITEM + GAP_ITEM;
 
 const LARGURA_BOTAO = 32;
 const PADDING_H = 8;
-const LARGURA_TRACK = LARGURA_DISPONIVEL - LARGURA_BOTAO * 2 - PADDING_H * 2;
-const PADDING_CENTRALIZADOR = (LARGURA_TRACK - LARGURA_ITEM) / 2;
 
 export const SUBS_INICIACAO = [
   { id: '1', title: 'SUB-7' },
@@ -35,30 +32,66 @@ interface CarrosselSubsProps {
   onTrocarTipo: (tipo: 'INICIACAO' | 'BASE') => void;
   indexAtual: number;
   onChangeIndex: (index: number) => void;
+  progressoPagina?: SharedValue<number>;
 }
 
-export function CarrosselSubs({
+const SubItem = memo(function SubItem({ title, index, ativo, progresso, onPress, styles }: {
+  title: string; index: number; ativo: boolean; progresso: SharedValue<number>;
+  onPress: () => void; styles: ReturnType<typeof createStyles>; colors: ThemeColors;
+}) {
+  const destaque = useAnimatedStyle(() => ({ opacity: Math.max(0, 1 - Math.abs(progresso.value - index)) }));
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: ativo }}>
+      <View style={styles.item}>
+        <Text style={styles.texto}>{title}</Text>
+        <Animated.View pointerEvents="none" style={[styles.itemDestaque, destaque]}>
+          <Text style={styles.textoAtivo}>{title}</Text>
+        </Animated.View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+export const CarrosselSubs = memo(function CarrosselSubs({
   tipoFiltro,
   onTrocarTipo,
   indexAtual,
   onChangeIndex,
+  progressoPagina,
 }: CarrosselSubsProps) {
   const { colors } = useTheme();
-  const styles = createStyles(colors);
-  const listRef = useRef<FlatList>(null);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [larguraTrack, setLarguraTrack] = useState(0);
+  const progressoLocal = useSharedValue(indexAtual);
+  const progresso = progressoPagina ?? progressoLocal;
+  const arrasto = useSharedValue(0);
+  const inicioGesto = useRef(indexAtual);
   const dadosAtuais = tipoFiltro === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
 
   useEffect(() => {
-    setTimeout(() => {
-      if (indexAtual >= 0 && indexAtual < dadosAtuais.length) {
-        listRef.current?.scrollToIndex({
-          index: indexAtual,
-          animated: true,
-          viewPosition: 0.5,
-        });
-      }
-    }, 50);
-  }, [indexAtual, dadosAtuais.length]);
+    if (!progressoPagina) progressoLocal.value = withTiming(indexAtual, { duration: 180 });
+  }, [indexAtual, progressoPagina, progressoLocal]);
+
+  const movimento = useAnimatedStyle(() => ({
+    transform: [{ translateX: (larguraTrack - ITEM_INTERVAL) / 2 -
+      Math.max(0, Math.min(dadosAtuais.length - 1, progresso.value)) * ITEM_INTERVAL + arrasto.value }],
+  }));
+
+  const gesto = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, movimento) => Math.abs(movimento.dx) > 8 && Math.abs(movimento.dx) > Math.abs(movimento.dy) * 1.4,
+    onPanResponderGrant: () => { inicioGesto.current = indexAtual; },
+    onPanResponderMove: (_, movimento) => {
+      arrasto.value = Math.max(-(dadosAtuais.length - 1 - inicioGesto.current) * ITEM_INTERVAL,
+        Math.min(inicioGesto.current * ITEM_INTERVAL, movimento.dx));
+    },
+    onPanResponderRelease: (_, movimento) => {
+      const deslocamento = Math.abs(movimento.dx) > 20 ? Math.sign(movimento.dx) * Math.max(1, Math.round(Math.abs(movimento.dx) / ITEM_INTERVAL)) : 0;
+      const destino = Math.max(0, Math.min(dadosAtuais.length - 1, inicioGesto.current - deslocamento));
+      arrasto.value = withTiming(0, { duration: 160 });
+      if (destino !== indexAtual) onChangeIndex(destino);
+    },
+    onPanResponderTerminate: () => { arrasto.value = withTiming(0, { duration: 160 }); },
+  }), [indexAtual, onChangeIndex, dadosAtuais.length, arrasto]);
 
   const irParaAnterior = () => {
     if (indexAtual > 0) onChangeIndex(indexAtual - 1);
@@ -81,7 +114,6 @@ export function CarrosselSubs({
             onPress={() => {
               if (tipo !== tipoFiltro) {
                 onTrocarTipo(tipo);
-                onChangeIndex(0);
               }
             }}
             activeOpacity={0.8}
@@ -107,43 +139,18 @@ export function CarrosselSubs({
           />
         </TouchableOpacity>
 
-        <FlatList
-          ref={listRef}
-          data={dadosAtuais}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={true}
-          snapToInterval={ITEM_INTERVAL}
-          decelerationRate="fast"
-          contentContainerStyle={styles.listContent}
-          getItemLayout={(_, index) => ({
-            length: ITEM_INTERVAL,
-            offset: ITEM_INTERVAL * index,
-            index,
-          })}
-          renderItem={({ item, index }) => {
-            const isActive = index === indexAtual;
-
-            if (isActive) {
-              return (
-                <View style={styles.itemAtivo}>
-                  <Text style={styles.textoAtivo}>{item.title}</Text>
-                </View>
-              );
-            }
-
-            return (
-              <TouchableOpacity
-                style={styles.item}
-                onPress={() => onChangeIndex(index)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.texto}>{item.title}</Text>
-              </TouchableOpacity>
-            );
-          }}
-        />
+        <View
+          style={styles.trackViewport}
+          onLayout={({ nativeEvent }) => setLarguraTrack(nativeEvent.layout.width)}
+          {...gesto.panHandlers}
+        >
+          <Animated.View style={[styles.track, { width: dadosAtuais.length * ITEM_INTERVAL }, movimento]}>
+          {dadosAtuais.map((item, index) => (
+            <SubItem key={index} title={item.title} index={index} ativo={index === indexAtual}
+              progresso={progresso} colors={colors} styles={styles} onPress={() => onChangeIndex(index)} />
+          ))}
+          </Animated.View>
+        </View>
 
         <TouchableOpacity
           onPress={irParaProximo}
@@ -160,7 +167,7 @@ export function CarrosselSubs({
       </View>
     </View>
   );
-}
+});
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   wrapper: {
@@ -212,8 +219,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   listContent: {
     alignItems: 'center',
-    paddingHorizontal: PADDING_CENTRALIZADOR,
   },
+  trackViewport: { flex: 1, height: 34, overflow: 'hidden' },
+  track: { flexDirection: 'row', alignItems: 'center' },
+  itemDestaque: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: colors.primaria },
   item: {
     width: LARGURA_ITEM,
     height: 34,

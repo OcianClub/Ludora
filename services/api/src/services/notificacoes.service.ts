@@ -1,6 +1,8 @@
 import type { Server } from 'socket.io';
+import type { PrismaClient } from '@prisma/client';
 
 import { prisma } from '../lib/prisma';
+import { filtroPushPorTipo } from '../modules/notificacoes/preferencias.utils';
 
 type DadosNotificacao = Record<string, string | number | boolean | null>;
 
@@ -24,16 +26,23 @@ function dividirEmLotes<T>(itens: T[], tamanho: number): T[][] {
   return lotes;
 }
 
-async function enviarPushParaUsuarios(
+export async function enviarPushParaUsuarios(
   usuarioIds: number[],
+  clubeId: number,
+  tipo: CriarNotificacoesDoClubeInput['tipo'],
   titulo: string,
   corpo: string,
   dados?: DadosNotificacao,
+  banco: PrismaClient = prisma,
+  enviar: typeof fetch = fetch
 ) {
-  const dispositivos = await prisma.dispositivoPush.findMany({
+  const dispositivos = await banco.dispositivoPush.findMany({
     where: {
       usuario_id: { in: usuarioIds },
-      usuario: { notificacoes_ativas: true },
+      usuario: {
+        notificacoes_ativas: true,
+        clubes: { some: { clube_id: clubeId, ...filtroPushPorTipo(tipo) } },
+      },
     },
     select: { token: true },
   });
@@ -49,7 +58,7 @@ async function enviarPushParaUsuarios(
   }));
 
   for (const lote of dividirEmLotes(mensagens, 100)) {
-    const resposta = await fetch(EXPO_PUSH_URL, {
+    const resposta = await enviar(EXPO_PUSH_URL, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -57,6 +66,7 @@ async function enviarPushParaUsuarios(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(lote),
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (!resposta.ok) {
@@ -71,25 +81,29 @@ async function enviarPushParaUsuarios(
  * O push é deliberadamente assíncrono: uma indisponibilidade do Expo não pode
  * impedir que uma partida, gol ou resultado seja salvo.
  */
-export async function criarNotificacoesDoClube({
-  io,
-  clubeId,
-  partidaId,
-  tipo,
-  titulo,
-  corpo,
-  dados,
-}: CriarNotificacoesDoClubeInput) {
-  const membros = await prisma.usuarioClube.findMany({
+export async function criarNotificacoesDoClube(
+  {
+    io,
+    clubeId,
+    partidaId,
+    tipo,
+    titulo,
+    corpo,
+    dados,
+  }: CriarNotificacoesDoClubeInput,
+  banco: PrismaClient = prisma,
+  enviarPush: typeof enviarPushParaUsuarios = enviarPushParaUsuarios
+) {
+  const membros = await banco.usuarioClube.findMany({
     where: { clube_id: clubeId },
     select: { usuario_id: true },
   });
 
   if (membros.length === 0) return;
 
-  const notificacoes = await prisma.$transaction(
+  const notificacoes = await banco.$transaction(
     membros.map(({ usuario_id }) =>
-      prisma.notificacao.create({
+      banco.notificacao.create({
         data: {
           usuario_id,
           clube_id: clubeId,
@@ -99,24 +113,26 @@ export async function criarNotificacoesDoClube({
           corpo,
           dados,
         },
-      }),
-    ),
+      })
+    )
   );
 
   notificacoes.forEach((notificacao) => {
     io.to(`usuario:${notificacao.usuario_id}`).emit(
       'notificacao_criada',
-      notificacao,
+      notificacao
     );
   });
 
-  void enviarPushParaUsuarios(
+  void enviarPush(
     membros.map(({ usuario_id }) => usuario_id),
+    clubeId,
+    tipo,
     titulo,
     corpo,
     dados,
+    banco
   ).catch((erro) => {
     console.error('Não foi possível enviar push:', erro.message || erro);
   });
 }
-

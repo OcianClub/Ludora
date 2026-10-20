@@ -14,6 +14,8 @@ import {
 } from '../../middlewares/permissoes.middleware';
 import { limitarOperacaoPesada } from '../../middlewares/rate-limit.middleware';
 import { idPositivo } from '../../utils/id';
+import { consultarPerfis } from './perfis.service';
+import { consultarContextoScout } from './contexto-scout.service';
 
 const router = Router();
 
@@ -56,8 +58,7 @@ router.get('/jogadores/perfis', exigirClubePublico, async (req, res) => {
     if (categoria_id && !escopo.acessoTotal && !escopo.categoriaIds.includes(categoria_id)) {
       return res.status(403).json({ error: 'Você não administra a categoria solicitada' });
     }
-    const jogadores = await prisma.jogador.findMany({
-      where: {
+    const formatados = await prisma.$transaction(tx => consultarPerfis(tx, {
         ativo: true,
         categoria: { clube_id },
         ...(categoria_id
@@ -65,43 +66,40 @@ router.get('/jogadores/perfis', exigirClubePublico, async (req, res) => {
           : escopo.acessoTotal
             ? {}
             : { categoria_id: { in: escopo.categoriaIds } }),
-      },
-      include: { eventos: true, categoria: true, escalacoes: true },
-      orderBy: { nota_geral: 'desc' },
-    });
-    
-    const formatados = jogadores.map(j => {
-      const stats = j.eventos.reduce((acc: any, ev) => {
-        acc[ev.tipo] = (acc[ev.tipo] || 0) + 1;
-        return acc;
-      }, {});
-      const jogos = j.escalacoes ? j.escalacoes.length : 0;
-      return {
-        id_jogador:        j.id,
-        nome:              j.nome,
-        posicao:           j.posicao,
-        numCamisa:         j.numCamisa,
-        idade:             new Date().getFullYear() - new Date(j.dtNasc).getFullYear(),
-        perfil_ml:         j.perfil_ml || 'Sem dados',
-        scores_ml:         j.scores_ml,
-        nota_geral:        j.nota_geral ?? 0,
-        categoria:         j.categoria.nome,
-        categoria_tipo:    j.categoria.tipo,
-        categoria_id:      j.categoria_id,
-        time:              'Clube', // Pode ser ajustado futuramente para buscar o nome do clube
-        jogos_disputados:  jogos,
-        gols:              stats['GOL']             || 0,
-        assistencias:      stats['ASSISTENCIA']     || 0,
-        defesas:           stats['DEFESA']          || 0,
-        cartoes_amarelos:  stats['CARTAO_AMARELO']  || 0,
-        cartoes_vermelhos: stats['CARTAO_VERMELHO'] || 0,
-        faltas_cometidas:  stats['FALTA']           || 0,
-      };
-    });
+    }), { isolationLevel: 'RepeatableRead' });
     res.json(formatados);
   } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao carregar perfis' });
+  }
+});
+
+router.get('/jogadores/:id/scout-contexto', exigirClubePublico, async (req, res) => {
+  const jogadorId = idPositivo(req.params.id);
+  if (!jogadorId) return res.status(400).json({ error: 'Atleta inválido.' });
+  const clubeId = (req as any).clubeId as number;
+  try {
+    const escopo = await obterEscopoCategoriasLeitura(
+      (req as any).usuarioId,
+      clubeId
+    );
+    const contexto = await prisma.$transaction(
+      (tx) => consultarContextoScout(
+        tx,
+        jogadorId,
+        clubeId,
+        escopo.acessoTotal ? null : escopo.categoriaIds
+      ),
+      { isolationLevel: 'RepeatableRead' }
+    );
+    if (!contexto) {
+      return res.status(404).json({
+        error: 'Atleta não encontrado neste clube ou nas categorias permitidas.',
+      });
+    }
+    res.json(contexto);
+  } catch {
+    res.status(500).json({ error: 'Não foi possível carregar o histórico do atleta.' });
   }
 });
 

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, memo, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Icon } from '@ludora/icons';
@@ -66,6 +66,7 @@ interface Props {
   historico: PartidaHome[];
   agenda: PartidaHome[];
   podeGerenciar: boolean;
+  consultaLocal?: boolean;
   iniciandoPartidaId: number | null;
   onAtualizar: () => void;
   onVerDetalhes: (partida: PartidaHome) => void;
@@ -83,9 +84,9 @@ function hoje(data: string) {
   return ano === agora.getFullYear() && mes === agora.getMonth() + 1 && dia === agora.getDate();
 }
 
-export default function HomeCategoria(props: Props) {
+const HomeCategoria = memo(function HomeCategoria(props: Props) {
   const { ativa, carregando, atualizando, revisao, proximoJogo: jogo, historico, agenda, podeGerenciar,
-    iniciandoPartidaId, onAtualizar, onVerDetalhes, onIniciarPartida } = props;
+    iniciandoPartidaId, onAtualizar, onVerDetalhes, onIniciarPartida, consultaLocal = false } = props;
   const { colors, tema } = useTheme();
   const { clubeAtivo } = useClubeAtivo();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -109,7 +110,7 @@ export default function HomeCategoria(props: Props) {
   useEffect(() => {
     if (!ativa || !preparar || !jogo) return;
     let cancelada = false;
-    setPreparacao(null);
+    setPreparacao(atual => atual?.id === jogo.id ? atual : null);
     setErroEscalacao(false);
     void fetchEscalacaoPartida(jogo.id).then(escalacao => {
       if (!cancelada) setPreparacao({ id: jogo.id, titulares: escalacao.filter(j => j.titular).length });
@@ -132,9 +133,9 @@ export default function HomeCategoria(props: Props) {
     >
       {carregando ? <HomeSkeleton /> : <>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{aoVivo ? 'Agora em campo' : jogo && hoje(jogo.data) ? 'É dia de jogo' : 'Próxima partida'}</Text>
+          <Text style={styles.sectionTitle}>{consultaLocal && aoVivo ? 'Último registro da partida' : aoVivo ? 'Agora em campo' : jogo && hoje(jogo.data) ? 'É dia de jogo' : 'Próxima partida'}</Text>
           {jogo && <View style={[styles.badge, aoVivo && styles.liveBadge]}>
-            <Text style={[styles.badgeText, aoVivo && styles.liveText]}>{aoVivo ? '● AO VIVO' : hoje(jogo.data) ? 'HOJE' : dataCurta(jogo.data)}</Text>
+            <Text style={[styles.badgeText, aoVivo && styles.liveText]}>{consultaLocal && aoVivo ? 'ÚLTIMO PLACAR' : aoVivo ? '● AO VIVO' : hoje(jogo.data) ? 'HOJE' : dataCurta(jogo.data)}</Text>
           </View>}
         </View>
 
@@ -185,7 +186,7 @@ export default function HomeCategoria(props: Props) {
             onPress={() => iniciar ? onIniciarPartida(jogo) : onVerDetalhes(jogo)}>
             {iniciandoPartidaId === jogo.id ? <ActivityIndicator color={colors.textoSobrePrimaria} />
               : <View style={styles.primaryButtonContent}>
-                <Text style={styles.primaryButtonText}>{aoVivo ? 'Acompanhar ao vivo' : iniciar ? 'Iniciar partida' : 'Ver partida'}</Text>
+                <Text style={styles.primaryButtonText}>{consultaLocal ? 'Ver último registro' : aoVivo ? 'Acompanhar ao vivo' : iniciar ? 'Iniciar partida' : 'Ver partida'}</Text>
                 {(aoVivo || iniciar) && <Icon name={aoVivo ? 'live' : 'play-circle'} size={20} color={colors.textoSobrePrimaria} />}
               </View>}
           </TouchableOpacity>
@@ -316,4 +317,6 @@ export default function HomeCategoria(props: Props) {
       </>}
     </ScrollView>
   );
-}
+});
+
+export default HomeCategoria;

@@ -85,7 +85,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   historyResult: { fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 11, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.badge, overflow: 'hidden' },
   historyTeams: { gap: 4 },
   historyTeamRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, paddingVertical: 8, borderRadius: radius.tile },
-  historySelectedTeam: { backgroundColor: colors.cardSecundario },
+  historySelectedTeam: { backgroundColor: colors.cardClaro },
   historyCrestBox: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: radius.smallCrest, backgroundColor: colors.cardSecundario },
   historyCrest: { width: 22, height: 22 },
   historyInitial: { color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 12 },

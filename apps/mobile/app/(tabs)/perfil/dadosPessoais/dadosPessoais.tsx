@@ -20,6 +20,7 @@ import { ConfirmacaoConta } from '@/src/components/ConfirmacaoConta';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import { limparCacheConsultas } from '@/src/services/cacheConsultas';
 import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
 
 import {
@@ -292,6 +293,7 @@ export default function DadosPessoais({
     setExcluindo(true);
     try {
       await excluirContaAPI();
+      await limparCacheConsultas();
       await limparClubeAtivo();
       await Promise.all(['userToken', 'userRole', 'userName', 'userEmail', 'userCriadoEm', 'userData', 'expoPushToken'].map(chave => SecureStore.deleteItemAsync(chave)));
 
@@ -325,7 +327,7 @@ export default function DadosPessoais({
     <SafeAreaView style={styles.container} edges={noModal ? ['top', 'bottom', 'left', 'right'] : ['top', 'left', 'right']}>
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Header
-        title="DADOS PESSOAIS"
+        title="Dados pessoais"
         showLogo={false}
         showProfile={false}
         btnVoltar="arrow-left"

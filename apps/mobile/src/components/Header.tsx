@@ -1,12 +1,16 @@
 import { Icon, type IconName } from '@ludora/icons';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { typography } from '@ludora/design-tokens';
+import { Alert, View, Text, Image, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/src/contexts/ThemeContext';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import type { ThemeColors } from '@/src/contexts/ThemeContext';
+import { useMemo, useState } from 'react';
+import { createStyles } from '@/src/styles/headerStyles';
 import { useNotificacoes } from '@/src/contexts/NotificacoesContext';
+import {
+  inicialHeader,
+  NOMES_PAPEIS_HEADER,
+  type PapelHeader,
+} from '@/src/utils/identidadeHeader';
 
 interface HeaderProps {
   title: string;
@@ -18,83 +22,115 @@ interface HeaderProps {
   onPressIcon?: () => void;
   onPressNotificacao?: () => void;
   showProfile?: boolean;
-  onBtnVoltar?: () => void; 
-  semSafeArea?: boolean; 
-  papelUsuario?: PapelUsuario;
+  onBtnVoltar?: () => void;
+  semSafeArea?: boolean;
+  papelUsuario?: PapelHeader;
 }
 
-type PapelUsuario = 'ADMIN' | 'TECNICO' | 'MESARIO' | 'TORCEDOR';
-
-export function Header({ 
-  title, 
-  btnVoltar, 
-  btnNotificacao, 
-  showLogo, 
+export function Header({
+  title,
+  btnVoltar,
+  btnNotificacao,
+  showLogo,
   logoUrl,
-  onPressIcon, 
+  onPressIcon,
   onPressNotificacao,
-  icon, 
-  showProfile, 
-  onBtnVoltar, 
+  icon,
+  showProfile,
+  onBtnVoltar,
   semSafeArea,
-  papelUsuario
+  papelUsuario,
 }: HeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { totalNaoLidas } = useNotificacoes();
 
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [escudoComErro, setEscudoComErro] = useState<string | null>(null);
+  const mostrarIdentidade = () =>
+    Alert.alert(
+      'Clube atual',
+      `${title}${papelUsuario ? `\n\nSeu papel: ${NOMES_PAPEIS_HEADER[papelUsuario]}` : '\n\nVisualização pública'}`,
+      [{ text: 'Fechar' }]
+    );
 
   return (
-    <View style={[styles.container, { paddingTop: semSafeArea ? 20 : insets.top + 20 }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: semSafeArea ? 20 : insets.top + 20 },
+      ]}
+    >
       <View style={styles.leftContent}>
         {btnVoltar && (
-          <TouchableOpacity 
-            style={styles.actionButton} 
-            activeOpacity={0.7} 
-            onPress={() => onBtnVoltar ? onBtnVoltar() : router.back()}
+          <TouchableOpacity
+            style={styles.actionButton}
+            activeOpacity={0.7}
+            onPress={() => (onBtnVoltar ? onBtnVoltar() : router.back())}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar"
           >
             <Icon name={btnVoltar} size={24} color={colors.texto} />
           </TouchableOpacity>
         )}
         {showLogo && (
-          logoUrl ? (
-            <View style={styles.logoContainerNeutro}>
-              <Image source={{ uri: logoUrl }} style={styles.logo} resizeMode="contain" />
-            </View>
-          ) : (
-            <LinearGradient
-              colors={[colors.primaria, '#0055FF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.logoContainer}
-            >
+          <View
+            style={styles.logoContainerNeutro}
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+          >
+            {logoUrl && escudoComErro !== logoUrl ? (
               <Image
-                source={require('@/assets/images/SóPreto.png')}
+                source={{ uri: logoUrl }}
                 style={styles.logo}
                 resizeMode="contain"
+                onError={() => setEscudoComErro(logoUrl)}
               />
-            </LinearGradient>
-          )
-        )} 
+            ) : (
+              <Text style={styles.logoInicial}>{inicialHeader(title)}</Text>
+            )}
+          </View>
+        )}
         {icon && (
           <TouchableOpacity onPress={onPressIcon} activeOpacity={0.6}>
             <Icon name={icon} size={44} color={colors.primaria} />
           </TouchableOpacity>
         )}
-        <View style={styles.leftContainer}>
-          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+        <TouchableOpacity
+          style={styles.leftContainer}
+          onPress={showLogo ? mostrarIdentidade : undefined}
+          disabled={!showLogo}
+          activeOpacity={0.75}
+          accessible={!!showLogo}
+          accessibilityRole={showLogo ? 'button' : undefined}
+          accessibilityLabel={
+            showLogo
+              ? `${title}${papelUsuario ? `, ${NOMES_PAPEIS_HEADER[papelUsuario]}` : ''}`
+              : undefined
+          }
+          accessibilityHint={
+            showLogo ? 'Exibe o nome completo do clube e seu papel' : undefined
+          }
+        >
+          <Text
+            style={styles.title}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            accessibilityRole="header"
+          >
             {title}
           </Text>
           {papelUsuario && (
-            <View style={styles.papelBadge}>
-              <Text style={styles.papelTexto}>
-                {papelUsuario}
-              </Text>
-            </View>
+            <Text
+              style={styles.papelTexto}
+              numberOfLines={1}
+              accessibilityLabel={`Seu papel no clube: ${NOMES_PAPEIS_HEADER[papelUsuario]}`}
+            >
+              {NOMES_PAPEIS_HEADER[papelUsuario]}
+            </Text>
           )}
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.rightContent}>
@@ -102,18 +138,31 @@ export function Header({
           <TouchableOpacity
             style={styles.actionButton}
             activeOpacity={0.7}
-            onPress={onPressNotificacao ?? (() => router.push('/(tabs)/perfil/notificacoes'))}
+            onPress={
+              onPressNotificacao ??
+              (() => router.push('/(tabs)/perfil/notificacoes'))
+            }
             accessibilityRole="button"
-            accessibilityLabel={totalNaoLidas > 0 ? `Notificações, ${totalNaoLidas} ${totalNaoLidas === 1 ? 'aviso não lido' : 'avisos não lidos'}` : 'Notificações, nenhum aviso não lido'}
+            accessibilityLabel={
+              totalNaoLidas > 0
+                ? `Notificações, ${totalNaoLidas} ${totalNaoLidas === 1 ? 'aviso não lido' : 'avisos não lidos'}`
+                : 'Notificações, nenhum aviso não lido'
+            }
           >
             <Icon name={btnNotificacao} size={24} color={colors.texto} />
-            {totalNaoLidas > 0 && <View style={styles.notificationDot} pointerEvents="none" accessible={false} />}
+            {totalNaoLidas > 0 && (
+              <View
+                style={styles.notificationDot}
+                pointerEvents="none"
+                accessible={false}
+              />
+            )}
           </TouchableOpacity>
         )}
         {showProfile && (
-          <TouchableOpacity 
-            style={styles.profileButton} 
-            activeOpacity={0.7} 
+          <TouchableOpacity
+            style={styles.profileButton}
+            activeOpacity={0.7}
             onPress={() => router.push('perfil/perfil')}
           >
             <Icon name="account" size={24} color={colors.primaria} />
@@ -123,117 +172,3 @@ export function Header({
     </View>
   );
 }
-
-const createStyles = (colors: ThemeColors) =>
-  StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-    backgroundColor: colors.fundo,
-    flexShrink: 0,
-  },
-  leftContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    minWidth: 0,
-    marginRight: 12,
-  },
-  logoContainer: {
-    width: 45,
-    flexShrink: 0,
-    height: 45,
-    borderRadius: 10,
-    padding: 6,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoContainerNeutro: {
-    width: 45,
-    flexShrink: 0,
-    height: 45,
-    borderRadius: 10,
-    padding: 6,
-    backgroundColor: colors.cardSecundario,
-    borderWidth: 1,
-    borderColor: colors.borda,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logo: {
-    width: '100%',
-    height: '100%',
-  },
-  title: {
-    fontFamily: typography.fontFamily.corpo.semiBold,
-    fontSize: typography.fontSize.lmd,
-    color: colors.texto,
-    textTransform: 'uppercase',
-    flexShrink: 1,
-    maxWidth: '100%',
-  },
-  rightContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    flexShrink: 0,
-  },
-  actionButton: {
-    width: 46,
-    flexShrink: 0,
-    height: 46,
-    backgroundColor: colors.card,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileButton: {
-    width: 46,
-    height: 46,
-    backgroundColor: colors.fundoBotao,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: colors.bordaBotao,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    backgroundColor: colors.primaria,
-    borderWidth: 2,
-    borderColor: colors.card,
-  },
-  papelBadge: {
-    backgroundColor: colors.fundoAtencao,
-    borderRadius: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    alignSelf: 'flex-start',
-  },
-  papelTexto: {
-    color: colors.amarelo,
-    fontFamily: typography.fontFamily.corpo.medium,
-    fontSize: 11
-  },
-  leftContainer: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 45,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    gap: 2,
-  }
-});

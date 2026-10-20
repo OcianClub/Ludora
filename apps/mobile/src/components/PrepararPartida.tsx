@@ -311,7 +311,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
   return (
     <View style={styles.container}>
       <Header
-        title="PREPARAR PARTIDA"
+        title="Preparar partida"
         showLogo={false}
         showProfile={false}
         btnVoltar="arrow-left"

@@ -4,6 +4,8 @@ import type { Server } from 'socket.io';
 
 import { corsOptions, isProduction } from './config/env';
 import authRoutes from './modules/auth/auth.routes';
+import { criarCadastroRoutes } from './modules/auth/cadastro.routes';
+import { criarRecuperacaoRoutes } from './modules/auth/recuperacao.routes';
 import cadastroRoutes from './modules/cadastros/cadastro.routes';
 import clubeRoutes from './modules/clubes/clube.routes';
 import conviteRoutes from './modules/convites/convite.routes';
@@ -41,6 +43,8 @@ export function criarApp(io: Server) {
   app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '256kb' }));
 
   app.use(authRoutes);
+  app.use(criarCadastroRoutes());
+  app.use(criarRecuperacaoRoutes(io));
   app.use(clubeRoutes);
   app.use(conviteRoutes);
   app.use(cadastroRoutes);

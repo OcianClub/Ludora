@@ -35,6 +35,17 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
 
   // Busca e cabeçalho da lista
+  filtrosContainer: { paddingBottom: 10 },
+  perfisContent: { paddingHorizontal: MARGEM, gap: 8, paddingVertical: 2 },
+  perfilFiltro: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44,
+    paddingHorizontal: 12, borderRadius: 8, borderWidth: 1,
+    borderColor: colors.borda, backgroundColor: colors.card,
+  },
+  perfilFiltroTexto: { fontFamily: typography.fontFamily.corpo.semiBold, color: colors.texto, fontSize: 12 },
+  perfilQuantidade: { fontFamily: typography.fontFamily.corpo.medium, color: colors.textoSecundario, fontSize: 11 },
+  limparBusca: { minHeight: 44, minWidth: 36, alignItems: 'center', justifyContent: 'center' },
+  vazioTitulo: { fontFamily: typography.fontFamily.corpo.semiBold, color: colors.texto, fontSize: 16, textAlign: 'center' },
   buscaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -46,7 +57,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     gap: 10,
     backgroundColor: colors.card,
     borderRadius: 10,
-
+    borderWidth: 1,
+    borderColor: colors.borda,
   },
   buscaInput: {
     flex: 1,
@@ -60,9 +72,10 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: MARGEM,
     marginBottom: 10,
+    marginTop: 8,
   },
   listaTitulo: {
-    fontFamily: typography.fontFamily.titulo.semiBold,
+    fontFamily: typography.fontFamily.corpo.semiBold,
     color: colors.texto,
     fontSize: typography.fontSize.md,
     letterSpacing: 0.4,
@@ -78,8 +91,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingBottom: 100,
   },
   telaContent: {
-    paddingTop: 4,
-    paddingBottom: 110,
+    paddingTop: 12,
+    paddingBottom: 28,
   },
   listaVazia: {
     alignItems: 'center',
@@ -110,25 +123,28 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
 
   // Card do atleta
   cardJogador: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
     backgroundColor: colors.card,
     borderRadius: 10,
-    padding: 14,
+    padding: 16,
     marginHorizontal: MARGEM,
-    marginBottom: 10,
+    marginBottom: 12,
   },
+  cardTopo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cardRodape: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: colors.linha, paddingTop: 12 },
+  cardStats: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardMetricText: { fontFamily: typography.fontFamily.corpo.medium, color: colors.textoSecundario, fontSize: 11 },
+  perfilDot: { width: 5, height: 5, borderRadius: 3 },
   cardNumCamisa: {
     width: 46,
     height: 46,
     borderRadius: 10,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.cardSecundario,
   },
   cardNumCamisaTxt: {
+    color: colors.texto,
     fontFamily: typography.fontFamily.corpo.semiBold,
     fontSize: typography.fontSize.sm,
   },
@@ -149,13 +165,15 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   cardDireita: {
     alignItems: 'flex-end',
+    minWidth: 38,
   },
   cardBadgePerfil: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
     borderRadius: 5,
-    borderWidth: 1,
-    marginBottom: 5,
   },
   cardBadgePerfilTxt: {
     fontFamily: typography.fontFamily.corpo.semiBold,
@@ -171,9 +189,9 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   cardNota: {
     fontFamily: typography.fontFamily.titulo.semiBold,
-    color: colors.texto,
-    fontSize: typography.fontSize.lmd,
-    lineHeight: 22,
+    color: colors.primaria,
+    fontSize: 28,
+    lineHeight: 32,
   },
 
   // Ficha do atleta
@@ -396,7 +414,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   // Resumo e ordenação da categoria
   resumoContainer: {
     marginHorizontal: MARGEM,
-    marginBottom: 14,
+    marginBottom: 20,
   },
   resumoHeader: {
     flexDirection: 'row',
@@ -405,7 +423,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 10,
   },
   resumoTitulo: {
-    fontFamily: typography.fontFamily.titulo.semiBold,
+    fontFamily: typography.fontFamily.corpo.semiBold,
     color: colors.texto,
     fontSize: typography.fontSize.md,
     letterSpacing: 0.4,
@@ -423,13 +441,14 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   resumoCard: {
     flex: 1,
     minWidth: 0,
-    minHeight: 120,
+    minHeight: 144,
     alignItems: 'flex-start',
     padding: 12,
     backgroundColor: colors.card,
     borderRadius: 10,
 
   },
+  resumoIcone: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   resumoCardLabel: {
     marginTop: 8,
     fontFamily: typography.fontFamily.corpo.medium,
@@ -447,21 +466,18 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     width: '100%',
     marginTop: 1,
     fontFamily: typography.fontFamily.corpo.regular,
-    color: colors.textoSecundario,
+    color: colors.texto,
     fontSize: 11,
+    lineHeight: 16,
   },
   infoAnalise: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 9,
     marginHorizontal: MARGEM,
-    marginBottom: 14,
+    marginTop: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: colors.fundoBotao,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.bordaBotao,
   },
   infoAnaliseTxt: {
     flex: 1,
@@ -477,7 +493,9 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   ordenacaoPill: {
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 10,
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: colors.card,
     borderRadius: 7,
     borderWidth: 1,

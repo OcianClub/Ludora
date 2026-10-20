@@ -13,9 +13,11 @@ import { useState, useEffect } from "react";
 import { createStyles } from "../../../src/styles/perfilStyles";
 import { Header } from "@/src/components/Header";
 import { ConfirmacaoConta } from '@/src/components/ConfirmacaoConta';
+import { PreferenciasNotificacoes } from '@/src/components/PreferenciasNotificacoes';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import { limparCacheConsultas } from '@/src/services/cacheConsultas';
 import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
 import { useNotificacoes } from '@/src/contexts/NotificacoesContext';
 import { desvincularDispositivoPush } from '@/src/services/api';
@@ -79,6 +81,7 @@ export default function Perfil() {
   const { colors, preferenciaTema, carregandoTema, definirPreferenciaTema } = useTheme();
   const insets = useSafeAreaInsets();
   const [modalTema, setModalTema] = useState(false);
+  const [modalNotificacoes, setModalNotificacoes] = useState(false);
   const [salvandoTema, setSalvandoTema] = useState(false);
   const styles = createStyles(colors);
   const { clubeAtivo, limparClubeAtivo } = useClubeAtivo();
@@ -138,6 +141,7 @@ export default function Perfil() {
     try {
       // Desvincula o push enquanto a credencial da conta ainda está disponível.
       await desvincularDispositivoPush();
+      await limparCacheConsultas();
       await limparClubeAtivo();
       await Promise.all(['userToken', 'userRole', 'userName', 'userEmail', 'userCriadoEm', 'userData', 'expoPushToken'].map(chave => SecureStore.deleteItemAsync(chave)));
       router.replace("/(auth)/login");
@@ -179,7 +183,7 @@ export default function Perfil() {
   return (
     <View style={styles.container}>
       <Header
-        title="MEU PERFIL"
+        title="Meu perfil"
         showLogo={false}
         showProfile={false}
         btnVoltar="arrow-left"
@@ -285,6 +289,14 @@ export default function Perfil() {
               />
             </View>
             <View style={styles.menuDivider} />
+            <CardMenu
+              titulo="Avisos por clube"
+              subtitulo="Escolha quais avisos deseja receber"
+              icone="bell-outline"
+              action={() => setModalNotificacoes(true)}
+              ultimo
+            />
+            <View style={styles.menuDivider} />
             <TouchableOpacity
               style={styles.themeSettingRow}
               onPress={() => setModalTema(true)}
@@ -332,6 +344,8 @@ export default function Perfil() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {modalNotificacoes && <PreferenciasNotificacoes onFechar={() => setModalNotificacoes(false)} />}
 
       <Modal visible={modalTema} transparent animationType="slide" onRequestClose={() => setModalTema(false)}>
         <View style={styles.themeSheetOverlay}>

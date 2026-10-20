@@ -77,14 +77,14 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
 
   const atualizarNaoLidas = useCallback(async () => {
     const pedido = ++contadorPedido.current;
-    if (!clubeAtivo) {
+    if (!clubeAtivo?.papel) {
       setContagem({ clubeId: null, total: 0 });
       return;
     }
 
-    const resultado = await fetchNotificacoes(1);
+    const resultado = await fetchNotificacoes(1, clubeAtivo.id);
     if (clubeAtualId.current === clubeAtivo.id && pedido === contadorPedido.current) setContagem({ clubeId: clubeAtivo.id, total: resultado.totalNaoLidas });
-  }, [clubeAtivo?.id]);
+  }, [clubeAtivo?.id, clubeAtivo?.papel]);
 
   useEffect(() => {
     if (carregandoClubeAtivo || !clubeAtivo) {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { emailValido, lerRespostaAuth } from '../src/utils/autenticacao';
+import { emailValido, enviarAutenticacao, lerRespostaAuth } from '../src/utils/autenticacao';
 
 test('e-mail aceita espaços externos e rejeita endereços malformados', () => {
   assert.equal(emailValido('  pessoa@email.com  '), true);
@@ -30,4 +30,33 @@ test('mensagens distinguem credenciais, e-mail existente e limite de tentativas'
 
 test('cadastro reconhece criação sem exigir token de login', async () => {
   assert.equal((await lerRespostaAuth(new Response('{"id":6}', { status: 201 }), 'cadastro')).id, 6);
+});
+
+test('cadastro orienta sobre código inválido sem expor detalhes internos', async () => {
+  await assert.rejects(
+    lerRespostaAuth(new Response('{"error":"detalhe interno"}', { status: 400 }), 'cadastro'),
+    /Confira o código/
+  );
+});
+
+test('cadastro rejeita sucesso sem confirmação de criação', async () => {
+  for (const dados of [{}, [], { id: null }, { id: '6' }, { id: -1 }]) {
+    await assert.rejects(lerRespostaAuth(new Response(JSON.stringify(dados)), 'cadastro'), /confirmar a resposta/);
+  }
+});
+
+test('tempo limite HTTP orienta nova tentativa sem sugerir senha incorreta', async () => {
+  await assert.rejects(lerRespostaAuth(new Response('{}', { status: 504 }), 'login'), /demorou para responder/);
+  await assert.rejects(lerRespostaAuth(new Response('{}', { status: 408 }), 'cadastro'), /conta já tiver sido criada/);
+});
+
+test('falha de rede mantém mensagem amigável e não repete cadastro automaticamente', async (t) => {
+  let chamadas = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    chamadas += 1;
+    throw new TypeError('Network request failed');
+  });
+  await assert.rejects(enviarAutenticacao('http://teste/auth/registrar', {}, 'cadastro'), /Não recebemos a confirmação/);
+  assert.equal(chamadas, 1);
+  await assert.rejects(enviarAutenticacao('http://teste/auth/login', {}, 'login'), /Verifique sua internet/);
 });

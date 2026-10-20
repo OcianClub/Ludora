@@ -4,12 +4,14 @@ import { exigirAutenticacao } from '../../middlewares/auth.middleware';
 import { exigirMembroDoClube } from '../../middlewares/permissoes.middleware';
 import { prisma } from '../../lib/prisma';
 import { idPositivo } from '../../utils/id';
+import { criarPreferenciasNotificacoesRoutes } from './preferencias.routes';
 
 const LIMITE_PADRAO = 50;
 const LIMITE_MAXIMO = 100;
 
 export default function criarNotificacaoRoutes() {
   const router = Router();
+  router.use(criarPreferenciasNotificacoesRoutes());
 
   router.get('/notificacoes', exigirMembroDoClube, async (req, res) => {
     const usuarioId = (req as any).usuarioId as number;

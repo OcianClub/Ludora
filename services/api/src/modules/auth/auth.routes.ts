@@ -9,73 +9,56 @@ import { limitarAuth } from '../../middlewares/rate-limit.middleware';
 
 const router = Router();
 
-router.post('/auth/registrar', limitarAuth, async (req, res) => {
-  // Removemos o 'role' daqui, pois novos usuários nascem sem vínculo ou vinculam-se depois
-  const email = String(req.body?.email || '').trim().toLowerCase();
-  const senha = String(req.body?.senha || '');
-  const nome = String(req.body?.nome || '').trim();
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || nome.length < 2 || nome.length > 100 || senha.length < 8 || senha.length > 128) {
-    return res.status(400).json({ error: 'Nome, e-mail ou senha inválidos. A senha deve ter ao menos 8 caracteres.' });
-  }
-  try {
-    const hashSenha = await bcrypt.hash(senha, 12);
-    const usuario = await prisma.usuario.create({
-      data: { email, senha: hashSenha, nome }
-    });
-    res.status(201).json({ mensagem: 'Usuário criado', id: usuario.id });
-  } catch (error: any) { 
-    if (error?.code === 'P2002') {
-      return res.status(409).json({ error: 'Este e-mail já possui uma conta' });
-    }
-    res.status(500).json({ error: 'Não foi possível criar a conta no momento' });
-  }
-});
-
 router.post('/auth/login', limitarAuth, async (req, res) => {
-  const email = String(req.body?.email || '').trim().toLowerCase();
+  const email = String(req.body?.email || '')
+    .trim()
+    .toLowerCase();
   const senha = String(req.body?.senha || '');
   if (!email || !senha || email.length > 254 || senha.length > 128) {
     return res.status(400).json({ error: 'Credenciais inválidas' });
   }
-  
-  // Agora buscamos o usuário E também a lista de clubes que ele faz parte
-  const usuario = await prisma.usuario.findUnique({ 
+
+  const usuario = await prisma.usuario.findUnique({
     where: { email },
     include: {
       clubes: {
-        include: { clube: true }
-      }
-    }
+        include: { clube: true },
+      },
+    },
   });
-  
-  if (!usuario) return res.status(401).json({ error: 'E-mail ou senha inválidos' });
-  
+
+  if (!usuario)
+    return res.status(401).json({ error: 'E-mail ou senha inválidos' });
+
   const senhaValida = await bcrypt.compare(senha, usuario.senha);
-  if (!senhaValida) return res.status(401).json({ error: 'E-mail ou senha inválidos' });
-  
-  // O JWT não carrega mais a "role" global, apenas o ID do usuário
-  const token = jwt.sign({ id: usuario.id }, JWT_SECRET, JWT_OPTIONS);
-  
-  // Formatamos os clubes para o app mobile montar a tela "Seus Clubes"
-  const clubesDoUsuario = usuario.clubes.map(vinculo => ({
+  if (!senhaValida)
+    return res.status(401).json({ error: 'E-mail ou senha inválidos' });
+
+  const token = jwt.sign(
+    { id: usuario.id, versao_sessao: usuario.versao_sessao },
+    JWT_SECRET,
+    JWT_OPTIONS
+  );
+
+  const clubesDoUsuario = usuario.clubes.map((vinculo) => ({
     clube_id: vinculo.clube.id,
     nome: vinculo.clube.nome,
     escudo: vinculo.clube.escudo,
-    papel: vinculo.papel
+    papel: vinculo.papel,
   }));
 
-  res.json({ 
-    token, 
+  res.json({
+    token,
     usuario: {
       id: usuario.id,
       nome: usuario.nome,
       email: usuario.email,
       criadoEm: usuario.criadoEm,
     },
-    nome: usuario.nome, 
-    criadoEm: usuario.criadoEm, 
+    nome: usuario.nome,
+    criadoEm: usuario.criadoEm,
     email: usuario.email,
-    clubes: clubesDoUsuario // <-- Lista de clubes enviada direto no login!
+    clubes: clubesDoUsuario,
   });
 });
 
@@ -88,7 +71,7 @@ router.get('/usuarios/me', exigirAutenticacao, async (req, res) => {
         nome: true,
         email: true,
         criadoEm: true,
-      notificacoes_ativas: true,
+        notificacoes_ativas: true,
         clubes: {
           orderBy: { clube: { nome: 'asc' } },
           select: {
@@ -108,7 +91,8 @@ router.get('/usuarios/me', exigirAutenticacao, async (req, res) => {
       },
     });
 
-    if (!usuario) return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (!usuario)
+      return res.status(404).json({ error: 'Usuário não encontrado' });
 
     res.json({
       id: usuario.id,
@@ -116,7 +100,7 @@ router.get('/usuarios/me', exigirAutenticacao, async (req, res) => {
       email: usuario.email,
       criadoEm: usuario.criadoEm,
       notificacoes_ativas: usuario.notificacoes_ativas,
-      clubes: usuario.clubes.map(vinculo => ({
+      clubes: usuario.clubes.map((vinculo) => ({
         ...vinculo.clube,
         meuPapel: vinculo.papel,
       })),
@@ -126,49 +110,71 @@ router.get('/usuarios/me', exigirAutenticacao, async (req, res) => {
   }
 });
 
-router.patch('/usuarios/me/notificacoes', exigirAutenticacao, async (req, res) => {
-  const ativa = req.body?.ativa;
-  if (typeof ativa !== 'boolean') {
-    return res.status(400).json({ error: 'A preferência de notificações deve ser booleana' });
-  }
+router.patch(
+  '/usuarios/me/notificacoes',
+  exigirAutenticacao,
+  async (req, res) => {
+    const ativa = req.body?.ativa;
+    if (typeof ativa !== 'boolean') {
+      return res
+        .status(400)
+        .json({ error: 'A preferência de notificações deve ser booleana' });
+    }
 
-  try {
-    const usuario = await prisma.usuario.update({
-      where: { id: (req as any).usuarioId },
-      data: { notificacoes_ativas: ativa },
-      select: { notificacoes_ativas: true },
-    });
-    res.json({ ativa: usuario.notificacoes_ativas });
-  } catch {
-    res.status(500).json({ error: 'Não foi possível atualizar a preferência de notificações' });
+    try {
+      const usuario = await prisma.usuario.update({
+        where: { id: (req as any).usuarioId },
+        data: { notificacoes_ativas: ativa },
+        select: { notificacoes_ativas: true },
+      });
+      res.json({ ativa: usuario.notificacoes_ativas });
+    } catch {
+      res.status(500).json({
+        error: 'Não foi possível atualizar a preferência de notificações',
+      });
+    }
   }
-});
+);
 
 router.patch('/usuarios/me', exigirAutenticacao, async (req, res) => {
   const nome = String(req.body?.nome || '').trim();
-  const email = String(req.body?.email || '').trim().toLowerCase();
+  const email = String(req.body?.email || '')
+    .trim()
+    .toLowerCase();
   const senha = req.body?.senha == null ? '' : String(req.body.senha);
-  if (nome.length < 2 || nome.length > 100 || !/^\S+@\S+\.\S+$/.test(email) || (senha && (senha.length < 8 || senha.length > 128))) {
+  if (
+    nome.length < 2 ||
+    nome.length > 100 ||
+    !/^\S+@\S+\.\S+$/.test(email) ||
+    (senha && (senha.length < 8 || senha.length > 128))
+  ) {
     return res.status(400).json({ error: 'Dados de usuário inválidos' });
   }
   try {
     const data: any = { nome, email };
     if (senha) data.senha = await bcrypt.hash(senha, 12);
-    const usuario = await prisma.usuario.update({ where: { id: (req as any).usuarioId }, data });
+    const usuario = await prisma.usuario.update({
+      where: { id: (req as any).usuarioId },
+      data,
+    });
     res.json({
       id: usuario.id,
       nome: usuario.nome,
       email: usuario.email,
       criadoEm: usuario.criadoEm,
     });
-  } catch { res.status(400).json({ error: 'Não foi possível atualizar os dados' }); }
+  } catch {
+    res.status(400).json({ error: 'Não foi possível atualizar os dados' });
+  }
 });
 
 router.delete('/usuarios/me', exigirAutenticacao, async (req, res) => {
   try {
     await prisma.usuario.delete({ where: { id: (req as any).usuarioId } });
     res.json({ mensagem: 'Conta excluída com sucesso' });
-  } catch { res.status(400).json({ error: 'Não foi possível excluir a conta' }); }
+  } catch {
+    res.status(400).json({ error: 'Não foi possível excluir a conta' });
+  }
 });
 
 export default router;

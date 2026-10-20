@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { limparCacheConsultas } from '@/src/services/cacheConsultas';
 import { Icon } from '@ludora/icons';
 
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
@@ -44,13 +45,19 @@ export default function CadastroConvite() {
   const [carregandoConvite, setCarregandoConvite] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const [tentouEnviar, setTentouEnviar] = useState(false);
+  const [revisao, setRevisao] = useState(0);
+  const envioEmAndamento = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
 
-  const senhaValida = senha.length >= 8;
+  const senhaValida = senha.length >= 8 && senha.length <= 128;
   const senhasIguais = confirmacao.length > 0 && senha === confirmacao;
   const formularioValido = nome.trim().length >= 2 && senhaValida && senhasIguais && aceitouTermos;
 
   useEffect(() => {
     let ativo = true;
+    setCarregandoConvite(true);
+    setErro('');
 
     (async () => {
       try {
@@ -66,7 +73,7 @@ export default function CadastroConvite() {
     return () => {
       ativo = false;
     };
-  }, [codigo]);
+  }, [codigo, revisao]);
 
   function irParaSucesso(resultado: ResultadoConvite) {
     router.replace({
@@ -82,23 +89,28 @@ export default function CadastroConvite() {
   }
 
   async function criarConta() {
-    if (!formularioValido || salvando) return;
+    if (envioEmAndamento.current || !convite) return;
+    setTentouEnviar(true);
+    if (!formularioValido) return;
 
+    envioEmAndamento.current = true;
     setSalvando(true);
     setErro('');
 
+    let aceito = false;
     try {
       const resultado = await aceitarConviteNovaConta(codigo, {
         nome: nome.trim(),
         senha,
       });
+      aceito = true;
 
       if (!resultado.token) {
         throw new Error('A conta foi criada, mas a sessão não pôde ser iniciada.');
       }
 
+      await limparCacheConsultas();
       await Promise.all([
-        SecureStore.setItemAsync('userToken', resultado.token),
         SecureStore.setItemAsync('userName', resultado.usuario.nome),
         SecureStore.setItemAsync('userEmail', resultado.usuario.email),
         SecureStore.setItemAsync('userCriadoEm', String(resultado.usuario.criadoEm ?? '')),
@@ -111,11 +123,14 @@ export default function CadastroConvite() {
           papel: resultado.clube.papel,
         }),
       ]);
+      await SecureStore.setItemAsync('userToken', resultado.token);
 
       irParaSucesso(resultado);
     } catch (error: any) {
-      setErro(error.message || 'Não foi possível criar sua conta.');
+      setErro(aceito ? 'O convite foi aceito, mas não conseguimos concluir o acesso neste aparelho. Entre na sua conta pelo login.' : error.message || 'Não foi possível criar sua conta.');
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
     } finally {
+      envioEmAndamento.current = false;
       setSalvando(false);
     }
   }
@@ -127,7 +142,7 @@ export default function CadastroConvite() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.backButton} disabled={salvando} onPress={() => router.canGoBack() ? router.back() : router.replace('/convite')} activeOpacity={0.7}>
             <Icon name="arrow-left" size={22} color={colors.texto} />
           </TouchableOpacity>
         </View>
@@ -137,9 +152,17 @@ export default function CadastroConvite() {
             <ActivityIndicator size="large" color={colors.primaria} />
             <Text style={styles.loadingText}>Preparando seu cadastro...</Text>
           </View>
+        ) : !convite ? (
+          <View style={styles.centeredContent}>
+            <Text style={styles.feedbackText} accessibilityRole="alert">{erro}</Text>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => setRevisao(valor => valor + 1)}>
+              <Text style={styles.primaryButtonText}>TENTAR NOVAMENTE</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <>
             <ScrollView
+              ref={scrollRef}
               style={{ flex: 1 }}
               contentContainerStyle={styles.scrollContent}
               keyboardShouldPersistTaps="handled"
@@ -175,6 +198,8 @@ export default function CadastroConvite() {
                   <View style={[styles.inputRow, campoFocado === 'nome' && styles.inputRowFocused]}>
                     <Icon name="account-outline" size={20} color={campoFocado === 'nome' ? colors.primaria : colors.textoSecundario} />
                     <TextInput
+                      editable={!salvando}
+                      maxLength={100}
                       style={styles.input}
                       placeholder="Digite seu nome completo"
                       placeholderTextColor={colors.textoSecundario}
@@ -186,6 +211,7 @@ export default function CadastroConvite() {
                       returnKeyType="next"
                     />
                   </View>
+                  {tentouEnviar && nome.trim().length < 2 && <Text style={styles.passwordHint}>{nome.trim() ? 'Seu nome precisa ter pelo menos 2 caracteres.' : 'Informe seu nome.'}</Text>}
                 </View>
 
                 <View style={styles.field}>
@@ -197,6 +223,10 @@ export default function CadastroConvite() {
                   ]}>
                     <Icon name="lock-outline" size={20} color={campoFocado === 'senha' ? colors.primaria : colors.textoSecundario} />
                     <TextInput
+                      editable={!salvando}
+                      maxLength={128}
+                      autoCapitalize="none"
+                      autoCorrect={false}
                       style={styles.input}
                       placeholder="Digite sua senha"
                       placeholderTextColor={colors.textoSecundario}
@@ -222,6 +252,10 @@ export default function CadastroConvite() {
                   ]}>
                     <Icon name="lock-outline" size={20} color={campoFocado === 'confirmacao' ? colors.primaria : colors.textoSecundario} />
                     <TextInput
+                      editable={!salvando}
+                      maxLength={128}
+                      autoCapitalize="none"
+                      autoCorrect={false}
                       style={styles.input}
                       placeholder="Digite a senha novamente"
                       placeholderTextColor={colors.textoSecundario}
@@ -235,9 +269,10 @@ export default function CadastroConvite() {
                       <Icon name={mostrarConfirmacao ? 'eye-outline' : 'eye-off-outline'} size={21} color={colors.textoSecundario} />
                     </TouchableOpacity>
                   </View>
+                  {tentouEnviar && !senhasIguais && <Text style={styles.passwordHint}>{confirmacao ? 'As senhas não coincidem.' : 'Digite sua senha novamente para confirmar.'}</Text>}
                 </View>
 
-                <TouchableOpacity style={styles.termsRow} onPress={() => setAceitouTermos(valor => !valor)} activeOpacity={0.75}>
+                <TouchableOpacity style={styles.termsRow} disabled={salvando} accessibilityRole="checkbox" accessibilityState={{ checked: aceitouTermos }} onPress={() => setAceitouTermos(valor => !valor)} activeOpacity={0.75}>
                   <Icon
                     name={aceitouTermos ? 'checkbox-marked' : 'checkbox-blank-outline'}
                     size={21}
@@ -247,14 +282,15 @@ export default function CadastroConvite() {
                     Li e aceito os <Text style={styles.termsLink}>Termos de uso</Text> e a <Text style={styles.termsLink}>Política de privacidade</Text> do Ludora.
                   </Text>
                 </TouchableOpacity>
+                {tentouEnviar && !aceitouTermos && <Text style={styles.passwordHint}>Aceite os Termos de uso e a Política de privacidade para continuar.</Text>}
               </View>
             </ScrollView>
 
             <View style={styles.footer}>
               <TouchableOpacity
-                style={[styles.primaryButton, (!formularioValido || salvando) && styles.buttonDisabled]}
+                style={[styles.primaryButton, salvando && styles.buttonDisabled]}
                 onPress={criarConta}
-                disabled={!formularioValido || salvando}
+                disabled={salvando}
                 activeOpacity={0.8}
               >
                 {salvando ? (
