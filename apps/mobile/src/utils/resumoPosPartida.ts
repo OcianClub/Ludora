@@ -1,4 +1,5 @@
 export interface PartidaResumo {
+  somente_leitura?: boolean;
   id: number;
   status: string;
   emCasa: boolean;
@@ -44,11 +45,13 @@ export function montarResumoPosPartida(
         ? 'Vitória'
         : 'Derrota';
   const vistos = new Set<number>();
-  const registros = eventos.filter((evento) => {
-    if (vistos.has(evento.id) || evento.doOcian === false) return false;
-    vistos.add(evento.id);
-    return true;
-  });
+  const registros = (partida.somente_leitura ? [] : eventos).filter(
+    (evento) => {
+      if (vistos.has(evento.id) || evento.doOcian === false) return false;
+      vistos.add(evento.id);
+      return true;
+    }
+  );
   const metricas = METRICAS.map(({ tipo, titulo, singular }) => {
     const doTipo = registros.filter((evento) => evento.tipo === tipo);
     const atletas = new Map<number, { nome: string; quantidade: number }>();
@@ -85,6 +88,7 @@ export function montarResumoPosPartida(
     golsRegistrados,
     golsConferem: golsClube === golsRegistrados,
     temEventos: registros.length > 0,
+    eventosDoClubeDisponiveis: !partida.somente_leitura,
     data: /^\d{4}-\d{2}-\d{2}/.test(partida.data)
       ? partida.data.slice(0, 10).split('-').reverse().join('/')
       : 'Data não informada',
@@ -106,7 +110,7 @@ export function textoCompartilhamentoPartida(
       .filter(Boolean)
       .join(' · '),
   ];
-  if (incluirAtletas) {
+  if (incluirAtletas && resumo.eventosDoClubeDisponiveis) {
     for (const metrica of resumo.metricas) {
       if (
         !metrica.lideres.length ||

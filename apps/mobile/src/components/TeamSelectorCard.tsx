@@ -1,5 +1,5 @@
 import { Icon } from '@ludora/icons';
-import React from 'react';
+import React, { useState } from 'react';
 import { TouchableOpacity, View, Text, Image } from 'react-native';
 import { createStyles } from '../styles/teamSelectorCardStyles';
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -14,44 +14,82 @@ interface TeamSelectorCardProps {
   time: Team | null;
   tipo: 'MANDANTE' | 'VISITANTE';
   onPress: () => void;
+  disabled?: boolean;
 }
 
 // Sub-componente interno para renderizar o escudo ou as iniciais
-function EscudoTime({ escudo, nome, size = 48 }: { escudo: string | null; nome: string; size?: number }) {
+function EscudoTime({
+  escudo,
+  nome,
+  size = 48,
+}: {
+  escudo: string | null;
+  nome: string;
+  size?: number;
+}) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
-  if (escudo) {
+  const [escudoComErro, setEscudoComErro] = useState<string | null>(null);
+  if (escudo && escudo !== escudoComErro) {
     return (
       <Image
         source={{ uri: escudo }}
-        style={{ width: size, height: size, resizeMode: 'contain', borderRadius: 8, marginBottom: 8 }}
+        onError={() => setEscudoComErro(escudo)}
+        style={{
+          width: size,
+          height: size,
+          resizeMode: 'contain',
+          borderRadius: 8,
+          marginBottom: 8,
+        }}
       />
     );
   }
   return (
-    <View style={[styles.escudoPlaceholder, { width: size, height: size, borderRadius: 8, marginBottom: 8 }]}>
+    <View
+      style={[
+        styles.escudoPlaceholder,
+        { width: size, height: size, borderRadius: 8, marginBottom: 8 },
+      ]}
+    >
       <Text style={[styles.escudoPlaceholderText, { fontSize: size * 0.28 }]}>
-        {nome.split(' ').map(p => p[0]).join('').slice(0, 3).toUpperCase()}
+        {nome
+          .split(' ')
+          .map((p) => p[0])
+          .join('')
+          .slice(0, 3)
+          .toUpperCase()}
       </Text>
     </View>
   );
 }
 
-export default function TeamSelectorCard({ time, tipo, onPress }: TeamSelectorCardProps) {
+export default function TeamSelectorCard({
+  time,
+  tipo,
+  onPress,
+  disabled = false,
+}: TeamSelectorCardProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   return (
-    <TouchableOpacity 
-      style={[styles.card, time !== null && styles.cardSelecionado]} 
-      activeOpacity={0.8} 
+    <TouchableOpacity
+      style={[styles.card, time !== null && styles.cardSelecionado]}
+      activeOpacity={0.8}
       onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={`${tipo === 'MANDANTE' ? 'Mandante' : 'Visitante'}: ${time?.nome ?? 'selecionar time'}`}
+      accessibilityState={{ disabled }}
     >
       {time ? (
         <>
           <EscudoTime escudo={time.escudo} nome={time.nome} size={48} />
           <Text style={styles.label}>{tipo}</Text>
-          <Text style={styles.nomeTime} numberOfLines={2}>{time.nome}</Text>
-          
+          <Text style={styles.nomeTime} numberOfLines={2}>
+            {time.nome}
+          </Text>
+
           <View style={styles.trocarBtn}>
             <Icon name="swap-horizontal" size={11} color={colors.primaria} />
             <Text style={styles.trocarTxt}>TROCAR</Text>

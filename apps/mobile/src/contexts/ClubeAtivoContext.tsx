@@ -1,5 +1,12 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { iniciarMedicaoCarregamento } from '@/src/utils/desempenho';
 
 // ── Fonte única de verdade pro "clube ativo" ──
 //
@@ -14,7 +21,13 @@ import * as SecureStore from 'expo-secure-store';
 // mesmo render), e toda tela que usa useClubeAtivo() recebe o valor novo
 // imediatamente — sem releitura, sem corrida, sem flicker.
 
-export type PapelClube = 'ADMIN' | 'MESARIO' | 'TECNICO' | 'TORCEDOR' | 'OLHEIRO' | null;
+export type PapelClube =
+  | 'ADMIN'
+  | 'MESARIO'
+  | 'TECNICO'
+  | 'TORCEDOR'
+  | 'OLHEIRO'
+  | null;
 
 export interface ClubeAtivo {
   id: number;
@@ -35,7 +48,11 @@ const PAPEIS_GESTORES: PapelClube[] = ['ADMIN', 'TECNICO', 'MESARIO'];
 
 const ClubeAtivoContext = createContext<ClubeAtivoContextValue | null>(null);
 
-export function ClubeAtivoProvider({ children }: { children: React.ReactNode }) {
+export function ClubeAtivoProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [clubeAtivo, setClubeAtivo] = useState<ClubeAtivo | null>(null);
   const [carregandoClubeAtivo, setCarregandoClubeAtivo] = useState(true);
 
@@ -45,20 +62,20 @@ export function ClubeAtivoProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     (async () => {
       try {
-      const [id, nome, escudo, papel] = await Promise.all([
-        SecureStore.getItemAsync('clubeAtivoId'),
-        SecureStore.getItemAsync('clubeAtivoNome'),
-        SecureStore.getItemAsync('clubeAtivoEscudo'),
-        SecureStore.getItemAsync('clubeAtivoPapel'),
-      ]);
-      if (id && Number.isSafeInteger(Number(id)) && Number(id) > 0) {
-        setClubeAtivo({
-          id: Number(id),
-          nome: nome || 'MEU CLUBE',
-          escudo: escudo || null,
-          papel: (papel as PapelClube) || null,
-        });
-      }
+        const [id, nome, escudo, papel] = await Promise.all([
+          SecureStore.getItemAsync('clubeAtivoId'),
+          SecureStore.getItemAsync('clubeAtivoNome'),
+          SecureStore.getItemAsync('clubeAtivoEscudo'),
+          SecureStore.getItemAsync('clubeAtivoPapel'),
+        ]);
+        if (id && Number.isSafeInteger(Number(id)) && Number(id) > 0) {
+          setClubeAtivo({
+            id: Number(id),
+            nome: nome || 'MEU CLUBE',
+            escudo: escudo || null,
+            papel: (papel as PapelClube) || null,
+          });
+        }
       } catch {
         setClubeAtivo(null);
       } finally {
@@ -68,6 +85,7 @@ export function ClubeAtivoProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const definirClubeAtivo = useCallback(async (clube: ClubeAtivo) => {
+    const finalizar = iniciarMedicaoCarregamento('clube:persistencia');
     // A API lê o clube no SecureStore: persiste antes de disparar os efeitos
     // das telas para evitar requisições com o identificador do clube anterior.
     await Promise.all([
@@ -77,6 +95,7 @@ export function ClubeAtivoProvider({ children }: { children: React.ReactNode }) 
       SecureStore.setItemAsync('clubeAtivoPapel', clube.papel || ''),
     ]);
     setClubeAtivo(clube);
+    finalizar();
   }, []);
 
   const limparClubeAtivo = useCallback(async () => {
@@ -89,11 +108,18 @@ export function ClubeAtivoProvider({ children }: { children: React.ReactNode }) 
     ]);
   }, []);
 
-  const podeGerenciar = !!clubeAtivo?.papel && PAPEIS_GESTORES.includes(clubeAtivo.papel);
+  const podeGerenciar =
+    !!clubeAtivo?.papel && PAPEIS_GESTORES.includes(clubeAtivo.papel);
 
   return (
     <ClubeAtivoContext.Provider
-      value={{ clubeAtivo, carregandoClubeAtivo, podeGerenciar, definirClubeAtivo, limparClubeAtivo }}
+      value={{
+        clubeAtivo,
+        carregandoClubeAtivo,
+        podeGerenciar,
+        definirClubeAtivo,
+        limparClubeAtivo,
+      }}
     >
       {children}
     </ClubeAtivoContext.Provider>
@@ -103,7 +129,9 @@ export function ClubeAtivoProvider({ children }: { children: React.ReactNode }) 
 export function useClubeAtivo() {
   const ctx = useContext(ClubeAtivoContext);
   if (!ctx) {
-    throw new Error('useClubeAtivo precisa ser usado dentro de <ClubeAtivoProvider>');
+    throw new Error(
+      'useClubeAtivo precisa ser usado dentro de <ClubeAtivoProvider>'
+    );
   }
   return ctx;
 }

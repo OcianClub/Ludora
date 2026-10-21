@@ -334,13 +334,14 @@ function MiniStats({
 // ── Componente Principal ──────────────────────────────────────────────────────
 export default function DetalhesPartida({
   partida: partidaInicial,
-  isAdmin,
+  isAdmin: permissaoGestao,
   onBack,
   consultaLocal = false,
 }: Props) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const [partida, setPartida] = useState<Partida>(partidaInicial);
+  const isAdmin = permissaoGestao && !partida.somente_leitura;
   const [golsMandante, setGolsMandante] = useState(
     partidaInicial.gols_mandante
   );

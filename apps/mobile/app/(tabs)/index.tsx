@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
   Modal,
+  InteractionManager,
 } from 'react-native';
 import { createStyles } from '../../src/styles/indexStyles';
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -19,7 +20,7 @@ import Animated, { useEvent, useSharedValue } from 'react-native-reanimated';
 import {
   atualizarStatusPartida,
   fetchEscalacaoPartida,
-  fetchPartidas,
+  fetchHome,
 } from '@/src/services/api';
 import {
   CarrosselSubs,
@@ -39,6 +40,9 @@ import { criarControleRequisicoes } from '@/src/utils/request';
 import { resumirPartidas } from '@/src/utils/resumoPartidas';
 import { consultarComCopiaLocal } from '@/src/services/cacheConsultas';
 import { selecionarPartidasLocais } from '@/src/utils/dadosConsultaLocal';
+import { selecionarJogadoresLocais } from '@/src/utils/dadosConsultaLocal';
+import { obterPerfisJogadores } from '@/src/services/mlService';
+import { iniciarMedicaoCarregamento } from '@/src/utils/desempenho';
 import { AvisoConsultaLocal } from '@/src/components/AvisoConsultaLocal';
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
@@ -58,7 +62,11 @@ export default function Home() {
   const carregouUmaVez = useRef(false);
   const clubeCarregadoId = useRef<number | null>(null);
   const controle = useRef(criarControleRequisicoes()).current;
+  const medicaoTela = useRef<ReturnType<
+    typeof iniciarMedicaoCarregamento
+  > | null>(null);
   const iniciando = useRef(false);
+  const scoutPreparado = useRef(new Set<number>());
   const [erroCarregamento, setErroCarregamento] = useState('');
   const [consultaLocal, setConsultaLocal] = useState<number | null>(null);
   const consultaLocalRef = useRef(consultaLocal);
@@ -85,6 +93,7 @@ export default function Home() {
   const { versaoNotificacoes } = useNotificacoes();
 
   const carregarDadosDoClube = useCallback(async () => {
+    medicaoTela.current = iniciarMedicaoCarregamento('home:estado-pronto');
     const pedido = controle.iniciar();
     setConsultandoServidor(true);
     setErroCarregamento('');
@@ -102,7 +111,7 @@ export default function Home() {
       const resultado = await consultarComCopiaLocal<Partida[]>({
         clubeId: clubeAtivo.id,
         recurso: 'home',
-        carregar: () => fetchPartidas({ resumo: true }, clubeAtivo.id),
+        carregar: () => fetchHome(clubeAtivo.id),
         selecionar: selecionarPartidasLocais,
         onLocal: (local) => {
           if (
@@ -121,8 +130,27 @@ export default function Home() {
       setConsultaLocal(resultado.origem === 'local' ? resultado.salvoEm : null);
       setRevisao((valor) => valor + 1);
       clubeCarregadoId.current = clubeAtivo.id;
+      if (podeGerenciar && !scoutPreparado.current.has(clubeAtivo.id)) {
+        const clubeId = clubeAtivo.id;
+        scoutPreparado.current.add(clubeId);
+        InteractionManager.runAfterInteractions(() => {
+          if (!controle.atual(pedido)) {
+            scoutPreparado.current.delete(clubeId);
+            return;
+          }
+          void consultarComCopiaLocal({
+            clubeId,
+            recurso: 'scout',
+            carregar: () => obterPerfisJogadores(undefined, clubeId),
+            selecionar: selecionarJogadoresLocais,
+          }).catch(() => {
+            scoutPreparado.current.delete(clubeId);
+          });
+        });
+      }
     } catch (error) {
       if (controle.atual(pedido)) {
+        clubeCarregadoId.current = clubeAtivo?.id ?? null;
         setPartidasGlobais([]);
         setConsultaLocal(null);
         setErroCarregamento(
@@ -138,7 +166,14 @@ export default function Home() {
         setConsultandoServidor(false);
       }
     }
-  }, [clubeAtivo?.id, controle]);
+  }, [clubeAtivo?.id, controle, podeGerenciar]);
+
+  useEffect(() => {
+    if (!carregando && medicaoTela.current) {
+      medicaoTela.current({ resultado: erroCarregamento ? 'erro' : 'dados' });
+      medicaoTela.current = null;
+    }
+  }, [carregando, partidasGlobais, erroCarregamento]);
 
   useFocusEffect(
     useCallback(() => {
@@ -180,15 +215,16 @@ export default function Home() {
   }, [clubeAtivo?.id]);
 
   const diaAtual = new Date().toDateString();
+  const mudouClubeNaTela = clubeCarregadoId.current !== (clubeAtivo?.id ?? null);
   const resumos = useMemo(
     () =>
       subsAtuais.map((sub) => {
-        const partidas = partidasGlobais.filter(
+        const partidas = (mudouClubeNaTela ? [] : partidasGlobais).filter(
           (p) => p.categoria?.nome.replace(' ', '-').toUpperCase() === sub.title
         );
         return { sub, ...resumirPartidas(partidas) };
       }),
-    [partidasGlobais, subsAtuais, diaAtual]
+    [partidasGlobais, subsAtuais, diaAtual, mudouClubeNaTela]
   );
 
   const handleIniciarPartida = useCallback(async (partida: Partida) => {
@@ -261,14 +297,14 @@ export default function Home() {
         onChangeIndex={handleSubChange}
         progressoPagina={progressoPagina}
       />
-      {consultaLocal !== null && (
+      {consultaLocal !== null && !mudouClubeNaTela && (
         <AvisoConsultaLocal
           salvoEm={consultaLocal}
           atualizando={consultandoServidor}
           onAtualizar={() => void atualizarHome()}
         />
       )}
-      {!!erroCarregamento && (
+      {!!erroCarregamento && !mudouClubeNaTela && (
         <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
           <ErroCarregamento
             compacto={partidasGlobais.length > 0}
@@ -309,7 +345,7 @@ export default function Home() {
               >
                 <HomeCategoria
                   ativa={index === subIndex && !partidaSelecionada}
-                  carregando={carregando}
+                  carregando={carregando || mudouClubeNaTela}
                   atualizando={atualizando}
                   revisao={revisao}
                   onAtualizar={atualizarHome}
@@ -337,7 +373,11 @@ export default function Home() {
         >
           <DetalhesPartida
             partida={partidaSelecionada as PartidaDetalhes}
-            isAdmin={podeGerenciar && consultaLocal === null && !partidaSelecionada.somente_leitura}
+            isAdmin={
+              podeGerenciar &&
+              consultaLocal === null &&
+              !partidaSelecionada.somente_leitura
+            }
             consultaLocal={consultaLocal !== null}
             onBack={fecharDetalhes}
           />

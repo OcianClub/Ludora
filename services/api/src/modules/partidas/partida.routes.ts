@@ -14,6 +14,9 @@ import { processarMachineLearning } from '../../services/scout-ia.service';
 import { criarNotificacoesDoClube } from '../../services/notificacoes.service';
 import { idPositivo } from '../../utils/id';
 import { consultarListaPartidas } from './partidas-lista.service';
+import { FiltroDataInvalido } from './filtros-data.utils';
+import { consultarHome } from './home.service';
+import { criarHomeRoutes } from './home.routes';
 import { perspectivaPartida } from './visibilidade';
 import {
   aplicarMudancaPlacar,
@@ -35,6 +38,7 @@ function formatarDataPartida(data: Date, horario: string | null) {
 
 export function criarPartidaRoutes(io: Server) {
   const router = Router();
+  router.use(criarHomeRoutes(exigirClubePublico, (clubeId, hoje) => consultarHome(prisma, clubeId, hoje)));
 
   const notificarGol = async (
     clubeId: number,
@@ -232,6 +236,10 @@ export function criarPartidaRoutes(io: Server) {
       const partidas = await consultarListaPartidas(prisma, clube_id, req.query);
       res.json(partidas);
     } catch (error: any) {
+      if (error instanceof FiltroDataInvalido) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
       res.status(500).json({ error: 'Erro ao buscar partidas' });
     }
   });

@@ -12,6 +12,7 @@ import {
   type ResultadoConsulta,
 } from '../utils/consultaComCache';
 export type { ResultadoConsulta } from '../utils/consultaComCache';
+import { iniciarMedicaoCarregamento } from '../utils/desempenho';
 
 const CHAVE_SESSAO = 'cacheConsultasSessao';
 const memoria = new Map<string, string>();
@@ -134,6 +135,7 @@ export async function consultarComCopiaLocal<T>({
   selecionar: (dados: unknown) => T | null;
   onLocal?: (resultado: ResultadoConsulta<T>) => void;
 }): Promise<ResultadoConsulta<T>> {
+  const finalizar = iniciarMedicaoCarregamento(`consulta:${recurso}`);
   const geracao = cache.geracao();
   const token = await SecureStore.getItemAsync('userToken').catch(() => null);
   const validoAte = token ? expiracaoTokenCache(token) : null;
@@ -152,39 +154,46 @@ export async function consultarComCopiaLocal<T>({
     validoAte !== null &&
     validoAte > Date.now() &&
     token === (await SecureStore.getItemAsync('userToken').catch(() => null));
-  return executarConsultaComCache({
-    carregar,
-    lerLocal: () =>
-      escopo ? cache.ler(escopo, recurso, selecionar) : Promise.resolve(null),
-    contextoAtual,
-    salvar: async (dados) => {
-      const selecionados = selecionar(dados);
-      if (escopo && selecionados !== null)
-        await cache.gravar(escopo, recurso, selecionados);
-    },
-    descartar: async (status) => {
-      if (
-        status === 401 &&
-        identidade &&
-        token ===
-          (await SecureStore.getItemAsync('userToken').catch(() => null))
-      ) {
-        identidadesRecusadas.add(identidade);
-        const limpeza = cache.limpar();
-        await iniciandoSessao?.catch(() => undefined);
-        iniciandoSessao = null;
-        iniciandoIdentidade = null;
-        await limpeza;
+  try {
+    const resultado = await executarConsultaComCache({
+      carregar,
+      lerLocal: () =>
+        escopo ? cache.ler(escopo, recurso, selecionar) : Promise.resolve(null),
+      contextoAtual,
+      salvar: async (dados) => {
+        const selecionados = selecionar(dados);
+        if (escopo && selecionados !== null)
+          await cache.gravar(escopo, recurso, selecionados);
+      },
+      descartar: async (status) => {
         if (
+          status === 401 &&
+          identidade &&
           token ===
-          (await SecureStore.getItemAsync('userToken').catch(() => null))
-        )
-          await SecureStore.setItemAsync(
-            CHAVE_SESSAO,
-            JSON.stringify({ identidade, recusada: true })
-          ).catch(() => undefined);
-      } else if (escopo) await cache.remover(escopo, recurso);
-    },
-    onLocal,
-  });
+            (await SecureStore.getItemAsync('userToken').catch(() => null))
+        ) {
+          identidadesRecusadas.add(identidade);
+          const limpeza = cache.limpar();
+          await iniciandoSessao?.catch(() => undefined);
+          iniciandoSessao = null;
+          iniciandoIdentidade = null;
+          await limpeza;
+          if (
+            token ===
+            (await SecureStore.getItemAsync('userToken').catch(() => null))
+          )
+            await SecureStore.setItemAsync(
+              CHAVE_SESSAO,
+              JSON.stringify({ identidade, recusada: true })
+            ).catch(() => undefined);
+        } else if (escopo) await cache.remover(escopo, recurso);
+      },
+      onLocal,
+    });
+    finalizar({ origem: resultado.origem });
+    return resultado;
+  } catch (erro) {
+    finalizar({ origem: 'falha' });
+    throw erro;
+  }
 }

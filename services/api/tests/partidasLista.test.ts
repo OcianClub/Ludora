@@ -6,18 +6,34 @@ import { consultarListaPartidas } from '../src/modules/partidas/partidas-lista.s
 test('lista leve omite eventos, mantém filtros e escopo; resposta padrão preserva eventos', async () => {
   const consultas: any[] = [];
   const banco = {
-    categoria: { async findFirst() { return {faixaIdade:7}; } },
+    categoria: {
+      async findFirst() {
+        return { faixaIdade: 7 };
+      },
+    },
     partida: {
       async findMany(args: any) {
         consultas.push(args);
         return [
           {
             id: 1,
-            categoria: {clube_id:2}, emCasa:true,
-            mandante:{clube_representado_id:2},visitante:{clube_representado_id:3},
+            categoria: { clube_id: 2 },
+            emCasa: true,
+            mandante: {
+              id: 1,
+              nome: 'Clube',
+              escudo: null,
+              clube_representado_id: 2,
+            },
+            visitante: {
+              id: 2,
+              nome: 'Visitante',
+              escudo: null,
+              clube_representado_id: 3,
+            },
             gols_mandante: 2,
             gols_visitante: 1,
-            ...(args.include.eventos
+            ...(args.include?.eventos
               ? { eventos: [{ id: 9, tipo: 'GOL' }] }
               : {}),
           },
@@ -36,8 +52,12 @@ test('lista leve omite eventos, mantém filtros e escopo; resposta padrão prese
   assert.equal(leve[0].emCasa, true);
   assert.equal('eventos' in leve[0], false);
   assert.deepEqual(consultas[0].where, {
-    OR: [{categoria:{clube_id:2}},{mandante:{clube_representado_id:2}},{visitante:{clube_representado_id:2}}],
-    AND: [{categoria:{faixaIdade:7}}],
+    OR: [
+      { categoria: { clube_id: 2 } },
+      { mandante: { clube_representado_id: 2 } },
+      { visitante: { clube_representado_id: 2 } },
+    ],
+    AND: [{ categoria: { faixaIdade: 7 } }],
     status: 'AO_VIVO',
     competicao_id: 8,
     data: {
@@ -45,7 +65,10 @@ test('lista leve omite eventos, mantém filtros e escopo; resposta padrão prese
       lt: new Date(Date.UTC(new Date().getFullYear(), 10, 1)),
     },
   });
-  assert.equal(consultas[0].include.eventos, false);
+  assert.equal(consultas[0].select.eventos, undefined);
+  assert.equal(consultas[0].include, undefined);
+  assert.equal(consultas[0].select.mandante.select.categoria_id, undefined);
+  assert.deepEqual(leve[0].mandante, { id: 1, nome: 'Clube', escudo: null });
   assert.deepEqual(consultas[0].orderBy, { data: 'asc' });
   const padrao = await consultarListaPartidas(banco, 3, {});
   assert.deepEqual((padrao[0] as any).eventos, [{ id: 9, tipo: 'GOL' }]);

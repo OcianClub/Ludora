@@ -174,7 +174,8 @@ export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
       escudo: clube.escudo,
       papel,
     });
-    router.replace('/(tabs)');
+    if (modo === 'trocar') router.navigate('/(tabs)');
+    else router.replace('/(tabs)');
   };
 
   const acessarClube = async (clube: ClubeListado) => selecionarClube(clube);

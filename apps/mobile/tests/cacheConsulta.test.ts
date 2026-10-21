@@ -99,8 +99,83 @@ test('cache vencido, sessão expirada e arquivos quebrados não são usados', as
   await estado.cache.gravar(estado.escopo(), 'home', [2]);
   for (const chave of estado.arquivos.keys())
     estado.arquivos.set(chave, '{quebrado');
-  assert.equal(await estado.cache.ler(estado.escopo(), 'home', validar), null);
+  const reaberto = criarCacheConsulta(
+    {
+      listar: async () => [...estado.arquivos.keys()],
+      ler: async (chave) => estado.arquivos.get(chave) ?? '',
+      gravar: async () => {},
+      remover: async (chave) => {
+        estado.arquivos.delete(chave);
+      },
+    },
+    estado.agora
+  );
+  assert.equal(await reaberto.ler(estado.escopo(), 'home', validar), null);
   assert.equal(estado.arquivos.size, 0);
+});
+
+test('cópia em memória evita disco na revisita e não compartilha objetos mutáveis', async () => {
+  let leituras = 0;
+  const cache = criarCacheConsulta({
+    listar: async () => {
+      leituras++;
+      return [];
+    },
+    ler: async () => {
+      throw new Error('Não deve ler o disco');
+    },
+    gravar: async () => {},
+    remover: async () => {},
+  });
+  const escopo: EscopoCache = {
+    sessao: 'sessao-a',
+    clubeId: 1,
+    geracao: 0,
+    validoAte: Date.now() + 60_000,
+  };
+  await cache.gravar(escopo, 'home', [1]);
+  const antes = leituras;
+  const primeira = await cache.ler(escopo, 'home', validar);
+  primeira!.dados.push(99);
+  assert.deepEqual((await cache.ler(escopo, 'home', validar))?.dados, [1]);
+  assert.equal(leituras, antes);
+  await cache.limpar();
+  assert.equal(
+    await cache.ler({ ...escopo, geracao: cache.geracao() }, 'home', validar),
+    null
+  );
+});
+
+test('leitura quente não espera operações de disco de outro clube', async () => {
+  let bloquear = false;
+  let liberar!: () => void;
+  const bloqueio = new Promise<void>((resolve) => {
+    liberar = resolve;
+  });
+  const cache = criarCacheConsulta({
+    listar: async () => {
+      if (bloquear) await bloqueio;
+      return [];
+    },
+    ler: async () => '',
+    gravar: async () => {},
+    remover: async () => {},
+  });
+  const escopo: EscopoCache = {
+    sessao: 'sessao-a',
+    clubeId: 1,
+    geracao: 0,
+    validoAte: Date.now() + 60_000,
+  };
+  await cache.gravar(escopo, 'home', [1]);
+  bloquear = true;
+  const fria = cache.ler({ ...escopo, clubeId: 2 }, 'home', validar);
+  try {
+    assert.deepEqual((await cache.ler(escopo, 'home', validar))?.dados, [1]);
+  } finally {
+    liberar();
+  }
+  await fria;
 });
 
 test('limpeza invalida gravações antigas e dados grandes não são persistidos', async () => {
@@ -250,6 +325,45 @@ function operacao(
     ...alteracoes,
   });
 }
+
+test('resposta remota pronta não espera uma leitura local lenta e cache atrasado não reaparece', async () => {
+  let liberar!: (dados: { dados: number[]; salvoEm: number }) => void;
+  const locais: number[][] = [];
+  const resposta = await operacao(async () => [42], {
+    lerLocal: () =>
+      new Promise((resolve) => {
+        liberar = resolve;
+      }),
+    onLocal: (local) => locais.push(local.dados),
+  });
+  assert.equal(resposta.origem, 'servidor');
+  assert.deepEqual(resposta.dados, [42]);
+  liberar({ dados: [1], salvoEm: 10 });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(locais, []);
+});
+
+test('cache preserva clube de origem e restrição de edição sem guardar eventos', () => {
+  const dados = selecionarPartidasLocais([
+    {
+      id: 1,
+      mandante: { id: 1, nome: 'A', escudo: null },
+      visitante: { id: 2, nome: 'B', escudo: null },
+      gols_mandante: 1,
+      gols_visitante: 1,
+      data: '2026-10-20',
+      status: 'AO_VIVO',
+      emCasa: false,
+      clube_origem_id: 2,
+      somente_leitura: true,
+      eventos: [{ tipo: 'GOL' }],
+      categoria: { id: 1, nome: 'sub-7' },
+    },
+  ]);
+  assert.equal(dados?.[0].clube_origem_id, 2);
+  assert.equal(dados?.[0].somente_leitura, true);
+  assert.equal('eventos' in dados![0], false);
+});
 
 test('consulta sem rede usa a cópia local e sucesso remoto inclusive vazio prevalece', async () => {
   assert.deepEqual(

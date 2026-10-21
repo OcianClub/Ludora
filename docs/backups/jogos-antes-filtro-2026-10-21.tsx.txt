@@ -1,0 +1,479 @@
+import { Icon, type IconName } from '@ludora/icons';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import {
+  View, Text, TouchableOpacity, Image, ScrollView,
+  Modal, Pressable, ActivityIndicator, RefreshControl,
+} from 'react-native';
+import { createStyles } from '@/src/styles/jogosStyles';
+import { HeaderClube } from '@/src/components/HeaderClube';
+import { PaginaCategoria } from '@/src/components/PaginaCategoria';
+import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
+import { useFocusEffect } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import PagerView, { type PagerViewOnPageScrollEvent } from 'react-native-pager-view';
+import Animated, { useEvent, useSharedValue } from 'react-native-reanimated';
+import { fetchPartidas } from '@/src/services/api';
+import OrganizarPartidas from '../organizarPartidas/organizarPartidas';
+import { CarrosselSubs, SUBS_INICIACAO, SUBS_BASE } from '@/src/components/CarrosselSubs';
+import DetalhesPartida, { Partida as PartidaDetalhes } from '@/src/components/DetalhesPartida';
+import { CardsSkeleton } from '@/src/components/Skeleton';
+import { ErroCarregamento } from '@/src/components/ErroCarregamento';
+import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
+import { criarControleRequisicoes } from '@/src/utils/request';
+
+const FILTROS_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+type StatusFiltro = 'TODOS' | 'AGENDADA' | 'AO_VIVO' | 'FINALIZADA';
+const getStatusOptions = (colors: ThemeColors): { label: string; value: StatusFiltro; icon: IconName; iconColor: string }[] => [
+  { label: 'Todos os jogos', value: 'TODOS', icon: 'soccer', iconColor: colors.primaria },
+  { label: 'Ao vivo',        value: 'AO_VIVO', icon: 'record-circle-outline', iconColor: colors.tituloErro },
+  { label: 'Agendadas',      value: 'AGENDADA', icon: 'calendar-clock', iconColor: colors.textoSecundario },
+  { label: 'Finalizadas',    value: 'FINALIZADA', icon: 'check', iconColor: colors.primaria },
+];
+
+// Papel é por CLUBE (ADMIN/MESARIO/TECNICO/TORCEDOR), não mais um "userRole"
+// global — o mesmo usuário pode ser TECNICO num clube e TORCEDOR em outro.
+// Cobre tudo que não é torcedor puro: criar/editar/apagar partida, apontar
+// placar, registrar eventos etc. (mesmo comportamento que "isAdmin" tinha
+// antes no DetalhesPartida — só que agora calculado por clube).
+interface Time { id: number; nome: string; escudo: string | null; }
+interface Partida {
+  somente_leitura?: boolean;
+  id: number;
+  mandante: Time;
+  visitante: Time;
+  gols_mandante: number;
+  gols_visitante: number;
+  data: string;
+  horario: string | null;
+  local: string | null;
+  status: 'AGENDADA' | 'PREPARADA' | 'AO_VIVO' | 'FINALIZADA' | 'CANCELADA';
+  emCasa: boolean;
+  categoria: { id: number; nome: string } | null;
+}
+interface DiaJogo { data: string; partidas: Partida[]; }
+
+function isHoje(dataStr: string): boolean {
+  const hoje = new Date();
+  const [ano, mes, dia] = dataStr.split('T')[0].split('-').map(Number);
+  return hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes && hoje.getDate() === dia;
+}
+
+function agruparPorDia(partidas: Partida[]): DiaJogo[] {
+  const mapa = new Map<string, Partida[]>();
+  for (const p of partidas) {
+    const [ano, mes, dia] = p.data.split('T')[0].split('-');
+    const dataObj = new Date(Number(ano), Number(mes) - 1, Number(dia));
+    const chave = dataObj.toLocaleDateString('pt-BR', {
+      weekday: 'long', day: '2-digit', month: 'long',
+    }).toUpperCase();
+    if (!mapa.has(chave)) mapa.set(chave, []);
+    mapa.get(chave)!.push(p);
+  }
+  return Array.from(mapa.entries()).map(([data, partidas]) => ({ data, partidas }));
+}
+
+function ordenarPartidas(partidas: Partida[]): Partida[] {
+  const aoVivo    = partidas.filter(p => p.status === 'AO_VIVO');
+  const agendadas = partidas
+    .filter(p => p.status === 'AGENDADA' || p.status === 'PREPARADA')
+    .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+  const finalizadas = partidas
+    .filter(p => p.status === 'FINALIZADA')
+    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+  const canceladas = partidas.filter(p => p.status === 'CANCELADA');
+  return [...aoVivo, ...agendadas, ...finalizadas, ...canceladas];
+}
+
+const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
+
+export default function Jogos() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+  const statusOptions = getStatusOptions(colors);
+  const { clubeAtivo, podeGerenciar } = useClubeAtivo();
+  const pagerRef = useRef<PagerView>(null);
+  const progressoPagina = useSharedValue(0);
+  const acompanharPagina = useEvent<PagerViewOnPageScrollEvent>((event) => {
+    'worklet';
+    progressoPagina.value = event.position + event.offset;
+  }, ['onPageScroll']);
+  const carregouUmaVez = useRef(false);
+  const clubeCarregadoId = useRef<number | null>(null);
+  const controle = useRef(criarControleRequisicoes()).current;
+  const [erroCarregamento, setErroCarregamento] = useState('');
+
+  const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(null);
+
+  // Estados Reais (aplicados)
+  const [mesAtivo, setMesAtivo] = useState(new Date().getMonth() + 1);
+  const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>('TODOS');
+  
+  // Estados Temporários do Modal
+  const [modalFiltrosVisible, setModalFiltrosVisible] = useState(false);
+  const [tempMes, setTempMes] = useState(mesAtivo);
+  const [tempStatus, setTempStatus] = useState<StatusFiltro>(statusFiltro);
+  const [showMonthGrid, setShowMonthGrid] = useState(false);
+
+  const [tipoFiltro, setTipoFiltro] = useState<'INICIACAO' | 'BASE'>('INICIACAO');
+  const [subIndex, setSubIndex] = useState(0);
+  const [dias, setDias] = useState<DiaJogo[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [modalOrganizar, setModalOrganizar] = useState(false);
+
+  const carregarPartidas = useCallback(async () => {
+    const pedido = controle.iniciar();
+    setErroCarregamento('');
+    const clubeMudou = clubeCarregadoId.current !== (clubeAtivo?.id ?? null);
+    try {
+      if (clubeMudou) {
+        setCarregando(true);
+        setDias([]);
+      }
+      if (!clubeAtivo?.id) {
+        setDias([]);
+        return;
+      }
+      const params: any = { mes: mesAtivo, resumo: true };
+      if (statusFiltro !== 'TODOS') params.status = statusFiltro;
+      const partidas: Partida[] = await fetchPartidas(params, clubeAtivo.id);
+      if (!controle.atual(pedido)) return;
+      setDias(agruparPorDia(ordenarPartidas(partidas)));
+      clubeCarregadoId.current = clubeAtivo.id;
+    } catch (e) {
+      if (controle.atual(pedido)) setErroCarregamento(e instanceof Error ? e.message : 'Não foi possível carregar os jogos.');
+    } finally {
+      if (controle.atual(pedido)) {
+      setCarregando(false);
+      setRefreshing(false);
+      }
+    }
+  }, [clubeAtivo?.id, mesAtivo, statusFiltro]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!carregouUmaVez.current) setCarregando(true);
+      carregarPartidas().finally(() => {
+        carregouUmaVez.current = true;
+      });
+      return () => controle.invalidar();
+    }, [carregarPartidas])
+  );
+
+  const onRefresh = () => { setRefreshing(true); carregarPartidas(); };
+  const dadosAtuais = tipoFiltro === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
+  useEffect(() => { setPartidaSelecionada(null); setModalOrganizar(false); }, [clubeAtivo?.id]);
+  const diasPorSub = useMemo(() => dadosAtuais.map(sub => ({
+    sub,
+    diasComPartidas: dias.map(dia => ({
+      ...dia,
+      filtradas: dia.partidas.filter(p => p.categoria?.nome.toUpperCase().replace(' ', '-') === sub.title),
+    })).filter(dia => dia.filtradas.length > 0),
+  })), [dias, dadosAtuais]);
+
+  const handleTrocarFase = useCallback((novaFase: 'INICIACAO' | 'BASE') => {
+    setTipoFiltro(novaFase);
+    setSubIndex(0);
+    progressoPagina.value = 0;
+    pagerRef.current?.setPageWithoutAnimation(0);
+  }, [progressoPagina]);
+
+  const handleSubChange = useCallback((index: number) => {
+    pagerRef.current?.setPage(index);
+  }, []);
+
+  const onPageSelected = (e: any) => {
+    const index = e.nativeEvent.position;
+    if (index !== subIndex) setSubIndex(index);
+  };
+
+  const filtrarPartidasPorSub = (partidas: Partida[], subName: string) =>
+    partidas.filter(p => {
+      if (!p.categoria) return false;
+      const catNome = p.categoria.nome.toUpperCase().replace(' ', '-');
+      return catNome === subName;
+    });
+
+  // Abre o modal passando os estados atuais para o temporário
+  const abrirFiltros = () => {
+    setTempMes(mesAtivo);
+    setTempStatus(statusFiltro);
+    setShowMonthGrid(false);
+    setModalFiltrosVisible(true);
+  };
+
+  // Aplica os filtros e recarrega
+  const aplicarFiltros = () => {
+    setMesAtivo(tempMes);
+    setStatusFiltro(tempStatus);
+    setModalFiltrosVisible(false);
+    if (tempMes !== mesAtivo || tempStatus !== statusFiltro) setCarregando(true);
+  };
+
+  return (
+    <View style={styles.container}>
+      <HeaderClube />
+
+      {/* 1. Mova o CarrosselSubs para FORA do filtersContainer para não dobrar o padding */}
+      <CarrosselSubs
+        tipoFiltro={tipoFiltro}
+        onTrocarTipo={handleTrocarFase}
+        indexAtual={subIndex}
+        onChangeIndex={handleSubChange}
+        progressoPagina={progressoPagina}
+      />
+
+      <AnimatedPagerView ref={pagerRef} style={{ flex: 1 }} initialPage={0} onPageSelected={onPageSelected} onPageScroll={acompanharPagina} offscreenPageLimit={1}>
+        {diasPorSub.map(({ sub, diasComPartidas }, indexPagina) => {
+          return (
+            <View key={`pagina-${indexPagina}`} style={{ flex: 1 }} collapsable={false}>
+              <PaginaCategoria grupo={`${clubeAtivo?.id}-${tipoFiltro}`} preparar={Math.abs(indexPagina - subIndex) <= 1}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.content}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaria} />}
+              >
+      <View style={{ paddingBottom: 10 }}>
+        <TouchableOpacity activeOpacity={0.7} style={styles.singleFilterBtn} onPress={abrirFiltros}>
+          <Icon name="filter-variant" size={20} color={colors.primaria} />
+          <Text style={styles.filterBtnText}>
+            {FILTROS_MES[mesAtivo - 1]} • {statusOptions.find(o => o.value === statusFiltro)?.label}
+          </Text>
+          <Icon name="chevron-down" size={20} color={colors.textoSecundario} />
+        </TouchableOpacity>
+      </View>
+
+                {!!erroCarregamento && (
+                  <ErroCarregamento
+                    compacto={dias.length > 0}
+                    titulo={dias.length > 0 ? 'Exibindo jogos já carregados' : 'Não foi possível carregar os jogos'}
+                    descricao={dias.length > 0
+                      ? 'Não conseguimos atualizar a lista agora. Tente novamente em instantes.'
+                      : 'Confira sua conexão e tente atualizar novamente.'}
+                    onTentarNovamente={onRefresh}
+                  />
+                )}
+                {carregando ? (
+                  <CardsSkeleton rows={4} />
+                ) : diasComPartidas.length === 0 ? (
+                  <View style={{ alignItems: 'center', marginTop: 60, gap: 12 }}>
+                    <Icon name="calendar-remove-outline" size={48} color={colors.borda} />
+                    <Text style={{ fontFamily: 'Inter_600SemiBold', color: colors.textoSecundario, fontSize: 14 }}>
+                      NENHUM JOGO ENCONTRADO
+                    </Text>
+                  </View>
+                ) : (
+                  diasComPartidas.map((dia, index) => {
+                    const diaEhHoje = dia.filtradas.some(partida => isHoje(partida.data));
+                    return (
+                      <View key={index} style={styles.daySection}>
+                        <View style={styles.dateHeader}>
+                          <View style={[styles.dateBar, diaEhHoje && styles.dateBarHoje]} />
+                          <Text style={[styles.dateText, diaEhHoje && styles.dateTextHoje]}>
+                            {diaEhHoje ? `HOJE • ${dia.data}` : dia.data}
+                          </Text>
+                        </View>
+
+                        {dia.filtradas.map(partida => {
+                          const partidaEhHoje = isHoje(partida.data);
+                          const partidaAoVivo = partida.status === 'AO_VIVO';
+                          return (
+                            <TouchableOpacity
+                              key={partida.id}
+                              style={[
+                                styles.matchCard,
+                                partidaEhHoje && styles.matchCardHoje,
+                                partidaAoVivo && styles.matchCardAoVivo,
+                              ]}
+                              activeOpacity={0.85}
+                              onPress={() => setPartidaSelecionada(partida)}
+                            >
+                          {/* TOP CARD */}
+                          <View style={styles.cardTop}>
+                            <View style={styles.cardTopLeft}>
+                              <Icon name="clock-outline" size={16} color={colors.textoSecundario} />
+                              <Text style={styles.timeText}>{partida.horario ?? '--:--'}</Text>
+                              <View style={styles.separator} />
+                              <Text style={styles.catText}>{partida.categoria?.nome.replace('SUB', '').trim() ?? '?'}</Text>
+                              {partidaEhHoje && !partidaAoVivo && (
+                                <View style={styles.todayBadge}>
+                                  <Text style={styles.todayBadgeText}>HOJE</Text>
+                                </View>
+                              )}
+                            </View>
+                            <View style={styles.cardBadges}>
+                              {partidaAoVivo && (
+                                <View style={styles.liveBadge}>
+                                  <Icon name="live" size={14} color={colors.tituloErro} />
+                                  <Text style={styles.liveBadgeText}>AO VIVO</Text>
+                                </View>
+                              )}
+                              <View style={[styles.badge, !partida.emCasa && { backgroundColor: colors.cardSecundario }]}>
+                                <Icon
+                                  name={partida.emCasa ? 'home-outline' : 'bus'}
+                                  size={14}
+                                  color={partida.emCasa ? colors.textoSobrePrimaria : colors.texto}
+                                />
+                                <Text style={[
+                                  styles.badgeText,
+                                  { color: partida.emCasa ? colors.textoSobrePrimaria : colors.texto },
+                                ]}>
+                                  {partida.emCasa ? 'CASA' : 'FORA'}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* BODY CARD */}
+                          <View style={styles.cardBody}>
+                            <View style={styles.teamCol}>
+                              {partida.mandante.escudo ? (
+                                  <Image source={{ uri: partida.mandante.escudo }} style={styles.teamLogo} />
+                              ) : (
+                                <View style={styles.fundoImg}>
+                                  <Image source={require('@/assets/images/SóPreto.png')} style={styles.teamLogo} />
+                                </View>
+                              )}
+                              <Text style={styles.teamName} numberOfLines={2}>{partida.mandante.nome}</Text>
+                            </View>
+
+                            <View style={styles.placarCentral}>
+                              {partida.status === 'AGENDADA' || partida.status === 'PREPARADA' || partida.status === 'CANCELADA' ? (
+                                <>
+                                  <Text style={styles.placarText}>-</Text>
+                                  <Text style={styles.vsText}>VS</Text>
+                                </>
+                              ) : (
+                                <Text style={styles.placarText}>{partida.gols_mandante} - {partida.gols_visitante}</Text>
+                              )}
+                            </View>
+
+                            <View style={styles.teamCol}>
+                              {partida.visitante.escudo ? (
+                                <Image source={{ uri: partida.visitante.escudo }} style={styles.teamLogo} />
+                              ) : (
+                                <View style={styles.fundoImg}>
+                                  <Image source={require('@/assets/images/SóPreto.png')} style={styles.teamLogo} />
+                                </View>
+                              )}
+                              <Text style={styles.teamName} numberOfLines={2}>{partida.visitante.nome}</Text>
+                            </View>
+                          </View>
+
+                          {/* FOOTER CARD */}
+                          <View style={styles.cardFooterDivider} />
+                          <View style={styles.cardFooter}>
+                            <Icon name="map-marker-outline" size={16} color={colors.texto} />
+                            <Text style={styles.locationText}>{partida.local ?? 'Local não definido'}</Text>
+                          </View>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    );
+                  })
+                )}
+                <View style={{ height: 100 }} />
+              </ScrollView>
+              </PaginaCategoria>
+            </View>
+          );
+        })}
+      </AnimatedPagerView>
+
+      {/* FAB ICON */}
+      {podeGerenciar && (
+        <TouchableOpacity activeOpacity={0.8} style={styles.fab} onPress={() => setModalOrganizar(true)}>
+          <LinearGradient colors={[colors.primaria, '#0055FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabGradient}>
+            <Icon name="plus" size={32} color={colors.textoSobrePrimaria} />
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+
+      {/* MODAL NOVO DE FILTROS */}
+      <Modal visible={modalFiltrosVisible} transparent={true} animationType="fade" onRequestClose={() => setModalFiltrosVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setModalFiltrosVisible(false)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>FILTROS</Text>
+              <TouchableOpacity style={styles.closeBtn} onPress={() => setModalFiltrosVisible(false)}>
+                <Icon name="close" size={18} color={colors.texto} />
+              </TouchableOpacity>
+            </View>
+
+            {/* SEÇÃO 1: DATA */}
+            <Text style={styles.filterSectionLabel}>Data</Text>
+            <TouchableOpacity 
+              style={styles.dateSelectorBtn} 
+              activeOpacity={0.7} 
+              onPress={() => setShowMonthGrid(!showMonthGrid)}
+            >
+              <Icon name="calendar-outline" size={20} color={colors.textoSecundario} />
+              <Text style={styles.dateSelectorText}>{FILTROS_MES[tempMes - 1]}</Text>
+              <Icon name={showMonthGrid ? "chevron-up" : "chevron-down"} size={20} color={colors.textoSecundario} />
+            </TouchableOpacity>
+
+            {/* EXPANSÃO DOS MESES */}
+            {showMonthGrid && (
+              <View style={styles.monthGrid}>
+                {FILTROS_MES.map((mes, index) => (
+                  <TouchableOpacity
+                    key={mes}
+                    style={[styles.monthGridItem, tempMes === index + 1 && styles.monthGridItemActive]}
+                    onPress={() => { setTempMes(index + 1); setShowMonthGrid(false); }}
+                  >
+                    <Text style={[styles.monthGridText, tempMes === index + 1 && styles.monthGridTextActive]}>
+                      {mes.substring(0, 3)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* SEÇÃO 2: STATUS */}
+            <Text style={styles.filterSectionLabel}>Status dos Jogos</Text>
+            <View style={styles.statusOptionsContainer}>
+              {statusOptions.map((status) => (
+                <TouchableOpacity
+                  key={status.value}
+                  style={[styles.statusItem, tempStatus === status.value && styles.statusItemActive]}
+                  onPress={() => setTempStatus(status.value)}
+                >
+                  <Text style={styles.statusItemText}>{status.label}</Text>
+                  <Icon name={status.icon} size={20} color={tempStatus === status.value ? colors.primaria : status.iconColor} />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* BOTÃO APLICAR */}
+            <TouchableOpacity style={styles.applyBtn} activeOpacity={0.8} onPress={aplicarFiltros}>
+              <Text style={styles.applyBtnText}>APLICAR FILTROS</Text>
+            </TouchableOpacity>
+
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={modalOrganizar} transparent={false} animationType="slide" onRequestClose={() => setModalOrganizar(false)}>
+        <OrganizarPartidas noModal={true} onFechar={() => { setModalOrganizar(false); carregarPartidas(); }} />
+      </Modal>
+
+      {partidaSelecionada && (
+        <Modal
+          visible={!!partidaSelecionada}
+          transparent={false}
+          animationType="slide"
+          onRequestClose={() => setPartidaSelecionada(null)}
+        >
+          <DetalhesPartida
+            partida={partidaSelecionada as PartidaDetalhes}
+            isAdmin={podeGerenciar && !partidaSelecionada.somente_leitura}
+            onBack={() => { setPartidaSelecionada(null); carregarPartidas(); }}
+          />
+        </Modal>
+      )}
+    </View>
+  );
+}

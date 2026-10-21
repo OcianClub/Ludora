@@ -1,4 +1,5 @@
 type PartidaResumo = {
+  id?: number;
   somente_leitura?: boolean;
   data: string;
   horario: string | null;
@@ -56,10 +57,16 @@ export function resumirPartidas<T extends PartidaResumo>(
         ['AGENDADA', 'PREPARADA'].includes(p.status) &&
         p.data.split('T')[0] >= hoje
     )
-    .sort((a, b) => instante(a).localeCompare(instante(b)));
+    .sort(
+      (a, b) =>
+        instante(a).localeCompare(instante(b)) || (a.id ?? 0) - (b.id ?? 0)
+    );
   const finalizadas = partidas
     .filter((p) => p.status === 'FINALIZADA')
-    .sort((a, b) => instante(b).localeCompare(instante(a)));
+    .sort(
+      (a, b) =>
+        instante(b).localeCompare(instante(a)) || (a.id ?? 0) - (b.id ?? 0)
+    );
   const estatisticas = finalizadas.reduce(
     (total, p) => {
       const gols = p.emCasa ? p.gols_mandante : p.gols_visitante;
@@ -73,7 +80,13 @@ export function resumirPartidas<T extends PartidaResumo>(
     { pontos: 0, vitorias: 0 }
   );
   const proximoJogo =
-    partidas.find((p) => p.status === 'AO_VIVO') ?? proximas[0] ?? null;
+    partidas
+      .filter((p) => p.status === 'AO_VIVO')
+      .sort(
+        (a, b) => a.data.localeCompare(b.data) || (a.id ?? 0) - (b.id ?? 0)
+      )[0] ??
+    proximas[0] ??
+    null;
   return {
     proximoJogo,
     agenda: proximas.filter((partida) => partida !== proximoJogo).slice(0, 2),

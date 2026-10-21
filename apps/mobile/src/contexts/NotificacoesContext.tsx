@@ -71,6 +71,8 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
   const [carregandoPreferencia, setCarregandoPreferencia] = useState(true);
   const [versaoNotificacoes, setVersaoNotificacoes] = useState(0);
   const preferenciaEmAndamento = useRef(false);
+  const sessaoPreferencia = useRef<string | null>(null);
+  const preferenciaConsultadaEm = useRef(0);
   const clubeAtualId = useRef(clubeAtivo?.id);
   clubeAtualId.current = clubeAtivo?.id;
   const contadorPedido = useRef(0);
@@ -88,6 +90,7 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (carregandoClubeAtivo || !clubeAtivo) {
+      if (!clubeAtivo) sessaoPreferencia.current = null;
       setCarregandoPreferencia(false);
       return;
     }
@@ -96,8 +99,14 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
     let ativo = true;
     const carregarPreferencias = async () => {
       try {
+        const sessao = await SecureStore.getItemAsync('userToken');
+        if (!sessao || !ativo) return;
+        if (sessao === sessaoPreferencia.current && Date.now() - preferenciaConsultadaEm.current < 60_000) return;
         const ativa = await fetchPreferenciaNotificacoes();
-        if (ativo) setNotificacoesAtivas(ativa);
+        if (!ativo || sessao !== await SecureStore.getItemAsync('userToken')) return;
+        setNotificacoesAtivas(ativa);
+        sessaoPreferencia.current = sessao;
+        preferenciaConsultadaEm.current = Date.now();
 
         // Se o usuário já concedeu a permissão antes, atualiza o token sem
         // abrir nenhum prompt. Isso cobre reinstalações e troca de token.

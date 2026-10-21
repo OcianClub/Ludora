@@ -23,6 +23,21 @@ export function criarCacheConsulta(
   agora = Date.now
 ) {
   let geracao = 0;
+  const recentes = new Map<string, { texto: string; salvoEm: number }>();
+  const chaveMemoria = (escopo: EscopoCache, recurso: RecursoCache) =>
+    `${escopo.sessao}.${escopo.clubeId}.${recurso}`;
+  const guardarMemoria = (
+    escopo: EscopoCache,
+    recurso: RecursoCache,
+    texto: string,
+    salvoEm: number
+  ) => {
+    if (!escopoValido(escopo)) return;
+    const chave = chaveMemoria(escopo, recurso);
+    recentes.delete(chave);
+    recentes.set(chave, { texto, salvoEm });
+    while (recentes.size > 6) recentes.delete(recentes.keys().next().value!);
+  };
   let fila: Promise<unknown> = Promise.resolve();
   const serializar = <T>(acao: () => Promise<T>) => {
     const operacao = fila.then(acao, acao);
@@ -55,6 +70,22 @@ export function criarCacheConsulta(
       recurso: RecursoCache,
       validar: (dados: unknown) => T | null
     ): Promise<CopiaLocal<T> | null> {
+      if (!escopoValido(escopo)) return Promise.resolve(null);
+      const chave = chaveMemoria(escopo, recurso);
+      const memoria = recentes.get(chave);
+      if (memoria) {
+        try {
+          const dados = validar(JSON.parse(memoria.texto).dados);
+          if (
+            dados !== null &&
+            memoria.salvoEm <= agora() &&
+            agora() - memoria.salvoEm < VALIDADE_MS
+          ) {
+            return Promise.resolve({ dados, salvoEm: memoria.salvoEm });
+          }
+        } catch {}
+        recentes.delete(chave);
+      }
       return serializar(async () => {
         if (!escopoValido(escopo)) return null;
         try {
@@ -88,6 +119,7 @@ export function criarCacheConsulta(
                 await armazenamento.remover(chave);
                 continue;
               }
+              guardarMemoria(escopo, recurso, texto, copia.salvoEm);
               return { dados, salvoEm: copia.salvoEm };
             } catch {
               await armazenamento.remover(chave).catch(() => undefined);
@@ -115,6 +147,7 @@ export function criarCacheConsulta(
             dados,
           });
           if (texto.length > MAX_TEXTO) return false;
+          guardarMemoria(escopo, recurso, texto, salvoEm);
           const chave = `${escopo.sessao}.${escopo.clubeId}.${recurso}.${salvoEm}.json`;
           await armazenamento.gravar(chave, texto);
           const chaves = (await armazenamento.listar())
@@ -143,6 +176,7 @@ export function criarCacheConsulta(
       });
     },
     remover(escopo: EscopoCache, recurso: RecursoCache) {
+      recentes.clear();
       if (escopo.geracao === geracao) geracao++;
       return serializar(async () => {
         try {
@@ -153,6 +187,7 @@ export function criarCacheConsulta(
       });
     },
     limpar() {
+      recentes.clear();
       geracao++;
       return serializar(async () => {
         try {

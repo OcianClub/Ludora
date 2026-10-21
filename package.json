@@ -12,6 +12,7 @@
     "dev:mobile:android": "pnpm --filter @ludora/mobile run android",
     "dev:mobile:check": "pnpm --filter @ludora/mobile run check",
     "perf:scout": "pnpm --filter @ludora/api exec tsx ../../apps/mobile/tests/scout.bench.ts",
-    "test:app": "pnpm --filter @ludora/api exec tsx --test tests/*.test.ts ../../apps/mobile/tests/*.test.ts"
+    "test:app": "pnpm --filter @ludora/api exec tsx --test tests/*.test.ts ../../apps/mobile/tests/*.test.ts",
+    "test:app:completo": "pnpm --filter @ludora/api run build && pnpm --filter @ludora/api exec tsx --test tests/*.test.ts tests/*.test.cjs tests/*.test.mjs ../../apps/mobile/tests/*.test.ts ../../apps/web/tests/*.test.mjs"
   }
 }

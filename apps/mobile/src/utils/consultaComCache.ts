@@ -35,9 +35,18 @@ export async function executarConsultaComCache<T>({
       return { ok: false as const, erro };
     }
   );
-  const local = await lerLocal().catch(() => null);
-  if (local && !remotoTerminou && (await contextoAtual()) && !remotoTerminou)
-    onLocal?.({ ...local, origem: 'local' });
+  const leituraLocal = lerLocal().catch(() => null);
+  void leituraLocal
+    .then(async (local) => {
+      if (
+        local &&
+        !remotoTerminou &&
+        (await contextoAtual()) &&
+        !remotoTerminou
+      )
+        onLocal?.({ ...local, origem: 'local' });
+    })
+    .catch(() => undefined);
   const resultado = await remoto;
   if (resultado.ok) {
     if (await contextoAtual())
@@ -49,6 +58,9 @@ export async function executarConsultaComCache<T>({
     [401, 403, 404].includes(resultado.erro.status)
   )
     await descartar(resultado.erro.status).catch(() => undefined);
+  const local = permiteConsultaLocal(resultado.erro)
+    ? await leituraLocal
+    : null;
   if (local && permiteConsultaLocal(resultado.erro) && (await contextoAtual()))
     return { ...local, origem: 'local' };
   throw resultado.erro;

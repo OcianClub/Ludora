@@ -1,0 +1,211 @@
+import { StyleSheet } from 'react-native';
+import { typography } from '@ludora/design-tokens';
+import type { ThemeColors } from '@/src/contexts/ThemeContext';
+
+export const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    },
+    sheet: {
+      width: '100%',
+      maxWidth: 560,
+      alignSelf: 'center',
+      flexShrink: 1,
+      backgroundColor: colors.card,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.linha,
+    },
+    heading: {
+      flex: 1,
+      gap: 4,
+    },
+    title: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 20,
+      color: colors.texto,
+    },
+    subtitle: {
+      fontFamily: typography.fontFamily.corpo.regular,
+      fontSize: 13,
+      color: colors.textoSecundario,
+    },
+    closeButton: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    scroll: {
+      flexGrow: 0,
+      flexShrink: 1,
+    },
+    content: {
+      paddingHorizontal: 20,
+      paddingBottom: 20,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 4,
+    },
+    label: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 13,
+      color: colors.texto,
+    },
+    resetButton: {
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingLeft: 12,
+    },
+    resetText: {
+      fontFamily: typography.fontFamily.corpo.medium,
+      fontSize: 13,
+      color: colors.primaria,
+    },
+    yearSelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: colors.borda,
+      borderRadius: 10,
+      backgroundColor: colors.fundo,
+      padding: 4,
+      marginBottom: 12,
+    },
+    yearButton: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+      backgroundColor: colors.card,
+    },
+    yearCenter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+    },
+    yearText: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 18,
+      color: colors.texto,
+      fontVariant: ['tabular-nums'],
+    },
+    disabled: {
+      opacity: 0.35,
+    },
+    monthGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginHorizontal: -4,
+    },
+    monthCell: {
+      width: '25%',
+      padding: 4,
+    },
+    monthButton: {
+      minHeight: 44,
+      paddingHorizontal: 4,
+      paddingVertical: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.borda,
+    },
+    optionText: {
+      fontFamily: typography.fontFamily.corpo.medium,
+      fontSize: 13,
+      color: colors.textoSecundario,
+    },
+    optionSelected: {
+      backgroundColor: colors.fundoBotao,
+      borderColor: colors.primaria,
+    },
+    textSelected: {
+      color: colors.primaria,
+    },
+    wholeYear: {
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      marginTop: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.borda,
+    },
+    statusLabel: {
+      marginTop: 24,
+      marginBottom: 8,
+    },
+    statusGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginHorizontal: -4,
+    },
+    statusCell: {
+      width: '50%',
+      padding: 4,
+    },
+    statusButton: {
+      minHeight: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 12,
+      gap: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.borda,
+    },
+    statusText: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.corpo.medium,
+      fontSize: 13,
+      color: colors.textoSecundario,
+    },
+    footer: {
+      paddingTop: 12,
+      paddingHorizontal: 20,
+      borderTopWidth: 1,
+      borderTopColor: colors.linha,
+    },
+    applyButton: {
+      minHeight: 50,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderRadius: 10,
+      backgroundColor: colors.primaria,
+    },
+    applyText: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 14,
+      color: colors.textoSobrePrimaria,
+    },
+  });

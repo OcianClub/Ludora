@@ -51,6 +51,7 @@ import { consultarComCopiaLocal } from '@/src/services/cacheConsultas';
 import { selecionarJogadoresLocais } from '@/src/utils/dadosConsultaLocal';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 import { criarControleRequisicoes } from '@/src/utils/request';
+import { iniciarMedicaoCarregamento } from '@/src/utils/desempenho';
 import {
   filtrarJogadoresScout,
   type PerfilScout,
@@ -80,7 +81,8 @@ const DESCRICAO_PERFIL: Record<string, string> = {
   Paredão: 'Perfil associado ao grupo com maior índice médio de defesas.',
   Armador:
     'Perfil geralmente associado à visão de jogo e à criação de jogadas.',
-  'Sem dados': 'Perfil ainda não calculado. Os registros do atleta continuam disponíveis.',
+  'Sem dados':
+    'Perfil ainda não calculado. Os registros do atleta continuam disponíveis.',
 };
 
 const PERFIS: { valor: PerfilScout; icone: IconName }[] = [
@@ -528,6 +530,9 @@ export default function Estatisticas() {
   const carregouUmaVez = useRef(false);
   const clubeCarregadoId = useRef<number | null>(null);
   const controle = useRef(criarControleRequisicoes()).current;
+  const medicaoTela = useRef<ReturnType<
+    typeof iniciarMedicaoCarregamento
+  > | null>(null);
   const pagerRef = useRef<PagerView>(null);
   const paginasScroll = useRef<Record<number, FlatList<Jogador> | null>>({});
   const progressoPagina = useSharedValue(0);
@@ -577,6 +582,7 @@ export default function Estatisticas() {
 
   const carregarDados = useCallback(
     async (silencioso = false) => {
+      medicaoTela.current = iniciarMedicaoCarregamento('scout:estado-pronto');
       const pedido = controle.iniciar();
       setConsultandoServidor(true);
       const mudouClube = clubeCarregadoId.current !== clubeAtivo?.id;
@@ -648,6 +654,13 @@ export default function Estatisticas() {
     },
     [clubeAtivo?.id, controle, progressoPagina]
   );
+
+  useEffect(() => {
+    if (!carregando && medicaoTela.current) {
+      medicaoTela.current({ resultado: erro ? 'erro' : 'dados' });
+      medicaoTela.current = null;
+    }
+  }, [carregando, jogadores, erro]);
 
   useFocusEffect(
     useCallback(() => {

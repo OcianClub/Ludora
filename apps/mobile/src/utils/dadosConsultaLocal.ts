@@ -37,6 +37,12 @@ export function selecionarPartidasLocais(valor: unknown): PartidaHome[] | null {
     const competicao = partida.competicao;
     partidas.push({
       id: partida.id,
+      ...(inteiro(partida.clube_origem_id) && partida.clube_origem_id > 0
+        ? { clube_origem_id: partida.clube_origem_id }
+        : {}),
+      ...(typeof partida.somente_leitura === 'boolean'
+        ? { somente_leitura: partida.somente_leitura }
+        : {}),
       mandante,
       visitante,
       gols_mandante: partida.gols_mandante,

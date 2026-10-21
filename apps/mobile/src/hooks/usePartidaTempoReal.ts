@@ -12,7 +12,7 @@ export function usePartidaTempoReal<T>(
   partidaId: number,
   clubeId: number | undefined,
   aplicar: (dados: T) => void,
-  clubeOrigemId = clubeId
+  clubeOrigemId?: number
 ) {
   const aplicarRef = useRef(aplicar);
   aplicarRef.current = aplicar;
@@ -27,7 +27,23 @@ export function usePartidaTempoReal<T>(
     let debounce: ReturnType<typeof setTimeout> | undefined;
     const sincronizador = criarSincronizador<T>(
       () => fetchDetalhesPartida(partidaId, clubeId),
-      (dados) => aplicarRef.current(dados),
+      (dados) => {
+        const origem = (dados as { clube_origem_id?: number }).clube_origem_id;
+        if (
+          typeof origem === 'number' &&
+          Number.isSafeInteger(origem) &&
+          origem > 0
+        ) {
+          void conectarNaOrigem(origem).catch(() => {
+            if (ativo) setConectado(false);
+          });
+        } else {
+          void conectarNaOrigem(clubeOrigemId ?? clubeId).catch(() => {
+            if (ativo) setConectado(false);
+          });
+        }
+        aplicarRef.current(dados);
+      },
       setEstado
     );
     atualizarRef.current = sincronizador.atualizar;
@@ -41,11 +57,17 @@ export function usePartidaTempoReal<T>(
         void sincronizador.atualizar();
       }, 150);
     };
-    const conectar = async () => {
+    let origemAtual = clubeOrigemId;
+    let versaoConexao = 0;
+    async function conectarNaOrigem(origem: number) {
+      if (!ativo || (socket && origemAtual === origem)) return;
+      origemAtual = origem;
+      const pedido = ++versaoConexao;
       const token = await SecureStore.getItemAsync('userToken');
-      if (!ativo || !token) return;
+      if (!ativo || !token || pedido !== versaoConexao) return;
+      socket?.disconnect();
       socket = io(BASE_URL, {
-        auth: { token, clubeId: clubeOrigemId },
+        auth: { token, clubeId: origem },
         transports: ['websocket', 'polling'],
       });
       socket.on('connect', () => {
@@ -62,10 +84,12 @@ export function usePartidaTempoReal<T>(
       socket.on('placar_atualizado', agendar);
       socket.on('partida_atualizada', agendar);
       socket.on('evento_partida', agendar);
-    };
-    void conectar().catch(() => {
-      if (ativo) setConectado(false);
-    });
+    }
+    if (clubeOrigemId) {
+      void conectarNaOrigem(clubeOrigemId).catch(() => {
+        if (ativo) setConectado(false);
+      });
+    }
 
     const appState = AppState.addEventListener('change', (estadoApp) => {
       if (estadoApp === 'active') {

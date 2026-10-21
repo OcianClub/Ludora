@@ -10,6 +10,7 @@ Na raiz do repositório:
 
 ```powershell
 pnpm test:app
+pnpm test:app:completo
 pnpm --filter @ludora/mobile exec tsc --noEmit
 pnpm --filter @ludora/api run build
 ```
@@ -28,9 +29,16 @@ pnpm --filter @ludora/api run build
 | Modo offline | Carregue Home e Scout, mantenha o app aberto e desligue a rede | Cópia identificada como local, com horário; sem permitir edição |
 | Primeiro acesso offline | Sem cópia válida, tente abrir Home/Scout sem rede | Estado de erro com nova tentativa, sem inventar dados vazios |
 | Resumo final | Abra uma finalizada e compare placar/eventos | Resultado usa placar salvo; divergência de autoria é sinalizada |
+| Resumo compartilhado | Abra pelo clube B uma partida registrada pelo clube A | Resultado pela perspectiva de B, sem atribuir atletas de A como destaques de B |
+| Cache e origem | Carregue uma partida compartilhada, use cópia offline e depois reconecte | Mantém somente leitura e acompanha a sala do clube de origem, inclusive em cópias antigas após a primeira atualização HTTP |
+| Cache lento | Troque de clube com a rede respondendo antes da leitura local | A resposta atual não espera o arquivo local; a cópia atrasada não substitui os dados novos |
 | Compartilhar | Abra o menu nativo e cancele; depois compartilhe com nomes desligados | Cancelar não dá erro; texto não contém nomes de atletas |
 | Cadastro | Use e-mail de teste permitido pelo remetente e confirme o código | Conta só é criada após confirmação; reenvio não duplica cadastro |
 | Recuperação | Redefina senha e tente usar a sessão antiga | Nova senha funciona; credencial antiga deixa de autorizar acesso |
+| Organizar partida | Selecione categoria, competição ou amistoso, times, data com ano, horário e local | Criação mantém o clube correto; ao voltar, Jogos exibe o mês/ano da partida criada |
+| Rascunho da partida | Preencha dados e tente sair pela seta ou Voltar do Android | Confirma descarte; continuar mantém todos os campos; durante envio não fecha |
+| Calendário e campos | Teste fevereiro, virada do ano, digitação e campos incompletos | Data válida com ano explícito, erros junto aos campos e rolagem até a primeira pendência |
+| Teclado e seletores | Abra busca de time/competição e data; teste teclado, tela pequena e temas | Painéis inferiores roláveis, botão de criação acessível, sem alterar a edição de partidas |
 
 ## Notificações externas
 
@@ -57,8 +65,42 @@ o JavaScript; teste inicialização completamente offline em uma build autônoma
 
 ## Registro de execução
 
+### Desempenho na troca de clubes e abas
+
+1. Com `EXPO_PUBLIC_DEBUG_PERF=1`, reinicie o Metro e carregue Home/Scout do clube A.
+2. Visite B e volte para A. Confira a cópia local durante a atualização, sem dados
+   de B aparecendo em A. Compare a primeira abertura com a revisita.
+3. Alterne Home/Scout após terminar a preparação em segundo plano. A cópia deve
+   aparecer sem esperar outra leitura de arquivos; a atualização remota continua.
+4. Troque A/B rapidamente, faça logout/login em outra conta e teste rede indisponível.
+   Dados de sessão anterior e respostas atrasadas não podem substituir o clube atual.
+5. Registre os logs `api:*`, `consulta:*`, `clube:persistencia` e `*:estado-pronto`.
+   Compare também numa build release; tempo de estado pronto não é medição de FPS.
+
+Medição local autenticada em 20/10/2026, antes da compressão: partidas resumidas
+407 ms/166.297 bytes e perfis Scout 403 ms/87.320 bytes. São amostras na máquina
+do backend, não tempos no celular ou garantia de latência. Os cinco segundos
+relatados precisam ser comparados no aparelho após as otimizações.
+
+Após a consulta específica da Home, o clube maior retornou 72 partidas/47.294
+bytes, em vez de 256/166.297 bytes (JSON sem compressão). Na instância temporária
+local, a rota completa, autenticada e com gzip, levou 158–185 ms nos seis pedidos
+medidos entre os três clubes. Isso não mede a navegação nem a rede do aparelho.
+Os resumos foram comparados com a lista completa para as oito categorias de cada
+um dos três clubes do seed; destaque, agenda e histórico coincidiram usando o
+mesmo desempate por ID para horários iguais. Nenhum dado do seed foi alterado.
+
+Na validação física, confira também erro de conexão ao abrir um clube novo:
+o skeleton precisa terminar e permitir tentar novamente, sem exibir partidas do
+clube anterior. Verifique entrada após login e troca interna entre clubes;
+somente a segunda deve reutilizar a rota de abas existente.
+
 Preencha ao validar de verdade; não marque aprovado apenas por passar no teste automatizado.
 
 | Data/build | Aparelho/Android | Cenário | Resultado observado | Aprovado? |
 |---|---|---|---|---|
-| — | — | — | Pendente de teste físico | — |
+| 21/10/2026; build não informada | Não informado | Push recebido após amigo iniciar partida; usuário relatou estar na tela inicial | Recebimento confirmado pelo usuário; não comprova todos os estados do Android | Sim, apenas esse cenário |
+
+O estado exato do aplicativo (primeiro plano, segundo plano ou encerrado) não foi
+identificado no relato. Os demais cenários físicos permanecem pendentes. Resultado
+da rodada automatizada: [relatório de 21/10/2026](./validacao-mobile-2026-10-21.md).

@@ -3,6 +3,7 @@ import express from 'express';
 import type { Server } from 'socket.io';
 
 import { corsOptions, isProduction } from './config/env';
+import { comprimirConsultas } from './middlewares/compressao.middleware';
 import authRoutes from './modules/auth/auth.routes';
 import { criarCadastroRoutes } from './modules/auth/cadastro.routes';
 import { criarRecuperacaoRoutes } from './modules/auth/recuperacao.routes';
@@ -23,6 +24,7 @@ export function criarApp(io: Server) {
   app.disable('x-powered-by');
   app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 0));
   app.use(cors(corsOptions));
+  app.use(comprimirConsultas);
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');

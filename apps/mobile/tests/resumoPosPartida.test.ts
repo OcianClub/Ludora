@@ -36,6 +36,27 @@ const eventos: EventoResumo[] = [
   },
 ];
 
+test('partida compartilhada mantém resultado, mas nunca atribui atletas do organizador ao clube visitante', () => {
+  const compartilhada = {
+    ...partida,
+    emCasa: false,
+    somente_leitura: true,
+    gols_mandante: 2,
+    gols_visitante: 2,
+  };
+  const resumo = montarResumoPosPartida(compartilhada, eventos)!;
+  assert.equal(resumo.clube, 'Visitante');
+  assert.equal(resumo.resultado, 'Empate');
+  assert.equal(resumo.eventosDoClubeDisponiveis, false);
+  assert.deepEqual(
+    resumo.metricas.flatMap((metrica) => metrica.lideres),
+    []
+  );
+  const texto = textoCompartilhamentoPartida(compartilhada, eventos, true)!;
+  assert.match(texto, /Ludora 2 × 2 Visitante/);
+  assert.doesNotMatch(texto, /Atleta|em destaque/);
+});
+
 test('resultado respeita o clube em casa ou fora e o dia não muda com fuso horário', () => {
   assert.equal(montarResumoPosPartida(partida, eventos)?.resultado, 'Vitória');
   const fora = montarResumoPosPartida({ ...partida, emCasa: false }, []);

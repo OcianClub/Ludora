@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { after, test } from 'node:test';
 import { subscribeToMatch } from '../../../apps/web/src/services/matchRealtime.ts';
 
-// Testa o cliente web contra o servidor Socket.IO real, com vínculo fictício.
+// Testa o cliente web com Socket.IO/JWT reais e persistência simulada.
 // Não carrega o .env do serviço, não conecta ao Supabase e não altera dados.
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-only-secret-for-local-realtime-contract';
@@ -15,6 +15,10 @@ const { JWT_OPTIONS } = require('../dist/src/config/env.js');
 const { prisma } = require('../dist/src/lib/prisma.js');
 const { criarSocketServer } = require('../dist/src/realtime/socket.js');
 const originalFindUnique = prisma.usuarioClube.findUnique;
+const originalUsuario = prisma.usuario.findUnique;
+const originalClube = prisma.clube.findUnique;
+prisma.usuario.findUnique = async ({ where }) => where.id === 7 ? { versao_sessao: 0 } : null;
+prisma.clube.findUnique = async ({ where }) => [11, 22].includes(where.id) ? { id: where.id } : null;
 const lookups = [];
 prisma.usuarioClube.findUnique = async ({ where }) => {
   const membership = where.usuario_id_clube_id;
@@ -23,6 +27,8 @@ prisma.usuarioClube.findUnique = async ({ where }) => {
 };
 after(async () => {
   prisma.usuarioClube.findUnique = originalFindUnique;
+  prisma.usuario.findUnique = originalUsuario;
+  prisma.clube.findUnique = originalClube;
   await prisma.$disconnect();
 });
 
@@ -67,8 +73,9 @@ test('envia o token e o clube aceitos pela autorização da API', async t => {
   const client = await setup(t);
   await waitFor(() => client.refreshes === 1, 'O cliente não conectou');
   assert.deepEqual(client.states, ['connecting', 'connected']);
-  assert.deepEqual(lookups.at(-1), { usuario_id: 7, clube_id: 11 });
+  assert.equal(lookups.length, 0);
   assert.equal(client.connections[0].rooms.has('clube:11'), true);
+  assert.equal(client.connections[0].rooms.has('usuario:7'), true);
 });
 
 test('usa os eventos da API e ignora partidas diferentes', async t => {
@@ -91,11 +98,27 @@ test('mostra falha quando a API rejeita um token inválido', async t => {
   assert.equal(client.refreshes, 0);
 });
 
-test('não conecta em outro clube sem vínculo', async t => {
+test('permite visitar clube público sem vínculo, somente na sala escolhida', async t => {
   const client = await setup(t, { clubId: 22 });
-  await waitFor(() => client.states.includes('error'), 'O clube sem vínculo não foi rejeitado');
+  await waitFor(() => client.refreshes === 1, 'O clube público não conectou');
+  assert.equal(client.connections[0].rooms.has('clube:22'), true);
+  assert.equal(client.connections[0].rooms.has('clube:11'), false);
+});
+
+test('não conecta em clube inexistente', async t => {
+  const client = await setup(t, { clubId: 33 });
+  await waitFor(() => client.states.includes('error'), 'O clube inexistente não foi rejeitado');
   assert.equal(client.connections.length, 0);
   assert.equal(client.refreshes, 0);
+});
+
+test('rejeita sessão revogada e usuário inexistente', async t => {
+  for (const payload of [{ id: 7, versao_sessao: 1 }, { id: 99 }]) {
+    const client = await setup(t, { token: jwt.sign(payload, process.env.JWT_SECRET, JWT_OPTIONS) });
+    await waitFor(() => client.states.includes('error'), 'A sessão inválida foi aceita');
+    assert.equal(client.connections.length, 0);
+    assert.equal(client.refreshes, 0);
+  }
 });
 
 test('consulta os dados novamente após perder e recuperar a conexão', async t => {
