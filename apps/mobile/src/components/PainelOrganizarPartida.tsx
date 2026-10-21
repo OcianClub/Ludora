@@ -19,18 +19,23 @@ export function PainelOrganizarPartida({
   subtitulo,
   onFechar,
   children,
+  bloqueado = false,
 }: {
   titulo: string;
   subtitulo?: string;
   onFechar: () => void;
   children: ReactNode;
+  bloqueado?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const fechar = () => {
+    if (!bloqueado) onFechar();
+  };
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onFechar}>
+    <Modal visible transparent animationType="slide" onRequestClose={fechar}>
       <KeyboardAvoidingView
         style={styles.scroll}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -38,7 +43,8 @@ export function PainelOrganizarPartida({
         <View style={[styles.sheetOverlay, { paddingTop: insets.top + 16 }]}>
           <Pressable
             style={styles.backdrop}
-            onPress={onFechar}
+            onPress={fechar}
+            disabled={bloqueado}
             accessibilityRole="button"
             accessibilityLabel="Fechar seleção"
           />
@@ -61,7 +67,9 @@ export function PainelOrganizarPartida({
               </View>
               <TouchableOpacity
                 style={styles.closeButton}
-                onPress={onFechar}
+                onPress={fechar}
+                disabled={bloqueado}
+                accessibilityState={{ disabled: bloqueado }}
                 accessibilityRole="button"
                 accessibilityLabel="Fechar seleção"
               >

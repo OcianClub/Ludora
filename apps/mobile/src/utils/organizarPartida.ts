@@ -10,6 +10,7 @@ export type TimePartida = {
   nome: string;
   escudo: string | null;
   categoria_id: number;
+  clubeRepresentado?: { nome: string; escudo: string | null } | null;
 };
 export type CompeticaoPartida = { id: number; nome: string; ano: number };
 export type CamposPartida = {
@@ -29,6 +30,38 @@ export type CampoPartida =
   | 'data'
   | 'horario'
   | 'local';
+
+export function identidadeTimePartida(time: TimePartida): TimePartida {
+  if (!time.clubeRepresentado) return time;
+  return {
+    ...time,
+    nome: time.clubeRepresentado.nome,
+    escudo: time.clubeRepresentado.escudo?.trim() || null,
+  };
+}
+
+export function gruposCategoriasPartida(categorias: CategoriaPartida[]) {
+  return (['INICIACAO', 'BASE'] as const)
+    .map((tipo) => ({
+      tipo,
+      titulo: tipo === 'INICIACAO' ? 'Iniciação' : 'Base',
+      categorias: categorias
+        .filter((categoria) => categoria.tipo === tipo)
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true })),
+    }))
+    .filter((grupo) => grupo.categorias.length > 0);
+}
+
+export function confrontoNaCategoria(
+  categoriaId: number,
+  mandante: TimePartida | null,
+  visitante: TimePartida | null
+) {
+  return {
+    mandante: mandante?.categoria_id === categoriaId ? mandante : null,
+    visitante: visitante?.categoria_id === categoriaId ? visitante : null,
+  };
+}
 
 export function mascaraDataPartida(texto: string) {
   const numeros = texto.replace(/\D/g, '').slice(0, 8);
@@ -91,6 +124,45 @@ export function rascunhoPartidaAlterado(
     !campos.emCasa
   );
 }
+
+export function prepararRevisaoPartida(
+  campos: CamposPartida,
+  clube: { id: number; nome: string } | null,
+  categoria: CategoriaPartida | undefined
+) {
+  if (
+    !clube ||
+    !categoria ||
+    categoria.id !== campos.categoriaId ||
+    Object.keys(errosOrganizarPartida(campos)).length > 0 ||
+    !campos.mandante ||
+    !campos.visitante
+  ) return null;
+
+  return {
+    clubeId: clube.id,
+    clubeNome: clube.nome,
+    categoria: { ...categoria },
+    mandante: campos.mandante.nome,
+    visitante: campos.visitante.nome,
+    competicao: campos.competicao
+      ? `${campos.competicao.nome} · ${campos.competicao.ano}`
+      : 'Amistoso',
+    dataTexto: campos.data,
+    dados: {
+      mandante_id: campos.mandante.id,
+      visitante_id: campos.visitante.id,
+      categoria_id: categoria.id,
+      competicao_id: campos.competicao?.id,
+      data: dataPartidaISO(campos.data)!,
+      horario: campos.horario,
+      local: campos.local.trim() || 'Local não definido',
+      emCasa: campos.emCasa,
+    },
+  };
+}
+
+export type RevisaoPartida = NonNullable<ReturnType<typeof prepararRevisaoPartida>>;
 
 export function diasCalendarioPartida(ano: number, mes: number) {
   const primeiro = new Date(ano, mes, 1).getDay();

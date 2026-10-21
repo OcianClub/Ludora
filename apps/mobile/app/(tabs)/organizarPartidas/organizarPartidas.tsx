@@ -11,6 +11,7 @@ import {
 import {
   ActivityIndicator,
   BackHandler,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -31,10 +32,12 @@ import { ErroCarregamento } from '@/src/components/ErroCarregamento';
 import { Skeleton } from '@/src/components/Skeleton';
 import { CalendarioPartida } from '@/src/components/CalendarioPartida';
 import { SeletoresOrganizarPartida } from '@/src/components/SeletoresOrganizarPartida';
+import { SeletorCategoriaPartida } from '@/src/components/SeletorCategoriaPartida';
+import { RevisaoOrganizarPartida } from '@/src/components/RevisaoOrganizarPartida';
 import TeamSelectorCard from '@/src/components/TeamSelectorCard';
-import MandoCampo from '@/src/components/mandoCampo';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 import { useTheme } from '@/src/contexts/ThemeContext';
+import { useCampoVisivelTeclado } from '@/src/hooks/useCampoVisivelTeclado';
 import {
   criarPartida,
   fetchCategorias,
@@ -43,17 +46,20 @@ import {
 } from '@/src/services/api';
 import { createStyles } from '@/src/styles/organizarPartidasStyles';
 import { criarControleRequisicoes, ErroConexao } from '@/src/utils/request';
-import { dataPartidaISO } from '@/src/utils/validarPartida';
 import {
   errosOrganizarPartida,
+  confrontoNaCategoria,
   mascaraDataPartida,
   mascaraHorarioPartida,
   normalizarBuscaPartida,
   rascunhoPartidaAlterado,
+  prepararRevisaoPartida,
+  identidadeTimePartida,
   type CampoPartida,
   type CategoriaPartida,
   type CompeticaoPartida,
   type TimePartida,
+  type RevisaoPartida,
 } from '@/src/utils/organizarPartida';
 
 type Props = {
@@ -64,7 +70,12 @@ type Props = {
 };
 
 export type OrganizarPartidasRef = { solicitarFechamento: () => void };
-type Selecao = 'competicao' | 'mandante' | 'visitante' | 'data' | null;
+type Selecao = 'categoria' | 'competicao' | 'mandante' | 'visitante' | 'data' | null;
+
+const OPCOES_MANDO = [
+  { valor: true, texto: 'Em casa', icone: 'home-outline' },
+  { valor: false, texto: 'Fora', icone: 'bus-side' },
+] as const;
 
 const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
   function OrganizarPartidas(
@@ -77,7 +88,11 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const scroll = useRef<ScrollView>(null);
+    const dataInput = useRef<TextInput>(null);
     const horarioInput = useRef<TextInput>(null);
+    const localInput = useRef<TextInput>(null);
+    const { tecladoVisivel, focarCampo, desfocarCampo, manterCampoVisivel } =
+      useCampoVisivelTeclado(scroll);
     const posicoes = useRef<Partial<Record<CampoPartida, number>>>({});
     const categoriaPadrao = useRef<number | null>(null);
     const controle = useRef(criarControleRequisicoes()).current;
@@ -91,6 +106,8 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
     const [carregando, setCarregando] = useState(true);
     const [erroDados, setErroDados] = useState('');
     const [erroSalvar, setErroSalvar] = useState('');
+    const [avisoCategoria, setAvisoCategoria] = useState('');
+    const [escudoComErro, setEscudoComErro] = useState<string | null>(null);
     const [categoriaId, setCategoriaId] = useState<number | null>(null);
     const [competicao, setCompeticao] = useState<
       CompeticaoPartida | null | undefined
@@ -103,6 +120,7 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
     const [emCasa, setEmCasa] = useState(true);
     const [painel, setPainel] = useState<Selecao>(null);
     const [salvando, setSalvando] = useState(false);
+    const [revisao, setRevisao] = useState<RevisaoPartida | null>(null);
     const [confirmarSaida, setConfirmarSaida] = useState(false);
     const [tentouEnviar, setTentouEnviar] = useState(false);
     const [tocados, setTocados] = useState<
@@ -188,7 +206,7 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
               normalizarBuscaPartida(categoriaInicial ?? '').replace(/ /g, '-')
           ) ?? ordenadas[0];
         categoriaPadrao.current = inicial?.id ?? null;
-        setTimes(listaTimes);
+        setTimes(listaTimes.map(identidadeTimePartida));
         setCompeticoes(listaCompeticoes);
         setCategorias(ordenadas);
         setCategoriaId((atual) =>
@@ -226,8 +244,10 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
       setTocados({});
       setTentouEnviar(false);
       setErroSalvar('');
+      setAvisoCategoria('');
       setPainel(null);
       setConfirmarSaida(false);
+      setRevisao(null);
       void carregarDados();
       return () => controle.invalidar();
     }, [carregarDados, controle]);
@@ -254,7 +274,7 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
       posicoes.current[campo] = y;
     };
 
-    const salvar = async () => {
+    const abrirRevisao = () => {
       if (bloqueado || envioEmAndamento.current || !clubeAtivo?.id) return;
       setTentouEnviar(true);
       Keyboard.dismiss();
@@ -266,28 +286,33 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
         });
         return;
       }
-      if (!mandante || !visitante || !categoriaId) return;
-      const clubeId = clubeAtivo.id;
+      const resumo = prepararRevisaoPartida(campos, clubeAtivo, categoriaAtual);
+      if (!resumo) return;
+      setErroSalvar('');
+      setRevisao(resumo);
+    };
+
+    const fecharRevisao = () => {
+      if (!envioEmAndamento.current) setRevisao(null);
+    };
+
+    const salvar = async () => {
+      if (
+        bloqueado ||
+        envioEmAndamento.current ||
+        !revisao ||
+        clubeAtual.current !== revisao.clubeId
+      ) return;
+      const clubeId = revisao.clubeId;
       const pedido = controle.iniciar();
-      const dataISO = dataPartidaISO(data)!;
+      const dataISO = revisao.dados.data;
       envioEmAndamento.current = true;
       setSalvando(true);
       setErroSalvar('');
       try {
-        await criarPartida(
-          {
-            mandante_id: mandante.id,
-            visitante_id: visitante.id,
-            categoria_id: categoriaId,
-            competicao_id: competicao?.id,
-            data: dataISO,
-            horario,
-            local: local.trim() || 'Local não definido',
-            emCasa,
-          },
-          clubeId
-        );
+        await criarPartida(revisao.dados, clubeId);
         if (!controle.atual(pedido) || clubeAtual.current !== clubeId) return;
+        setRevisao(null);
         if (onCriada) onCriada(dataISO);
         else fecharDireto();
       } catch (erro) {
@@ -310,14 +335,26 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
       if (painel === 'mandante') setMandante(time);
       else setVisitante(time);
       fecharPainel();
+      setAvisoCategoria('');
       tocar('confronto');
     };
 
     const selecionarCategoria = (id: number) => {
-      if (id === categoriaId || bloqueado) return;
+      if (bloqueado || !categorias.some((categoria) => categoria.id === id))
+        return;
+      fecharPainel();
+      if (id === categoriaId) return;
+      const confronto = confrontoNaCategoria(id, mandante, visitante);
+      const removeuTimes =
+        confronto.mandante !== mandante || confronto.visitante !== visitante;
       setCategoriaId(id);
-      setMandante(null);
-      setVisitante(null);
+      setMandante(confronto.mandante);
+      setVisitante(confronto.visitante);
+      setAvisoCategoria(
+        removeuTimes
+          ? 'Categoria alterada. Selecione os times desta categoria para o confronto.'
+          : ''
+      );
       setTocados((atual) => ({ ...atual, confronto: false }));
       setErroSalvar('');
     };
@@ -326,7 +363,9 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <KeyboardAvoidingView
           style={styles.container}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior="padding"
+          keyboardVerticalOffset={insets.top}
+          enabled={Platform.OS === 'ios' || tecladoVisivel}
         >
           <Header
             title="Organizar partida"
@@ -343,16 +382,65 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
+            onLayout={manterCampoVisivel}
           >
-            <View style={styles.clubContext}>
-              <Icon
-                name="shield-outline"
-                size={16}
-                color={colors.textoSecundario}
-              />
-              <Text style={styles.clubText}>
-                {clubeAtivo?.nome || 'Nenhum clube selecionado'}
-              </Text>
+            <View
+              style={styles.clubContext}
+              onLayout={(evento) =>
+                registrarPosicao('categoria', evento.nativeEvent.layout.y)
+              }
+            >
+              <View style={styles.clubIdentity}>
+                <View style={styles.clubCrest}>
+                  {clubeAtivo?.escudo && clubeAtivo.escudo !== escudoComErro ? (
+                    <Image
+                      source={{ uri: clubeAtivo.escudo }}
+                      style={styles.clubCrestImage}
+                      onError={() => setEscudoComErro(clubeAtivo.escudo)}
+                    />
+                  ) : (
+                    <Text style={styles.clubInitial}>
+                      {Array.from(clubeAtivo?.nome.trim() || '?')[0].toUpperCase()}
+                    </Text>
+                  )}
+                </View>
+                <Text style={styles.clubText}>
+                  {clubeAtivo?.nome || 'Nenhum clube selecionado'}
+                </Text>
+              </View>
+              {podeGerenciar && (
+                <TouchableOpacity
+                  style={[
+                    styles.categoryTrigger,
+                    mensagem('categoria') && styles.invalidField,
+                    bloqueado && styles.disabled,
+                  ]}
+                  onPress={() => abrirPainel('categoria')}
+                  disabled={bloqueado || categorias.length === 0}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Categoria: ${categoriaAtual?.nome ?? 'selecionar'}. Alterar categoria`}
+                  accessibilityState={{
+                    disabled: bloqueado || categorias.length === 0,
+                    expanded: painel === 'categoria',
+                  }}
+                >
+                  {carregando ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={colors.textoSobrePrimaria}
+                    />
+                  ) : (
+                    <Text style={styles.categoryTriggerText}>
+                      {categoriaAtual?.nome ?? 'Categoria'}
+                    </Text>
+                  )}
+                  <Icon
+                    name="chevron-down"
+                    size={17}
+                    color={colors.textoSobrePrimaria}
+                  />
+                </TouchableOpacity>
+              )}
             </View>
 
             {!podeGerenciar ? (
@@ -372,8 +460,7 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
               </View>
             ) : carregando ? (
               <View style={styles.skeletons}>
-                <Skeleton height={44} />
-                <Skeleton height={58} />
+                <Skeleton height={52} />
                 <View style={styles.skeletonTeams}>
                   <View style={styles.skeletonTeam}>
                     <Skeleton height={160} />
@@ -392,53 +479,13 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
               />
             ) : (
               <>
-                <View
-                  style={styles.section}
-                  onLayout={(evento) =>
-                    registrarPosicao('categoria', evento.nativeEvent.layout.y)
-                  }
-                >
-                  <Text style={styles.sectionTitle}>Categoria</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.pillRow}
-                  >
-                    {categorias.map((categoria) => (
-                      <TouchableOpacity
-                        key={categoria.id}
-                        style={[
-                          styles.pill,
-                          categoriaId === categoria.id && styles.pillActive,
-                        ]}
-                        onPress={() => selecionarCategoria(categoria.id)}
-                        disabled={salvando}
-                        accessibilityRole="radio"
-                        accessibilityState={{
-                          checked: categoriaId === categoria.id,
-                          disabled: salvando,
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.pillText,
-                            categoriaId === categoria.id &&
-                              styles.pillTextActive,
-                          ]}
-                        >
-                          {categoria.nome}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                  {categorias.length === 0 && (
-                    <Text style={styles.hint}>
-                      Nenhuma categoria disponível para seu acesso. Peça ao
-                      administrador para conferir o cadastro e suas permissões.
-                    </Text>
-                  )}
-                  {exibirErro('categoria')}
-                </View>
+                {categorias.length === 0 && (
+                  <Text style={styles.hint}>
+                    Nenhuma categoria disponível para seu acesso. Peça ao
+                    administrador para conferir o cadastro e suas permissões.
+                  </Text>
+                )}
+                {exibirErro('categoria')}
 
                 <View
                   style={styles.section}
@@ -501,7 +548,7 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
                     registrarPosicao('confronto', evento.nativeEvent.layout.y)
                   }
                 >
-                  <Text style={styles.sectionTitle}>Confronto</Text>
+                  <Text style={styles.confrontationTitle}>Confronto</Text>
                   <View style={styles.confrontation}>
                     <TeamSelectorCard
                       time={mandante}
@@ -520,26 +567,64 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
                     </View>
                   </View>
                   {exibirErro('confronto')}
-                  <Text style={[styles.label, styles.mandoLabel]}>
-                    Onde o clube joga?
-                  </Text>
-                  <View pointerEvents={salvando ? 'none' : 'auto'}>
-                    <MandoCampo emCasa={emCasa} onChange={setEmCasa} />
+                  {!!avisoCategoria && (
+                    <View style={styles.categoryNotice} accessibilityRole="alert">
+                      <Icon name="info" size={17} color={colors.primaria} />
+                      <Text style={styles.categoryNoticeText}>
+                        {avisoCategoria}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.mandoRow}>
+                    <Text style={styles.mandoTitle}>Mando de campo</Text>
+                    <View style={styles.mandoOptions}>
+                      {OPCOES_MANDO.map((opcao) => (
+                        <TouchableOpacity
+                          key={opcao.texto}
+                          style={[
+                            styles.mandoOption,
+                            emCasa === opcao.valor && styles.mandoOptionSelected,
+                          ]}
+                          onPress={() => setEmCasa(opcao.valor)}
+                          disabled={bloqueado}
+                          accessibilityRole="radio"
+                          accessibilityLabel={`${clubeAtivo?.nome}: ${opcao.texto}`}
+                          accessibilityState={{
+                            checked: emCasa === opcao.valor,
+                            disabled: bloqueado,
+                          }}
+                        >
+                          <Icon
+                            name={opcao.icone}
+                            size={16}
+                            color={
+                              emCasa === opcao.valor
+                                ? colors.primaria
+                                : colors.textoSecundario
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.mandoText,
+                              emCasa === opcao.valor && styles.mandoTextSelected,
+                            ]}
+                          >
+                            {opcao.texto}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
-                  <Text style={styles.hint}>
-                    Em casa ou fora considera o clube {clubeAtivo?.nome}.
-                  </Text>
                 </View>
 
                 <View
-                  style={styles.section}
+                  style={styles.scheduleSection}
                   onLayout={(evento) => {
                     registrarPosicao('data', evento.nativeEvent.layout.y);
                     registrarPosicao('horario', evento.nativeEvent.layout.y);
                     registrarPosicao('local', evento.nativeEvent.layout.y);
                   }}
                 >
-                  <Text style={styles.sectionTitle}>Data e local</Text>
                   <View style={styles.fieldRow}>
                     <View style={styles.dateField}>
                       <Text style={styles.label}>Data</Text>
@@ -550,12 +635,17 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
                         ]}
                       >
                         <TextInput
+                          ref={dataInput}
                           style={styles.input}
                           value={data}
                           onChangeText={(texto) =>
                             setData(mascaraDataPartida(texto))
                           }
-                          onBlur={() => tocar('data')}
+                          onFocus={() => focarCampo(dataInput.current)}
+                          onBlur={() => {
+                            tocar('data');
+                            desfocarCampo(dataInput.current);
+                          }}
                           placeholder="DD/MM/AAAA"
                           placeholderTextColor={colors.textoSecundario}
                           maxLength={10}
@@ -567,6 +657,7 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
                         />
                         <TouchableOpacity
                           style={styles.calendarButton}
+                          hitSlop={6}
                           onPress={() => abrirPainel('data')}
                           disabled={bloqueado}
                           accessibilityRole="button"
@@ -601,7 +692,11 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
                           onChangeText={(texto) =>
                             setHorario(mascaraHorarioPartida(texto))
                           }
-                          onBlur={() => tocar('horario')}
+                          onFocus={() => focarCampo(horarioInput.current)}
+                          onBlur={() => {
+                            tocar('horario');
+                            desfocarCampo(horarioInput.current);
+                          }}
                           placeholder="HH:MM"
                           placeholderTextColor={colors.textoSecundario}
                           maxLength={5}
@@ -629,10 +724,15 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
                         color={colors.textoSecundario}
                       />
                       <TextInput
+                        ref={localInput}
                         style={styles.input}
                         value={local}
                         onChangeText={setLocal}
-                        onBlur={() => tocar('local')}
+                        onFocus={() => focarCampo(localInput.current)}
+                        onBlur={() => {
+                          tocar('local');
+                          desfocarCampo(localInput.current);
+                        }}
                         placeholder="Ginásio, campo ou endereço"
                         placeholderTextColor={colors.textoSecundario}
                         maxLength={160}
@@ -650,42 +750,64 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
             )}
           </ScrollView>
 
-          <View
-            style={[
-              styles.footer,
-              { paddingBottom: noModal ? Math.max(insets.bottom, 12) : 12 },
-            ]}
-          >
-            {!!erroSalvar && (
-              <Text style={styles.fieldError} accessibilityRole="alert">
-                {erroSalvar}
-              </Text>
-            )}
-            <TouchableOpacity
-              style={[styles.saveButton, bloqueado && styles.disabled]}
-              onPress={() => void salvar()}
-              disabled={bloqueado}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: bloqueado, busy: salvando }}
+          {!tecladoVisivel && (
+            <View
+              style={[
+                styles.footer,
+                { paddingBottom: Math.max(noModal ? insets.bottom : 0, 12) + 12 },
+              ]}
             >
-              {salvando ? (
-                <ActivityIndicator
-                  size="small"
-                  color={colors.textoSobrePrimaria}
-                />
-              ) : (
-                <Icon
-                  name="check"
-                  size={19}
-                  color={colors.textoSobrePrimaria}
-                />
+              {!!erroSalvar && !revisao && (
+                <Text style={styles.fieldError} accessibilityRole="alert">
+                  {erroSalvar}
+                </Text>
               )}
-              <Text style={styles.saveText}>
-                {salvando ? 'Criando partida…' : 'Criar partida'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={[styles.saveButton, bloqueado && styles.disabled]}
+                onPress={abrirRevisao}
+                disabled={bloqueado}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityHint="Abre a revisão dos dados antes de criar a partida"
+                accessibilityState={{ disabled: bloqueado, busy: salvando }}
+              >
+                {salvando ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.textoSobrePrimaria}
+                  />
+                ) : (
+                  <Icon
+                    name="check"
+                    size={19}
+                    color={colors.textoSobrePrimaria}
+                  />
+                )}
+                <Text style={styles.saveText}>
+                  {salvando ? 'Criando partida…' : 'Criar partida'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {!!revisao && (
+            <RevisaoOrganizarPartida
+              revisao={revisao}
+              salvando={salvando}
+              erro={erroSalvar}
+              onConfirmar={() => void salvar()}
+              onFechar={fecharRevisao}
+            />
+          )}
+
+          {painel === 'categoria' && (
+            <SeletorCategoriaPartida
+              categorias={categorias}
+              categoriaId={categoriaId}
+              onSelecionar={selecionarCategoria}
+              onFechar={fecharPainel}
+            />
+          )}
 
           {painel === 'data' && (
             <CalendarioPartida
