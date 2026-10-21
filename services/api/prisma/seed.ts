@@ -50,6 +50,7 @@ const PRIORIDADE_PAPEL: Record<PapelUsuario, number> = {
   TECNICO: 3,
   MESARIO: 2,
   TORCEDOR: 1,
+  OLHEIRO: 1,
 };
 
 function hojeUtc(): Date {

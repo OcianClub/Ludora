@@ -4,16 +4,9 @@ import { ErroConsulta, fetchComTimeout } from '../utils/request';
 import type { Placar, MudancaPlacar } from '../utils/placarPartida';
 import { headersClubeNotificacoes } from '../utils/escopoNotificacoes';
 
-<<<<<<< HEAD
-export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.0.122:3000';
-// export const BASE_URL =
-//   process.env.EXPO_PUBLIC_API_URL ??
-//   'http://192.168.7.2:3000';
-=======
 // No celular físico, configure o IP da sua máquina em apps/mobile/.env.
 export const BASE_URL = (process.env.EXPO_PUBLIC_API_URL?.trim() ||
   (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000')).replace(/\/+$/, '');
->>>>>>> b553260feb6c737f45a5e2b719939765ced788b1
 
 // ==========================================
 // CENTRAL DE REQUISIÇÕES (API FETCH)
@@ -71,7 +64,7 @@ export interface ClubeListado {
   estado: string | null;
   seguidores: number;
   isSeguindo: boolean;
-  papel: 'ADMIN' | 'MESARIO' | 'TECNICO' | 'TORCEDOR' | null;
+  papel: 'ADMIN' | 'MESARIO' | 'TECNICO' | 'TORCEDOR' | 'OLHEIRO' | null;
 }
 
 export async function fetchClubes(busca?: string): Promise<ClubeListado[]> {

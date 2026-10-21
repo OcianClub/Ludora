@@ -35,6 +35,9 @@ export function subscribeToMatch(options: MatchRealtimeOptions): () => void {
   socket.on('evento_partida', (event: { partida_id: number }) => {
     if (event.partida_id === matchId) onRefresh();
   });
+  socket.on('partida_atualizada', (match: {id:number}) => {
+    if (match.id === matchId) onRefresh();
+  });
 
   onStateChange('connecting');
   socket.connect();

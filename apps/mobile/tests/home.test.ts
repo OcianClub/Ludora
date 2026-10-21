@@ -11,6 +11,10 @@ const partida = (id: number, extras = {}) => ({
 test('torcedor acompanha a partida sem ações de preparação ou início', () => {
   assert.deepEqual(acoesDaPartidaNaHome(partida(1), false, agora), { preparar: false, iniciar: false });
 });
+
+test('gestor não prepara ou inicia partida registrada pelo clube adversário', () => {
+  assert.deepEqual(acoesDaPartidaNaHome(partida(1, { somente_leitura:true }), true, agora), { preparar:false, iniciar:false });
+});
 test('gestor prepara jogo futuro, mas só inicia o jogo no dia marcado', () => {
   assert.deepEqual(acoesDaPartidaNaHome(partida(1, { data: '2026-10-19' }), true, agora), { preparar: true, iniciar: false });
   assert.deepEqual(acoesDaPartidaNaHome(partida(1), true, agora), { preparar: true, iniciar: true });

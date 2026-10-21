@@ -11,7 +11,8 @@ type Estado = 'carregando' | 'atualizado' | 'erro';
 export function usePartidaTempoReal<T>(
   partidaId: number,
   clubeId: number | undefined,
-  aplicar: (dados: T) => void
+  aplicar: (dados: T) => void,
+  clubeOrigemId = clubeId
 ) {
   const aplicarRef = useRef(aplicar);
   aplicarRef.current = aplicar;
@@ -44,7 +45,7 @@ export function usePartidaTempoReal<T>(
       const token = await SecureStore.getItemAsync('userToken');
       if (!ativo || !token) return;
       socket = io(BASE_URL, {
-        auth: { token, clubeId },
+        auth: { token, clubeId: clubeOrigemId },
         transports: ['websocket', 'polling'],
       });
       socket.on('connect', () => {
@@ -85,7 +86,7 @@ export function usePartidaTempoReal<T>(
       appState.remove();
       socket?.disconnect();
     };
-  }, [partidaId, clubeId]);
+  }, [partidaId, clubeId, clubeOrigemId]);
 
   return {
     estado,

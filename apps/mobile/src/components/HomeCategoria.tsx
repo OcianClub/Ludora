@@ -43,6 +43,7 @@ function EscudoHome({ time, compacto = false, styles }: {
 }
 
 export interface PartidaHome {
+  somente_leitura?: boolean;
   id: number;
   mandante: Time;
   visitante: Time;

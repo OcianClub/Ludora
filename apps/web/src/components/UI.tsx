@@ -17,7 +17,7 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 // ── Badge de papel ──
-const PAPEL_MAP: Record<string, string> = { ADMIN: 'Admin', TECNICO: 'Técnico', MESARIO: 'Mesário', TORCEDOR: 'Torcedor' };
+const PAPEL_MAP: Record<string, string> = { ADMIN: 'Admin', TECNICO: 'Técnico', MESARIO: 'Mesário', TORCEDOR: 'Visitante', OLHEIRO: 'Olheiro' };
 export function PapelBadge({ papel }: { papel: string }) {
   return <span className={`papel-badge papel-${papel.toLowerCase()}`}>{PAPEL_MAP[papel] || papel}</span>;
 }

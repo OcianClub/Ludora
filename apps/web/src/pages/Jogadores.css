@@ -11,7 +11,7 @@
 .alunos-hint { padding: 0 20px 16px; border-bottom: 1px solid var(--linha); }
 .alunos-empty { padding: 28px 20px; }
 .alunos-students { list-style: none; padding: 0 16px; }
-.alunos-students li { display: flex; align-items: center; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--linha); }
+.alunos-students li { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--linha); }
 .alunos-students li:last-child { border-bottom: none; }
 .alunos-students li > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .alunos-students small { display: block; color: var(--texto-sec); margin-top: 3px; }

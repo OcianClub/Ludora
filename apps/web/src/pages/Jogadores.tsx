@@ -7,6 +7,7 @@ import './Jogadores.css';
 import { Choice, ConfirmDelete, PositionBadge, POSITIONS, normalizePosition, ViewToggle, type ViewMode } from '../components/CollectionControls';
 import { BirthDateField } from '../components/BirthDateField';
 import { formatCpf, digitsOnly, cleanName } from '../utils/playerForm';
+import { BlockColumns } from '../components/BlockColumns';
 
 
 const FORM_VAZIO = { nome: '', cpf: '', dtNasc: '', posicao: 'Alas', numCamisa: '' };
@@ -36,6 +37,8 @@ export default function JogadoresPage() {
   const [deleting, setDeleting] = useState<Jogador | null>(null);
   const [deleteError, setDeleteError] = useState('');
   const [origin, setOrigin] = useState<Categoria | null>(null);
+  const [expanded, setExpanded] = useState<number[]>([]);
+  useEffect(() => setExpanded([]), [clube?.id, busca, position, shirtFilter, tipo]);
 
   useEffect(() => {
     let ativo = true;
@@ -118,20 +121,21 @@ export default function JogadoresPage() {
     </div>
     {notice && <div className="collection-notice" role="status">{notice}</div>}
     {erroLista ? <div role="alert" className="alunos-error">{erroLista} <Btn onClick={() => setVersao(v => v + 1)}>Tentar novamente</Btn></div> : loading ? <Spinner /> :
-      <div className={`alunos-grid alunos-${view}`}>{blocos.map(categoria => {
+      <BlockColumns list={view === 'list'} minWidth={390} maxColumns={2}>{blocos.map(categoria => {
         const alunos = jogadores.filter(j => j.categoria_id === categoria.id);
         const visiveis = alunos.filter(j => j.nome.toLocaleLowerCase().includes(busca.toLocaleLowerCase()) && (!position || normalizePosition(j.posicao) === position) && (!shirtFilter || (shirtFilter === 'missing' ? j.numCamisa == null : j.numCamisa != null))).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')*(order==='asc'?1:-1));
         return <section className="alunos-category" key={categoria.id}>
           <header><div><h2>{categoria.nome.toUpperCase()}</h2><span>{alunos.length} alunos · {alunos.filter(a => a.numCamisa == null).length} sem camisa</span></div>
             {podeGerenciar && <Btn variant="ghost" size="sm" onClick={() => abrir(null, categoria)}>Adicionar aluno</Btn>}</header>
           <p className="alunos-hint">A data de nascimento determina o sub de destino.</p>
-          {visiveis.length ? <ul className="alunos-students">{visiveis.map(aluno => <li key={aluno.id}>
+          {visiveis.length ? <ul id={`students-${categoria.id}`} className="alunos-students">{(expanded.includes(categoria.id) ? visiveis : visiveis.slice(0, 5)).map(aluno => <li key={aluno.id}>
             <span className={`alunos-shirt ${aluno.numCamisa == null ? 'is-empty' : ''}`} aria-label={aluno.numCamisa == null ? 'Sem camisa' : `Camisa ${aluno.numCamisa}`}>{aluno.numCamisa ?? '—'}</span>
             <div><strong>{aluno.nome}</strong><small><PositionBadge position={aluno.posicao}/>{aluno.numCamisa == null ? ' · Definir camisa' : ''}</small></div>
             {podeGerenciar && <div className="actions"><Btn variant="ghost" size="sm" onClick={() => abrir(aluno)}>Editar</Btn><Btn variant="danger" size="sm" onClick={() => { setDeleteError(''); setDeleting(aluno); }}>Excluir</Btn></div>}
           </li>)}</ul> : <p className="alunos-empty">{busca ? 'Nenhum aluno encontrado.' : 'Nenhum aluno nesta categoria.'}</p>}
+          {visiveis.length > 5 && <button className="collection-expand" type="button" aria-controls={`students-${categoria.id}`} aria-expanded={expanded.includes(categoria.id)} onClick={() => setExpanded(ids => ids.includes(categoria.id) ? ids.filter(id => id !== categoria.id) : [...ids, categoria.id])}>{expanded.includes(categoria.id) ? 'Recolher' : `Ver mais ${visiveis.length - 5} jogadores`} <span aria-hidden="true">{expanded.includes(categoria.id) ? '−' : '+'}</span></button>}
         </section>;
-      })}{!blocos.length && <p>Nenhuma categoria cadastrada neste grupo.</p>}</div>}
+      })}{!blocos.length && <p>Nenhuma categoria cadastrada neste grupo.</p>}</BlockColumns>}
 
     <Modal open={modal} onClose={() => { if (!salvando) setModal(false); }} title={editando ? 'Editar aluno' : 'Adicionar aluno'}>
       <form noValidate onSubmit={e => { e.preventDefault(); void salvar(); }}>

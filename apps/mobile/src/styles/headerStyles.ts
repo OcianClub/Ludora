@@ -9,7 +9,7 @@ export const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingBottom: 15,
+      paddingBottom: 8,
       backgroundColor: colors.fundo,
       flexShrink: 0,
     },
@@ -52,7 +52,7 @@ export const createStyles = (colors: ThemeColors) =>
     rightContent: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
+      gap: 8,
       flexShrink: 0,
     },
     actionButton: {

@@ -21,12 +21,13 @@ const STATUS_BTN: Record<string, string> = { AGENDADA: 'Iniciar preparação', P
 export default function PartidaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { podeGerenciar, token, clube } = useAuth();
+  const { podeGerenciar: gestorDoClube, token, clube } = useAuth();
 
   const [partida, setPartida] = useState<Partida | null>(null);
+  const podeGerenciar = gestorDoClube && !partida?.somente_leitura;
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [escalacao, setEscalacao] = useState<EscalacaoItem[]>([]);
-  const [jogadores, setJogadores] = useState<PerfilJogador[]>([]);
+  const [jogadores, setJogadores] = useState<Pick<PerfilJogador, 'id' | 'nome' | 'numCamisa' | 'posicao'>[]>([]);
   const [times, setTimes] = useState<Time[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -87,7 +88,9 @@ export default function PartidaDetalhePage() {
         if (!match) return;
 
         const [players, teams] = await Promise.all([
-          fetchJogadoresPerfis(match.categoria_id), fetchTimes(),
+          match.somente_leitura
+            ? Promise.resolve(lineup.filter(item=>item.jogador).map(item=>({id:item.jogador_id,nome:item.jogador!.nome,posicao:item.jogador!.posicao,numCamisa:item.numCamisa})))
+            : fetchJogadoresPerfis(match.categoria_id), fetchTimes(),
         ]);
         if (!active) return;
         setJogadores(players);
@@ -97,7 +100,7 @@ export default function PartidaDetalhePage() {
           unsubscribe = subscribeToMatch({
             baseUrl: BASE_URL,
             token,
-            clubId: clube.id,
+            clubId: match.clube_origem_id || clube.id,
             matchId,
             onScore: score => {
               setPartida(previous => previous ? {
@@ -196,8 +199,8 @@ export default function PartidaDetalhePage() {
   if (loadError) return <div role="alert" style={{ padding: 40 }}>{loadError}</div>;
   if (!partida) return <div style={{ color: 'var(--texto-sec)', padding: 40 }}>Partida não encontrada</div>;
 
-  const mandante = times.find(t => t.id === partida.mandante_id);
-  const visitante = times.find(t => t.id === partida.visitante_id);
+  const mandante = partida.mandante || times.find(t => t.id === partida.mandante_id);
+  const visitante = partida.visitante || times.find(t => t.id === partida.visitante_id);
   const jogOpts = jogadores.map(j => ({ value: j.id, label: `${j.nome} (#${j.numCamisa || '?'})` }));
   const escalacaoIds = new Set(escalacao.map(e => e.jogador_id));
   const canRecord = podeGerenciar && ['AO_VIVO', 'FINALIZADA'].includes(partida.status);
@@ -224,11 +227,12 @@ export default function PartidaDetalhePage() {
   return (
     <div className="partida-detalhe">
       <button className="btn-voltar" onClick={() => navigate('/partidas')}>← Partidas</button>
-      <div className="page-header match-detail-header"><div><span className="eyebrow">DENTRO DE CAMPO</span><h1 className="page-title">Detalhes da partida</h1></div>
+      <div className="page-header match-detail-header"><div><span className="eyebrow">DENTRO DA QUADRA</span><h1 className="page-title">Detalhes da partida</h1></div>
         {podeGerenciar && <Btn variant="ghost" onClick={() => setEditor('match')}><Icon name="edit" size={17} />Editar partida</Btn>}
       </div>
       {actionError && <p className="notice-error" role="alert">{actionError}</p>}
       {notice && <p className="match-notice" role="status">{notice}</p>}
+      {partida.somente_leitura && <p className="collection-notice">Histórico compartilhado: esta partida é administrada pelo clube que a registrou. Aqui você pode acompanhar o placar, a escalação publicada e os eventos.</p>}
 
       <p role="status" className="realtime-status">
         {realtimeState === 'connected'
@@ -308,7 +312,7 @@ export default function PartidaDetalhePage() {
                   return (
                     <div key={ev.id} className="evento-item">
                       <span className="event-icon-box"><EventIcon type={ev.tipo} /></span>
-                      <span className="evento-description"><strong>{tipo?.label || ev.tipo}</strong><small>{jog?.nome || 'Sem jogador vinculado'}</small></span>
+                      <span className="evento-description"><strong>{tipo?.label || ev.tipo}</strong><small>{ev.jogador?.nome || jog?.nome || 'Sem jogador vinculado'}</small></span>
                       <span className="evento-meta">{ev.periodo}º período{ev.minuto != null ? ` · ${ev.minuto}'` : ''}</span>
                       {podeGerenciar && <button className="btn-remover-ev" aria-label={`Remover ${tipo?.label || ev.tipo} de ${jog?.nome || 'jogador não informado'}`} disabled={deletingEvent !== null} onClick={() => removerEvento(ev.id)}><Icon name="trash" size={17} /></button>}
                     </div>

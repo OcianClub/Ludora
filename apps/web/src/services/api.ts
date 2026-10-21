@@ -1,5 +1,12 @@
 export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+export async function requestJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const response = await apiFetch(endpoint, options);
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || 'Não foi possível concluir a solicitação');
+  return body;
+}
+
 // ── Auth token (localStorage para web) ──
 export function getToken(): string | null {
   return localStorage.getItem('ludora_token');
@@ -49,11 +56,11 @@ export interface Clube {
 export interface Usuario { id: number; nome: string; email: string; criadoEm?: string; }
 export interface PerfilUsuario extends Usuario { clubes: Clube[]; }
 export interface Categoria { id: number; nome: string; tipo: string; clube_id: number; }
-export interface Time { id: number; nome: string; escudo?: string; categoria_id?: number; }
+export interface Time { id: number; nome: string; escudo?: string; categoria_id?: number; clube_representado_id?: number | null; clubeRepresentado?: Clube | null; }
 export interface Jogador { id: number; nome: string; cpf: string; dtNasc: string; posicao: string; numCamisa?: number; ativo: boolean; perfil_ml?: string; nota_geral?: number; categoria_id: number; }
-export interface Partida { id: number; mandante_id: number; visitante_id: number; gols_mandante: number; gols_visitante: number; data: string; horario?: string; local?: string; status: string; emCasa: boolean; categoria_id: number; competicao_id?: number; rodada?: number; grupo?: string | null; mandante?: Time; visitante?: Time; categoria?: Categoria; }
+export interface Partida { somente_leitura?: boolean; clube_origem_id?: number; id: number; mandante_id: number; visitante_id: number; gols_mandante: number; gols_visitante: number; data: string; horario?: string; local?: string; status: string; emCasa: boolean; categoria_id: number; competicao_id?: number; rodada?: number; grupo?: string | null; mandante?: Time; visitante?: Time; categoria?: Categoria; }
 export interface Competicao { id: number; nome: string; ano: number; tipo: string; clube_id: number; }
-export interface Evento { id: number; partida_id: number; tipo: string; periodo: number; minuto?: number; jogador_id?: number; }
+export interface Evento { id: number; partida_id: number; tipo: string; periodo: number; minuto?: number; jogador_id?: number; jogador?: {id:number;nome:string} | null; }
 export interface EscalacaoItem { jogador_id: number; numCamisa: number; titular: boolean; jogador?: Jogador; }
 export interface PerfilJogador extends Jogador { totalGols: number; totalAssistencias: number; totalCartoes: number; totalDefesas: number; totalFaltas: number; totalPartidas: number; }
 export interface Estatisticas { gols: number; assistencias: number; defesas: number; cartaoAmarelo: number; cartaoVermelho: number; faltas: number; }

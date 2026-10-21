@@ -1,0 +1,9 @@
+.block-columns { display:grid; gap:16px; align-items:start; }
+.block-column { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.block-column > * { min-width:0; }
+.category-tabs { display:flex; gap:8px; overflow-x:auto; padding:4px 0 12px; margin-bottom:16px; scroll-snap-type:x mandatory; }
+.category-tabs button { flex-shrink:0; padding:9px 16px; border:1px solid var(--borda); border-radius:6px; background:var(--fundo-card); color:var(--texto-sec); scroll-snap-align:start; font-weight:600; }
+.category-tabs button[aria-pressed=true] { background:var(--fundo-botao); color:var(--primaria); border-color:var(--primaria); }
+.collection-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:24px 0 12px; }
+.collection-heading h2 { font-size:16px; }.collection-heading p { font-size:12px; color:var(--texto-sec); }
+.club-label { display:inline-flex; align-items:center; gap:5px; color:var(--primaria); background:var(--fundo-botao); border:1px solid var(--borda-botao); border-radius:4px; font-size:10px; padding:3px 6px; font-weight:600; }

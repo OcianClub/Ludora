@@ -46,6 +46,8 @@ import {
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 export interface Partida {
+  clube_origem_id?: number;
+  somente_leitura?: boolean;
   id: number;
   mandante: { id: number; nome: string; escudo: string | null };
   visitante: { id: number; nome: string; escudo: string | null };
@@ -404,7 +406,8 @@ export default function DetalhesPartida({
       setGolsMandante(dados.gols_mandante);
       setGolsVisitante(dados.gols_visitante);
       setEventos(dados.eventos);
-    }
+    },
+    partidaInicial.clube_origem_id
   );
   const carregandoEventos = estadoSincronizacao === 'carregando';
   const placarDesatualizado = estadoSincronizacao === 'erro' || (consultaLocal && estadoSincronizacao !== 'atualizado');

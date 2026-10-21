@@ -26,6 +26,6 @@ export function MatchCard({ partida: p, featured = false, actions }: { partida: 
       <span><Icon name="calendar" size={15} />{p.data ? formatMatchDate(p.data) : 'Data a definir'}{p.horario ? ` · ${p.horario}` : ''}</span>
       <span><Icon name="location" size={15} />{p.local || 'Local a definir'}</span>
     </div>
-    <div className="match-card-actions"><Link className={`btn btn-${featured ? 'primary' : 'ghost'} btn-md`} to={`/partidas/${p.id}`}>Ver detalhes da partida<Icon name="arrow" size={16} /></Link>{actions}</div>
+    <div className="match-card-actions"><Link className={`btn btn-${featured ? 'primary' : 'ghost'} btn-md`} to={`/partidas/${p.id}`}>{p.status === 'AO_VIVO' ? 'Acompanhar ao vivo' : 'Ver detalhes da partida'}<Icon name="arrow" size={16} /></Link>{actions}</div>
   </article>;
 }

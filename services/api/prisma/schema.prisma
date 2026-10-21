@@ -24,6 +24,7 @@ model Clube {
   competicoes  Competicao[]
   convites     ConviteClube[]
   notificacoes Notificacao[]
+  timesRepresentados Time[] @relation("ClubeRepresentado")
 }
 
 model UsuarioClube {
@@ -154,6 +155,8 @@ model Time {
   id                 Int              @id @default(autoincrement())
   nome               String
   escudo             String?
+  clube_representado_id Int?
+  clubeRepresentado Clube? @relation("ClubeRepresentado", fields: [clube_representado_id], references: [id], onDelete: SetNull)
   categoria_id       Int?
   competicoes        CompeticaoTime[]
   partidas_mandante  Partida[]        @relation("Mandante")
@@ -162,6 +165,19 @@ model Time {
 
   @@unique([nome, categoria_id])
   @@index([categoria_id])
+  @@index([clube_representado_id])
+}
+
+// Histórico imutável de decisões de vínculo. Os IDs dos times/partidas não mudam.
+model AuditoriaVinculoTime {
+  id Int @id @default(autoincrement())
+  time_id Int
+  clube_anterior_id Int?
+  clube_novo_id Int?
+  usuario_id Int?
+  motivo String
+  criado_em DateTime @default(now())
+  @@index([time_id])
 }
 
 model Jogador {
@@ -361,6 +377,7 @@ enum PapelUsuario {
   MESARIO
   TECNICO
   TORCEDOR
+  OLHEIRO
 }
 
 enum TipoCategoria {

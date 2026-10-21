@@ -5,8 +5,8 @@ Plataforma de gestão e estatísticas para clubes de futebol e futsal.
 O Ludora nasceu como um projeto de extensão acadêmica e está sendo construído
 como uma solução multiplataforma. O aplicativo mobile atende o acompanhamento
 do clube e as operações do dia de jogo. A gestão administrativa de categorias,
-times, jogadores, competições e convites será concentrada nas futuras aplicações
-web e desktop. A API centraliza autenticação, permissões, dados, convites e tempo
+times, jogadores e competições já possui uma aplicação web; o desktop continua
+planejado. A API centraliza autenticação, permissões, dados, convites e tempo
 real, enquanto um serviço Python processa os perfis estatísticos dos jogadores.
 
 ## Estado atual
@@ -16,7 +16,7 @@ real, enquanto um serviço Python processa os perfis estatísticos dos jogadores
 | Aplicativo mobile | Em desenvolvimento ativo |
 | API Node.js | Funcional |
 | Serviço de Scout IA | Funcional |
-| Aplicação web | Planejada para gestão administrativa |
+| Aplicação web | Funcional em desenvolvimento: gestão do clube, partidas, scout, pessoas e acessos |
 | Aplicação desktop | Planejada para gestão administrativa |
 
 A API publicada atualmente está disponível em
@@ -26,7 +26,7 @@ A API publicada atualmente está disponível em
 
 - Autenticação com JWT e armazenamento seguro do token no mobile.
 - Vínculos entre usuários e múltiplos clubes.
-- Papéis de administrador, técnico, mesário e torcedor.
+- Papéis por clube: administrador, técnico, mesário, visitante (TORCEDOR) e olheiro.
 - Técnicos com acesso a todas as categorias ou apenas a categorias específicas.
 - API preparada para cadastro e gestão de categorias, times, jogadores e competições.
 - Partidas, escalações, placar e eventos em tempo real com Socket.IO.
@@ -65,6 +65,7 @@ Uma mesma pessoa pode, por exemplo, ser técnica em um clube e torcedora em outr
 | TECNICO | Gestão de todas as categorias ou somente das categorias atribuídas |
 | MESARIO | Operações de gestão e dia de jogo dentro do clube |
 | TORCEDOR | Acompanhamento e dados públicos, sem operações administrativas |
+| OLHEIRO | Consulta de conteúdo público; identificação de função, sem edição ou relatórios privados adicionais |
 
 As permissões são validadas na API. Ocultar um botão no aplicativo não é
 considerado uma barreira de segurança.
@@ -115,7 +116,7 @@ credenciais e invalida as anteriores.
 Ludora/
 ├── apps/
 │   ├── mobile/                 Aplicativo React Native e Expo
-│   ├── web/                    Reservado para a aplicação web
+│   ├── web/                    Aplicação React/Vite para gestão do clube
 │   └── desktop/                Reservado para Electron e React
 │
 ├── services/
@@ -778,12 +779,47 @@ para a suíte automatizada; entrega real de push e cenários de app encerrado
 precisam ser verificados separadamente no Android.
 
 - Evoluir e validar os fluxos mobile de entrada e aceite de convite.
-- Criar a aplicação web para gestão de categorias, times, jogadores,
-  competições, elencos e links de convite.
+- Evoluir o web existente, incluindo adaptação do cadastro ao código de verificação
+  e gestão de convites; o cadastro público web ainda exige essa adaptação.
 - Criar a aplicação desktop com Electron reutilizando o fluxo administrativo.
 - Verificar um domínio próprio para envio de e-mails.
 - Mover as rotas restantes para controllers e services menores.
 - Adicionar testes automatizados de integração e permissões.
+
+## Web e demonstração de clubes — 20/10/2026
+
+O web existente usa React/Vite. Com as dependências instaladas e a API configurada:
+
+~~~powershell
+pnpm --filter @ludora/api exec prisma migrate deploy
+pnpm --filter @ludora/api exec prisma generate
+pnpm --filter @ludora/api build
+pnpm --filter @ludora/api start
+~~~
+
+Em outro terminal: `pnpm --filter @ludora/web dev`. URL padrão:
+`http://localhost:5173`; API local padrão: `http://localhost:3000`.
+Se usar outro backend, configurar `VITE_API_URL` no ambiente do web.
+Não iniciar uma segunda API na mesma porta. Fechar a API antes de regenerar
+o Prisma Client se o Windows informar que o arquivo está em uso.
+
+As contas demo já geradas nesta máquina ficam em `.local-demo/contas.json`,
+ignorado pelo Git. Os clubes de demonstração estão identificados na interface.
+Não é necessário executar a seed novamente para entrar.
+
+A nova seed incremental fica em `services/api/prisma/seed-clubes.cjs`.
+Executada na pasta `services/api`, `node prisma/seed-clubes.cjs` apenas mostra
+a prévia; acrescentar `--apply` modifica o banco configurado. Ela foi feita
+para esta demonstração acadêmica, renomeia clubes identificados pelo nome e
+adiciona cenários. A seed antiga não é equivalente: contém limpeza de dados
+esportivos e não deve ser usada para atualizar uma base compartilhada.
+
+O vínculo time → clube e os cargos são validados na API. Vincular um time
+permite consultar o histórico no clube representado, sem conceder edição
+das partidas de outro organizador. O painel global Electron ainda não existe.
+
+Mapeamento, antes/depois, contas, testes e limitações:
+[Handover técnico desta entrega](docs/handover-clubes-interface-2026-10-20.md).
 
 ## Licença
 

@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { getUsuarioId } from '../auth/jwt';
 import { prisma } from '../lib/prisma';
 import { idPositivo } from '../utils/id';
+import { escopoPartidas } from '../modules/partidas/visibilidade';
 
 const PAPEIS_GESTORES = ['ADMIN', 'TECNICO', 'MESARIO'] as const;
 
@@ -146,7 +147,7 @@ export function exigirAdminDoClube(
 ) {
   if ((req as any).papelUsuario !== 'ADMIN') {
     return res.status(403).json({
-      error: 'Apenas administradores podem enviar convites',
+      error: 'Esta ação exige administrador do clube',
     });
   }
 
@@ -180,7 +181,7 @@ export async function obterEscopoCategorias(
     },
   });
 
-  if (!vinculo || vinculo.papel === 'TORCEDOR') {
+  if (!vinculo || vinculo.papel === 'TORCEDOR' || vinculo.papel === 'OLHEIRO') {
     return { acessoTotal: false, categoriaIds: [] };
   }
 
@@ -212,7 +213,7 @@ export async function obterEscopoCategoriasLeitura(
   // Sem vínculo, o usuário está consultando o conteúdo público do clube.
   // A limitação de categoria é uma regra de gestão, não de visualização.
   if (!vinculo) return { acessoTotal: true, categoriaIds: [] };
-  if (vinculo.papel === 'TORCEDOR') {
+  if (vinculo.papel === 'TORCEDOR' || vinculo.papel === 'OLHEIRO') {
     return { acessoTotal: true, categoriaIds: [] };
   }
 
@@ -305,7 +306,7 @@ export function exigirPartidaVisivelDoClube(
 
     try {
       const partida = await prisma.partida.findFirst({
-        where: { id: partidaId, categoria: { clube_id: clubeId } },
+        where: { id: partidaId, ...escopoPartidas(clubeId) },
         select: { id: true },
       });
       if (!partida) {

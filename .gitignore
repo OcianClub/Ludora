@@ -6,6 +6,8 @@ dist/
 !.env.example
 .expo/
 *.log
+.local-demo/
+test-results/
 reorganizar-ludora.sh
 __pycache__/
 *.pyc

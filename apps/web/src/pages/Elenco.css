@@ -24,3 +24,8 @@
 .scout-list .scout-assessment { margin:12px; }.scout-list .scout-performance { border-top:0; }.scout-list footer { grid-column:1/-1; }
 .scout-detail-heading { display:flex; gap:12px; align-items:center; }.scout-section-title { font-size:14px; margin:22px 0 12px; }
 @media(max-width:900px) { .scout-list .scout-player { display:block; }.scout-summary { grid-template-columns:1fr; gap:8px; }.scout-summary > div { padding:10px 16px; } }
+.scout-card-list { display:grid; grid-template-columns:1.2fr 1fr 1fr; align-items:center; }
+.scout-card-list footer { grid-column:1/-1; }.scout-card-list .scout-assessment { margin:12px; }
+.scout-player-heading { padding:16px; }.scout-player h2 { font-size:16px; }.scout-assessment { margin:0 16px 14px; padding:9px; }.scout-performance { padding:14px 16px; }.scout-player footer { padding:10px 16px; }
+.scout-player { transition:border-color .18s,box-shadow .18s; }.scout-player:hover { border-color:var(--borda-botao); box-shadow:0 4px 18px #0001; }
+@media(max-width:900px) { .scout-card-list { display:block; } }

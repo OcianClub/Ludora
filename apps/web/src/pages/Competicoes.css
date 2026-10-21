@@ -1,0 +1,10 @@
+.competition-count { color:var(--texto-sec); font-size:12px; margin-bottom:16px; }
+.competition-card { padding:20px; background:var(--fundo-card); border:1px solid var(--borda); border-radius:8px; }
+.competition-identity { display:flex; gap:14px; align-items:center; min-width:0; }
+.competition-icon { display:grid; place-items:center; flex-shrink:0; width:44px; height:44px; background:var(--fundo-botao); color:var(--primaria); border-radius:6px; }
+.competition-identity h2 { font-size:16px; overflow-wrap:anywhere; margin-top:4px; }
+.competition-identity small { color:var(--texto-sec); font-size:12px; }
+.competition-actions { display:flex; gap:8px; margin-top:18px; padding-top:14px; border-top:1px solid var(--linha); }
+.competition-row { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.competition-row .competition-actions { margin:0; padding:0; border:0; }
+@media(max-width:600px) { .competition-row { display:block; }.competition-row .competition-actions { margin-top:16px; } }

@@ -1,10 +1,11 @@
-export type PapelHeader = 'ADMIN' | 'TECNICO' | 'MESARIO' | 'TORCEDOR';
+export type PapelHeader = 'ADMIN' | 'TECNICO' | 'MESARIO' | 'TORCEDOR' | 'OLHEIRO';
 
 export const NOMES_PAPEIS_HEADER: Record<PapelHeader, string> = {
   ADMIN: 'Administrador',
   TECNICO: 'Técnico',
   MESARIO: 'Mesário',
   TORCEDOR: 'Torcedor',
+  OLHEIRO: 'Olheiro',
 };
 
 export function inicialHeader(nome: string) {

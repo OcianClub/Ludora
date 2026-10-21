@@ -1,7 +1,9 @@
-.collection-toolbar { display:flex; flex-wrap:wrap; gap:14px; align-items:end; padding:18px; margin-bottom:24px; background:var(--fundo-card); border:1px solid var(--borda); border-radius:12px; }
-.collection-toolbar > .field { flex:1; min-width:150px; }
-.collection-view { display:flex; gap:4px; padding:4px; border:1px solid var(--borda); border-radius:10px; background:var(--fundo-card); }
-.collection-view button { display:flex; align-items:center; gap:8px; border:0; background:transparent; color:var(--texto-sec); padding:10px 15px; border-radius:7px; }
+.collection-toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:end; padding:0 0 16px; margin-bottom:24px; border-bottom:1px solid var(--linha); }
+.collection-toolbar > .field { flex:0 1 190px; min-width:140px; }
+.collection-toolbar > .field:first-child { flex:1 1 210px; }
+.collection-toolbar .field-input { min-height:40px; }
+.collection-view { display:flex; gap:4px; padding:4px; margin-left:auto; border:1px solid var(--borda); border-radius:6px; background:var(--fundo-card); }
+.collection-view button { display:flex; align-items:center; gap:8px; border:0; background:transparent; color:var(--texto-sec); padding:8px 10px; border-radius:4px; font-size:12px; }
 .collection-view button[aria-pressed=true] { color:var(--primaria); background:var(--fundo-botao); }
 .choice { position:relative; min-width:0; }
 .choice-trigger { display:flex; justify-content:space-between; align-items:center; gap:10px; text-align:left; width:100%; }
@@ -19,4 +21,7 @@
 .position-options button { background:var(--fundo-card); border:1px solid var(--borda); border-radius:9px; padding:7px; }
 .position-options button[aria-pressed=true] { border-color:var(--primaria); box-shadow:0 0 0 2px var(--fundo-botao); }
 .birth-fields { display:grid; grid-template-columns:1.2fr 1.5fr 1fr; gap:8px; }
-@media(max-width:600px) { .collection-view { width:100%; justify-content:center; }.collection-view button { flex:1; justify-content:center; } }
+@media(max-width:600px) { .collection-toolbar > .field { flex:1 1 140px; }.collection-view { width:100%; margin-left:0; justify-content:center; }.collection-view button { flex:1; justify-content:center; } }
+.collection-expand { display:flex; align-items:center; justify-content:space-between; gap:12px; width:calc(100% - 32px); margin:4px 16px 16px; padding:9px 12px; border:1px solid var(--borda); border-radius:6px; background:var(--fundo-card-sec); color:var(--texto-sec); cursor:pointer; font-size:12px; font-weight:600; transition:background .18s,border-color .18s; }
+.collection-expand:hover { color:var(--primaria); border-color:var(--primaria); background:var(--fundo-botao); }
+.collection-expand span { display:grid; place-items:center; width:22px; height:22px; border-radius:4px; background:var(--fundo-botao); color:var(--primaria); }

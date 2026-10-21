@@ -1,4 +1,5 @@
 type PartidaResumo = {
+  somente_leitura?: boolean;
   data: string;
   horario: string | null;
   status: string;
@@ -27,6 +28,7 @@ export function acoesDaPartidaNaHome(
   const preparar =
     podeGerenciar &&
     !!partida &&
+    !partida.somente_leitura &&
     ['AGENDADA', 'PREPARADA'].includes(partida.status);
   const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
   return {

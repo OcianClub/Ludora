@@ -14,7 +14,7 @@ import * as SecureStore from 'expo-secure-store';
 // mesmo render), e toda tela que usa useClubeAtivo() recebe o valor novo
 // imediatamente — sem releitura, sem corrida, sem flicker.
 
-export type PapelClube = 'ADMIN' | 'MESARIO' | 'TECNICO' | 'TORCEDOR' | null;
+export type PapelClube = 'ADMIN' | 'MESARIO' | 'TECNICO' | 'TORCEDOR' | 'OLHEIRO' | null;
 
 export interface ClubeAtivo {
   id: number;

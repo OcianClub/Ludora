@@ -1,16 +1,29 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { BlockColumns } from '../components/BlockColumns';
+import { teamKey, teamName } from '../utils/teamIdentity';
+import { fetchClubes, type Clube } from '../services/api';
 import { fetchTimes, criarTime, atualizarTime, deletarTime, fetchCategorias, type Time, type Categoria } from '../services/api';
 import { Btn, Modal, Input, Spinner } from '../components/UI';
 import { Choice, ConfirmDelete, ViewToggle, type ViewMode } from '../components/CollectionControls';
 import { useAuth } from '../contexts/AuthContext';
 import './Times.css';
+import { Icon } from '../components/Icon';
 const EMPTY = { nome: '', escudo: '', categoria_id: '' };
 function Crest({ src }: { src?: string }) {
   const [failed, setFailed] = useState('');
   return <span className="team-crest" aria-label={src && src !== failed ? 'Escudo do time' : 'Sem escudo'}>{src && src !== failed && <img src={src} alt="" onError={() => setFailed(src)} />}</span>;
 }
 export default function TimesPage() {
-  const { podeGerenciar, clube } = useAuth();
+  const { podeGerenciar, clube, definirClube } = useAuth();
+  const navigate = useNavigate();
+  const [visiting, setVisiting] = useState<Clube | null>(null);
+  const [visitError, setVisitError] = useState('');
+  async function visit() {
+    if (!visiting) return; setBusy(true); setVisitError('');
+    try { const clubs = await fetchClubes(); const target = clubs.find(c=>c.id===visiting.id); if(!target) throw new Error('Clube não encontrado'); definirClube(target); navigate('/dashboard'); }
+    catch(e) { setVisitError((e as Error).message); } finally { setBusy(false); }
+  }
   const [times, setTimes] = useState<Time[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,10 +68,11 @@ export default function TimesPage() {
     catch(e){setError(e instanceof Error?e.message:'Não foi possível excluir');}finally{setBusy(false);}
   }
   const groups = new Map<string,Time[]>();
-  times.filter(t=>(!busca||t.nome.toLocaleLowerCase().includes(busca.toLocaleLowerCase()))&&(!category||t.categoria_id===Number(category))).forEach(t=>{
-    const key=t.nome.trim().toLocaleLowerCase();groups.set(key,[...(groups.get(key)||[]),t]);
+  const displayName=(t:Time)=>t.clubeRepresentado?.nome || teamName(t.nome);
+  times.filter(t=>(!busca||displayName(t).toLocaleLowerCase().includes(busca.toLocaleLowerCase()))&&(!category||t.categoria_id===Number(category))).forEach(t=>{
+    const key=t.clube_representado_id ? `club:${t.clube_representado_id}` : teamKey(t.nome);groups.set(key,[...(groups.get(key)||[]),t]);
   });
-  const sorted=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0],'pt-BR')*(order==='asc'?1:-1));
+  const sorted=[...groups.entries()].sort((a,b)=>displayName(a[1][0]).localeCompare(displayName(b[1][0]),'pt-BR')*(order==='asc'?1:-1));
   return <div>
     <div className="page-header"><div><h1 className="page-title">Times</h1><p className="page-sub">Encontre uma equipe e explore suas categorias.</p></div>{podeGerenciar&&<Btn onClick={()=>open()}>+ Adicionar time</Btn>}</div>
     <div className="collection-toolbar"><Input label="Buscar time" value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Nome do time..." />
@@ -67,17 +81,17 @@ export default function TimesPage() {
       <ViewToggle value={view} onChange={setView}/></div>
     {notice&&<div role="status" className="collection-notice">{notice}</div>}
     {loading?<Spinner/>:loadError?<p className="notice-error" role="alert">{loadError}<Btn onClick={()=>setVersion(v=>v+1)}>Tentar novamente</Btn></p>:
-      <div className={`teams-collection teams-${view}`}>{sorted.map(([key,items])=>{
-        const show=view==='list'||expanded.includes(key);
+      <BlockColumns list={view === 'list'}>{sorted.map(([key,items])=>{
+        const show=expanded.includes(key);
         const team=items[0];
-        return <section key={key} className="team-group"><button type="button" className="team-heading" disabled={view === 'list'} aria-expanded={show} onClick={()=>setExpanded(v=>v.includes(key)?v.filter(k=>k!==key):[...v,key])}>
-          <Crest src={items.find(t=>t.escudo)?.escudo}/><span><strong>{team.nome}</strong><small>{items.length} categoria(s)</small></span><span className="team-open">{show?'Categorias':'Ver subs'} <span aria-hidden="true">⌄</span></span></button>
+        return <section key={key} className="team-group"><button type="button" className="team-heading" aria-expanded={show} onClick={()=>setExpanded(v=>v.includes(key)?v.filter(k=>k!==key):[...v,key])}>
+          <Crest src={team.clubeRepresentado?.escudo || items.find(t=>t.escudo)?.escudo}/><span><strong>{team.clubeRepresentado?.nome || teamName(team.nome)}</strong><small>{items.length} categoria(s)</small>{team.clubeRepresentado && <span className="club-label">Clube no Ludora</span>}</span><span className="team-open">{show?'Recolher':'Ver subs'} <Icon name={show ? 'minus' : 'plus'} size={18} /></span></button>
           {show&&<div className="team-subs">{[...items].sort((a,b)=>Number(categorias.find(c=>c.id===a.categoria_id)?.nome.replace(/\D/g,''))-Number(categorias.find(c=>c.id===b.categoria_id)?.nome.replace(/\D/g,''))).map(t=><div className="team-sub" key={t.id}>
             <h3>{categorias.find(c=>c.id===t.categoria_id)?.nome.toUpperCase()||'Sem categoria'}</h3>
             {podeGerenciar&&<div className="actions"><Btn size="sm" variant="ghost" onClick={()=>open(t)}>Editar</Btn><Btn size="sm" variant="danger" onClick={()=>{setError('');setDeleting(t);}}>Excluir</Btn></div>}
-          </div>)}</div>}
+          </div>)}{team.clubeRepresentado && team.clubeRepresentado.id !== clube?.id && <div className="team-visit"><Btn variant="ghost" size="sm" onClick={()=>{setVisiting(team.clubeRepresentado!);setVisitError('');}}>Ver clube <Icon name="arrow" size={14}/></Btn></div>}</div>}
         </section>;
-      })}{!sorted.length&&<p className="collection-empty">Nenhum time encontrado para esses filtros.</p>}</div>}
+      })}{!sorted.length&&<p className="collection-empty">Nenhum time encontrado para esses filtros.</p>}</BlockColumns>}
     <Modal open={modal} onClose={()=>{if(!busy)setModal(false);}} title={editando?'Editar categoria do time':'Adicionar time'}>
       <form noValidate onSubmit={save} className="form-grid"><Input label="Nome do time" value={form.nome} maxLength={120} onChange={e=>setForm(f=>({...f,nome:e.target.value.replace(/[\p{Extended_Pictographic}\u200d\ufe0f]/gu,'')}))} required className="full" />
         <Input label="URL do escudo (opcional)" type="url" value={form.escudo} onChange={e=>setForm(f=>({...f,escudo:e.target.value}))} placeholder="https://..." className="full"/>
@@ -86,6 +100,7 @@ export default function TimesPage() {
         {error&&<p className="full notice-error" role="alert">{error}</p>}<div className="full collection-dialog-actions"><Btn type="button" variant="ghost" disabled={busy} onClick={()=>setModal(false)}>Cancelar</Btn><Btn type="submit" disabled={busy||!form.categoria_id}>{busy?'Salvando...':'Salvar time'}</Btn></div>
       </form>
     </Modal>
+    <Modal open={!!visiting} onClose={()=>{if(!busy)setVisiting(null);}} title={`Visitar ${visiting?.nome || 'clube'}?`}><p>Você passará a visualizar esse clube. Suas permissões serão as do vínculo que você possui nele.</p>{visitError&&<p role="alert" className="notice-error">{visitError}</p>}<div className="collection-dialog-actions"><Btn variant="ghost" onClick={()=>setVisiting(null)} disabled={busy}>Cancelar</Btn><Btn onClick={()=>void visit()} disabled={busy}>{busy?'Abrindo...':'Ir para o clube'}</Btn></div></Modal>
     <ConfirmDelete name={deleting?`${deleting.nome} — ${categorias.find(c=>c.id===deleting.categoria_id)?.nome||''}`:null} busy={busy} error={error} onClose={()=>setDeleting(null)} onConfirm={()=>void remove()}/>
   </div>;
 }

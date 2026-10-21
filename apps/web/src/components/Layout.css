@@ -374,3 +374,4 @@
     font-size: 15px;
   }
 }
+.demo-banner { font-size:10px; letter-spacing:.5px; color:var(--texto-sec); padding-bottom:14px; }

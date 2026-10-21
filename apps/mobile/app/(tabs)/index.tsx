@@ -337,7 +337,7 @@ export default function Home() {
         >
           <DetalhesPartida
             partida={partidaSelecionada as PartidaDetalhes}
-            isAdmin={podeGerenciar && consultaLocal === null}
+            isAdmin={podeGerenciar && consultaLocal === null && !partidaSelecionada.somente_leitura}
             consultaLocal={consultaLocal !== null}
             onBack={fecharDetalhes}
           />

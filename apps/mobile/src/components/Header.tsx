@@ -59,7 +59,7 @@ export function Header({
     <View
       style={[
         styles.container,
-        { paddingTop: semSafeArea ? 20 : insets.top + 20 },
+        { paddingTop: semSafeArea ? 8 : insets.top + 8 },
       ]}
     >
       <View style={styles.leftContent}>

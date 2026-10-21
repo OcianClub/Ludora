@@ -38,6 +38,7 @@ const getStatusOptions = (colors: ThemeColors): { label: string; value: StatusFi
 // antes no DetalhesPartida — só que agora calculado por clube).
 interface Time { id: number; nome: string; escudo: string | null; }
 interface Partida {
+  somente_leitura?: boolean;
   id: number;
   mandante: Time;
   visitante: Time;
@@ -223,17 +224,6 @@ export default function Jogos() {
         progressoPagina={progressoPagina}
       />
 
-      {/* 2. O filtersContainer agora envolve APENAS o botão do modal de filtros */}
-      <View style={styles.filtersContainer}>
-        <TouchableOpacity activeOpacity={0.7} style={styles.singleFilterBtn} onPress={abrirFiltros}>
-          <Icon name="filter-variant" size={20} color={colors.primaria} />
-          <Text style={styles.filterBtnText}>
-            {FILTROS_MES[mesAtivo - 1]} • {statusOptions.find(o => o.value === statusFiltro)?.label}
-          </Text>
-          <Icon name="chevron-down" size={20} color={colors.textoSecundario} />
-        </TouchableOpacity>
-      </View>
-
       <AnimatedPagerView ref={pagerRef} style={{ flex: 1 }} initialPage={0} onPageSelected={onPageSelected} onPageScroll={acompanharPagina} offscreenPageLimit={1}>
         {diasPorSub.map(({ sub, diasComPartidas }, indexPagina) => {
           return (
@@ -244,6 +234,16 @@ export default function Jogos() {
                 contentContainerStyle={styles.content}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaria} />}
               >
+      <View style={{ paddingBottom: 10 }}>
+        <TouchableOpacity activeOpacity={0.7} style={styles.singleFilterBtn} onPress={abrirFiltros}>
+          <Icon name="filter-variant" size={20} color={colors.primaria} />
+          <Text style={styles.filterBtnText}>
+            {FILTROS_MES[mesAtivo - 1]} • {statusOptions.find(o => o.value === statusFiltro)?.label}
+          </Text>
+          <Icon name="chevron-down" size={20} color={colors.textoSecundario} />
+        </TouchableOpacity>
+      </View>
+
                 {!!erroCarregamento && (
                   <ErroCarregamento
                     compacto={dias.length > 0}
@@ -469,7 +469,7 @@ export default function Jogos() {
         >
           <DetalhesPartida
             partida={partidaSelecionada as PartidaDetalhes}
-            isAdmin={podeGerenciar}
+            isAdmin={podeGerenciar && !partidaSelecionada.somente_leitura}
             onBack={() => { setPartidaSelecionada(null); carregarPartidas(); }}
           />
         </Modal>

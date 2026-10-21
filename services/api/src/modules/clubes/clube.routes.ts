@@ -79,7 +79,7 @@ router.delete('/clubes/:id/seguir', async (req, res) => {
       where: { usuario_id_clube_id: { usuario_id: usuarioId, clube_id } },
     });
     if (!vinculo) return res.status(404).json({ error: 'Você não segue este clube' });
-    if (vinculo.papel !== 'TORCEDOR') {
+    if (vinculo.papel !== 'TORCEDOR' && vinculo.papel !== 'OLHEIRO') {
       return res.status(403).json({
         error: 'Apenas torcedores podem deixar de seguir por aqui. Admins/técnicos precisam transferir o cargo antes.',
       });

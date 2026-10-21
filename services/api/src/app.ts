@@ -8,6 +8,8 @@ import { criarCadastroRoutes } from './modules/auth/cadastro.routes';
 import { criarRecuperacaoRoutes } from './modules/auth/recuperacao.routes';
 import cadastroRoutes from './modules/cadastros/cadastro.routes';
 import clubeRoutes from './modules/clubes/clube.routes';
+import membrosRoutes from './modules/clubes/membros.routes';
+import vinculoTimeRoutes from './modules/clubes/vinculo-time.routes';
 import conviteRoutes from './modules/convites/convite.routes';
 import escalacaoRoutes from './modules/escalacoes/escalacao.routes';
 import jogadorRoutes from './modules/jogadores/jogador.routes';
@@ -46,6 +48,8 @@ export function criarApp(io: Server) {
   app.use(criarCadastroRoutes());
   app.use(criarRecuperacaoRoutes(io));
   app.use(clubeRoutes);
+  app.use(membrosRoutes);
+  app.use(vinculoTimeRoutes);
   app.use(conviteRoutes);
   app.use(cadastroRoutes);
   app.use(jogadorRoutes);

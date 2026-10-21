@@ -1,0 +1,5 @@
+.appearance-control { display:flex; align-items:center; justify-content:space-between; gap:8px; width:max-content; max-width:100%; }
+.appearance-options { display:flex; gap:4px; padding:4px; border:1px solid var(--borda); border-radius:8px; background:var(--fundo-card); }
+.appearance-options button { min-height:30px; padding:4px 10px; border:1px solid transparent; border-radius:4px; background:transparent; color:var(--texto-sec); cursor:pointer; font-size:12px; font-weight:600; }
+.appearance-options button[aria-pressed="true"] { background:var(--fundo-botao); border-color:var(--primaria); color:var(--primaria); }
+.auth-card > .appearance-control { margin:0 0 24px auto; }

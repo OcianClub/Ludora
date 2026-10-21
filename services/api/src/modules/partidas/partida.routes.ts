@@ -14,6 +14,7 @@ import { processarMachineLearning } from '../../services/scout-ia.service';
 import { criarNotificacoesDoClube } from '../../services/notificacoes.service';
 import { idPositivo } from '../../utils/id';
 import { consultarListaPartidas } from './partidas-lista.service';
+import { perspectivaPartida } from './visibilidade';
 import {
   aplicarMudancaPlacar,
   ConflitoPartida,
@@ -77,8 +78,8 @@ export function criarPartidaRoutes(io: Server) {
           tx.partida.findUnique({
             where: { id: Number(req.params.id) },
             include: {
-              mandante: true,
-              visitante: true,
+              mandante: {include:{clubeRepresentado:{select:{nome:true,escudo:true}}}},
+              visitante: {include:{clubeRepresentado:{select:{nome:true,escudo:true}}}},
               categoria: true,
               competicao: true,
               eventos: {
@@ -91,7 +92,7 @@ export function criarPartidaRoutes(io: Server) {
       );
       if (!partida)
         return res.status(404).json({ error: 'Partida não encontrada' });
-      return res.json(partida);
+      return res.json(perspectivaPartida(partida, (req as any).clubeId));
     }
   );
 

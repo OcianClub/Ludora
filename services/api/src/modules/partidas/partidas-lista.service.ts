@@ -1,12 +1,17 @@
 import type { Prisma, StatusPartida } from '@prisma/client';
+import { escopoPartidas, perspectivaPartida } from './visibilidade';
 
-export function consultarListaPartidas(
-  banco: Pick<Prisma.TransactionClient, 'partida'>,
+export async function consultarListaPartidas(
+  banco: Pick<Prisma.TransactionClient, 'partida' | 'categoria'>,
   clubeId: number,
   filtros: Record<string, unknown>
 ) {
-  const where: Prisma.PartidaWhereInput = { categoria: { clube_id: clubeId } };
-  if (filtros.categoria_id) where.categoria_id = Number(filtros.categoria_id);
+  const where: Prisma.PartidaWhereInput = escopoPartidas(clubeId);
+  if (filtros.categoria_id) {
+    const cat = await banco.categoria.findFirst({where:{id:Number(filtros.categoria_id),clube_id:clubeId}});
+    if (!cat) return [];
+    where.AND = [{categoria:{faixaIdade:cat.faixaIdade}}];
+  }
   if (filtros.status) where.status = filtros.status as StatusPartida;
   if (filtros.competicao_id)
     where.competicao_id = Number(filtros.competicao_id);
@@ -18,15 +23,16 @@ export function consultarListaPartidas(
       lt: new Date(Date.UTC(ano, mes, 1)),
     };
   }
-  return banco.partida.findMany({
+  const partidas = await banco.partida.findMany({
     where,
     orderBy: { data: 'asc' },
     include: {
-      mandante: true,
-      visitante: true,
+      mandante: {include:{clubeRepresentado:{select:{nome:true,escudo:true}}}},
+      visitante: {include:{clubeRepresentado:{select:{nome:true,escudo:true}}}},
       categoria: true,
       competicao: true,
       eventos: filtros.resumo !== '1',
     },
   });
+  return partidas.map(p => perspectivaPartida(p,clubeId));
 }

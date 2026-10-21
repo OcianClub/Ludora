@@ -33,7 +33,7 @@ router.post('/times', exigirGestorDoClube, async (req, res) => {
     }
     const time = await prisma.time.create({
       data: { nome, escudo, categoria_id: categoriaId },
-      include: { categoria: true }
+      include: { categoria: true, clubeRepresentado: {select:{id:true,nome:true,escudo:true}} }
     });
     res.status(201).json(time);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao criar time' }); }
@@ -54,7 +54,7 @@ router.patch('/times/:id', exigirGestorDoClube, exigirTimeDoClube, async (req, r
     const time = await prisma.time.update({
       where: { id: Number(req.params.id) },
       data: { nome, escudo, categoria_id: categoriaId },
-      include: { categoria: true }
+      include: { categoria: true, clubeRepresentado: {select:{id:true,nome:true,escudo:true}} }
     });
     res.json(time);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar time' }); }
@@ -72,7 +72,7 @@ router.get('/times', exigirClubePublico, async (req, res) => {
         },
       },
       orderBy: { nome: 'asc' },
-      include: { categoria: true }
+      include: { categoria: true, clubeRepresentado: {select:{id:true,nome:true,escudo:true}} }
     });
     res.json(times);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar times' }); }
