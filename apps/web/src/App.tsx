@@ -13,6 +13,8 @@ import CompeticoesPage from './pages/Competicoes';
 import ElencoPage from './pages/Elenco';
 import PerfilPage from './pages/Perfil';
 import MembrosPage from './pages/Membros';
+import RecuperarSenhaPage from './pages/RecuperarSenha';
+import ConvitePage from './pages/Convite';
 
 function Protegida({ children }: { children: React.ReactNode }) {
   const { token, clube } = useAuth();
@@ -34,6 +36,10 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/registrar" element={<RegistrarPage />} />
+          <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
+          <Route path="/convite" element={<ConvitePage />} />
+          <Route path="/convite/token/:codigo" element={<ConvitePage />} />
+          <Route path="/convite/:codigo" element={<ConvitePage />} />
           <Route path="/selecionar-clube" element={<SoToken><SelecionarClubePage /></SoToken>} />
           <Route element={<Protegida><Layout /></Protegida>}>
             <Route index element={<Navigate to="/dashboard" replace />} />

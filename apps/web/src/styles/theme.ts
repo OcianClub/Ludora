@@ -32,5 +32,6 @@ export function applyTheme(preference = getThemePreference()) {
 export function setThemePreference(preference: ThemePreference) {
   localStorage.setItem('ludora_tema', preference);
   applyTheme(preference);
+  window.dispatchEvent(new Event('ludora:theme-change'));
 }
 window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => applyTheme());

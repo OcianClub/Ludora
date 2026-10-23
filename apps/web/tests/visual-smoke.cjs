@@ -15,7 +15,7 @@ const output=path.join(root,'test-results',fixture?'fixture':'real-api');fs.mkdi
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   try {
     await page.goto('http://localhost:5173/login');
-    await page.getByRole('button',{name:'Escuro',exact:true}).click();
+    await page.getByRole('switch',{name:'Tema escuro'}).setChecked(true);
     const theme=await page.locator('.appearance-control').boundingBox();assert.ok(theme.width<260,'Tema precisa ser compacto');
     await page.screenshot({path:path.join(output,'login-dark.png')});
     await page.getByLabel('E-mail',{exact:true}).fill(account.email);
@@ -89,12 +89,16 @@ const output=path.join(root,'test-results',fixture?'fixture':'real-api');fs.mkdi
     await page.locator('.notification-row').first().waitFor();
     await page.screenshot({path:path.join(output,'notifications.png')});
     await page.getByRole('button',{name:'Fechar janela'}).click();
-    await page.getByRole('button',{name:'Claro',exact:true}).click();
+    await page.locator('.sidebar').hover();
+    await page.getByRole('switch',{name:'Tema escuro'}).setChecked(false);
     await page.getByRole('link',{name:'Visão geral',exact:true}).click();
     await page.getByRole('heading',{name:'Momento da categoria',exact:true}).waitFor();
     await page.screenshot({path:path.join(output,'home-light.png')});
     await page.setViewportSize({width:390,height:844});
     for(const nav of ['Visão geral','Times','Jogadores','Elenco','Partidas','Competições']) {
+      if (['Times', 'Competições'].includes(nav)) {
+        await page.getByRole('button', { name: 'Mais opções de navegação' }).click();
+      }
       await page.getByRole('link',{name:nav,exact:true}).click();
       await page.locator('.spinner').waitFor({state:'detached'});
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),`Overflow em ${nav}`);

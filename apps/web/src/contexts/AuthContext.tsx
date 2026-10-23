@@ -10,7 +10,10 @@ import {
   login as apiLogin,
   Usuario,
   Clube,
+  PerfilUsuario,
 } from '../services/api';
+import { BASE_URL } from '../services/config';
+import { AuthError, authRequest } from '../services/authHttp';
 
 interface AuthContextValue {
   usuario: Usuario | null;
@@ -19,6 +22,7 @@ interface AuthContextValue {
   podeGerenciar: boolean;
   fazendoLogin: boolean;
   login: (email: string, senha: string) => Promise<void>;
+  iniciarSessao: (dados: { token: string; usuario: Usuario }) => void;
   logout: () => void;
   definirClube: (c: Clube) => void;
   atualizarPerfil: (dados: { nome: string; email: string; senha?: string }) => Promise<void>;
@@ -28,23 +32,28 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 const PAPEIS_GESTORES = ['ADMIN', 'TECNICO', 'MESARIO'];
 
+function lerSalvo<T extends { id: number }>(chave: string): T | null {
+  try {
+    if (!getToken()) return null;
+    const value = JSON.parse(localStorage.getItem(chave) || 'null');
+    return value && Number.isSafeInteger(value.id) && value.id > 0 ? value : null;
+  } catch { return null; }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [clube, setClube] = useState<Clube | null>(null);
+  const [usuario, setUsuario] = useState<Usuario | null>(() => lerSalvo<Usuario>('ludora_usuario'));
+  const [clube, setClube] = useState<Clube | null>(() => lerSalvo<Clube>('ludora_clube'));
   const [token, setTokenState] = useState<string | null>(getToken());
   const [fazendoLogin, setFazendoLogin] = useState(false);
 
   useEffect(() => {
-    // Recupera dados do localStorage ao iniciar
+    let ativo = true;
     const t = getToken();
     if (t) {
-      const u = localStorage.getItem('ludora_usuario');
-      const c = localStorage.getItem('ludora_clube');
-      if (u) setUsuario(JSON.parse(u));
-      if (c) setClube(JSON.parse(c));
-      setTokenState(t);
-      fetchMeuPerfil()
+      const clubeSalvo = lerSalvo<Clube>('ludora_clube');
+      authRequest<PerfilUsuario>(`${BASE_URL}/usuarios/me`, { headers: { Authorization: `Bearer ${t}` } })
         .then(perfil => {
+          if (!ativo || getToken() !== t) return;
           const usuarioAtual = {
             id: perfil.id,
             nome: perfil.nome,
@@ -54,34 +63,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUsuario(usuarioAtual);
           localStorage.setItem('ludora_usuario', JSON.stringify(usuarioAtual));
 
-          if (c) {
-            const clubeSalvo = JSON.parse(c) as Clube;
+          if (clubeSalvo) {
             const vinculoAtual = perfil.clubes.find(item => item.id === clubeSalvo.id);
             if (vinculoAtual) {
               setClube(vinculoAtual);
               localStorage.setItem('ludora_clube', JSON.stringify(vinculoAtual));
+            } else {
+              setClube({ ...clubeSalvo, meuPapel: null });
+              localStorage.setItem('ludora_clube', JSON.stringify({ ...clubeSalvo, meuPapel: null }));
             }
           }
         })
-        .catch(() => undefined);
+        .catch(error => {
+          if (!ativo || getToken() !== t || !(error instanceof AuthError) || error.status !== 401) return;
+          setTokenState(null);
+          setUsuario(null);
+          setClube(null);
+          try {
+            removeToken();
+            removeClubeId();
+            localStorage.removeItem('ludora_usuario');
+            localStorage.removeItem('ludora_clube');
+          } catch { /* A sessão já foi removida da memória. */ }
+        });
     }
+    return () => { ativo = false; };
+  }, []);
+
+  const iniciarSessao = useCallback((dados: { token: string; usuario: Usuario }) => {
+    try {
+      removeToken();
+      removeClubeId();
+      localStorage.removeItem('ludora_clube');
+      localStorage.setItem('ludora_usuario', JSON.stringify(dados.usuario));
+      setToken(dados.token);
+    } catch {
+      setTokenState(null);
+      setUsuario(null);
+      setClube(null);
+      throw new Error('Seus dados foram confirmados, mas não conseguimos salvar o acesso. Permita o armazenamento neste navegador e tente entrar novamente.');
+    }
+    setUsuario(dados.usuario);
+    setClube(null);
+    setTokenState(dados.token);
   }, []);
 
   const login = useCallback(async (email: string, senha: string) => {
     setFazendoLogin(true);
     try {
       const data = await apiLogin(email, senha);
-      setToken(data.token);
-      setTokenState(data.token);
-      setUsuario(data.usuario);
-      localStorage.setItem('ludora_usuario', JSON.stringify(data.usuario));
-      removeClubeId();
-      localStorage.removeItem('ludora_clube');
-      setClube(null);
+      iniciarSessao(data);
     } finally {
       setFazendoLogin(false);
     }
-  }, []);
+  }, [iniciarSessao]);
 
   const logout = useCallback(() => {
     removeToken();
@@ -121,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const podeGerenciar = !!clube?.meuPapel && PAPEIS_GESTORES.includes(clube.meuPapel);
 
   return (
-    <AuthContext.Provider value={{ usuario, clube, token, podeGerenciar, fazendoLogin, login, logout, definirClube, atualizarPerfil, recarregarPerfil }}>
+    <AuthContext.Provider value={{ usuario, clube, token, podeGerenciar, fazendoLogin, login, iniciarSessao, logout, definirClube, atualizarPerfil, recarregarPerfil }}>
       {children}
     </AuthContext.Provider>
   );

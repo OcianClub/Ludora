@@ -1,40 +1,50 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import './Auth.css';
 import { AuthShell } from '../components/AuthShell';
-import { PasswordInput } from '../components/PasswordInput';
-import { Input } from '../components/UI';
+import { AccessFeedback, AuthField, InviteCard, useAccessForm } from '../components/auth';
+import { erroEmail } from '../utils/authValidation';
+import './Auth.css';
 
 export default function LoginPage() {
-  const { login, fazendoLogin } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const state = location.state as { email?: string; message?: string; convite?: string } | null;
+  const [email, setEmail] = useState(state?.email ?? '');
   const [senha, setSenha] = useState('');
-  const [erro, setErro] = useState('');
+  const access = useAccessForm();
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setErro('');
-    try {
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!access.validate({ email: erroEmail(email), senha: senha ? '' : 'Informe sua senha para entrar.' })) return;
+    void access.run(async () => {
       await login(email, senha);
-      navigate('/selecionar-clube');
-    } catch (err: any) {
-      setErro(err.message || 'Erro ao fazer login');
-    }
+      navigate(state?.convite?.startsWith('/convite/') ? state.convite : '/selecionar-clube', { replace: true });
+    });
   }
 
   return (
-    <AuthShell title="Entre no jogo" subtitle="Acesse sua conta para acompanhar o seu clube.">
-        <form onSubmit={handleSubmit} className="auth-form">
-          <Input label="E-mail" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="seu@email.com" />
-          <PasswordInput autoComplete="current-password" value={senha} onChange={e => setSenha(e.target.value)} required placeholder="Digite sua senha" />
-          {erro && <div className="auth-erro" role="alert">{erro}</div>}
-          <button className="btn btn-primary btn-md auth-btn" disabled={fazendoLogin}>
-            {fazendoLogin ? 'Entrando...' : 'Entrar'}
+    <AuthShell title="Bem-vindo de volta" subtitle="Entre para acompanhar seus clubes, partidas e estatísticas.">
+      <AccessFeedback message={access.error} />
+      {!access.error && <AccessFeedback message={state?.message ?? ''} success />}
+      {state?.convite && <p className="access-note">Entre com o e-mail que recebeu o convite para continuar.</p>}
+      <form ref={access.formRef} onSubmit={submit} className="auth-form" noValidate>
+        <fieldset disabled={access.busy} className="access-fields">
+          <AuthField label="E-mail" name="email" type="email" autoComplete="email" maxLength={254}
+            placeholder="email@exemplo.com" value={email} onChange={e => { setEmail(e.target.value); access.setError(''); }}
+            onBlur={() => access.blur('email')} error={access.feedback('email', erroEmail(email))} />
+          <AuthField label="Senha" name="senha" type="password" icon="password" autoComplete="current-password"
+            placeholder="Digite sua senha" value={senha} onChange={e => { setSenha(e.target.value); access.setError(''); }}
+            error={access.feedback('senha', senha ? '' : 'Informe sua senha para entrar.')}
+            action={<Link className="access-text-link" to="/recuperar-senha" state={{ email, convite: state?.convite }}>Esqueceu sua senha?</Link>} />
+          <button className="btn btn-primary auth-btn" type="submit" aria-busy={access.busy}>
+            {access.busy ? 'Entrando…' : 'Entrar'}
           </button>
-        </form>
-        <p className="auth-link">Não tem conta? <Link to="/registrar">Criar conta</Link></p>
+        </fieldset>
+      </form>
+      <p className="auth-link">Não tem conta? <Link to="/registrar">Criar conta</Link></p>
+      <InviteCard />
     </AuthShell>
   );
 }

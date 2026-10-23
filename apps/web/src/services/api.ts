@@ -1,4 +1,6 @@
-export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { BASE_URL } from './config';
+import { authRequest } from './authHttp';
+export { BASE_URL } from './config';
 
 export async function requestJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const response = await apiFetch(endpoint, options);
@@ -9,7 +11,8 @@ export async function requestJson<T>(endpoint: string, options: RequestInit = {}
 
 // ── Auth token (localStorage para web) ──
 export function getToken(): string | null {
-  return localStorage.getItem('ludora_token');
+  try { return localStorage.getItem('ludora_token'); }
+  catch { return null; }
 }
 export function setToken(t: string) { localStorage.setItem('ludora_token', t); }
 export function removeToken() { localStorage.removeItem('ludora_token'); }
@@ -67,9 +70,12 @@ export interface Estatisticas { gols: number; assistencias: number; defesas: num
 
 // ── AUTH ──
 export async function login(email: string, senha: string) {
-  const res = await apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, senha }) });
-  if (!res.ok) throw new Error((await res.json()).error || 'Erro ao fazer login');
-  const data = await res.json();
+  const data = await authRequest<{ token: string; usuario?: Usuario; id: number; nome: string; email: string; criadoEm?: string; clubes?: Clube[] }>(`${BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email.trim().toLowerCase(), senha }),
+  });
+  if (typeof data.token !== 'string' || !data.token) throw new Error('Não conseguimos confirmar seu acesso. Tente novamente.');
   const usuario: Usuario = data.usuario || {
     id: data.id,
     nome: data.nome,
@@ -78,12 +84,6 @@ export async function login(email: string, senha: string) {
   };
   return { ...data, usuario } as { token: string; usuario: Usuario; clubes?: Clube[] };
 }
-export async function registrar(nome: string, email: string, senha: string) {
-  const res = await apiFetch('/auth/registrar', { method: 'POST', body: JSON.stringify({ nome, email, senha }) });
-  if (!res.ok) throw new Error((await res.json()).error || 'Erro ao registrar');
-  return res.json();
-}
-
 export async function fetchMeuPerfil(): Promise<PerfilUsuario> {
   const res = await apiFetch('/usuarios/me');
   if (!res.ok) throw new Error((await res.json()).error || 'Erro ao carregar perfil');

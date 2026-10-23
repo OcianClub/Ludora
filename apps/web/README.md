@@ -7,6 +7,45 @@ jogadores, elenco, times, competições, partidas e perfil.
 O painel interno da empresa Ludora, destinado a administrar clubes-clientes,
 é uma entrega separada em `apps/desktop`, ainda não implementada.
 
+## Fluxos de acesso
+
+- `/login`: acesso por e-mail e senha, recuperação e atalho de convite.
+- `/registrar`: dados pessoais, senha e confirmação do e-mail por código.
+- `/recuperar-senha`: solicitação de código e definição de nova senha.
+- `/convite`: entrada do código; `/convite/:codigo`: consulta e aceite.
+- `/convite/token/:codigo`: consulta e aceite pelo token longo de um link.
+
+O envio dos códigos depende da configuração de e-mail da API, a mesma usada
+pelo mobile. Nenhuma chave do Resend ou do banco deve ficar no frontend.
+O endereço de um link de convite enviado por e-mail precisa apontar para uma
+rota web válida; criar as telas não altera automaticamente o conteúdo dos e-mails.
+
+Os campos, mensagens, indicador de etapas e hooks de formulário estão em
+`src/components/auth`. Os serviços estão em `src/services/auth.ts` e as regras
+de validação em `src/utils/authValidation.ts`. São componentes React para web,
+sem dependências de React Native, reutilizáveis no renderer de um futuro Electron.
+Essa etapa não cria nem configura o aplicativo Electron.
+
+O cadastro mobile menciona termos e privacidade, mas os documentos legais não
+estão no repositório. O web não inclui links fictícios nem declara que esses
+documentos foram lidos; a publicação e o consentimento ficam pendentes.
+
+Testes unitários, executados na raiz:
+
+```powershell
+node --experimental-strip-types --test apps/web/tests/*.test.mjs
+```
+
+Com Playwright disponível e o Vite iniciado na porta 5187:
+
+```powershell
+node apps/web/tests/auth-flow-smoke.cjs
+```
+
+O teste usa respostas simuladas, não envia e-mails, não consome convites reais
+e verifica acesso e responsividade de 320 a 1920 px nos dois temas.
+Defina `LUDORA_WEB_TEST_URL` para testar em outra porta local.
+
 ## Executar localmente
 
 Os comandos abaixo são executados na raiz do repositório. O workspace usa pnpm.
