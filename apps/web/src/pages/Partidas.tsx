@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { fetchPartidas, criarPartida, deletarPartida, fetchTimes, fetchCategorias, fetchCompeticoes, Partida, Time, Categoria, Competicao } from '../services/api';
 import { Btn, Modal, Input, Select, Spinner, Empty } from '../components/UI';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,14 +18,15 @@ const STATUSES = [
 const FORM_VAZIO = { mandante_id: '', visitante_id: '', data: '', horario: '', local: '', categoria_id: '', competicao_id: '', rodada: '', emCasa: 'true' };
 
 export default function PartidasPage() {
+  const [searchParams] = useSearchParams();
   const { podeGerenciar, clube } = useAuth();
   const [partidas, setPartidas] = useState<Partida[]>([]);
   const [times, setTimes] = useState<Time[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [competicoes, setCompeticoes] = useState<Competicao[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroStatus, setFiltroStatus] = useState('');
-  const [filtroCategoria, setFiltroCategoria] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState(() => STATUSES.some(item => item.value === searchParams.get('status')) ? searchParams.get('status')! : '');
+  const [filtroCategoria, setFiltroCategoria] = useState(() => /^\d+$/.test(searchParams.get('categoria_id') || '') ? searchParams.get('categoria_id')! : '');
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(FORM_VAZIO);
   const [salvando, setSalvando] = useState(false);

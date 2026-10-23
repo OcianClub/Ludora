@@ -183,7 +183,8 @@ Mapa das mudanças para consultar durante o aprendizado:
 | `pages/Login.tsx` e `Registrar.tsx` | Usam essa estrutura, mantendo as chamadas de autenticação existentes. |
 | `pages/SelecionarClube.tsx` e seu CSS | Acrescentam busca local por nome/cidade e atalhos para os clubes vinculados. |
 | `components/MatchCard.tsx` e seu CSS | Reutilizam a apresentação de times, situação, data, local e acesso à partida. |
-| `pages/Dashboard.tsx` e seu CSS | Destacam um jogo ao vivo/próximo jogo, números do clube, agenda e resultados. |
+| `pages/Dashboard.tsx` e seu CSS | Organizam categorias, partida principal, momento da categoria e últimos cinco resultados, usando o resumo `/partidas/home`. |
+| `components/HomeCategories.tsx`, `HomeMatch.tsx` e `utils/homeDashboard.ts` | Compartilham navegação entre subs, cards e regras de seleção dos jogos da Home. |
 | `pages/Partidas.tsx` | Apresenta os jogos em cartões, preserva filtros e ações e informa falhas de carregamento. |
 | `pages/PartidaDetalhe.tsx` e seu CSS | Adaptam escudos e placar a diferentes larguras, preservando a integração em tempo real. |
 

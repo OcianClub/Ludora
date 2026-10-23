@@ -20,7 +20,7 @@ exports.install = async function install(page) {
     const pathname=new URL(route.request().url()).pathname;
     const responses={
       '/auth/login':{token:'visual-test-only',usuario},'/usuarios/me':{...usuario,clubes},'/clubes':clubes,'/categorias':categorias,'/times':times,
-      '/jogadores':jogadores,'/jogadores/perfis':jogadores,'/partidas':partidas,'/competicoes':competicoes,
+      '/jogadores':jogadores,'/jogadores/perfis':jogadores,'/partidas':partidas,'/partidas/home':partidas,'/competicoes':competicoes,
       '/membros':[{id:1,usuario,papel:'ADMIN',acesso_todas_categorias:true,categorias:[]},{id:2,usuario:{id:2,nome:'James Walker'},papel:'TORCEDOR',acesso_todas_categorias:false,categorias:[]}],
       '/notificacoes':{totalNaoLidas:1,notificacoes:[{id:1,titulo:'Partida ao vivo',corpo:'Dados controlados de teste visual.',lida:false,partida_id:105,criada_em:new Date().toISOString()}]},
     };

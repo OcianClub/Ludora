@@ -1,7 +1,7 @@
 .layout {
   --sidebar-collapsed-w: 80px;
   --workspace-max-width: 1440px;
-  --workspace-gutter: 36px;
+  --workspace-gutter: 48px;
   min-height: 100vh;
 }
 .sidebar {

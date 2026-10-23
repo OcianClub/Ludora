@@ -63,6 +63,10 @@ export interface Time { id: number; nome: string; escudo?: string; categoria_id?
 export interface Jogador { id: number; nome: string; cpf: string; dtNasc: string; posicao: string; numCamisa?: number; ativo: boolean; perfil_ml?: string; nota_geral?: number; categoria_id: number; }
 export interface Partida { somente_leitura?: boolean; clube_origem_id?: number; id: number; mandante_id: number; visitante_id: number; gols_mandante: number; gols_visitante: number; data: string; horario?: string; local?: string; status: string; emCasa: boolean; categoria_id: number; competicao_id?: number; rodada?: number; grupo?: string | null; mandante?: Time; visitante?: Time; categoria?: Categoria; }
 export interface Competicao { id: number; nome: string; ano: number; tipo: string; clube_id: number; }
+export type HomePartida = Omit<Partida, 'mandante_id' | 'visitante_id' | 'categoria_id' | 'categoria'> & {
+  categoria: Categoria;
+  competicao?: Competicao | null;
+};
 export interface Evento { id: number; partida_id: number; tipo: string; periodo: number; minuto?: number; jogador_id?: number; jogador?: {id:number;nome:string} | null; }
 export interface EscalacaoItem { jogador_id: number; numCamisa: number; titular: boolean; jogador?: Jogador; }
 export interface PerfilJogador extends Jogador { totalGols: number; totalAssistencias: number; totalCartoes: number; totalDefesas: number; totalFaltas: number; totalPartidas: number; }
@@ -109,8 +113,8 @@ export async function seguirClube(id: number) {
 }
 
 // ── CATEGORIAS ──
-export async function fetchCategorias(): Promise<Categoria[]> {
-  const res = await apiFetch('/categorias');
+export async function fetchCategorias(signal?: AbortSignal): Promise<Categoria[]> {
+  const res = await apiFetch('/categorias', { signal });
   if (!res.ok) throw new Error('Erro ao buscar categorias');
   return res.json();
 }
@@ -243,6 +247,14 @@ export async function deletarCompeticao(id: number) {
 }
 
 // ── PARTIDAS ──
+export async function fetchHomePartidas(hoje: string, signal?: AbortSignal): Promise<HomePartida[]> {
+  const res = await apiFetch(`/partidas/home?hoje=${encodeURIComponent(hoje)}`, { signal });
+  if (!res.ok) throw new Error('Não foi possível atualizar os jogos do clube. Tente novamente.');
+  const dados = await res.json();
+  if (!Array.isArray(dados)) throw new Error('Não conseguimos confirmar os dados dos jogos. Tente novamente.');
+  return dados;
+}
+
 export async function fetchPartidas(params?: { categoria_id?: number; mes?: number; status?: string; competicao_id?: number }): Promise<Partida[]> {
   const q = new URLSearchParams();
   if (params?.categoria_id) q.append('categoria_id', String(params.categoria_id));
