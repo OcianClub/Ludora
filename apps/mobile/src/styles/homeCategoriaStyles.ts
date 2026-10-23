@@ -25,8 +25,20 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   linkText: { color: colors.primaria, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 13 },
   badge: { borderRadius: radius.badge, backgroundColor: colors.fundoBotao, paddingVertical: 6, paddingHorizontal: 10 },
   badgeText: { color: colors.primaria, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 11 },
-  liveBadge: { backgroundColor: colors.fundoErro },
-  liveText: { color: colors.tituloErro },
+  liveBadge: {
+    backgroundColor: "#36171e",
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  liveText: { color: "white" },
+  liveDot: {
+  width: 7,
+  height: 7,
+  borderRadius: 50,
+  backgroundColor: '#FF3B30', // Cor independente da bolinha
+},
   mainCard: { backgroundColor: colors.card, padding: 20, borderRadius: radius.surface, borderWidth: 1, borderColor: colors.borda, marginBottom: 28 },
   mainCardAoVivo: { borderColor: colors.primaria },
   matchHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'space-between', marginBottom: 24 },

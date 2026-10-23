@@ -17,6 +17,8 @@ import { consultarListaPartidas } from './partidas-lista.service';
 import { FiltroDataInvalido } from './filtros-data.utils';
 import { consultarHome } from './home.service';
 import { criarHomeRoutes } from './home.routes';
+import { criarAgendaRoutes } from './agenda.routes';
+import { consultarAgenda } from './agenda.service';
 import { perspectivaPartida } from './visibilidade';
 import {
   aplicarMudancaPlacar,
@@ -39,6 +41,7 @@ function formatarDataPartida(data: Date, horario: string | null) {
 export function criarPartidaRoutes(io: Server) {
   const router = Router();
   router.use(criarHomeRoutes(exigirClubePublico, (clubeId, hoje) => consultarHome(prisma, clubeId, hoje)));
+  router.use(criarAgendaRoutes(exigirClubePublico, (clubeId, filtros) => consultarAgenda(prisma, clubeId, filtros)));
 
   const notificarGol = async (
     clubeId: number,

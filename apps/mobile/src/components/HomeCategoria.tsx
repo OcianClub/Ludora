@@ -135,10 +135,33 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
     >
       {carregando ? <HomeSkeleton /> : <>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{consultaLocal && aoVivo ? 'Último registro da partida' : aoVivo ? 'Agora em campo' : jogo && hoje(jogo.data) ? 'É dia de jogo' : 'Próxima partida'}</Text>
-          {jogo && <View style={[styles.badge, aoVivo && styles.liveBadge]}>
-            <Text style={[styles.badgeText, aoVivo && styles.liveText]}>{consultaLocal && aoVivo ? 'ÚLTIMO PLACAR' : aoVivo ? '● AO VIVO' : hoje(jogo.data) ? 'HOJE' : dataCurta(jogo.data)}</Text>
-          </View>}
+          <Text style={styles.sectionTitle}>
+            {consultaLocal && aoVivo
+              ? 'Último registro da partida'
+              : aoVivo
+              ? 'Agora em campo'
+              : jogo && hoje(jogo.data)
+              ? 'É dia de jogo'
+              : 'Próxima partida'}
+          </Text>
+
+          {jogo && (
+            <View style={[styles.badge, aoVivo && styles.liveBadge]}>
+              {aoVivo && !consultaLocal && (
+                <View style={styles.liveDot} accessible={false} />
+              )}
+
+              <Text style={[styles.badgeText, aoVivo && styles.liveText]}>
+                {consultaLocal && aoVivo
+                  ? 'ÚLTIMO PLACAR'
+                  : aoVivo
+                  ? 'AO VIVO'
+                  : hoje(jogo.data)
+                  ? 'HOJE'
+                  : dataCurta(jogo.data)}
+              </Text>
+            </View>
+          )}
         </View>
 
         {jogo ? <View style={[styles.mainCard, aoVivo && styles.mainCardAoVivo]}>

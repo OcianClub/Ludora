@@ -10,8 +10,8 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image,
-  ScrollView,
+  SectionList,
+  ActivityIndicator,
   Modal,
   RefreshControl,
 } from 'react-native';
@@ -34,7 +34,9 @@ import PagerView, {
   type PagerViewOnPageScrollEvent,
 } from 'react-native-pager-view';
 import Animated, { useEvent, useSharedValue } from 'react-native-reanimated';
-import { fetchPartidas } from '@/src/services/api';
+import { fetchAgenda } from '@/src/services/api';
+import { CartaoJogo, type PartidaJogo } from '@/src/components/CartaoJogo';
+import { agoraAgenda, categoriaAgenda, secoesAgenda, unirPaginasAgenda, type GrupoAgenda } from '@/src/utils/agendaJogos';
 import OrganizarPartidas, {
   type OrganizarPartidasRef,
 } from '../organizarPartidas/organizarPartidas';
@@ -51,72 +53,7 @@ import { ErroCarregamento } from '@/src/components/ErroCarregamento';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 import { criarControleRequisicoes } from '@/src/utils/request';
 
-interface Time {
-  id: number;
-  nome: string;
-  escudo: string | null;
-}
-interface Partida {
-  somente_leitura?: boolean;
-  id: number;
-  mandante: Time;
-  visitante: Time;
-  gols_mandante: number;
-  gols_visitante: number;
-  data: string;
-  horario: string | null;
-  local: string | null;
-  status: 'AGENDADA' | 'PREPARADA' | 'AO_VIVO' | 'FINALIZADA' | 'CANCELADA';
-  emCasa: boolean;
-  categoria: { id: number; nome: string } | null;
-}
-interface DiaJogo {
-  data: string;
-  partidas: Partida[];
-}
-
-function isHoje(dataStr: string): boolean {
-  const hoje = new Date();
-  const [ano, mes, dia] = dataStr.split('T')[0].split('-').map(Number);
-  return (
-    hoje.getFullYear() === ano &&
-    hoje.getMonth() + 1 === mes &&
-    hoje.getDate() === dia
-  );
-}
-
-function agruparPorDia(partidas: Partida[]): DiaJogo[] {
-  const mapa = new Map<string, Partida[]>();
-  for (const p of partidas) {
-    const [ano, mes, dia] = p.data.split('T')[0].split('-');
-    const dataObj = new Date(Number(ano), Number(mes) - 1, Number(dia));
-    const chave = dataObj
-      .toLocaleDateString('pt-BR', {
-        weekday: 'long',
-        day: '2-digit',
-        month: 'long',
-      })
-      .toUpperCase();
-    if (!mapa.has(chave)) mapa.set(chave, []);
-    mapa.get(chave)!.push(p);
-  }
-  return Array.from(mapa.entries()).map(([data, partidas]) => ({
-    data,
-    partidas,
-  }));
-}
-
-function ordenarPartidas(partidas: Partida[]): Partida[] {
-  const aoVivo = partidas.filter((p) => p.status === 'AO_VIVO');
-  const agendadas = partidas
-    .filter((p) => p.status === 'AGENDADA' || p.status === 'PREPARADA')
-    .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-  const finalizadas = partidas
-    .filter((p) => p.status === 'FINALIZADA')
-    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-  const canceladas = partidas.filter((p) => p.status === 'CANCELADA');
-  return [...aoVivo, ...agendadas, ...finalizadas, ...canceladas];
-}
+type Partida = PartidaJogo;
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 
@@ -150,7 +87,12 @@ export default function Jogos() {
     'INICIACAO'
   );
   const [subIndex, setSubIndex] = useState(0);
-  const [dias, setDias] = useState<DiaJogo[]>([]);
+  const [partidas, setPartidas] = useState<Partida[]>([]);
+  const [agora, setAgora] = useState(() => new Date());
+  const referenciaAgenda = useRef('');
+  const carregandoMaisRef = useRef(false);
+  const [carregandoMais, setCarregandoMais] = useState<string | null>(null);
+  const [errosMais, setErrosMais] = useState<Record<string, string>>({});
   const [carregando, setCarregando] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalOrganizar, setModalOrganizar] = useState(false);
@@ -158,20 +100,26 @@ export default function Jogos() {
   const carregarPartidas = useCallback(async () => {
     const pedido = controle.iniciar();
     setErroCarregamento('');
+    carregandoMaisRef.current = false;
+    setCarregandoMais(null);
+    setErrosMais({});
     const clubeMudou = clubeCarregadoId.current !== (clubeAtivo?.id ?? null);
     try {
       if (clubeMudou) {
         setCarregando(true);
-        setDias([]);
+        setPartidas([]);
       }
       if (!clubeAtivo?.id) {
-        setDias([]);
+        setPartidas([]);
         return;
       }
-      const params = parametrosJogos(filtros);
-      const partidas: Partida[] = await fetchPartidas(params, clubeAtivo.id);
+      const referencia = agoraAgenda();
+      const params = { ...parametrosJogos(filtros), agora: referencia };
+      const partidas: Partida[] = await fetchAgenda(params, clubeAtivo.id);
       if (!controle.atual(pedido)) return;
-      setDias(agruparPorDia(ordenarPartidas(partidas)));
+      referenciaAgenda.current = referencia;
+      setAgora(new Date());
+      setPartidas(partidas);
       clubeCarregadoId.current = clubeAtivo.id;
     } catch (e) {
       if (controle.atual(pedido))
@@ -192,7 +140,11 @@ export default function Jogos() {
       carregarPartidas().finally(() => {
         carregouUmaVez.current = true;
       });
-      return () => controle.invalidar();
+      const timer = setInterval(() => setAgora(new Date()), 60000);
+      return () => {
+        clearInterval(timer);
+        controle.invalidar();
+      };
     }, [carregarPartidas])
   );
 
@@ -206,23 +158,45 @@ export default function Jogos() {
     setModalOrganizar(false);
     setModalFiltrosVisible(false);
   }, [clubeAtivo?.id]);
-  const diasPorSub = useMemo(
-    () =>
-      dadosAtuais.map((sub) => ({
-        sub,
-        diasComPartidas: dias
-          .map((dia) => ({
-            ...dia,
-            filtradas: dia.partidas.filter(
-              (p) =>
-                p.categoria?.nome.toUpperCase().replace(' ', '-') === sub.title
-            ),
-          }))
-          .filter((dia) => dia.filtradas.length > 0),
-      })),
-    [dias, dadosAtuais]
+  const secoesPorSub = useMemo(
+    () => dadosAtuais.map((sub) => ({
+      sub,
+      secoes: secoesAgenda(partidas.filter((partida) =>
+        categoriaAgenda(partida.categoria?.nome ?? '') === sub.title
+      )),
+    })),
+    [partidas, dadosAtuais]
   );
 
+  const carregarMais = async (categoria: string, grupo: GrupoAgenda, apos: number) => {
+    if (!clubeAtivo?.id || carregando || refreshing || carregandoMaisRef.current) return;
+    const chave = categoria + ':' + grupo;
+    const pedido = controle.iniciar();
+    carregandoMaisRef.current = true;
+    setCarregandoMais(chave);
+    setErrosMais((atuais) => ({ ...atuais, [chave]: '' }));
+    try {
+      const novas: Partida[] = await fetchAgenda({
+        ...parametrosJogos(filtros),
+        agora: referenciaAgenda.current,
+        categoria_nome: categoria, grupo, apos,
+      }, clubeAtivo.id);
+      if (!controle.atual(pedido)) return;
+      setPartidas((atuais) => novas.length ? unirPaginasAgenda(atuais, novas) : atuais.map((partida) =>
+        categoriaAgenda(partida.categoria?.nome ?? '') === categoria && partida.grupo_agenda === grupo
+          ? { ...partida, total_grupo: apos } : partida
+      ));
+    } catch {
+      if (controle.atual(pedido)) setErrosMais((atuais) => ({
+        ...atuais, [chave]: 'Não foi possível carregar mais jogos. Tente novamente.',
+      }));
+    } finally {
+      if (controle.atual(pedido)) {
+        carregandoMaisRef.current = false;
+        setCarregandoMais(null);
+      }
+    }
+  };
   const handleTrocarFase = useCallback(
     (novaFase: 'INICIACAO' | 'BASE') => {
       setTipoFiltro(novaFase);
@@ -247,7 +221,7 @@ export default function Jogos() {
     if (mesmosFiltrosJogos(filtros, novosFiltros)) return;
     controle.invalidar();
     setCarregando(true);
-    setDias([]);
+    setPartidas([]);
     setFiltros(novosFiltros);
   };
 
@@ -279,7 +253,7 @@ export default function Jogos() {
         onPageScroll={acompanharPagina}
         offscreenPageLimit={1}
       >
-        {diasPorSub.map(({ sub, diasComPartidas }, indexPagina) => {
+        {secoesPorSub.map(({ sub, secoes }, indexPagina) => {
           return (
             <View
               key={`pagina-${indexPagina}`}
@@ -290,17 +264,18 @@ export default function Jogos() {
                 grupo={`${clubeAtivo?.id}-${tipoFiltro}`}
                 preparar={Math.abs(indexPagina - subIndex) <= 1}
               >
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
+                <SectionList
+                  sections={carregando ? [] : secoes}
+                  keyExtractor={(item) => String(item.id)}
                   contentContainerStyle={styles.content}
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={onRefresh}
-                      tintColor={colors.primaria}
-                    />
-                  }
-                >
+                  showsVerticalScrollIndicator={false}
+                  stickySectionHeadersEnabled={false}
+                  initialNumToRender={4}
+                  maxToRenderPerBatch={4}
+                  windowSize={5}
+                  removeClippedSubviews={false}
+                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaria} />}
+                  ListHeaderComponent={<>
                   <View style={styles.filterBarContainer}>
                     <TouchableOpacity
                       activeOpacity={0.7}
@@ -337,23 +312,24 @@ export default function Jogos() {
 
                   {!!erroCarregamento && (
                     <ErroCarregamento
-                      compacto={dias.length > 0}
+                      compacto={partidas.length > 0}
                       titulo={
-                        dias.length > 0
+                        partidas.length > 0
                           ? 'Exibindo jogos já carregados'
                           : 'Não foi possível carregar os jogos'
                       }
                       descricao={
-                        dias.length > 0
+                        partidas.length > 0
                           ? 'Não conseguimos atualizar a lista agora. Tente novamente em instantes.'
                           : 'Confira sua conexão e tente atualizar novamente.'
                       }
                       onTentarNovamente={onRefresh}
                     />
                   )}
-                  {carregando ? (
-                    <CardsSkeleton rows={4} />
-                  ) : diasComPartidas.length === 0 ? (
+
+                    {carregando && <CardsSkeleton rows={4} />}
+                  </>}
+                  ListEmptyComponent={carregando ? null : (
                     <View
                       style={{ alignItems: 'center', marginTop: 60, gap: 12 }}
                     >
@@ -372,207 +348,49 @@ export default function Jogos() {
                         NENHUM JOGO ENCONTRADO
                       </Text>
                     </View>
-                  ) : (
-                    diasComPartidas.map((dia, index) => {
-                      const diaEhHoje = dia.filtradas.some((partida) =>
-                        isHoje(partida.data)
-                      );
-                      return (
-                        <View key={index} style={styles.daySection}>
-                          <View style={styles.dateHeader}>
-                            <View
-                              style={[
-                                styles.dateBar,
-                                diaEhHoje && styles.dateBarHoje,
-                              ]}
-                            />
-                            <Text
-                              style={[
-                                styles.dateText,
-                                diaEhHoje && styles.dateTextHoje,
-                              ]}
-                            >
-                              {diaEhHoje ? `HOJE • ${dia.data}` : dia.data}
-                            </Text>
-                          </View>
-
-                          {dia.filtradas.map((partida) => {
-                            const partidaEhHoje = isHoje(partida.data);
-                            const partidaAoVivo = partida.status === 'AO_VIVO';
-                            return (
-                              <TouchableOpacity
-                                key={partida.id}
-                                style={[
-                                  styles.matchCard,
-                                  partidaEhHoje && styles.matchCardHoje,
-                                  partidaAoVivo && styles.matchCardAoVivo,
-                                ]}
-                                activeOpacity={0.85}
-                                onPress={() => setPartidaSelecionada(partida)}
-                              >
-                                {/* TOP CARD */}
-                                <View style={styles.cardTop}>
-                                  <View style={styles.cardTopLeft}>
-                                    <Icon
-                                      name="clock-outline"
-                                      size={16}
-                                      color={colors.textoSecundario}
-                                    />
-                                    <Text style={styles.timeText}>
-                                      {partida.horario ?? '--:--'}
-                                    </Text>
-                                    <View style={styles.separator} />
-                                    <Text style={styles.catText}>
-                                      {partida.categoria?.nome
-                                        .replace('SUB', '')
-                                        .trim() ?? '?'}
-                                    </Text>
-                                    {partidaEhHoje && !partidaAoVivo && (
-                                      <View style={styles.todayBadge}>
-                                        <Text style={styles.todayBadgeText}>
-                                          HOJE
-                                        </Text>
-                                      </View>
-                                    )}
-                                  </View>
-                                  <View style={styles.cardBadges}>
-                                    {partidaAoVivo && (
-                                      <View style={styles.liveBadge}>
-                                        <Icon
-                                          name="live"
-                                          size={14}
-                                          color={colors.tituloErro}
-                                        />
-                                        <Text style={styles.liveBadgeText}>
-                                          AO VIVO
-                                        </Text>
-                                      </View>
-                                    )}
-                                    <View
-                                      style={[
-                                        styles.badge,
-                                        !partida.emCasa && {
-                                          backgroundColor:
-                                            colors.cardSecundario,
-                                        },
-                                      ]}
-                                    >
-                                      <Icon
-                                        name={
-                                          partida.emCasa
-                                            ? 'home-outline'
-                                            : 'bus'
-                                        }
-                                        size={14}
-                                        color={
-                                          partida.emCasa
-                                            ? colors.textoSobrePrimaria
-                                            : colors.texto
-                                        }
-                                      />
-                                      <Text
-                                        style={[
-                                          styles.badgeText,
-                                          {
-                                            color: partida.emCasa
-                                              ? colors.textoSobrePrimaria
-                                              : colors.texto,
-                                          },
-                                        ]}
-                                      >
-                                        {partida.emCasa ? 'CASA' : 'FORA'}
-                                      </Text>
-                                    </View>
-                                  </View>
-                                </View>
-
-                                {/* BODY CARD */}
-                                <View style={styles.cardBody}>
-                                  <View style={styles.teamCol}>
-                                    {partida.mandante.escudo ? (
-                                      <Image
-                                        source={{
-                                          uri: partida.mandante.escudo,
-                                        }}
-                                        style={styles.teamLogo}
-                                      />
-                                    ) : (
-                                      <View style={styles.fundoImg}>
-                                        <Image
-                                          source={require('@/assets/images/SóPreto.png')}
-                                          style={styles.teamLogo}
-                                        />
-                                      </View>
-                                    )}
-                                    <Text
-                                      style={styles.teamName}
-                                      numberOfLines={2}
-                                    >
-                                      {partida.mandante.nome}
-                                    </Text>
-                                  </View>
-
-                                  <View style={styles.placarCentral}>
-                                    {partida.status === 'AGENDADA' ||
-                                    partida.status === 'PREPARADA' ||
-                                    partida.status === 'CANCELADA' ? (
-                                      <>
-                                        <Text style={styles.placarText}>-</Text>
-                                        <Text style={styles.vsText}>VS</Text>
-                                      </>
-                                    ) : (
-                                      <Text style={styles.placarText}>
-                                        {partida.gols_mandante} -{' '}
-                                        {partida.gols_visitante}
-                                      </Text>
-                                    )}
-                                  </View>
-
-                                  <View style={styles.teamCol}>
-                                    {partida.visitante.escudo ? (
-                                      <Image
-                                        source={{
-                                          uri: partida.visitante.escudo,
-                                        }}
-                                        style={styles.teamLogo}
-                                      />
-                                    ) : (
-                                      <View style={styles.fundoImg}>
-                                        <Image
-                                          source={require('@/assets/images/SóPreto.png')}
-                                          style={styles.teamLogo}
-                                        />
-                                      </View>
-                                    )}
-                                    <Text
-                                      style={styles.teamName}
-                                      numberOfLines={2}
-                                    >
-                                      {partida.visitante.nome}
-                                    </Text>
-                                  </View>
-                                </View>
-
-                                {/* FOOTER CARD */}
-                                <View style={styles.cardFooterDivider} />
-                                <View style={styles.cardFooter}>
-                                  <Icon
-                                    name="map-marker-outline"
-                                    size={16}
-                                    color={colors.texto}
-                                  />
-                                  <Text style={styles.locationText}>
-                                    {partida.local ?? 'Local não definido'}
-                                  </Text>
-                                </View>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      );
-                    })
                   )}
-                </ScrollView>
+                  renderSectionHeader={({ section }) => (
+                    <View style={styles.agendaHeading}>
+                      <Text style={styles.agendaTitle}>{section.titulo}</Text>
+                      <Text style={styles.agendaDescription}>{section.descricao}</Text>
+                    </View>
+                  )}
+                  renderItem={({ item, index, section }) => {
+                    const mostrarData = index === 0 || section.data[index - 1].data.slice(0, 10) !== item.data.slice(0, 10);
+                    const hoje = item.data.slice(0, 10) === agoraAgenda(agora).slice(0, 10);
+                    const data = new Date(item.data.slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR', {
+                      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+                    });
+                    return <View>
+                      {mostrarData && <View style={styles.dateHeader}>
+                        <View style={[styles.dateBar, hoje && styles.dateBarHoje]} />
+                        <Text style={[styles.dateText, hoje && styles.dateTextHoje]}>
+                          {hoje ? 'HOJE • ' + data : data}
+                        </Text>
+                      </View>}
+                      <CartaoJogo partida={item} agora={agora} gestor={podeGerenciar} onPress={() => setPartidaSelecionada(item)} />
+                    </View>;
+                  }}
+                  renderSectionFooter={({ section }) => {
+                    if (!section.mais) return null;
+                    const { grupo, apos } = section.mais;
+                    const chave = sub.title + ':' + grupo;
+                    return <View>
+                      {!!errosMais[chave] && <Text style={styles.agendaDescription} accessibilityRole='alert'>{errosMais[chave]}</Text>}
+                      <TouchableOpacity
+                        style={styles.moreButton}
+                        disabled={carregandoMais !== null}
+                        onPress={() => void carregarMais(sub.title, grupo, apos)}
+                        accessibilityRole='button'
+                        accessibilityState={{ disabled: carregandoMais !== null, busy: carregandoMais === chave }}
+                      >
+                        {carregandoMais === chave
+                          ? <ActivityIndicator color={colors.primaria} />
+                          : <Text style={styles.moreText}>Carregar mais {grupo === 'historico' ? 'partidas anteriores' : 'jogos'}</Text>}
+                      </TouchableOpacity>
+                    </View>;
+                  }}
+                />
               </PaginaCategoria>
             </View>
           );

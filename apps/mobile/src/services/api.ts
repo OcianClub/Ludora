@@ -528,6 +528,34 @@ export async function fetchHome(clubeId: number) {
   return dados;
 }
 
+export async function fetchAgenda(
+  params: {
+    ano: number;
+    mes?: number;
+    status?: string;
+    agora: string;
+    grupo?: string;
+    categoria_nome?: string;
+    apos?: number;
+  },
+  clubeId: number
+) {
+  const query = new URLSearchParams();
+  for (const [chave, valor] of Object.entries(params)) {
+    if (valor !== undefined) query.set(chave, String(valor));
+  }
+  const res = await apiFetch(`/partidas/agenda?${query}`, {
+    headers: { 'x-clube-id': String(clubeId) },
+  });
+  if (!res.ok) throw new ErroConsulta(res.status, 'Não foi possível carregar a agenda.');
+  const dados = await res.json().catch(() => null);
+  if (!Array.isArray(dados) || dados.some((partida) =>
+    !partida || !['ao_vivo', 'agenda', 'pendentes', 'historico'].includes(partida.grupo_agenda) ||
+    !Number.isSafeInteger(partida.posicao) || !Number.isSafeInteger(partida.total_grupo)
+  )) throw new ErroConsulta(502, 'Não foi possível confirmar os dados da agenda.');
+  return dados;
+}
+
 export async function fetchPartidas(
   params?: {
     categoria_id?: number;
