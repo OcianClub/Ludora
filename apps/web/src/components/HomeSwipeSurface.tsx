@@ -1,6 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, type PointerEvent, type ReactNode } from 'react';
 
 type Drag = { id: number; x: number; y: number; horizontal: boolean; distance: number };
+type ButtonPosition = { x: number; y: number; width: number };
+type GestureGeometry = {
+  width: number;
+  indicator: HTMLElement | null;
+  active: ButtonPosition;
+  previous: ButtonPosition;
+  next: ButtonPosition;
+};
 
 export function HomeSwipeSurface({ children, footer, renderPage, categoryId, categoryIndex, canPrevious, canNext, onStep }: {
   children: ReactNode;
@@ -20,6 +28,31 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
   const animations = useRef<Animation[]>([]);
   const settling = useRef(false);
   const committing = useRef(false);
+  const geometry = useRef<GestureGeometry | null>(null);
+  const frame = useRef<number | null>(null);
+  const pendingDistance = useRef(0);
+
+  function measureGesture() {
+    const strip = surface.current?.querySelector<HTMLElement>('.home-sub-strip');
+    const buttons = strip?.querySelectorAll<HTMLButtonElement>('button');
+    const active = buttons?.[categoryIndex];
+    if (!active || !buttons || !track.current) return null;
+    const position = (button: HTMLButtonElement): ButtonPosition => ({
+      x: button.offsetLeft, y: button.offsetTop, width: button.offsetWidth,
+    });
+    return {
+      width: track.current.clientWidth || 1,
+      indicator: strip?.querySelector<HTMLElement>('.home-sub-indicator') ?? null,
+      active: position(active),
+      previous: position(buttons[categoryIndex - 1] ?? active),
+      next: position(buttons[categoryIndex + 1] ?? active),
+    };
+  }
+
+  function cancelFrame() {
+    if (frame.current !== null) window.cancelAnimationFrame(frame.current);
+    frame.current = null;
+  }
 
   function cancelAnimations() {
     animations.current.forEach(animation => animation.cancel());
@@ -27,37 +60,46 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
   }
 
   function indicatorPosition(progress: number) {
-    const strip = surface.current?.querySelector<HTMLElement>('.home-sub-strip');
-    const indicator = strip?.querySelector<HTMLElement>('.home-sub-indicator');
-    const buttons = strip?.querySelectorAll<HTMLButtonElement>('button');
-    const active = buttons?.[categoryIndex];
-    if (!indicator || !active || !buttons) return null;
-    const neighbor = buttons[categoryIndex + (progress < 0 ? -1 : 1)] ?? active;
+    const measured = geometry.current;
+    if (!measured?.indicator) return null;
+    const { active, indicator } = measured;
+    const neighbor = progress < 0 ? measured.previous : measured.next;
     const amount = Math.min(1, Math.abs(progress));
     return {
       indicator,
-      transform: `translate(${active.offsetLeft + (neighbor.offsetLeft - active.offsetLeft) * amount}px, ${active.offsetTop}px)`,
-      width: `${active.offsetWidth + (neighbor.offsetWidth - active.offsetWidth) * amount}px`,
+      transform: `translate3d(${active.x + (neighbor.x - active.x) * amount}px, ${active.y}px, 0)`,
+      width: `${active.width + (neighbor.width - active.width) * amount}px`,
     };
   }
 
-  function move(distance: number) {
-    const width = track.current?.clientWidth || 1;
-    track.current?.style.setProperty('--home-page-x', `${distance}px`);
+  function paint(distance: number) {
+    const width = geometry.current?.width || 1;
+    if (track.current) track.current.style.transform = `translate3d(${distance}px, 0, 0)`;
     const position = indicatorPosition(-distance / width);
     if (position) {
       position.indicator.style.transition = 'none';
       position.indicator.style.transform = position.transform;
-      position.indicator.style.width = position.width;
+      if (position.indicator.style.width !== position.width) position.indicator.style.width = position.width;
     }
   }
 
+  function move(distance: number) {
+    pendingDistance.current = distance;
+    if (frame.current !== null) return;
+    frame.current = window.requestAnimationFrame(() => {
+      frame.current = null;
+      paint(pendingDistance.current);
+    });
+  }
+
   function reset() {
+    cancelFrame();
     surface.current?.classList.remove('is-swiping');
-    track.current?.style.removeProperty('--home-page-x');
+    track.current?.style.removeProperty('transform');
     const indicator = surface.current?.querySelector<HTMLElement>('.home-sub-indicator');
     indicator?.style.removeProperty('transition');
     settling.current = false;
+    geometry.current = null;
   }
 
   useLayoutEffect(() => {
@@ -78,13 +120,35 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
     ], { duration: 280, easing: 'cubic-bezier(.22,.7,.2,1)' })];
   }, [categoryId, categoryIndex]);
 
-  useEffect(() => () => cancelAnimations(), []);
+  useEffect(() => {
+    const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    function onResize() {
+      drag.current = null;
+      committing.current = false;
+      cancelAnimations();
+      paint(0);
+      reset();
+    }
+    function onMotionPreference() {
+      if (motionPreference.matches) onResize();
+    }
+    window.addEventListener('resize', onResize);
+    motionPreference.addEventListener('change', onMotionPreference);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      motionPreference.removeEventListener('change', onMotionPreference);
+      cancelFrame();
+      cancelAnimations();
+    };
+  }, []);
 
   function settle(distance: number, direction: number) {
     const element = track.current;
     if (!element) return;
+    cancelFrame();
+    paint(distance);
     settling.current = true;
-    const target = direction ? -direction * element.clientWidth : 0;
+    const target = direction ? -direction * (geometry.current?.width || 1) : 0;
     const position = indicatorPosition(direction);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const options: KeyframeAnimationOptions = {
@@ -108,7 +172,7 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
         committing.current = true;
         onStep(direction);
       } else {
-        move(0);
+        paint(0);
         cancelAnimations();
         reset();
       }
@@ -126,7 +190,7 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
     if (!start.horizontal) return;
     const direction = start.distance < 0 ? 1 : -1;
     const allowed = direction > 0 ? canNext : canPrevious;
-    const threshold = Math.min(64, (track.current?.clientWidth || 1) * .18);
+    const threshold = Math.min(64, (geometry.current?.width || 1) * .18);
     settle(start.distance, !cancelled && allowed && Math.abs(start.distance) >= threshold ? direction : 0);
   }
 
@@ -140,6 +204,8 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
         const target = event.target as Element;
         const inStrip = target.closest('.home-sub-strip');
         if (!inStrip && target.closest('.home-controls, button, input, select, textarea, [contenteditable="true"]')) return;
+        geometry.current = measureGesture();
+        if (!geometry.current) return;
         drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false, distance: 0 };
       }}
       onPointerMove={event => {
@@ -160,7 +226,7 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
         if (!start.horizontal) return;
         event.preventDefault();
         const allowed = dx < 0 ? canNext : canPrevious;
-        const width = track.current?.clientWidth || 1;
+        const width = geometry.current?.width || 1;
         start.distance = allowed ? Math.max(-width, Math.min(width, dx)) : dx * .12;
         move(start.distance);
       }}
@@ -182,7 +248,7 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
       {categoryId !== undefined && <div className="home-pager">
         <div className="home-pager-track" ref={track}>
           {[-1, 0, 1].map(offset => (
-            <div key={offset} className={offset === 0 ? 'home-pager-current' : 'home-pager-preview'}
+            <div key={categoryIndex + offset} className={offset === 0 ? 'home-pager-current' : 'home-pager-preview'}
               data-offset={offset} aria-hidden={offset === 0 ? undefined : true}
               ref={element => { if (element) element.inert = offset !== 0; }}>
               {renderPage(offset)}

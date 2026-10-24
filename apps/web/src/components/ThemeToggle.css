@@ -14,7 +14,7 @@
   height: 44px;
   padding: 3px;
   border: 1px solid var(--borda);
-  border-radius: 24px;
+  border-radius: 10px;
   background: var(--fundo-card-sec);
   color: var(--texto-sec);
   isolation: isolate;
@@ -26,7 +26,7 @@
   width: 36px;
   height: 36px;
   border: 1px solid var(--borda-botao);
-  border-radius: 50%;
+  border-radius: 7px;
   background: var(--fundo-botao);
   transition: transform .18s ease;
   z-index: -1;

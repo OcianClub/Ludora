@@ -63,7 +63,10 @@ const output = path.resolve(__dirname, '../../../test-results/web-home');
     return { context, page, state, requests };
   }
   try {
-    for (const width of [320, 390, 768, 1024, 1366, 1920]) {
+    const widths = process.env.LUDORA_HOME_TEST_WIDTHS
+      ? process.env.LUDORA_HOME_TEST_WIDTHS.split(',').map(Number).filter(Number.isFinite)
+      : [320, 390, 768, 1024, 1366, 1920];
+    for (const width of widths) {
       const { context, page, requests } = await setup(width);
       try {
         await page.getByRole('heading', { name: 'Momento da categoria' }).waitFor();
@@ -206,7 +209,43 @@ const output = path.resolve(__dirname, '../../../test-results/web-home');
       const nextIndicator = await motion.page.locator('.home-sub-strip button').nth(1).evaluate(el => el.offsetLeft);
       await motion.page.mouse.move(startX, startY);
       await motion.page.mouse.down();
+      await motion.page.evaluate(() => {
+        window.__homeDragLayoutReads = 0;
+        const watch = (element, property, prototype) => {
+          const get = Object.getOwnPropertyDescriptor(prototype, property).get;
+          Object.defineProperty(element, property, { configurable: true, get() {
+            window.__homeDragLayoutReads++;
+            return get.call(this);
+          } });
+        };
+        watch(document.querySelector('.home-pager-track'), 'clientWidth', Element.prototype);
+        document.querySelectorAll('.home-sub-strip button').forEach(button => {
+          for (const property of ['offsetLeft', 'offsetTop', 'offsetWidth']) watch(button, property, HTMLElement.prototype);
+        });
+      });
       await motion.page.mouse.move(startX - trackWidth * .3, startY, { steps: 12 });
+      await motion.page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
+      assert.equal(await motion.page.evaluate(() => window.__homeDragLayoutReads), 0, 'Movimentos do arraste não devem consultar medidas de layout');
+      const paints = await motion.page.evaluate(async ({ startX, startY, trackWidth }) => {
+        const surface = document.querySelector('.home-swipe-surface');
+        const track = document.querySelector('.home-pager-track');
+        let writes = 0;
+        const observer = new MutationObserver(records => { writes += records.length; });
+        observer.observe(track, { attributes: true, attributeFilter: ['style'] });
+        for (let index = 0; index < 240; index++) {
+          surface.dispatchEvent(new PointerEvent('pointermove', {
+            bubbles: true, pointerId: 1, isPrimary: true, pointerType: 'mouse',
+            clientX: startX - trackWidth * (.29 + index / 239 * .02), clientY: startY,
+          }));
+        }
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        observer.disconnect();
+        return writes;
+      }, { startX, startY, trackWidth });
+      assert.equal(paints, 1, 'Rajada de movimentos deve produzir uma única atualização visual no frame');
+      assert.equal(await motion.page.evaluate(() => window.__homeDragLayoutReads), 0);
+      await motion.page.mouse.move(startX - trackWidth * .3, startY);
+      await motion.page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
       const progress = await motion.page.locator('.home-sub-indicator').evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m41);
       assert.ok(Math.abs((progress - initialIndicator) / (nextIndicator - initialIndicator) - .3) < .02, 'Azul deve acompanhar exatamente o progresso do arraste');
       assert.equal(await motion.page.locator('.home-sub-strip [aria-pressed="true"]').innerText(), 'SUB-7', 'Categoria só confirma ao soltar');
@@ -219,7 +258,10 @@ const output = path.resolve(__dirname, '../../../test-results/web-home');
       await motion.page.locator('.home-pager-track').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished.catch(() => {}))));
       assert.equal(await motion.page.locator('.home-sub-strip [aria-pressed="true"]').innerText(), 'SUB-7', 'Arraste curto deve retornar sem trocar');
       assert.equal(motion.requests.filter(path => path === '/partidas/home').length, beforeQueries, 'Prévia não deve buscar dados novamente');
+      await motion.page.evaluate(() => { window.__homeNeighbor = document.querySelector('.home-pager-preview[data-offset="1"] .home-main-match'); });
       await motion.page.getByRole('button', { name: 'Próxima categoria', exact: true }).click();
+      assert.ok(await motion.page.evaluate(() => window.__homeNeighbor === document.querySelector('.home-pager-current .home-main-match')), 'Troca deve reaproveitar o DOM da página vizinha');
+      console.log('PASS desempenho do arraste: 240 eventos agrupados em 1 atualização, zero leituras de layout e reaproveitamento da página vizinha');
       assert.ok(await motion.page.locator('.home-pager-track').evaluate(el => el.getAnimations().some(animation => animation.effect.getKeyframes()[0].transform === 'translateX(100%)')), 'Conteúdo deve deslizar na direção da próxima categoria');
       assert.ok(await motion.page.locator('.home-sub-indicator').evaluate(el => el.getAnimations().some(animation => animation.transitionProperty === 'transform')), 'Destaque do seletor deve deslizar, não saltar');
       await motion.page.locator('.home-pager-track').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished.catch(() => {}))));
@@ -233,7 +275,9 @@ const output = path.resolve(__dirname, '../../../test-results/web-home');
       await motion.page.mouse.move(x, y);
       await motion.page.mouse.down();
       await motion.page.mouse.move(x + 80, y, { steps: 8 });
-      assert.equal(await motion.page.locator('.home-pager-track').evaluate(el => el.getAnimations().length), 0);
+      assert.equal(await motion.page.locator('.home-pager-track').evaluate(el => el.getAnimations().filter(animation =>
+        animation.playState === 'running' && Number(animation.effect.getTiming().duration) > 1).length), 0,
+        'Movimento reduzido não deve manter animações com duração perceptível');
       await motion.page.mouse.up();
       await motion.page.locator('.home-pager-track').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished.catch(() => {}))));
       assert.equal(await motion.page.locator('.home-sub-strip [aria-pressed="true"]').innerText(), 'SUB-7');

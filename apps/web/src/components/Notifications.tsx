@@ -1,33 +1,240 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { requestJson } from '../services/api';
 import { Btn, Modal } from './UI';
+import { Icon } from './Icon';
+import { NotificationItem } from './NotificationItem';
+import { groupNotices, NOTICE_LABELS, type Notice, type NoticeType } from '../utils/notifications';
 import './Notifications.css';
-type Notice = {id:number; titulo:string; corpo:string; lida:boolean; partida_id:number|null; criada_em:string};
+
+type NoticeResponse = { notificacoes: Notice[]; totalNaoLidas: number; proximoCursor?: number | null };
+const emptyData: NoticeResponse = { notificacoes: [], totalNaoLidas: 0, proximoCursor: null };
+
 export function Notifications() {
   const { clube } = useAuth();
-  const navigate=useNavigate();
-  const [open,setOpen]=useState(false),[error,setError]=useState('');
-  const [data,setData]=useState<{notificacoes:Notice[];totalNaoLidas:number}>({notificacoes:[],totalNaoLidas:0});
-  const [busy,setBusy]=useState(false);
-  useEffect(()=>{
-    let active=true, pending=false;
-    setData({notificacoes:[],totalNaoLidas:0});setError('');setOpen(false);
-    const refresh=async()=>{if(!clube?.meuPapel || pending)return;pending=true;
-      try{const value=await requestJson<typeof data>('/notificacoes');if(active){setData(value);setError('');}}
-      catch(e){if(active)setError((e as Error).message);}finally{pending=false;}};
-    void refresh(); const timer=window.setInterval(()=>{if(!document.hidden)void refresh();},30000);
-    return()=>{active=false;window.clearInterval(timer);};
-  },[clube?.id,clube?.meuPapel]);
-  async function read(notice?:Notice) {
-    setBusy(true);setError('');
-    try{await requestJson(notice?`/notificacoes/${notice.id}/lida`:'/notificacoes/lidas',{method:'PATCH'});
-      setData(d=>{const rows=d.notificacoes.map(n=>!notice||n.id===notice.id?{...n,lida:true}:n);return {notificacoes:rows,totalNaoLidas:notice?Math.max(0,d.totalNaoLidas-(notice.lida?0:1)):0};});
-      if(notice?.partida_id){setOpen(false);navigate(`/partidas/${notice.partida_id}`);}
-    }catch(e){setError((e as Error).message);}finally{setBusy(false);}
+  const navigate = useNavigate();
+  const dialogId = useId();
+  const currentClub = useRef(clube?.id);
+  currentClub.current = clube?.id;
+  const scope = useRef(0);
+  const revision = useRef(0);
+  const busyRef = useRef(false);
+  const loadedMore = useRef(false);
+  const reload = useRef<(append?: boolean) => Promise<void>>(async () => {});
+  const dataRef = useRef<NoticeResponse>(emptyData);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState('');
+  const [data, setData] = useState<NoticeResponse>(emptyData);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [type, setType] = useState<NoticeType | ''>('');
+  const [confirmation, setConfirmation] = useState<'all' | 'read' | null>(null);
+  const [message, setMessage] = useState('');
+
+  function updateData(update: (previous: NoticeResponse) => NoticeResponse) {
+    const value = update(dataRef.current);
+    dataRef.current = value;
+    setData(value);
   }
-  return <><button className="profile-link notifications-trigger" type="button" aria-label={`Notificações, ${data.totalNaoLidas} não lidas`} onClick={()=>setOpen(true)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>{data.totalNaoLidas>0&&<span className="notification-count">{data.totalNaoLidas>9?'9+':data.totalNaoLidas}</span>}</button>
-    <Modal open={open} onClose={()=>setOpen(false)} title="Notificações"><p className="scout-help">Avisos do {clube?.nome}</p>{error&&<p role="alert" className="notice-error">{error}</p>}{!clube?.meuPapel?<p>Siga o clube para receber avisos.</p>:<><div className="notification-list">{data.notificacoes.map(n=><button key={n.id} disabled={busy} className={`notification-row ${n.lida?'':'unread'}`} onClick={()=>void read(n)}><strong>{n.titulo}</strong><span>{n.corpo}</span><small>{new Date(n.criada_em).toLocaleString('pt-BR')}{n.lida?' · Lida':' · Não lida'}</small></button>)}</div>{!data.notificacoes.length&&<p>Nenhum aviso por enquanto.</p>}{data.totalNaoLidas>0&&<Btn variant="ghost" disabled={busy} onClick={()=>void read()}>Marcar todas como lidas</Btn>}</>}</Modal>
-  </>;
+
+  useEffect(() => {
+    let active = true;
+    let pending = false;
+    const currentScope = ++scope.current;
+    busyRef.current = false;
+    loadedMore.current = false;
+    updateData(() => emptyData);
+    setError('');
+    setMessage('');
+    setOpen(false);
+    setBusy(false);
+    setFetching(false);
+    setFilter('all');
+    setType('');
+    setConfirmation(null);
+    setLoading(Boolean(clube?.meuPapel));
+
+    async function refresh(append = false) {
+      if (!active || !clube?.meuPapel || pending || busyRef.current) return;
+      const cursor = append ? dataRef.current.proximoCursor : null;
+      if (append && !cursor) return;
+      pending = true;
+      setFetching(true);
+      const requestRevision = revision.current;
+      try {
+        const value = await requestJson<NoticeResponse>(`/notificacoes?limite=50${cursor ? `&cursor=${cursor}` : ''}`);
+        if (!active || scope.current !== currentScope || requestRevision !== revision.current) return;
+        updateData(previous => {
+          const merge = append || loadedMore.current;
+          const rows = merge ? [...new Map(
+            [...previous.notificacoes, ...value.notificacoes]
+              .map(item => [item.id, item]),
+          ).values()].sort((a, b) => Date.parse(b.criada_em) - Date.parse(a.criada_em) || b.id - a.id) : value.notificacoes;
+          return {
+            notificacoes: rows, totalNaoLidas: value.totalNaoLidas,
+            proximoCursor: append || !loadedMore.current ? value.proximoCursor ?? null : previous.proximoCursor,
+          };
+        });
+        if (append) loadedMore.current = true;
+        setError('');
+      } catch {
+        if (active && requestRevision === revision.current) setError('Não foi possível carregar os avisos. Verifique sua conexão e tente novamente.');
+      } finally {
+        pending = false;
+        if (active) { setLoading(false); setFetching(false); }
+      }
+    }
+
+    reload.current = refresh;
+    void refresh();
+    const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 30_000);
+    return () => {
+      active = false;
+      if (scope.current === currentScope) scope.current++;
+      window.clearInterval(timer);
+    };
+  }, [clube?.id, clube?.meuPapel]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [open]);
+
+  async function mutate(endpoint: string, method: 'PATCH' | 'DELETE', apply: () => void, feedback: string) {
+    if (busyRef.current) return false;
+    const clubId = clube?.id;
+    const currentScope = scope.current;
+    busyRef.current = true;
+    revision.current++;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      await requestJson(endpoint, { method });
+      if (currentClub.current !== clubId || scope.current !== currentScope) return false;
+      apply();
+      setMessage(feedback);
+      return true;
+    } catch {
+      if (currentClub.current === clubId && scope.current === currentScope) setError('Não foi possível confirmar a alteração. Atualize os avisos e tente novamente.');
+      return false;
+    } finally {
+      if (currentClub.current === clubId && scope.current === currentScope) {
+        revision.current++;
+        busyRef.current = false;
+        setBusy(false);
+      }
+    }
+  }
+
+  async function read(notice?: Notice) {
+    if (notice?.lida) {
+      if (notice.partida_id) { setOpen(false); navigate(`/partidas/${notice.partida_id}`); }
+      return;
+    }
+    const ok = await mutate(notice ? `/notificacoes/${notice.id}/lida` : '/notificacoes/lidas', 'PATCH', () => {
+      updateData(previous => ({
+        ...previous,
+        notificacoes: previous.notificacoes.map(item => !notice || item.id === notice.id ? { ...item, lida: true } : item),
+        totalNaoLidas: notice ? Math.max(0, previous.totalNaoLidas - (previous.notificacoes.find(item => item.id === notice.id)?.lida ? 0 : 1)) : 0,
+      }));
+    }, notice ? 'Aviso marcado como lido.' : 'Todos os avisos foram marcados como lidos.');
+    if (ok && notice?.partida_id) { setOpen(false); navigate(`/partidas/${notice.partida_id}`); }
+  }
+
+  async function remove(kind: 'all' | 'read' | Notice) {
+    const single = typeof kind === 'object' ? kind : null;
+    const endpoint = single ? `/notificacoes/${single.id}` : kind === 'read' ? '/notificacoes/lidas' : '/notificacoes';
+    const ok = await mutate(endpoint, 'DELETE', () => {
+      if (kind === 'all') loadedMore.current = false;
+      updateData(previous => {
+        const rows = previous.notificacoes.filter(item => single ? item.id !== single.id : kind === 'read' && !item.lida);
+        const removedUnread = single && previous.notificacoes.some(item => item.id === single.id && !item.lida) ? 1 : 0;
+        return {
+          notificacoes: rows,
+          totalNaoLidas: kind === 'all' ? 0 : Math.max(0, previous.totalNaoLidas - removedUnread),
+          proximoCursor: kind === 'all' ? null : previous.proximoCursor ? rows[rows.length - 1]?.id ?? null : null,
+        };
+      });
+      setConfirmation(null);
+    }, single ? 'Notificação excluída.' : kind === 'read' ? 'Avisos lidos removidos.' : 'Todos os seus avisos deste clube foram removidos.');
+    if (ok && kind !== 'all' && !dataRef.current.notificacoes.length) {
+      loadedMore.current = false;
+      void reload.current();
+    }
+  }
+
+  const groups = useMemo(() => groupNotices(data.notificacoes.filter(notice =>
+    (filter === 'all' || !notice.lida) && (!type || notice.tipo === type),
+  )), [data.notificacoes, filter, type]);
+  const readCount = data.notificacoes.filter(notice => notice.lida).length;
+  const emptyTitle = data.proximoCursor ? 'Nenhum aviso encontrado nesta página'
+    : filter === 'unread' ? 'Nenhum aviso não lido'
+    : type ? 'Nenhum aviso deste tipo' : 'Nenhuma notificação por enquanto';
+  const emptyDescription = data.proximoCursor ? 'Há mais avisos no histórico. Carregue mais para continuar a busca.'
+    : filter === 'unread' ? 'Você está em dia com este filtro.'
+    : type ? 'Experimente selecionar todos os tipos.' : 'As novidades do clube aparecerão aqui.';
+
+  return (
+    <>
+      <button className="profile-link notifications-trigger" type="button"
+        aria-label={`Notificações, ${data.totalNaoLidas} não lidas`}
+        aria-haspopup="dialog" aria-expanded={open} aria-controls={dialogId}
+        onClick={() => { setOpen(true); void reload.current(); }}>
+        <Icon name="bell" size={23} />
+        {data.totalNaoLidas > 0 && <span className="notification-dot" aria-hidden="true" />}
+      </button>
+      <Modal open={open} onClose={() => { setOpen(false); setConfirmation(null); }} title="Notificações"
+        id={dialogId} className="notifications-drawer">
+        <div className="notifications-summary">
+          <div><p>{clube?.nome || 'Seu clube'}</p><span>{loading ? 'Buscando avisos…' : error ? 'Não foi possível atualizar os avisos.' : data.totalNaoLidas ? `Você tem ${data.totalNaoLidas} ${data.totalNaoLidas === 1 ? 'aviso não lido' : 'avisos não lidos'}.` : 'Você está em dia com os avisos do clube.'}</span></div>
+        </div>
+        {clube?.meuPapel && <>
+          <div className="notification-filters">
+            <div className="notification-tabs" role="group" aria-label="Filtrar leitura">
+              <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Todas</button>
+              <button type="button" aria-pressed={filter === 'unread'} onClick={() => setFilter('unread')}>Não lidas</button>
+            </div>
+            <label className="notification-type" data-filtered={Boolean(type)}>
+              <span className="sr-only">Tipo de aviso</span>
+              <select aria-label="Tipo de aviso" value={type} onChange={event => setType(event.target.value as NoticeType | '')}>
+                <option value="">Todos os tipos</option>
+                {Object.entries(NOTICE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+              <Icon name="chevronRight" size={17} />
+            </label>
+          </div>
+          <div className="notification-tools">
+            <button type="button" disabled={busy || loading || !data.totalNaoLidas} aria-label="Marcar todas como lidas" onClick={() => void read()}><Icon name="checkAll" size={18} />Ler todas</button>
+            <button type="button" disabled={busy || loading || (!readCount && !data.proximoCursor)} onClick={() => setConfirmation('read')}><Icon name="trash" size={18} />Limpar lidas</button>
+            <button type="button" disabled={busy || loading || !data.notificacoes.length} onClick={() => setConfirmation('all')}>Limpar tudo</button>
+          </div>
+          {confirmation && <section className="notification-confirm" role="alert" aria-label="Confirmar limpeza">
+            <h3>{confirmation === 'all' ? 'Excluir todos os avisos?' : 'Limpar os avisos lidos?'}</h3>
+            <p>{confirmation === 'all' ? 'Todos os seus avisos deste clube, incluindo os não lidos, serão excluídos.' : 'Somente os seus avisos já lidos deste clube serão excluídos.'} Essa ação não pode ser desfeita.</p>
+            <div><Btn variant="ghost" size="sm" disabled={busy} onClick={() => setConfirmation(null)}>Cancelar</Btn><Btn variant="danger" size="sm" disabled={busy} onClick={() => void remove(confirmation)}>{busy ? 'Excluindo…' : 'Confirmar exclusão'}</Btn></div>
+          </section>}
+        </>}
+        {error && <div role="alert" className="notice-error"><p>{error}</p><button type="button" disabled={busy || fetching} onClick={() => void reload.current()}>Tentar novamente</button></div>}
+        <p className="notification-feedback" role="status" aria-live="polite">{busy ? 'Salvando alteração…' : message}</p>
+        {loading ? <div className="notifications-empty" role="status">Carregando notificações…</div>
+          : !clube?.meuPapel ? <div className="notifications-empty"><Icon name="bell" size={32} /><h3>Acompanhe este clube</h3><p>Siga o clube para receber seus avisos.</p></div>
+          : groups.length ? <div className="notification-groups">{groups.map(group => <section key={group.label} className="notification-group" aria-label={group.label}><h3>{group.label}</h3><ul className="notification-list">{group.notices.map(notice => <li key={notice.id}><NotificationItem notice={notice} busy={busy} onRead={() => void read(notice)} onDelete={() => void remove(notice)} /></li>)}</ul></section>)}</div>
+          : !error && (
+            <div className="notifications-empty">
+              <Icon name="bell" size={32} />
+              <h3>{emptyTitle}</h3>
+              <p>{emptyDescription}</p>
+            </div>
+          )}
+        {data.proximoCursor && <Btn variant="ghost" disabled={busy || fetching} onClick={() => void reload.current(true)}>{fetching ? 'Carregando…' : 'Carregar mais avisos'}</Btn>}
+        {!!data.notificacoes.length && <p className="notification-swipe-hint">Deslize um aviso para a esquerda para excluir. Se preferir, use a lixeira.</p>}
+      </Modal>
+    </>
+  );
 }

@@ -11,7 +11,12 @@
 }
 .home-pager-track {
   position: relative;
-  transform: translateX(var(--home-page-x, 0px));
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+.home-pager-current,
+.home-pager-preview {
+  contain: layout paint;
 }
 .home-pager-preview {
   position: absolute;
@@ -28,9 +33,6 @@
 .home-swipe-surface.is-swiping {
   cursor: grabbing;
   user-select: none;
-}
-.is-swiping .home-pager-track {
-  will-change: transform;
 }
 .is-swiping .home-swipe-content a {
   cursor: grabbing;
@@ -150,6 +152,7 @@
   top: 0;
   left: 0;
   pointer-events: none;
+  will-change: transform;
   border-radius: 7px;
   background: var(--primaria);
   transition: transform 280ms cubic-bezier(.22,.7,.2,1), width 280ms ease;

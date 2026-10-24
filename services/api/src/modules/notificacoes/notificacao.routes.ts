@@ -20,20 +20,24 @@ export default function criarNotificacaoRoutes() {
     const limite = Number.isSafeInteger(limiteInformado)
       ? Math.min(Math.max(limiteInformado, 1), LIMITE_MAXIMO)
       : LIMITE_PADRAO;
+    const cursor = req.query.cursor === undefined ? undefined : idPositivo(req.query.cursor);
+    if (cursor === null) return res.status(400).json({ error: 'Cursor de notificações inválido' });
 
     try {
       const [notificacoes, totalNaoLidas] = await Promise.all([
         prisma.notificacao.findMany({
           where: { usuario_id: usuarioId, clube_id: clubeId },
-          orderBy: { criada_em: 'desc' },
-          take: limite,
+          orderBy: [{ criada_em: 'desc' }, { id: 'desc' }],
+          take: limite + 1,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         }),
         prisma.notificacao.count({
           where: { usuario_id: usuarioId, clube_id: clubeId, lida: false },
         }),
       ]);
 
-      res.json({ notificacoes, totalNaoLidas });
+      const pagina = notificacoes.slice(0, limite);
+      res.json({ notificacoes: pagina, totalNaoLidas, proximoCursor: notificacoes.length > limite ? pagina.at(-1)?.id : null });
     } catch {
       res.status(500).json({ error: 'Não foi possível buscar as notificações' });
     }
@@ -78,6 +82,17 @@ export default function criarNotificacaoRoutes() {
       res.json({ ok: true });
     } catch {
       res.status(500).json({ error: 'Não foi possível atualizar a notificação' });
+    }
+  });
+
+  router.delete('/notificacoes', exigirMembroDoClube, async (req, res) => {
+    try {
+      const resultado = await prisma.notificacao.deleteMany({
+        where: { usuario_id: (req as any).usuarioId, clube_id: (req as any).clubeId },
+      });
+      res.json({ removidas: resultado.count });
+    } catch {
+      res.status(500).json({ error: 'Não foi possível limpar as notificações' });
     }
   });
 

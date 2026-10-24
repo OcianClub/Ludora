@@ -23,8 +23,10 @@ import minus from '../../../../packages/icons/src/svg/mdi-minus.svg';
 import chevronRight from '../../../../packages/icons/src/svg/chevron-dir.svg';
 import chevronLeft from '../../../../packages/icons/src/svg/chevron-esq.svg';
 import bus from '../../../../packages/icons/src/svg/mdi-bus.svg';
+import bell from '../../../../packages/icons/src/svg/mdi-bell.svg';
+import checkAll from '../../../../packages/icons/src/svg/mdi-check-all.svg';
 
-const icons = { home, ball, team, player, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus };
+const icons = { home, ball, team, player, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus, bell, checkAll };
 export type IconName = keyof typeof icons | 'grid' | 'list';
 
 // Usa os mesmos desenhos do mobile, sem depender de componentes React Native.

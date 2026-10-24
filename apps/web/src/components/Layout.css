@@ -29,7 +29,7 @@
 .sidebar-brand {
   display: flex;
   align-items: center;
-  min-height: 102px;
+  min-height: 96px;
   padding: 24px 21px;
   flex-shrink: 0;
 }
@@ -39,7 +39,7 @@
 }
 .sidebar-label {
   padding: 0 26px 12px;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 1.6px;
   color: var(--texto-sec);
   white-space: nowrap;
@@ -56,18 +56,26 @@
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 13px 17px;
+  gap: 10px;
+  padding: 8px 10px;
   min-height: 48px;
-  border: 1px solid transparent;
+  border: 0;
   border-radius: 8px;
   color: var(--texto-sec);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
 }
 .sidebar .nav-item {
   flex-shrink: 0;
+}
+.nav-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 8px;
 }
 .nav-item:hover {
   color: var(--texto);
@@ -76,11 +84,10 @@
 .nav-item.active {
   color: var(--primaria);
   background: var(--fundo-botao);
-  border-color: var(--borda-botao);
 }
 .sidebar .brand > span,
 .sidebar-label,
-.sidebar .nav-item > span:not(.icon),
+.sidebar .nav-item > .nav-label,
 .sidebar .usuario-info,
 .sidebar-usuario > .icon,
 .btn-logout > span:not(.icon) {
@@ -90,7 +97,7 @@
 }
 .sidebar:has(:focus-visible) .brand > span,
 .sidebar:has(:focus-visible) .sidebar-label,
-.sidebar:has(:focus-visible) .nav-item > span:not(.icon),
+.sidebar:has(:focus-visible) .nav-item > .nav-label,
 .sidebar:has(:focus-visible) .usuario-info,
 .sidebar:has(:focus-visible) .sidebar-usuario > .icon,
 .sidebar:has(:focus-visible) .btn-logout > span:not(.icon) {
@@ -100,7 +107,7 @@
 @media (hover: hover) and (pointer: fine) {
   .sidebar:hover .brand > span,
   .sidebar:hover .sidebar-label,
-  .sidebar:hover .nav-item > span:not(.icon),
+  .sidebar:hover .nav-item > .nav-label,
   .sidebar:hover .usuario-info,
   .sidebar:hover .sidebar-usuario > .icon,
   .sidebar:hover .btn-logout > span:not(.icon) {
@@ -164,10 +171,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 14px;
 }
 .usuario-info small {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--texto-sec);
 }
 .btn-logout {
@@ -205,7 +212,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 86px;
+  min-height: 96px;
   width: 100%;
   max-width: var(--workspace-max-width);
   margin: 0 auto;
@@ -217,6 +224,22 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
+  border-radius: 10px;
+}
+.current-club .club-badge {
+  border: 0;
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+  font-weight: 600;
+}
+.current-club-role {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--texto-sec);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .current-club > span:last-child {
@@ -232,9 +255,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--font-titulo);
-  font-size: 17px;
-  font-weight: 500;
+  font-family: var(--font-corpo);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .workspace-actions {
@@ -244,15 +268,34 @@
   flex-shrink: 0;
 }
 
+.switch-club-link {
+  height: 46px;
+  padding: 0 14px;
+  border-color: var(--borda);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--texto-sec);
+}
+
+.switch-club-link:hover {
+  border-color: var(--borda-botao);
+  background: var(--fundo-card);
+  color: var(--texto);
+}
+
 .profile-link {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 46px;
+  height: 46px;
   border: 1px solid var(--borda-botao);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--fundo-botao);
   color: var(--primaria);
+}
+
+.header-profile-link {
+  display: none;
 }
 
 .content {
@@ -264,10 +307,6 @@
 
 .content:focus {
   outline: none;
-}
-
-.mobile-logout {
-  display: none;
 }
 
 .skip-link {
@@ -304,26 +343,31 @@
     margin-left: 0;
   }
   .workspace-header-inner {
-    min-height: 76px;
+    min-height: 84px;
     padding: 12px var(--workspace-gutter);
   }
   .workspace-actions {
-    gap: 6px;
+    gap: 8px;
   }
-  .mobile-logout {
+  .header-profile-link {
     display: grid;
   }
-  .workspace-actions .btn span:not(.icon) {
-    display: none;
+  .workspace-actions .switch-club-link {
+    display: inline-flex;
+    width: 46px;
+    height: 46px;
+    justify-content: center;
+    padding: 0;
+    border-radius: 10px;
   }
-  .workspace-actions .btn {
-    padding: 8px;
+  .workspace-actions .switch-club-link > span:not(.icon) {
+    display: none;
   }
   .current-club {
     gap: 8px;
   }
   .current-club strong {
-    font-size: 15px;
+    font-size: 18px;
   }
   .content {
     padding: 24px var(--workspace-gutter) calc(100px + env(safe-area-inset-bottom, 0px));
@@ -343,22 +387,29 @@
   }
   .bottom-nav-item {
     min-width: 0;
-    min-height: 56px;
+    min-height: 60px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    padding: 6px 2px;
+    gap: 3px;
+    padding: 4px 2px;
     color: var(--texto-sec);
     background: transparent;
     border: 0;
     border-radius: 8px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
   }
   .bottom-nav-item.active {
     color: var(--primaria);
+    background: transparent;
+  }
+  .bottom-nav-item > .nav-icon {
+    width: 44px;
+    height: 32px;
+  }
+  .bottom-nav-item.active > .nav-icon {
     background: var(--fundo-botao);
   }
   .mobile-more-links {
@@ -386,18 +437,14 @@
   .workspace-actions {
     gap: 4px;
   }
-  .workspace-actions .profile-link {
-    width: 32px;
-    height: 36px;
-  }
   .current-club .club-badge {
-    width: 32px !important;
-    height: 32px !important;
+    width: 42px !important;
+    height: 42px !important;
   }
-}
-.demo-banner {
-  font-size: 10px;
-  letter-spacing: .5px;
-  color: var(--texto-sec);
-  padding-bottom: 14px;
+  .current-club strong {
+    font-size: 17px;
+  }
+  .current-club-role {
+    font-size: 12px;
+  }
 }

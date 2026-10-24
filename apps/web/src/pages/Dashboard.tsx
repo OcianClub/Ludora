@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchHomePartidas, fetchCategorias, fetchEscalacao, type HomePartida, type Categoria } from '../services/api';
 import { Btn } from '../components/UI';
@@ -27,7 +27,7 @@ function HomeSkeleton() {
   );
 }
 
-function HomeCategoryPanel({ current, matches, podeGerenciar, starters = null, lineupError = false }: {
+const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, podeGerenciar, starters = null, lineupError = false }: {
   current: Categoria;
   matches: HomePartida[];
   podeGerenciar: boolean;
@@ -113,7 +113,7 @@ function HomeCategoryPanel({ current, matches, podeGerenciar, starters = null, l
       </section>
     </div>
   );
-}
+});
 
 export default function DashboardPage() {
   const { clube, podeGerenciar } = useAuth();
@@ -206,7 +206,7 @@ export default function DashboardPage() {
         const item = available[available.indexOf(current) + offset];
         return data && item ? <HomeCategoryPanel current={item} matches={data.matches}
           podeGerenciar={podeGerenciar} starters={offset === 0 ? starters : null}
-          lineupError={offset === 0 ? lineupError : false} /> : null;
+          lineupError={offset === 0 ? Boolean(lineupError) : false} /> : null;
       }}
       footer={data && <p className="home-update-note" role="status">Atualizado às {data.updatedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. A visão geral é atualizada automaticamente.</p>}
       canPrevious={available.indexOf(current) > 0}

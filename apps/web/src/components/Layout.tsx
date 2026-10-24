@@ -5,7 +5,7 @@ import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Brand, ClubBadge } from './Brand';
 import { Icon, IconName } from './Icon';
-import { Modal, PapelBadge } from './UI';
+import { Modal } from './UI';
 import './Layout.css';
 
 const NAV: { to: string; label: string; icon: IconName }[] = [
@@ -17,10 +17,15 @@ const NAV: { to: string; label: string; icon: IconName }[] = [
   { to: '/competicoes', label: 'Competições', icon: 'trophy' },
 ];
 
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Administrador', TECNICO: 'Técnico', MESARIO: 'Mesário', TORCEDOR: 'Torcedor', OLHEIRO: 'Olheiro',
+};
+
 export default function Layout() {
   const { usuario, clube, logout } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
+  const role = clube?.meuPapel ? ROLE_LABELS[clube.meuPapel] || clube.meuPapel : 'Visualização pública';
   const extraLinks = NAV.slice(4);
   const moreActive = extraLinks.some(item => location.pathname.startsWith(item.to)) || location.pathname === '/membros';
   useEffect(() => {
@@ -49,11 +54,11 @@ export default function Layout() {
               title={item.label}
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
             >
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
+              <span className="nav-icon"><Icon name={item.icon} /></span>
+              <span className="nav-label">{item.label}</span>
             </NavLink>
           ))}
-          {clube?.meuPapel === 'ADMIN' && <NavLink to="/membros" aria-label="Pessoas e acessos" title="Pessoas e acessos" className={({isActive})=>`nav-item${isActive?' active':''}`}><Icon name="user"/><span>Pessoas e acessos</span></NavLink>}
+          {clube?.meuPapel === 'ADMIN' && <NavLink to="/membros" aria-label="Pessoas e acessos" title="Pessoas e acessos" className={({isActive})=>`nav-item${isActive?' active':''}`}><span className="nav-icon"><Icon name="user"/></span><span className="nav-label">Pessoas e acessos</span></NavLink>}
         </nav>
 
         <div className="sidebar-footer">
@@ -65,7 +70,7 @@ export default function Layout() {
               <strong>{usuario?.nome || 'Meu perfil'}</strong>
               <small>Minha conta</small>
             </span>
-            <Icon name="arrow" size={16} />
+            <Icon name="chevronRight" size={16} />
           </Link>
 
           <button className="btn-logout" onClick={logout} aria-label="Sair da conta" title="Sair da conta">
@@ -77,32 +82,28 @@ export default function Layout() {
       <div className="workspace">
         <header className="workspace-header">
           <div className="workspace-header-inner">
-            <Link to="/selecionar-clube" className="current-club" title="Trocar clube">
-              <ClubBadge src={clube?.escudo} size={38} />
+            <Link to="/selecionar-clube" className="current-club" title={`${clube?.nome || 'Selecione um clube'} · ${role}`} aria-label={`${clube?.nome || 'Selecione um clube'}, ${role}. Trocar clube`}>
+              <ClubBadge src={clube?.escudo} name={clube?.nome} size={46} />
               <span>
                 <strong>{clube?.nome || 'Selecione um clube'}</strong>
-                {clube?.meuPapel && <PapelBadge papel={clube.meuPapel} />}
+                <small className="current-club-role">{role}</small>
               </span>
             </Link>
 
             <div className="workspace-actions">
-              <Notifications />
-              <Link to="/selecionar-clube" className="btn btn-ghost btn-sm" aria-label="Trocar clube">
+              <Link to="/selecionar-clube" className="btn btn-ghost btn-sm switch-club-link" aria-label="Trocar clube">
                 <Icon name="switchClub" size={18} />
                 <span>Trocar clube</span>
               </Link>
-              <Link to="/perfil" className="profile-link" aria-label="Meu perfil">
+              <Notifications />
+              <Link to="/perfil" className="profile-link header-profile-link" aria-label="Meu perfil">
                 <Icon name="user" />
               </Link>
-              <button className="profile-link mobile-logout" onClick={logout} aria-label="Sair da conta">
-                <Icon name="logout" size={18} />
-              </button>
             </div>
           </div>
         </header>
 
         <main className="content" id="main-content" tabIndex={-1}>
-          {clube?.plano === 'DEMO' && <div className="demo-banner">Ambiente acadêmico · dados de demonstração</div>}
           <Outlet />
         </main>
       </div>
@@ -111,14 +112,14 @@ export default function Layout() {
           {NAV.slice(0, 4).map(item => (
             <NavLink key={item.to} to={item.to} aria-label={item.label}
               className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
-              <Icon name={item.icon} size={22} />
+              <span className="nav-icon"><Icon name={item.icon} size={23} /></span>
               <span>{item.to === '/dashboard' ? 'Início' : item.label}</span>
             </NavLink>
           ))}
           <button type="button" className={`bottom-nav-item${moreActive ? ' active' : ''}`}
             aria-label="Mais opções de navegação" aria-haspopup="dialog" aria-expanded={moreOpen}
             onClick={() => setMoreOpen(true)}>
-            <Icon name="grid" size={22} /><span>Mais</span>
+            <span className="nav-icon"><Icon name="grid" size={23} /></span><span>Mais</span>
           </button>
         </nav>
         <Modal open={moreOpen} onClose={() => setMoreOpen(false)} title="Mais opções">
@@ -135,6 +136,8 @@ export default function Layout() {
             )}
           </nav>
           <div className="mobile-more-theme"><span>Aparência</span><ThemeToggle /></div>
+          <Link to="/selecionar-clube" className="nav-item" onClick={() => setMoreOpen(false)}><Icon name="switchClub" /><span>Trocar clube</span></Link>
+          <button className="btn-logout" onClick={logout}><Icon name="logout" size={20} /><span>Sair da conta</span></button>
         </Modal>
       </div>
     </div>

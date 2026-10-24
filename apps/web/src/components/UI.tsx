@@ -78,17 +78,37 @@ export function Select({ label, options, emptyLabel = 'Selecionar...', className
 }
 
 // ── Modal ──
-export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+export function Modal({ open, onClose, title, children, className = '', id }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; className?: string; id?: string }) {
   const dialogRef = React.useRef<HTMLDialogElement>(null);
   const titleId = React.useId();
   React.useEffect(() => {
     const dialog = dialogRef.current;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (open && dialog && !dialog.open) dialog.showModal();
-    return () => { dialog?.close(); };
+    return () => {
+      dialog?.close();
+      if (open && previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    };
   }, [open]);
   if (!open) return null;
   return (
-      <dialog ref={dialogRef} className="modal" aria-labelledby={titleId} onCancel={e => { e.preventDefault(); onClose(); }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <dialog ref={dialogRef} id={id} className={`modal ${className}`} aria-labelledby={titleId}
+        onKeyDown={event => {
+          if (event.key !== 'Tab') return;
+          const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+          )).filter(element => element.getClientRects().length > 0 && !element.closest('[inert]'));
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last?.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+          }
+        }}
+        onCancel={e => { e.preventDefault(); onClose(); }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
         <div className="modal-header">
           <h2 className="modal-title" id={titleId}>{title}</h2>
           <button type="button" className="modal-close" aria-label="Fechar janela" onClick={onClose}>✕</button>
