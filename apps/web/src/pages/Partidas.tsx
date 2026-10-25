@@ -1,21 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { fetchPartidas, criarPartida, deletarPartida, fetchTimes, fetchCategorias, fetchCompeticoes, Partida, Time, Categoria, Competicao } from '../services/api';
+import { fetchPartidas, criarPartida, fetchTimes, fetchCategorias, fetchCompeticoes, Partida, Time, Categoria, Competicao } from '../services/api';
 import { Btn, Modal, Input, Select, Spinner, Empty } from '../components/UI';
 import { useAuth } from '../contexts/AuthContext';
 import { MatchCard } from '../components/MatchCard';
 import { Icon } from '../components/Icon';
-import { groupMatches, matchPeriod, sortMatches, GroupMode, SortMode } from '../utils/matchSchedule';
+import { sortMatches } from '../utils/matchSchedule';
 import './Partidas.css';
-import { ViewToggle, Choice, ConfirmDelete } from '../components/CollectionControls';
 import { BlockColumns } from '../components/BlockColumns';
+import { FilterSelect } from '../components/FilterSelect';
 import { teamKey, teamName } from '../utils/teamIdentity';
 
 const STATUSES = [
   { value: 'AGENDADA', label: 'Agendada' }, { value: 'PREPARADA', label: 'Preparada' },
   { value: 'AO_VIVO', label: 'Ao Vivo' }, { value: 'FINALIZADA', label: 'Finalizada' }, { value: 'CANCELADA', label: 'Cancelada' },
 ];
+function ScheduleSection({ title, description, matches, initialOpen, renderMatch }: {
+  title: string;
+  description: string;
+  matches: Partida[];
+  initialOpen: boolean;
+  renderMatch: (partida: Partida) => ReactNode;
+}) {
+  const [open, setOpen] = useState(initialOpen);
+  const [limit, setLimit] = useState(12);
+  const id = useId();
+  if (!matches.length) return null;
+  return (
+    <section className="schedule-section">
+      <h2>
+        <button type="button" className="schedule-section-toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)}>
+          <span className="schedule-section-copy"><strong>{title}<span>{matches.length}</span></strong><small>{description}</small></span>
+          <span className="schedule-section-affordance"><span>{open ? 'Recolher' : 'Expandir'}</span><span className="schedule-section-chevron"><Icon name="chevronRight" size={18} /></span></span>
+        </button>
+      </h2>
+      <div id={id} hidden={!open}>
+        {open && <>
+          <BlockColumns>{matches.slice(0, limit).map(renderMatch)}</BlockColumns>
+          {matches.length > limit && <Btn variant="ghost" className="schedule-show-more" onClick={() => setLimit(value => value + 12)}>Mostrar mais partidas ({matches.length - limit})</Btn>}
+        </>}
+      </div>
+    </section>
+  );
+}
+
 const FORM_VAZIO = { mandante_id: '', visitante_id: '', data: '', horario: '', local: '', categoria_id: '', competicao_id: '', rodada: '', emCasa: 'true' };
+const normalizarBusca = (value: string) => teamKey(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 export default function PartidasPage() {
   const [searchParams] = useSearchParams();
@@ -32,29 +62,36 @@ export default function PartidasPage() {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
   const [loadError, setLoadError] = useState('');
-  const [groupMode, setGroupMode] = useState<GroupMode>('month');
-  const [sortMode, setSortMode] = useState<SortMode>('priority');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [period, setPeriod] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [year, setYear] = useState('');
+  const [month, setMonth] = useState('');
   const [opponent, setOpponent] = useState('');
-  const [deleting,setDeleting] = useState<Partida|null>(null);
-  const [deleteError,setDeleteError] = useState('');
-  const [deleteBusy,setDeleteBusy] = useState(false);
+  const loadVersion = useRef(0);
 
   function carregar() {
+    const version = ++loadVersion.current;
     setLoadError('');
     setLoading(true);
     Promise.all([fetchPartidas(), fetchTimes(), fetchCategorias(), fetchCompeticoes()])
-      .then(([p, t, c, comp]) => { setPartidas(p); setTimes(t); setCategorias(c); setCompeticoes(comp); })
-      .catch(() => setLoadError('Não foi possível carregar as partidas. Tente novamente.')).finally(() => setLoading(false));
+      .then(([p, t, c, comp]) => {
+        if (version !== loadVersion.current) return;
+        setPartidas(p); setTimes(t); setCategorias(c); setCompeticoes(comp);
+      })
+      .catch(() => { if (version === loadVersion.current) setLoadError('Não foi possível carregar as partidas. Tente novamente.'); })
+      .finally(() => { if (version === loadVersion.current) setLoading(false); });
   }
-  useEffect(carregar, [clube?.id]);
+  useEffect(() => {
+    carregar();
+    return () => { loadVersion.current++; };
+  }, [clube?.id]);
   function mudarFiltro(status: string, cat: string) {
-    setPeriod(''); setFiltroStatus(status); setFiltroCategoria(cat);
+    setFiltroStatus(status); setFiltroCategoria(cat);
   }
 
   async function salvar(e: React.FormEvent) {
-    e.preventDefault(); setErro(''); setSalvando(true);
+    e.preventDefault();
+    if (salvando) return;
+    setErro(''); setSalvando(true);
     try {
       await criarPartida({
         mandante_id: Number(form.mandante_id), visitante_id: Number(form.visitante_id),
@@ -69,32 +106,42 @@ export default function PartidasPage() {
     finally { setSalvando(false); }
   }
 
-  async function excluir() {
-    if (!deleting) return; setDeleteBusy(true); setDeleteError('');
-    try { await deletarPartida(deleting.id); setDeleting(null); carregar(); }
-    catch (e) { setDeleteError((e as Error).message); } finally { setDeleteBusy(false); }
-  }
-
   const timeOpts = times.filter(t=>String(t.categoria_id)===form.categoria_id).map(t => ({ value: t.id, label: teamName(t.nome) }));
   const catOpts = categorias.map(c => ({ value: c.id, label: c.nome }));
   const compOpts = competicoes.filter(c=>c.tipo===categorias.find(cat=>String(cat.id)===form.categoria_id)?.tipo).map(c => ({ value: c.id, label: `${c.nome} (${c.ano})` }));
-  const opponentName = (p:Partida) => {
-    const team = p.emCasa ? p.visitante || times.find(t=>t.id===p.visitante_id) : p.mandante || times.find(t=>t.id===p.mandante_id);
-    return team?.nome || '';
-  };
-  const opponents = [...new Set(partidas.map(opponentName).map(teamKey).filter(Boolean))].sort();
-  const filtered = partidas.filter(p=>(!filtroStatus||p.status===filtroStatus)&&(!filtroCategoria||p.categoria?.nome.toLowerCase()===categorias.find(c=>String(c.id)===filtroCategoria)?.nome.toLowerCase()||String(p.categoria_id)===filtroCategoria)&&(!opponent||teamKey(opponentName(p))===opponent));
-  const periods = groupMatches(filtered, groupMode, 'earliest');
-  const visibleMatches = filtered.filter(p => !period || matchPeriod(p.data, groupMode).key === period);
-  const liveMatches = sortMode === 'priority' ? sortMatches(visibleMatches.filter(p => p.status === 'AO_VIVO'), 'earliest') : [];
-  const groups = groupMatches(visibleMatches.filter(p => sortMode !== 'priority' || p.status !== 'AO_VIVO'), groupMode, sortMode);
+  const teamIndex = useMemo(() => new Map(times.map(time => [time.id, time])), [times]);
+  const selectedCategory = categorias.find(category => String(category.id) === filtroCategoria);
+  const filtered = useMemo(() => partidas.filter(partida => {
+    const rival = partida.emCasa ? partida.visitante || teamIndex.get(partida.visitante_id) : partida.mandante || teamIndex.get(partida.mandante_id);
+    return (!filtroStatus || partida.status === filtroStatus)
+      && (!filtroCategoria || String(partida.categoria_id) === filtroCategoria || (selectedCategory && partida.categoria?.nome.toLowerCase() === selectedCategory.nome.toLowerCase()))
+      && (!opponent.trim() || normalizarBusca(rival?.nome || '').includes(normalizarBusca(opponent.trim())))
+      && (!year || partida.data.slice(0, 4) === year)
+      && (!month || partida.data.slice(5, 7) === month);
+  }), [partidas, teamIndex, filtroStatus, filtroCategoria, selectedCategory?.nome, opponent, year, month]);
+  const sections = useMemo(() => [
+    { id: 'live', title: 'Ao vivo', description: 'Partidas em andamento', initialOpen: true, matches: sortMatches(filtered.filter(p => p.status === 'AO_VIVO'), 'earliest') },
+    { id: 'next', title: 'A seguir', description: 'Preparadas e agendadas · por data e horário', initialOpen: true, matches: sortMatches(filtered.filter(p => ['PREPARADA', 'AGENDADA'].includes(p.status)), 'earliest') },
+    { id: 'past', title: 'Finalizados', description: 'Resultados mais recentes primeiro', initialOpen: Boolean(filtroStatus || year || month || opponent || filtroCategoria), matches: sortMatches(filtered.filter(p => p.status === 'FINALIZADA'), 'latest') },
+    { id: 'cancelled', title: 'Canceladas', description: 'Partidas que não serão realizadas', initialOpen: filtroStatus === 'CANCELADA', matches: sortMatches(filtered.filter(p => p.status === 'CANCELADA'), 'latest') },
+  ], [filtered, filtroStatus, year, month, opponent, filtroCategoria]);
+  const years = useMemo(() => [...new Set(partidas.map(p => p.data.slice(0, 4)))].filter(Boolean).sort().reverse(), [partidas]);
+  const filterCount = [opponent.trim(), filtroStatus, filtroCategoria, year, month].filter(Boolean).length;
+  const filterKey = [opponent, filtroStatus, filtroCategoria, year, month].join('|');
+  const activeFilters = [
+    { label: opponent.trim() ? `Adversário: ${opponent.trim()}` : '', clear: () => setOpponent('') },
+    { label: STATUSES.find(status => status.value === filtroStatus)?.label || '', clear: () => setFiltroStatus('') },
+    { label: selectedCategory?.nome || '', clear: () => setFiltroCategoria('') },
+    { label: year, clear: () => setYear('') },
+    { label: month ? new Date(2026, Number(month) - 1, 1).toLocaleDateString('pt-BR', { month: 'long' }) : '', clear: () => setMonth('') },
+  ].filter(filter => filter.label);
 
   function renderMatch(p: Partida) {
     return <MatchCard key={p.id} featured={p.status === 'AO_VIVO'} partida={{ ...p,
-      mandante: p.mandante || times.find(t => t.id === p.mandante_id),
-      visitante: p.visitante || times.find(t => t.id === p.visitante_id),
+      mandante: p.mandante || teamIndex.get(p.mandante_id),
+      visitante: p.visitante || teamIndex.get(p.visitante_id),
       categoria: p.categoria || categorias.find(c => c.id === p.categoria_id),
-    }} actions={podeGerenciar && !p.somente_leitura && <Btn variant="danger" size="sm" onClick={()=>{setDeleting(p);setDeleteError('');}} aria-label={`Excluir partida ${p.mandante?.nome || p.id} contra ${p.visitante?.nome || 'visitante'}`}><Icon name="trash" size={16} /></Btn>} />;
+    }} />;
   }
 
   return (
@@ -104,34 +151,37 @@ export default function PartidasPage() {
         {podeGerenciar && <Btn onClick={() => { setForm(FORM_VAZIO); setErro(''); setModal(true); }}>+ Nova partida</Btn>}
       </div>
 
-      <div className="collection-toolbar">
-        <Choice label="Adversário" value={opponent} onChange={v=>{setOpponent(v);setPeriod('');}} options={[{value:'',label:'Todos os adversários'},...opponents.map(key=>({value:key,label:teamName(partidas.map(opponentName).find(name=>teamKey(name)===key)||key)}))]}/>
-        <Choice label="Situação" value={filtroStatus} onChange={v=>mudarFiltro(v,filtroCategoria)} options={[{value:'',label:'Todas'},...STATUSES]}/>
-        <Choice label="Categoria" value={filtroCategoria} onChange={v=>mudarFiltro(filtroStatus,v)} options={[{value:'',label:'Todos os subs'},...catOpts.map(c=>({value:String(c.value),label:c.label}))]}/>
-        <Choice label="Período" value={period} onChange={setPeriod} options={[{value:'',label:'Todos os períodos'},...periods.map(p=>({value:p.key,label:p.label}))]}/>
-        <Choice label="Ordenar" value={sortMode} onChange={v=>setSortMode(v as SortMode)} options={[{value:'priority',label:'Prioridade'},{value:'earliest',label:'Mais antigas'},{value:'latest',label:'Mais recentes'}]}/>
-        {(opponent||filtroStatus||filtroCategoria||period)&&<Btn variant="ghost" size="sm" onClick={()=>{setOpponent('');mudarFiltro('','');}}>Limpar filtros</Btn>}
+      <div className="schedule-filters">
+        <div className="schedule-filter-primary">
+          <div className="schedule-search">
+            <Icon name="search" size={18} />
+            <label className="sr-only" htmlFor="match-opponent">Buscar adversário</label>
+            <input id="match-opponent" type="search" placeholder="Buscar adversário" value={opponent} onChange={event => setOpponent(event.target.value)} />
+          </div>
+          <FilterSelect label="Categoria" emptyLabel="Todas as categorias" options={catOpts} value={filtroCategoria} onChange={value => mudarFiltro(filtroStatus, value)} />
+          <Btn variant="ghost" aria-expanded={filtersOpen} aria-controls="schedule-extra-filters" onClick={() => setFiltersOpen(value => !value)}>
+            <Icon name="settings" size={18} />Filtros{filterCount > 0 && <span className="schedule-filter-count">{filterCount}</span>}
+          </Btn>
+        </div>
+        {filtersOpen && <div id="schedule-extra-filters" className="schedule-filter-extra">
+          <FilterSelect label="Situação" emptyLabel="Todas as situações" options={STATUSES} value={filtroStatus} onChange={value => mudarFiltro(value, filtroCategoria)} />
+          <FilterSelect label="Ano" emptyLabel="Todos os anos" options={years.map(value => ({ value, label: value }))} value={year} onChange={setYear} />
+          <FilterSelect label="Mês" emptyLabel="Todos os meses" options={Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1).padStart(2, '0'), label: new Date(2026, index, 1).toLocaleDateString('pt-BR', { month: 'long' }) }))} value={month} onChange={setMonth} />
+        </div>}
+        {filterCount > 0 && <div className="schedule-active-filters" aria-label="Filtros ativos">
+          {activeFilters.map(filter => <button type="button" key={filter.label} onClick={filter.clear} aria-label={`Remover filtro ${filter.label}`}>{filter.label}<Icon name="minus" size={14} /></button>)}
+          <button type="button" className="schedule-clear" onClick={() => { setOpponent(''); mudarFiltro('', ''); setMonth(''); setYear(''); }}>Limpar filtros</button>
+        </div>}
       </div>
 
-      <div className="schedule-toolbar">
-        <div className="schedule-group-control"><span>Agrupar por</span><div className="segmented-control" data-second={groupMode === 'week'} role="group" aria-label="Agrupamento por período">
-          <button aria-pressed={groupMode === 'month'} onClick={() => { setGroupMode('month'); setPeriod(''); }}>Mês</button>
-          <button aria-pressed={groupMode === 'week'} onClick={() => { setGroupMode('week'); setPeriod(''); }}>Semana</button>
-        </div></div>
-        <ViewToggle value={viewMode} onChange={setViewMode} />
-      </div>
-      <p className="schedule-help">{sortMode === 'priority' ? 'Ao vivo em destaque. Em cada dia: preparadas, agendadas, finalizadas e canceladas.' : 'Partidas organizadas por data e horário, independentemente da situação.'}</p>
+      {loading ? <Spinner /> : loadError ? <div className="notice-error" role="alert"><p>{loadError}</p><Btn variant="ghost" onClick={carregar}>Tentar novamente</Btn></div> : filtered.length === 0 ? <Empty icon="⚽" message={filterCount ? 'Nenhuma partida encontrada. Experimente ajustar os filtros.' : 'Nenhuma partida publicada para este clube.'} /> : <>
+        <p className="schedule-result-count" role="status">{filtered.length} partida(s){filterCount ? ' nos filtros selecionados' : ' no clube'}</p>
+        <div className="schedule-results">
+          {sections.map(section => <ScheduleSection key={section.id + filterKey} {...section} renderMatch={renderMatch} />)}
+        </div>
+      </>}
 
-      {loading ? <Spinner /> : loadError ? <div className="notice-error" role="alert">{loadError}</div> : visibleMatches.length === 0 ? <Empty icon="⚽" message="Nenhuma partida publicada para os filtros selecionados" /> : <div className={`schedule-results schedule-${viewMode}`}>
-        {liveMatches.length > 0 && <section className="live-section"><h2 className="section-title"><Icon name="live" size={17} /> Ao vivo agora <span>{liveMatches.length}</span></h2><BlockColumns list={viewMode==='list'}>{liveMatches.map(renderMatch)}</BlockColumns></section>}
-        {groups.map(group => <section className="schedule-period" key={group.key}>
-          <h2 className="period-heading"><Icon name="calendar" size={18} />{group.label}</h2>
-          {group.days.map(day => <section className="schedule-day" key={day.date}><h3 className="day-heading"><time dateTime={day.date}>{day.label}</time><span>{day.matches.length} partida(s)</span></h3><BlockColumns list={viewMode==='list'}>{day.matches.map(renderMatch)}</BlockColumns></section>)}
-        </section>)}
-      </div>}
-
-      <ConfirmDelete name={deleting?`partida ${deleting.id}`:null} busy={deleteBusy} error={deleteError} onClose={()=>setDeleting(null)} onConfirm={()=>void excluir()}/>
-      <Modal open={modal} onClose={() => setModal(false)} title="Nova partida">
+      <Modal open={modal} onClose={() => { if (!salvando) setModal(false); }} title="Nova partida">
         <form onSubmit={salvar} className="form-grid">
           <Select label="Categoria" options={catOpts} value={form.categoria_id} onChange={e => setForm(f => ({ ...f, categoria_id: e.target.value, mandante_id:'', visitante_id:'', competicao_id:'' }))} required className="full" />
           <Select label="Mandante" options={timeOpts} value={form.mandante_id} onChange={e => setForm(f => ({ ...f, mandante_id: e.target.value }))} required />
@@ -144,7 +194,7 @@ export default function PartidasPage() {
           <Select label="Mando" options={[{ value: 'true', label: 'Em casa' }, { value: 'false', label: 'Fora' }]} value={form.emCasa} onChange={e => setForm(f => ({ ...f, emCasa: e.target.value }))} />
           {erro && <div style={{ color: 'var(--titulo-erro)', fontSize: 13, gridColumn: '1/-1' }}>{erro}</div>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', gridColumn: '1/-1' }}>
-            <Btn variant="ghost" type="button" onClick={() => setModal(false)}>Cancelar</Btn>
+            <Btn variant="ghost" type="button" disabled={salvando} onClick={() => setModal(false)}>Cancelar</Btn>
             <Btn type="submit" disabled={salvando}>{salvando ? 'Salvando...' : 'Criar'}</Btn>
           </div>
         </form>

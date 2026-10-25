@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { fetchClubes, seguirClube, Clube } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Spinner, Empty, PapelBadge } from '../components/UI';
@@ -8,7 +8,7 @@ import { Icon } from '../components/Icon';
 import './SelecionarClube.css';
 
 export default function SelecionarClubePage() {
-  const { definirClube, logout } = useAuth();
+  const { definirClube, clube: clubeAtual } = useAuth();
   const navigate = useNavigate();
   const [clubes, setClubes] = useState<Clube[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,19 +20,19 @@ export default function SelecionarClubePage() {
     fetchClubes().then(setClubes).catch(() => setErro('Erro ao carregar clubes')).finally(() => setLoading(false));
   }, []);
 
-  async function selecionar(clube: Clube) {
-    setErro('');
-    if (clube.meuPapel) {
-      definirClube(clube);
-      navigate('/dashboard');
-      return;
-    }
+  function selecionar(clube: Clube) {
+    definirClube(clube);
+    navigate('/dashboard');
+  }
 
+  async function acompanhar(clube: Clube) {
+    setErro('');
     setSeguindoId(clube.id);
     try {
       const vinculo = await seguirClube(clube.id);
-      definirClube({ ...clube, meuPapel: vinculo.papel || 'TORCEDOR', isSeguindo: true });
-      navigate('/dashboard');
+      setClubes(atuais => atuais.map(item => item.id === clube.id
+        ? { ...item, meuPapel: vinculo.papel || 'TORCEDOR', isSeguindo: true }
+        : item));
     } catch (err: any) {
       setErro(err.message || 'Não foi possível acompanhar o clube');
     } finally {
@@ -48,14 +48,17 @@ export default function SelecionarClubePage() {
     <div className="selecionar-page">
       <div className="selecionar-header">
         <Brand />
-        <button className="btn btn-ghost btn-sm" onClick={logout}><Icon name="logout" size={16} />Sair</button>
+        <div className="selecionar-header-acoes">
+          {clubeAtual && <Link className="btn btn-ghost btn-md" to="/dashboard"><Icon name="chevronLeft" size={18} />Voltar ao clube</Link>}
+          <Link className="profile-link" to="/perfil" aria-label="Meu perfil"><Icon name="user" /></Link>
+        </div>
       </div>
       <div className="selecionar-body">
         <div className="selecionar-intro">
-          <span className="eyebrow">SUA TORCIDA TEM LUGAR AQUI</span>
-          <h1 className="selecionar-titulo">Encontre o seu clube</h1>
+          <span className="eyebrow">SEUS CLUBES NO LUDORA</span>
+          <h1 className="selecionar-titulo">{clubeAtual ? 'Trocar clube' : 'Escolha um clube'}</h1>
           <p className="selecionar-sub">
-            Busque e siga os clubes que você quer acompanhar.
+            Acesse um clube para acompanhar partidas ou gerenciar a equipe conforme seu papel.
           </p>
         </div>
         {loading && <Spinner />}
@@ -64,7 +67,7 @@ export default function SelecionarClubePage() {
         {meusClubes.length > 0 && <section className="my-clubs">
           <h2 className="section-title">Seus clubes</h2>
           <div className="my-clubs-list">{meusClubes.map(c => <button key={c.id} className="my-club" onClick={() => selecionar(c)}>
-            <ClubBadge src={c.escudo} size={50} /><span>{c.nome}</span>
+            <ClubBadge src={c.escudo} name={c.nome} size={50} /><span>{c.nome}</span>
           </button>)}</div>
         </section>}
         {!loading && clubes.length > 0 && <>
@@ -75,16 +78,17 @@ export default function SelecionarClubePage() {
         <div className="clube-grid">
           {encontrados.map(c => (
             <article key={c.id} className="clube-card">
-              <ClubBadge src={c.escudo} size={50} />
+              <ClubBadge src={c.escudo} name={c.nome} size={50} />
               <div className="clube-info">
                 <span className="clube-nome">{c.nome}</span>
                 {c.cidade && <span className="clube-cidade"><Icon name="location" size={13} />{c.cidade}{c.estado ? `, ${c.estado}` : ''}</span>}
                 {typeof c.seguidores === 'number' && <span className="clube-seguidores">{c.seguidores} torcedor(es)</span>}
               </div>
               {c.meuPapel && <PapelBadge papel={c.meuPapel} />}
-              <button className={`btn ${c.meuPapel ? 'btn-ghost' : 'btn-primary'} btn-sm clube-acao`} onClick={() => selecionar(c)} disabled={seguindoId === c.id}>
-                {seguindoId === c.id ? 'Aguarde...' : c.meuPapel ? 'Acessar clube' : 'Seguir clube'}
-              </button>
+              <div className="clube-acoes">
+                {!c.meuPapel && !c.isSeguindo && <button className="btn btn-ghost btn-md" onClick={() => acompanhar(c)} disabled={seguindoId !== null}>{seguindoId === c.id ? 'Seguindo…' : 'Seguir clube'}</button>}
+                <button className="btn btn-primary btn-md" onClick={() => selecionar(c)} disabled={seguindoId === c.id}>Acessar clube<Icon name="chevronRight" size={18} /></button>
+              </div>
             </article>
           ))}
         </div>

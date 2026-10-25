@@ -20,7 +20,29 @@
 .clube-nome { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
 .clube-cidade, .clube-seguidores { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--texto-sec); }
 .clube-acao { width: 100%; margin-top: 6px; }
+.selecionar-header-acoes {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.clube-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+}
+.clube-acoes .btn {
+  flex: 1;
+}
 @media (max-width: 600px) {
+  .selecionar-header {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .selecionar-header-acoes {
+    flex-wrap: wrap;
+  }
   .selecionar-body { padding: 30px 16px; }
   .selecionar-header { padding: 18px 16px; }
   .selecionar-titulo { font-size: 30px; }

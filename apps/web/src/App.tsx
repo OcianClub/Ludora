@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/Login';
@@ -18,9 +19,23 @@ import ConvitePage from './pages/Convite';
 
 function Protegida({ children }: { children: React.ReactNode }) {
   const { token, clube } = useAuth();
+  const { pathname } = useLocation();
   if (!token) return <Navigate to="/login" replace />;
-  if (!clube) return <Navigate to="/selecionar-clube" replace />;
+  if (!clube && pathname !== '/perfil') return <Navigate to="/selecionar-clube" replace />;
   return <>{children}</>;
+}
+
+function RouteNavigation() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      const content = document.querySelector<HTMLElement>('#main-content');
+      content?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pathname]);
+  return null;
 }
 
 function SoToken({ children }: { children: React.ReactNode }) {
@@ -33,6 +48,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <RouteNavigation />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/registrar" element={<RegistrarPage />} />

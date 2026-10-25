@@ -11,15 +11,19 @@ const output = path.resolve(__dirname, '../../../test-results/web-navigation');
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   const errors = [];
 
-  async function setup(width) {
+  async function setup(width, { role = 'ADMIN', withoutClub = false } = {}) {
     const context = await browser.newContext({ viewport: { width, height: 900 } });
-    await context.addInitScript(() => {
+    await context.addInitScript(({ role, withoutClub }) => {
+      if (sessionStorage.getItem('navigation-fixture-initialized')) return;
+      sessionStorage.setItem('navigation-fixture-initialized', 'true');
       localStorage.setItem('ludora_token', 'visual-test-only');
       localStorage.setItem('ludora_usuario', JSON.stringify({ id: 1, nome: 'Alex Morgan', email: 'visual@example.test' }));
-      localStorage.setItem('ludora_clube', JSON.stringify({ id: 2, nome: 'Ocian', meuPapel: 'ADMIN', plano: 'DEMO' }));
-      localStorage.setItem('ludora_clube_id', '2');
+      if (!withoutClub) {
+        localStorage.setItem('ludora_clube', JSON.stringify({ id: 2, nome: 'Ocian', meuPapel: role, plano: 'DEMO' }));
+        localStorage.setItem('ludora_clube_id', '2');
+      }
       localStorage.setItem('ludora_tema', 'dark');
-    });
+    }, { role, withoutClub });
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/*', route => {
@@ -28,9 +32,9 @@ const output = path.resolve(__dirname, '../../../test-results/web-navigation');
       if (new URL(req.url()).origin !== new URL(base).origin) return route.abort();
       return route.continue();
     });
-    await require('./visual-fixture.cjs').install(page);
-    await page.goto(base + '/dashboard');
-    await page.getByRole('heading', { name: 'Momento da categoria' }).waitFor();
+    await require('./visual-fixture.cjs').install(page, { role });
+    await page.goto(base + (withoutClub ? '/perfil' : '/dashboard'));
+    await page.getByRole('heading', { name: withoutClub ? 'Meu perfil' : 'Momento da categoria', exact: true }).waitFor();
     return { context, page };
   }
 
@@ -104,8 +108,8 @@ const output = path.resolve(__dirname, '../../../test-results/web-navigation');
       }
       assert.equal((await page.locator('.workspace').boundingBox()).x, workspaceX);
       assert.equal(await sidebar.locator('.brand > span').evaluate(el => getComputedStyle(el).visibility), 'visible');
-      assert.equal(await sidebar.getByRole('switch', { name: 'Tema escuro' }).evaluate(el => getComputedStyle(el).borderRadius), '10px');
-      assert.equal(await sidebar.locator('.theme-switch-thumb').evaluate(el => getComputedStyle(el).borderRadius), '7px');
+      assert.equal(await sidebar.getByRole('switch').count(), 0, 'Preferências concentradas no perfil');
+      assert.equal(await sidebar.getByRole('button', { name: 'Sair da conta' }).count(), 0);
       await page.screenshot({ path: path.join(output, 'desktop-expanded.png'), fullPage: true });
       await sidebar.getByRole('link', { name: 'Partidas', exact: true }).click();
       await page.mouse.move(600, 400);
@@ -123,6 +127,8 @@ const output = path.resolve(__dirname, '../../../test-results/web-navigation');
         await checkHeaderAndDrawer(page, width);
         assert.equal(await page.locator('.sidebar').isVisible(), false);
         assert.equal(await page.locator('.header-profile-link').isVisible(), true);
+        assert.equal(await page.locator('.switch-club-link').isVisible(), false);
+        assert.equal(await page.locator('.current-club > .icon:last-child').isVisible(), true);
         const nav = page.getByRole('navigation', { name: 'Navegação principal no celular' });
         const box = await nav.boundingBox();
         assert.equal(Math.round(box.y + box.height), 900);
@@ -133,12 +139,42 @@ const output = path.resolve(__dirname, '../../../test-results/web-navigation');
         await page.getByRole('button', { name: 'Mais opções de navegação' }).click();
         const dialog = page.getByRole('dialog', { name: 'Mais opções' });
         await dialog.waitFor();
+        await dialog.evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished)));
+        const sheetBox = await dialog.boundingBox();
+        assert.ok(Math.abs(sheetBox.y + sheetBox.height - 900) < 1, 'Menu Mais encostado à base da tela');
+        assert.equal(Math.round(sheetBox.width), Math.min(width, 540), 'Menu Mais ocupa a largura útil sem se esticar no tablet');
+        assert.equal(await dialog.getByRole('heading', { name: 'Gestão do clube' }).isVisible(), true);
         assert.equal(await dialog.getByRole('link', { name: 'Pessoas e acessos' }).isVisible(), true);
-        assert.equal(await dialog.getByRole('switch', { name: 'Tema escuro' }).isVisible(), true);
+        assert.equal(await dialog.getByRole('link', { name: 'Trocar clube' }).count(), 0);
+        assert.equal(await dialog.getByRole('button', { name: 'Sair da conta' }).count(), 0);
+        assert.equal(await dialog.getByRole('switch', { name: 'Tema escuro' }).count(), 0);
+        await page.screenshot({ path: path.join(output, `more-${width}.png`), animations: 'disabled' });
         await dialog.getByRole('link', { name: 'Times', exact: true }).click();
         await page.waitForURL('**/times');
         assert.equal(await dialog.count(), 0);
         await page.screenshot({ path: path.join(output, `mobile-${width}.png`), fullPage: true });
+        await page.locator('.header-profile-link').click();
+        await page.waitForURL('**/perfil');
+        assert.equal(await page.getByRole('tab', { name: 'Dados pessoais' }).getAttribute('aria-selected'), 'true');
+        await page.getByRole('textbox', { name: 'Nome', exact: true }).fill('Nome em edição');
+        await page.getByRole('tab', { name: 'Preferências', exact: true }).click();
+        assert.equal(await page.getByRole('heading', { name: 'Preferências', exact: true }).isVisible(), true);
+        assert.equal(await page.getByRole('textbox', { name: 'Nome', exact: true }).isVisible(), false);
+        assert.equal(await page.getByRole('switch', { name: 'Tema escuro' }).isVisible(), true);
+        const notificationPreference = page.getByRole('switch', { name: 'Receber notificações' });
+        assert.equal(await notificationPreference.isVisible(), true);
+        assert.equal(await notificationPreference.getAttribute('aria-checked'), 'true');
+        await notificationPreference.click();
+        await page.waitForFunction(() => document.querySelector('.perfil-switch')?.getAttribute('aria-checked') === 'false');
+        await page.getByRole('tab', { name: 'Dados pessoais' }).click();
+        assert.equal(await page.getByRole('textbox', { name: 'Nome', exact: true }).inputValue(), 'Nome em edição');
+        await page.getByRole('tab', { name: 'Conta', exact: true }).click();
+        await page.getByRole('button', { name: 'Sair da conta', exact: true }).click();
+        const logoutDialog = page.getByRole('dialog', { name: 'Sair da conta?' });
+        await logoutDialog.waitFor();
+        await logoutDialog.getByRole('button', { name: 'Continuar na conta' }).click();
+        assert.ok(await page.evaluate(() => Boolean(localStorage.getItem('ludora_token'))));
+        if (width === 390) await page.screenshot({ path: path.join(output, 'profile-preferences-390.png'), fullPage: true });
         await page.getByRole('button', { name: 'Mais opções de navegação' }).click();
         await page.setViewportSize({ width: 1024, height: 900 });
         assert.equal(await page.getByRole('dialog').count(), 0);
@@ -159,6 +195,50 @@ const output = path.resolve(__dirname, '../../../test-results/web-navigation');
         await checkAlignment(page);
         await page.screenshot({ path: path.join(output, `header-light-long-${width}.png`), animations: 'disabled' });
         console.log(`PASS ${width}px: tema claro, nome longo, sino neutro, painel e leitura de avisos`);
+      } finally { await context.close(); }
+    }
+    {
+      const { context, page } = await setup(390);
+      try {
+        const writes = [];
+        page.on('request', request => { if (request.method() !== 'GET') writes.push(request.url()); });
+        await page.locator('.current-club').click();
+        await page.getByRole('heading', { name: 'Trocar clube', exact: true }).waitFor();
+        await page.getByRole('link', { name: 'Voltar ao clube' }).click();
+        await page.waitForURL('**/dashboard');
+        await page.locator('.current-club').click();
+        await page.locator('.clube-card').filter({ hasText: 'Santos' }).getByRole('button', { name: 'Acessar clube' }).click();
+        await page.waitForURL('**/dashboard');
+        assert.equal(await page.locator('.current-club strong').innerText(), 'Santos');
+        assert.equal(await page.locator('.current-club-role').innerText(), 'Visualização pública');
+        assert.deepEqual(writes, [], 'Acessar um clube não deve seguir automaticamente');
+        await page.getByRole('button', { name: 'Mais opções de navegação' }).click();
+        const more = page.getByRole('dialog', { name: 'Mais opções' });
+        assert.equal(await more.getByRole('link', { name: 'Pessoas e acessos' }).count(), 0);
+        await page.keyboard.press('Escape');
+        await page.locator('.header-profile-link').click();
+        await page.getByRole('tab', { name: 'Conta', exact: true }).click();
+        await page.getByRole('button', { name: 'Sair da conta', exact: true }).click();
+        await page.getByRole('button', { name: 'Confirmar saída' }).click();
+        await page.waitForURL('**/login');
+        assert.equal(await page.evaluate(() => localStorage.getItem('ludora_token')), null);
+        assert.equal(await page.evaluate(() => localStorage.getItem('ludora_clube')), null);
+        console.log('PASS troca pública de clube, permissões e encerramento de sessão');
+      } finally { await context.close(); }
+    }
+    {
+      const { context, page } = await setup(390, { withoutClub: true });
+      try {
+        await page.getByRole('tab', { name: 'Preferências', exact: true }).click();
+        await page.getByRole('switch', { name: 'Tema escuro' }).click();
+        assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
+        await page.getByRole('button', { name: 'Usar tema do dispositivo' }).click();
+        assert.equal(await page.evaluate(() => localStorage.getItem('ludora_tema')), 'system');
+        await page.getByRole('tab', { name: 'Conta', exact: true }).click();
+        await page.getByRole('button', { name: 'Sair da conta', exact: true }).click();
+        await page.keyboard.press('Escape');
+        assert.equal(await page.getByRole('dialog').count(), 0);
+        console.log('PASS perfil e preferências acessíveis sem clube selecionado');
       } finally { await context.close(); }
     }
     assert.deepEqual(errors, []);

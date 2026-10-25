@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  fetchPartidas, atualizarStatusPartida, fetchEventosPartida, registrarEvento, deletarEvento,
+  fetchPartidas, deletarPartida, atualizarStatusPartida, fetchEventosPartida, registrarEvento, deletarEvento,
   fetchEscalacao, salvarEscalacao, fetchJogadoresPerfis, fetchTimes,
   Partida, Evento, EscalacaoItem, PerfilJogador, Time, BASE_URL
 } from '../services/api';
@@ -14,6 +14,7 @@ import { formatMatchDate } from '../components/MatchCard';
 import { Icon } from '../components/Icon';
 import { EVENT_TYPES, EventIcon } from '../components/EventIcon';
 import { MatchEditor, ScoreEditor } from '../components/MatchEditors';
+import { ConfirmDelete } from '../components/CollectionControls';
 
 const STATUS_NEXT: Record<string, string> = { AGENDADA: 'PREPARADA', PREPARADA: 'AO_VIVO', AO_VIVO: 'FINALIZADA' };
 const STATUS_BTN: Record<string, string> = { AGENDADA: 'Iniciar preparação', PREPARADA: 'Iniciar partida', AO_VIVO: 'Finalizar partida' };
@@ -40,6 +41,9 @@ export default function PartidaDetalhePage() {
   const [savingStatus, setSavingStatus] = useState(false);
   const [savingLineup, setSavingLineup] = useState(false);
   const [deletingEvent, setDeletingEvent] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const refreshVersion = useRef(0);
 
   // modal evento
@@ -346,6 +350,25 @@ export default function PartidaDetalhePage() {
           </div>
         </div>
       )}
+
+      {podeGerenciar && <section className="match-management">
+        <div><h2>Gestão da partida</h2><p>A exclusão remove esta partida do clube e não pode ser desfeita.</p></div>
+        <Btn variant="danger" disabled={savingStatus || savingLineup || salvandoEvento || deletingEvent !== null || deleteBusy} onClick={() => { setDeleteError(''); setConfirmDelete(true); }}><Icon name="trash" size={17} />Excluir partida</Btn>
+      </section>}
+      <ConfirmDelete name={confirmDelete ? `${mandante?.nome || partida.mandante?.nome || 'Mandante'} × ${visitante?.nome || partida.visitante?.nome || 'Visitante'}` : null}
+        busy={deleteBusy} error={deleteError} onClose={() => setConfirmDelete(false)} onConfirm={async () => {
+          if (deleteBusy || !podeGerenciar) return;
+          setDeleteBusy(true);
+          setDeleteError('');
+          try {
+            await deletarPartida(partida.id);
+            navigate('/partidas', { replace: true });
+          } catch (error) {
+            setDeleteError(error instanceof Error ? error.message : 'Não foi possível excluir a partida. Tente novamente.');
+          } finally {
+            setDeleteBusy(false);
+          }
+        }} />
 
       {/* Modal de evento */}
       {editor === 'match' && <MatchEditor partida={partida} times={times} onClose={() => setEditor(null)} onSaved={onEdited} />}

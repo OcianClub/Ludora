@@ -9,7 +9,7 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createStyles } from "../../../src/styles/perfilStyles";
 import { Header } from "@/src/components/Header";
 import { ConfirmacaoConta } from '@/src/components/ConfirmacaoConta';
@@ -25,6 +25,13 @@ import type { PreferenciaTema } from '@/src/utils/tema';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import DadosPessoais from "./dadosPessoais/dadosPessoais";
+
+const SECOES = [
+  { id: 'dados', label: 'Dados pessoais' },
+  { id: 'preferencias', label: 'Preferências' },
+  { id: 'conta', label: 'Conta' },
+] as const;
+type SecaoPerfil = typeof SECOES[number]['id'];
 
 interface CardMenuProps {
   titulo: string;
@@ -78,6 +85,8 @@ function CardMenu({
 }
 
 export default function Perfil() {
+  const [secao, setSecao] = useState<SecaoPerfil>('dados');
+  const scrollRef = useRef<ScrollView>(null);
   const { colors, preferenciaTema, carregandoTema, definirPreferenciaTema } = useTheme();
   const insets = useSafeAreaInsets();
   const [modalTema, setModalTema] = useState(false);
@@ -190,12 +199,35 @@ export default function Perfil() {
         papelUsuario={clubeAtivo?.papel ?? undefined}
       />
 
+      <View style={styles.sectionTabs} accessibilityRole="tablist">
+        {SECOES.map(item => (
+          <TouchableOpacity
+            key={item.id}
+            style={[styles.sectionTab, secao === item.id && styles.sectionTabActive]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: secao === item.id }}
+            activeOpacity={0.75}
+            onPress={() => {
+              setSecao(item.id);
+              scrollRef.current?.scrollTo({ y: 0, animated: false });
+            }}
+          >
+            <Text style={[styles.sectionTabText, secao === item.id && styles.sectionTabTextActive]}>{item.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* HEADER DO PERFIL */}
+        {secao === 'dados' && <>
+        <View style={styles.sectionIntro}>
+          <Text style={styles.pageSectionTitle} accessibilityRole="header">Dados pessoais</Text>
+          <Text style={styles.sectionDescription}>Suas informações de identificação e acesso.</Text>
+        </View>
         <View style={styles.profileHeader}>
           <View style={styles.avatarWrapper}>
             <View style={styles.avatar}>
@@ -211,7 +243,6 @@ export default function Perfil() {
           <Text style={styles.nomeUsuario}>
             {nome || "Usuário"}
           </Text>
-          {!!email && <Text style={styles.profileEmail} numberOfLines={1}>{email}</Text>}
 
           {membroDesde ? (
             <Text style={styles.dataMembro}>
@@ -221,39 +252,38 @@ export default function Perfil() {
           </View>
         </View>
 
-        {/* CONTA */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              CONTA
-            </Text>
-          </View>
-
           <View style={styles.menu}>
+            <View style={styles.personalInfoRow}>
+              <Text style={styles.personalInfoLabel}>Nome</Text>
+              <Text style={styles.personalInfoValue} selectable>{nome || 'Não informado'}</Text>
+            </View>
+            <View style={styles.personalInfoRow}>
+              <Text style={styles.personalInfoLabel}>E-mail</Text>
+              <Text style={styles.personalInfoValue} selectable>{email || 'Não informado'}</Text>
+            </View>
             <CardMenu
-              titulo="Dados pessoais"
-              subtitulo="Informações da sua conta"
-              icone="account-outline"
+              titulo="Editar meus dados"
+              subtitulo="Nome, e-mail e senha"
+              icone="pencil-outline"
               action={() =>
                 setModalDadosPessoais(true)
               }
-            />
-
-            <CardMenu
-              titulo="Notificações"
-              subtitulo="Histórico de avisos do clube"
-              icone="bell-outline"
-              action={() => router.push('perfil/notificacoes')}
               ultimo
             />
           </View>
         </View>
+        </>}
 
-        {/* NOTIFICAÇÕES */}
+        {secao === 'preferencias' && <>
+        <View style={styles.sectionIntro}>
+          <Text style={styles.pageSectionTitle} accessibilityRole="header">Preferências</Text>
+          <Text style={styles.sectionDescription}>Personalize o tema e os avisos do Ludora.</Text>
+        </View>
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
-              PREFERÊNCIAS
+              NOTIFICAÇÕES
             </Text>
           </View>
 
@@ -297,6 +327,18 @@ export default function Perfil() {
               ultimo
             />
             <View style={styles.menuDivider} />
+            <CardMenu
+              titulo="Histórico de notificações"
+              subtitulo="Consulte os avisos do clube atual"
+              icone="bell-outline"
+              action={() => router.push('perfil/notificacoes')}
+              ultimo
+            />
+          </View>
+        </View>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>APARÊNCIA</Text></View>
+          <View style={styles.menu}>
             <TouchableOpacity
               style={styles.themeSettingRow}
               onPress={() => setModalTema(true)}
@@ -313,13 +355,31 @@ export default function Perfil() {
             </TouchableOpacity>
           </View>
         </View>
+        </>}
 
-        {/* SESSÃO */}
+        {secao === 'conta' && <>
+        <View style={styles.sectionIntro}>
+          <Text style={styles.pageSectionTitle} accessibilityRole="header">Conta</Text>
+          <Text style={styles.sectionDescription}>Gerencie seus dados de acesso e sua sessão neste aparelho.</Text>
+        </View>
+        <View style={styles.section}>
+          <View style={styles.menu}>
+            <CardMenu
+              titulo="Gerenciar conta"
+              subtitulo="Segurança, acesso e exclusão da conta"
+              icone="lock-outline"
+              action={() => setModalDadosPessoais(true)}
+              ultimo
+            />
+          </View>
+        </View>
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.logoutButton}
             activeOpacity={0.75}
             onPress={() => setModalSair(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Sair da conta"
           >
             <View style={styles.logoutIcon}>
               <Icon
@@ -343,6 +403,7 @@ export default function Perfil() {
             />
           </TouchableOpacity>
         </View>
+        </>}
       </ScrollView>
 
       {modalNotificacoes && <PreferenciasNotificacoes onFechar={() => setModalNotificacoes(false)} />}

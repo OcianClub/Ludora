@@ -57,9 +57,29 @@ select.field-input option { background: var(--fundo-card-sec); }
   letter-spacing: 0.3px;
 }
 .status-agendada   { background: var(--fundo-botao); color: var(--primaria); }
-.status-preparada  { background: var(--fundo-atencao); color: var(--amarelo); }
-.status-ao-vivo    { background: var(--fundo-erro); color: var(--titulo-erro); }
-.status-ao-vivo::before { content: ''; display: inline-block; width: 5px; height: 5px; background: currentColor; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.status-preparada  { background: var(--fundo-atencao); color: var(--titulo-atencao); }
+.status-ao-vivo,
+.home-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--ao-vivo-borda);
+  border-radius: 9px;
+  background: var(--ao-vivo-fundo);
+  color: var(--ao-vivo-texto);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.status-ao-vivo::before,
+.home-live i {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--ao-vivo-indicador);
+}
 .status-finalizada { background: var(--fundo-card-sec); color: var(--texto-sec); }
 .status-cancelada  { background: var(--fundo-erro); color: var(--titulo-erro); }
 
@@ -71,9 +91,9 @@ select.field-input option { background: var(--fundo-card-sec); }
   font-weight: 700;
   letter-spacing: 0.5px;
 }
-.papel-admin   { background: #0e3060; color: var(--primaria); }
-.papel-tecnico { background: var(--fundo-atencao); color: var(--amarelo); }
-.papel-mesario { background: #2a2011; color: var(--amarelo); }
+.papel-admin   { background: var(--fundo-botao); color: var(--primaria); }
+.papel-tecnico { background: var(--fundo-atencao); color: var(--titulo-atencao); }
+.papel-mesario { background: var(--fundo-atencao); color: var(--titulo-atencao); }
 .papel-torcedor{ background: var(--fundo-card-sec); color: var(--texto-sec); }
 
 /* ── Modal ── */
@@ -108,6 +128,21 @@ select.field-input option { background: var(--fundo-card-sec); }
 }
 .modal-close:hover { color: var(--texto); }
 .modal-body { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.logout-dialog .modal-close {
+  min-width: 44px;
+  min-height: 44px;
+}
+.logout-dialog p {
+  color: var(--texto-sec);
+  line-height: 1.6;
+}
+.logout-dialog .collection-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
 
 /* ── Spinner ── */
 .spinner {

@@ -79,3 +79,10 @@ export const lightColors = {
 } as const;
 
 export const colors = darkColors;
+
+export const liveBadgeColors = {
+  fundo: '#36171E',
+  borda: '#853247',
+  texto: '#FFFFFF',
+  indicador: '#F43F5E',
+} as const;

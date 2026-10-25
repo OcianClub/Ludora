@@ -1,4 +1,3 @@
-import { ThemeToggle } from './ThemeToggle';
 import { useEffect, useState } from 'react';
 import { Notifications } from './Notifications';
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
@@ -22,10 +21,11 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function Layout() {
-  const { usuario, clube, logout } = useAuth();
+  const { usuario, clube } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const role = clube?.meuPapel ? ROLE_LABELS[clube.meuPapel] || clube.meuPapel : 'Visualização pública';
+  const gerenciaClube = ['ADMIN', 'TECNICO', 'MESARIO'].includes(clube?.meuPapel || '');
   const extraLinks = NAV.slice(4);
   const moreActive = extraLinks.some(item => location.pathname.startsWith(item.to)) || location.pathname === '/membros';
   useEffect(() => {
@@ -34,6 +34,15 @@ export default function Layout() {
     media.addEventListener('change', closeOnDesktop);
     return () => media.removeEventListener('change', closeOnDesktop);
   }, []);
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [location.pathname, clube?.id]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = overflow; };
+  }, [moreOpen]);
   return (
     <div className="layout">
       <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
@@ -46,7 +55,20 @@ export default function Layout() {
         <span className="sidebar-label">MEU CLUBE</span>
         
         <nav className="sidebar-nav" aria-label="Navegação principal">
-          {NAV.map(item => (
+          {NAV.slice(0, 4).map(item => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              aria-label={item.label}
+              title={item.label}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon"><Icon name={item.icon} /></span>
+              <span className="nav-label">{item.label}</span>
+            </NavLink>
+          ))}
+          <span className="sidebar-group-label">{gerenciaClube ? 'GESTÃO' : 'CLUBE'}</span>
+          {NAV.slice(4).map(item => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -62,20 +84,14 @@ export default function Layout() {
         </nav>
 
         <div className="sidebar-footer">
-          <ThemeToggle />
-
-          <Link to="/perfil" className="sidebar-usuario" aria-label="Meu perfil" title="Meu perfil">
+          <NavLink to="/perfil" className="sidebar-usuario" aria-label="Meu perfil" title="Meu perfil e preferências">
             <span className="usuario-avatar">{usuario?.nome?.[0] || '?'}</span>
             <span className="usuario-info">
               <strong>{usuario?.nome || 'Meu perfil'}</strong>
-              <small>Minha conta</small>
+              <small>Conta e preferências</small>
             </span>
             <Icon name="chevronRight" size={16} />
-          </Link>
-
-          <button className="btn-logout" onClick={logout} aria-label="Sair da conta" title="Sair da conta">
-            <Icon name="logout" size={18} /><span>Sair da conta</span>
-          </button>
+          </NavLink>
         </div>
       </aside>
 
@@ -84,10 +100,11 @@ export default function Layout() {
           <div className="workspace-header-inner">
             <Link to="/selecionar-clube" className="current-club" title={`${clube?.nome || 'Selecione um clube'} · ${role}`} aria-label={`${clube?.nome || 'Selecione um clube'}, ${role}. Trocar clube`}>
               <ClubBadge src={clube?.escudo} name={clube?.nome} size={46} />
-              <span>
+              <span className="current-club-copy">
                 <strong>{clube?.nome || 'Selecione um clube'}</strong>
                 <small className="current-club-role">{role}</small>
               </span>
+              <Icon name="chevronRight" size={16} />
             </Link>
 
             <div className="workspace-actions">
@@ -96,9 +113,9 @@ export default function Layout() {
                 <span>Trocar clube</span>
               </Link>
               <Notifications />
-              <Link to="/perfil" className="profile-link header-profile-link" aria-label="Meu perfil">
+              <NavLink to="/perfil" className="profile-link header-profile-link" aria-label="Meu perfil">
                 <Icon name="user" />
-              </Link>
+              </NavLink>
             </div>
           </div>
         </header>
@@ -122,22 +139,35 @@ export default function Layout() {
             <span className="nav-icon"><Icon name="grid" size={23} /></span><span>Mais</span>
           </button>
         </nav>
-        <Modal open={moreOpen} onClose={() => setMoreOpen(false)} title="Mais opções">
-          <nav className="mobile-more-links" aria-label="Outras páginas">
+        <Modal open={moreOpen} onClose={() => setMoreOpen(false)} title="Mais opções" className="mobile-more-sheet">
+          <div className="mobile-more-club">
+            <ClubBadge src={clube?.escudo} name={clube?.nome} size={44} />
+            <span>
+              <strong>{clube?.nome || 'Selecione um clube'}</strong>
+              <small>{role}</small>
+            </span>
+          </div>
+
+          <section className="mobile-more-section" aria-labelledby="mobile-more-management">
+            <h3 id="mobile-more-management">{gerenciaClube ? 'Gestão do clube' : 'Sobre o clube'}</h3>
+            <nav className="mobile-more-links" aria-label="Gestão do clube">
             {extraLinks.map(item => (
-              <NavLink key={item.to} to={item.to} className="nav-item" onClick={() => setMoreOpen(false)}>
-                <Icon name={item.icon} /><span>{item.label}</span>
+              <NavLink key={item.to} to={item.to} className="mobile-more-item" aria-label={item.label} onClick={() => setMoreOpen(false)}>
+                <span className="mobile-more-item-icon"><Icon name={item.icon} /></span>
+                <span>{item.label}</span>
+                <Icon name="chevronRight" size={18} />
               </NavLink>
             ))}
             {clube?.meuPapel === 'ADMIN' && (
-              <NavLink to="/membros" className="nav-item" onClick={() => setMoreOpen(false)}>
-                <Icon name="user" /><span>Pessoas e acessos</span>
+              <NavLink to="/membros" className="mobile-more-item" aria-label="Pessoas e acessos" onClick={() => setMoreOpen(false)}>
+                <span className="mobile-more-item-icon"><Icon name="user" /></span>
+                <span>Pessoas e acessos</span>
+                <Icon name="chevronRight" size={18} />
               </NavLink>
             )}
-          </nav>
-          <div className="mobile-more-theme"><span>Aparência</span><ThemeToggle /></div>
-          <Link to="/selecionar-clube" className="nav-item" onClick={() => setMoreOpen(false)}><Icon name="switchClub" /><span>Trocar clube</span></Link>
-          <button className="btn-logout" onClick={logout}><Icon name="logout" size={20} /><span>Sair da conta</span></button>
+            </nav>
+          </section>
+
         </Modal>
       </div>
     </div>

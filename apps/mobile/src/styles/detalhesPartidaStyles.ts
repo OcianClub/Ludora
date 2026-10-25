@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { typography } from '@ludora/design-tokens';
+import { typography, liveBadgeColors } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 export const createStyles = (colors: ThemeColors) =>
@@ -214,23 +214,23 @@ export const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      backgroundColor: colors.fundoErro,
+      backgroundColor: liveBadgeColors.fundo,
       paddingHorizontal: 10,
       paddingVertical: 4,
-      borderRadius: 10,
+      borderRadius: 9,
       borderWidth: 1,
-      borderColor: colors.bordaErro,
+      borderColor: liveBadgeColors.borda,
       marginTop: 8,
     },
     liveDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: colors.tituloErro,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: liveBadgeColors.indicador,
     },
     liveBadgeText: {
       fontFamily: typography.fontFamily.corpo.semiBold,
-      color: colors.tituloErro,
+      color: liveBadgeColors.texto,
       fontSize: 10,
       letterSpacing: 1,
     },

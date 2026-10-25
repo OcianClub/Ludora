@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { typography } from '@ludora/design-tokens';
+import { typography, liveBadgeColors } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 // Escala local da Home: superfícies amplas, elementos compactos e controles.
@@ -26,19 +26,21 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   badge: { borderRadius: radius.badge, backgroundColor: colors.fundoBotao, paddingVertical: 6, paddingHorizontal: 10 },
   badgeText: { color: colors.primaria, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 11 },
   liveBadge: {
-    backgroundColor: "#36171e",
-    borderRadius: 6,
+    backgroundColor: liveBadgeColors.fundo,
+    borderWidth: 1,
+    borderColor: liveBadgeColors.borda,
+    borderRadius: 9,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  liveText: { color: "white" },
+  liveText: { color: liveBadgeColors.texto },
   liveDot: {
-  width: 7,
-  height: 7,
-  borderRadius: 50,
-  backgroundColor: '#FF3B30', // Cor independente da bolinha
-},
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: liveBadgeColors.indicador,
+  },
   mainCard: { backgroundColor: colors.card, padding: 20, borderRadius: radius.surface, borderWidth: 1, borderColor: colors.borda, marginBottom: 28 },
   mainCardAoVivo: { borderColor: colors.primaria },
   matchHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'space-between', marginBottom: 24 },

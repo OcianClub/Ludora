@@ -57,7 +57,7 @@ export interface Clube {
   seguidores?: number;
 }
 export interface Usuario { id: number; nome: string; email: string; criadoEm?: string; }
-export interface PerfilUsuario extends Usuario { clubes: Clube[]; }
+export interface PerfilUsuario extends Usuario { clubes: Clube[]; notificacoes_ativas?: boolean; }
 export interface Categoria { id: number; nome: string; tipo: string; clube_id: number; }
 export interface Time { id: number; nome: string; escudo?: string; categoria_id?: number; clube_representado_id?: number | null; clubeRepresentado?: Clube | null; }
 export interface Jogador { id: number; nome: string; cpf: string; dtNasc: string; posicao: string; numCamisa?: number; ativo: boolean; perfil_ml?: string; nota_geral?: number; categoria_id: number; }
@@ -88,8 +88,8 @@ export async function login(email: string, senha: string) {
   };
   return { ...data, usuario } as { token: string; usuario: Usuario; clubes?: Clube[] };
 }
-export async function fetchMeuPerfil(): Promise<PerfilUsuario> {
-  const res = await apiFetch('/usuarios/me');
+export async function fetchMeuPerfil(signal?: AbortSignal): Promise<PerfilUsuario> {
+  const res = await apiFetch('/usuarios/me', { signal });
   if (!res.ok) throw new Error((await res.json()).error || 'Erro ao carregar perfil');
   return res.json();
 }
@@ -98,6 +98,13 @@ export async function atualizarMeuPerfil(dados: { nome: string; email: string; s
   const res = await apiFetch('/usuarios/me', { method: 'PATCH', body: JSON.stringify(dados) });
   if (!res.ok) throw new Error((await res.json()).error || 'Erro ao atualizar perfil');
   return res.json();
+}
+
+export async function atualizarPreferenciaNotificacoes(ativa: boolean): Promise<{ ativa: boolean }> {
+  return requestJson('/usuarios/me/notificacoes', {
+    method: 'PATCH',
+    body: JSON.stringify({ ativa }),
+  });
 }
 
 // ── CLUBES ──

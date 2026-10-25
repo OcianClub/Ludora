@@ -1,6 +1,6 @@
 // Dados exclusivamente do teste: intercepta o HTTP no navegador, sem banco.
-exports.install = async function install(page) {
-  const clubes=[{id:2,nome:'Ocian',meuPapel:'ADMIN'},{id:3,nome:'Santos',meuPapel:null},{id:4,nome:'Ludora FC',meuPapel:null}].map(c=>({...c,plano:'DEMO',cidade:'Praia Grande',estado:'SP'}));
+exports.install = async function install(page, { role = 'ADMIN' } = {}) {
+  const clubes=[{id:2,nome:'Ocian',meuPapel:role},{id:3,nome:'Santos',meuPapel:null},{id:4,nome:'Ludora FC',meuPapel:null}].map(c=>({...c,plano:'DEMO',cidade:'Praia Grande',estado:'SP'}));
   const usuario={id:1,nome:'Alex Morgan',email:'visual@example.test'};
   const categorias=[7,8,9,10,12,14,16,18].map((n,i)=>({id:i+1,nome:`sub-${n}`,faixaIdade:n,tipo:n<=10?'INICIACAO':'BASE',clube_id:2}));
   const times=categorias.flatMap(c=>['Aurora FC','Estrela Azul','Ludora FC','Ocian','Santos','União Esportiva'].map((nome,i)=>{
@@ -18,8 +18,12 @@ exports.install = async function install(page) {
   Object.assign(shared,{somente_leitura:true,clube_origem_id:3,categoria_id:99,categoria:{...shared.categoria,id:99,clube_id:3}});
   await page.route('http://localhost:3000/**',async route=>{
     const pathname=new URL(route.request().url()).pathname;
+    if(pathname==='/usuarios/me/notificacoes'&&route.request().method()==='PATCH'){
+      const ativa=JSON.parse(route.request().postData()||'{}').ativa;
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ativa})});
+    }
     const responses={
-      '/auth/login':{token:'visual-test-only',usuario},'/usuarios/me':{...usuario,clubes},'/clubes':clubes,'/categorias':categorias,'/times':times,
+      '/auth/login':{token:'visual-test-only',usuario},'/usuarios/me':{...usuario,notificacoes_ativas:true,clubes},'/clubes':clubes,'/categorias':categorias,'/times':times,
       '/jogadores':jogadores,'/jogadores/perfis':jogadores,'/partidas':partidas,'/partidas/home':partidas,'/competicoes':competicoes,
       '/membros':[{id:1,usuario,papel:'ADMIN',acesso_todas_categorias:true,categorias:[]},{id:2,usuario:{id:2,nome:'James Walker'},papel:'TORCEDOR',acesso_todas_categorias:false,categorias:[]}],
       '/notificacoes':{totalNaoLidas:1,notificacoes:[{id:1,titulo:'Partida ao vivo',corpo:'Dados controlados de teste visual.',lida:false,partida_id:105,criada_em:new Date().toISOString()}]},

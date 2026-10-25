@@ -5,39 +5,65 @@
   width: max-content;
   max-width: 100%;
 }
-.theme-switch {
+
+.settings-switch {
   position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  place-items: center;
-  width: 88px;
+  width: 52px;
   height: 44px;
-  padding: 3px;
-  border: 1px solid var(--borda);
-  border-radius: 10px;
-  background: var(--fundo-card-sec);
-  color: var(--texto-sec);
-  isolation: isolate;
+  flex: 0 0 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
 }
-.theme-switch-thumb {
+
+.settings-switch::before {
+  content: '';
   position: absolute;
-  top: 3px;
-  left: 5px;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--borda-botao);
-  border-radius: 7px;
-  background: var(--fundo-botao);
-  transition: transform .18s ease;
-  z-index: -1;
+  inset: 8px 0;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--fundo-card-sec);
+  transition: background .18s ease, border-color .18s ease;
 }
-.theme-switch[aria-checked="true"] .theme-switch-thumb {
-  transform: translateX(40px);
+
+.settings-switch .settings-switch-thumb {
+  position: absolute;
+  top: 12px;
+  left: 4px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--texto-sec);
+  color: #fff;
+  transition: transform .18s ease, background .18s ease;
 }
-.theme-switch[aria-checked="false"] .theme-switch-sun,
-.theme-switch[aria-checked="true"] .theme-switch-moon {
-  color: var(--primaria);
-}
-.theme-switch:hover {
+
+.settings-switch[aria-checked="true"]::before {
   border-color: var(--borda-botao);
+  background: var(--fundo-botao);
+}
+
+.settings-switch[aria-checked="true"] .settings-switch-thumb {
+  transform: translateX(24px);
+  background: var(--primaria);
+}
+
+.settings-switch:focus-visible {
+  outline: 2px solid var(--primaria);
+  outline-offset: 2px;
+}
+
+.settings-switch:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-switch::before,
+  .settings-switch .settings-switch-thumb {
+    transition: none;
+  }
 }

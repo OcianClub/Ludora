@@ -1,6 +1,6 @@
 .dashboard {
   --home-loss: #E5485D;
-  --home-draw: #F2B544;
+  --home-draw: var(--resultado-empate);
 }
 .home-swipe-surface {
   overflow-x: clip;
@@ -222,23 +222,9 @@
   margin-bottom: 20px;
 }
 .home-live {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
   padding: 7px 12px;
-  border-radius: 20px;
-  color: var(--titulo-erro);
-  background: var(--fundo-erro);
   font-size: 12px;
-  text-transform: uppercase;
   font-weight: 600;
-  white-space: nowrap;
-}
-.home-live i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
 }
 .home-main-match {
   background: var(--fundo-card);
