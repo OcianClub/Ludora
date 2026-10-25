@@ -17,6 +17,9 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Ludora Admin
 mac:
   target: [dmg]
   category: public.app-category.developer-tools

@@ -1,4 +1,5 @@
-# Ludora
+<img width="827" height="302" alt="logo-final" src="https://github.com/user-attachments/assets/83f20ad2-5511-4a4a-9a99-4972ad143699" />
+
 
 Sistema de gestão e acompanhamento de clubes de futebol e
 futsal, desenvolvida como projeto acadêmico do curso de Desenvolvimento de
