@@ -1,12 +1,13 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from './Icon';
 
-export function FilterSelect({ label, value, emptyLabel, options, onChange }: {
+export function FilterSelect({ label, value, emptyLabel, options, onChange, inlineOptions = false }: {
   label: string;
   value: string;
   emptyLabel: string;
   options: { value: string | number; label: string }[];
   onChange: (value: string) => void;
+  inlineOptions?: boolean;
 }) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -65,7 +66,7 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange }: {
         <span>{items[selected].label}</span>
         <span className="schedule-select-chevron"><Icon name="chevronRight" size={16} /></span>
       </button>
-      {open && <div id={`${id}-options`} role="listbox" aria-labelledby={`${id}-label`} className="schedule-select-options">
+      {open && <div id={`${id}-options`} role="listbox" aria-labelledby={`${id}-label`} className={`schedule-select-options${inlineOptions ? ' schedule-select-options-inline' : ''}`}>
         {items.map((item, index) => (
           <div key={item.value} id={`${id}-option-${index}`} role="option" aria-selected={index === selected}
             data-highlighted={index === active} onPointerMove={() => setActive(index)}

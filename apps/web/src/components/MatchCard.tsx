@@ -14,20 +14,22 @@ export function formatMatchDate(value: string) {
   return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : 'Data a definir';
 }
 
-export function MatchCard({ partida: p, featured = false, actions }: { partida: Partida; featured?: boolean; actions?: ReactNode }) {
+export function MatchCard({ partida: p, featured = false, actions, compactLive = false }: { partida: Partida; featured?: boolean; actions?: ReactNode; compactLive?: boolean }) {
   const hasScore = p.status === 'AO_VIVO' || p.status === 'FINALIZADA';
   return <article className={`match-card${featured ? ' match-card-featured' : ''}${p.status === 'AO_VIVO' ? ' match-card-live' : ''}`}>
     <div className="match-card-header">
       <span>{p.categoria?.nome || 'Categoria não informada'}</span>
       <div className="match-card-badges">
-        <StatusBadge status={p.status} />
+        {compactLive && p.status === 'AO_VIVO'
+          ? <span className="match-live-indicator" role="img" aria-label="Partida ao vivo" title="Partida ao vivo"><Icon name="live" size={19} /></span>
+          : <StatusBadge status={p.status} />}
         <span className="match-venue"><Icon name={p.emCasa ? 'home' : 'bus'} size={14} />{p.emCasa ? 'Casa' : 'Fora'}</span>
       </div>
     </div>
     <div className="match-teams">
-      <div className="match-team"><ClubBadge src={p.mandante?.escudo} name={teamName(p.mandante?.nome || 'Mandante')} size={52} /><strong>{teamName(p.mandante?.nome || 'Mandante')}</strong></div>
+      <div className="match-team"><ClubBadge src={p.mandante?.escudo} name={teamName(p.mandante?.nome || 'Mandante')} size={52} /><strong title={teamName(p.mandante?.nome || 'Mandante')}>{teamName(p.mandante?.nome || 'Mandante')}</strong></div>
       <div className="match-score" aria-label={hasScore ? `${p.gols_mandante} a ${p.gols_visitante}` : 'Contra'}>{hasScore ? <><span>{p.gols_mandante}</span><small aria-hidden="true">·</small><span>{p.gols_visitante}</span></> : <small>VS</small>}</div>
-      <div className="match-team"><ClubBadge src={p.visitante?.escudo} name={teamName(p.visitante?.nome || 'Visitante')} size={52} /><strong>{teamName(p.visitante?.nome || 'Visitante')}</strong></div>
+      <div className="match-team"><ClubBadge src={p.visitante?.escudo} name={teamName(p.visitante?.nome || 'Visitante')} size={52} /><strong title={teamName(p.visitante?.nome || 'Visitante')}>{teamName(p.visitante?.nome || 'Visitante')}</strong></div>
     </div>
     <div className="match-info">
       <div className="match-date-time">

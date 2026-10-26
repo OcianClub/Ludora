@@ -9,12 +9,14 @@ function Chevron({ right = false }: { right?: boolean }) {
   );
 }
 
-export function HomeCategories({ categories, phase, selected, onPhase, onSelect }: {
+export function HomeCategories({ categories, phase, selected, onPhase, onSelect, label = 'Categoria da visão geral', hint = 'Deslize o conteúdo para trocar a categoria ou use os botões e as setas do teclado no seletor.' }: {
   categories: Categoria[];
   phase: string;
   selected?: Categoria;
   onPhase: (phase: string) => void;
   onSelect: (name: string) => void;
+  label?: string;
+  hint?: string;
 }) {
   const strip = useRef<HTMLDivElement>(null);
   const indicator = useRef<HTMLSpanElement>(null);
@@ -79,7 +81,7 @@ export function HomeCategories({ categories, phase, selected, onPhase, onSelect 
         <button type="button" className="home-category-arrow" aria-label="Categoria anterior"
           disabled={index <= 0} onClick={() => select(index - 1)}><Chevron /></button>
         <div className="home-sub-strip category-tabs" ref={strip}
-          role="group" aria-label="Categoria da visão geral" aria-describedby={hintId}
+          role="group" aria-label={label} aria-describedby={hintId}
           onKeyDown={event => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
             event.preventDefault();
@@ -98,7 +100,7 @@ export function HomeCategories({ categories, phase, selected, onPhase, onSelect 
           disabled={index < 0 || index >= available.length - 1} onClick={() => select(index + 1)}><Chevron right /></button>
       </div>
 
-      <span className="sr-only" id={hintId}>Deslize o conteúdo para trocar a categoria ou use os botões e as setas do teclado no seletor.</span>
+      <span className="sr-only" id={hintId}>{hint}</span>
       <span className="sr-only" role="status">{selected ? `Categoria selecionada: ${selected.nome}` : 'Nenhuma categoria selecionada'}</span>
     </div>
   );

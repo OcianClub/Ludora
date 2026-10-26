@@ -29,10 +29,13 @@ import settings from '../../../../packages/icons/src/svg/settings.svg';
 import clock from '../../../../packages/icons/src/svg/clock.svg';
 
 const icons = { home, ball, team, player, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus, bell, checkAll, settings, clock };
-export type IconName = keyof typeof icons | 'grid' | 'list';
+export type IconName = keyof typeof icons | 'grid' | 'list' | 'filters';
 
 // Usa os mesmos desenhos do mobile, sem depender de componentes React Native.
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+  if (name === 'filters') return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+    <path d="M3 6h4m4 0h10M3 12h10m4 0h4M3 18h4m4 0h10" /><circle cx="9" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="9" cy="18" r="2" />
+  </svg>;
   if (name === 'grid' || name === 'list') return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true" style={{ flexShrink: 0 }}>
     {name === 'grid' ? <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></> : <><rect x="3" y="4" width="18" height="6" rx="1.5" /><rect x="3" y="14" width="18" height="6" rx="1.5" /></>}
   </svg>;

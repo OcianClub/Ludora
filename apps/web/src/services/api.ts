@@ -1,5 +1,6 @@
 import { BASE_URL } from './config';
 import { authRequest } from './authHttp';
+import { contextoScoutValido, type ContextoScout } from '../../../mobile/src/utils/contextoScout';
 export { BASE_URL } from './config';
 
 export async function requestJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -69,7 +70,7 @@ export type HomePartida = Omit<Partida, 'mandante_id' | 'visitante_id' | 'catego
 };
 export interface Evento { id: number; partida_id: number; tipo: string; periodo: number; minuto?: number; jogador_id?: number; jogador?: {id:number;nome:string} | null; }
 export interface EscalacaoItem { jogador_id: number; numCamisa: number; titular: boolean; jogador?: Jogador; }
-export interface PerfilJogador extends Jogador { totalGols: number; totalAssistencias: number; totalCartoes: number; totalDefesas: number; totalFaltas: number; totalPartidas: number; }
+export interface PerfilJogador extends Jogador { totalGols: number; totalAssistencias: number; totalCartoes: number; totalDefesas: number; totalFaltas: number; totalPartidas: number; idade?: number; scores_ml?: Record<string, number> | null; }
 export interface Estatisticas { gols: number; assistencias: number; defesas: number; cartaoAmarelo: number; cartaoVermelho: number; faltas: number; }
 
 // ── AUTH ──
@@ -184,6 +185,8 @@ export async function fetchJogadoresPerfis(categoria_id?: number): Promise<Perfi
     perfil_ml: j.perfil_ml,
     nota_geral: j.nota_geral,
     categoria_id: j.categoria_id,
+    idade: j.idade,
+    scores_ml: j.scores_ml ?? null,
     totalGols: j.totalGols ?? j.gols ?? 0,
     totalAssistencias: j.totalAssistencias ?? j.assistencias ?? 0,
     totalCartoes: j.totalCartoes ?? ((j.cartoes_amarelos ?? 0) + (j.cartoes_vermelhos ?? 0)),
@@ -191,6 +194,13 @@ export async function fetchJogadoresPerfis(categoria_id?: number): Promise<Perfi
     totalFaltas: j.totalFaltas ?? j.faltas_cometidas ?? 0,
     totalPartidas: j.totalPartidas ?? j.jogos_disputados ?? 0,
   }));
+}
+export async function fetchContextoScout(id: number, signal?: AbortSignal): Promise<ContextoScout> {
+  const res = await apiFetch(`/jogadores/${id}/scout-contexto`, { signal });
+  if (!res.ok) throw new Error('Não foi possível carregar o histórico do atleta. Tente novamente.');
+  const data: unknown = await res.json();
+  if (!contextoScoutValido(data, id)) throw new Error('Não foi possível confirmar os dados do histórico.');
+  return data;
 }
 export interface ConflitoCamisa {
   jogador_id: number; nome: string; camisa: number; categoria: string; camisa_anterior: number | null;

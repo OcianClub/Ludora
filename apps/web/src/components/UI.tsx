@@ -78,7 +78,7 @@ export function Select({ label, options, emptyLabel = 'Selecionar...', className
 }
 
 // ── Modal ──
-export function Modal({ open, onClose, title, children, className = '', id }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; className?: string; id?: string }) {
+export function Modal({ open, onClose, title, children, className = '', id, footer }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; className?: string; id?: string; footer?: React.ReactNode }) {
   const dialogRef = React.useRef<HTMLDialogElement>(null);
   const titleId = React.useId();
   React.useEffect(() => {
@@ -114,6 +114,7 @@ export function Modal({ open, onClose, title, children, className = '', id }: { 
           <button type="button" className="modal-close" aria-label="Fechar janela" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">{children}</div>
+        {footer && <div className="modal-footer">{footer}</div>}
       </dialog>
   );
 }
