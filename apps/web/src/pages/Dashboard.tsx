@@ -208,19 +208,13 @@ export default function DashboardPage() {
           podeGerenciar={podeGerenciar} starters={offset === 0 ? starters : null}
           lineupError={offset === 0 ? Boolean(lineupError) : false} /> : null;
       }}
-      footer={data && <p className="home-update-note" role="status">Atualizado às {data.updatedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. A visão geral é atualizada automaticamente.</p>}
       canPrevious={available.indexOf(current) > 0}
       canNext={Boolean(current) && available.indexOf(current) < available.length - 1}
       onStep={direction => {
         const next = available[available.indexOf(current) + direction];
         if (next) setCategory(next.nome);
       }}>
-      <div className="home-page-heading">
-        <h1>Visão geral</h1>
-        <Btn variant="ghost" size="sm" disabled={pending} aria-busy={pending} onClick={retry}>
-          {pending && data ? 'Atualizando…' : 'Atualizar'}
-        </Btn>
-      </div>
+      <h1 className="sr-only">Visão geral do clube</h1>
 
       {data && <HomeCategories categories={data.categories} phase={phase} selected={current}
         onPhase={next => { setPhase(next); setCategory(''); }} onSelect={setCategory} />}

@@ -27,8 +27,10 @@ import bell from '../../../../packages/icons/src/svg/mdi-bell.svg';
 import checkAll from '../../../../packages/icons/src/svg/mdi-check-all.svg';
 import settings from '../../../../packages/icons/src/svg/settings.svg';
 import clock from '../../../../packages/icons/src/svg/clock.svg';
+import radar from '../../../../packages/icons/src/svg/mdi-radar.svg';
+import handshake from '../../../../packages/icons/src/svg/mdi-handshake.svg';
 
-const icons = { home, ball, team, player, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus, bell, checkAll, settings, clock };
+const icons = { home, ball, team, player, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus, bell, checkAll, settings, clock, radar, handshake };
 export type IconName = keyof typeof icons | 'grid' | 'list' | 'filters';
 
 // Usa os mesmos desenhos do mobile, sem depender de componentes React Native.

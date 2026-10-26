@@ -1,5 +1,6 @@
 .scout-page {
   min-width: 0;
+  --home-page-gap: 20px;
 }
 .scout-eyebrow {
   display: block;
@@ -11,7 +12,7 @@
 }
 .scout-controls {
   display: grid;
-  grid-template-columns: auto 145px minmax(180px, 1fr) 150px auto;
+  grid-template-columns: minmax(180px, 1fr) 150px auto;
   align-items: end;
   gap: 10px;
   margin-bottom: 20px;
@@ -47,6 +48,8 @@
 }
 .scout-profile-filters, .scout-order-tabs, .scout-active-filters {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   gap: 8px;
   overflow-x: auto;
   padding: 3px 2px 8px;
@@ -142,8 +145,20 @@
   grid-row: span 2;
   place-items: center;
   border-radius: 8px;
-  background: var(--fundo-card-sec);
+  background: color-mix(in srgb, currentColor 10%, transparent);
   color: var(--primaria);
+}
+.scout-leaders > button:nth-child(2) .scout-leader-icon {
+  color: #9d82dc;
+}
+.scout-leaders > button:nth-child(3) .scout-leader-icon {
+  color: #31b9a2;
+}
+[data-theme="light"] .scout-leaders > button:nth-child(2) .scout-leader-icon {
+  color: #7450b8;
+}
+[data-theme="light"] .scout-leaders > button:nth-child(3) .scout-leader-icon {
+  color: #167b69;
 }
 .scout-leader-title {
   color: var(--texto-sec);
@@ -602,7 +617,7 @@
 }
 @media (max-width: 1250px) {
   .scout-controls {
-    grid-template-columns: auto 145px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
   .scout-desktop-position {
     display: none;
@@ -646,21 +661,25 @@
     display: none;
   }
   .scout-controls {
-    grid-template-columns: minmax(0, 1fr) 125px;
+    grid-template-columns: minmax(0, 1fr) 40px;
     align-items: stretch;
     gap: 10px;
     margin-bottom: 14px;
   }
   .scout-search {
     grid-column: 1;
+    min-height: 40px;
   }
   .scout-controls > .btn {
     grid-column: 2;
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
     justify-content: center;
     padding: 8px;
   }
-  .scout-controls .schedule-phase-toggle {
-    align-self: end;
+  .scout-controls .scout-more-label {
+    display: none;
   }
   .scout-controls .schedule-phase-toggle button {
     flex: 1;
@@ -669,17 +688,54 @@
   }
   .scout-controls .schedule-select-trigger {
     min-height: 42px;
+    padding-inline: 10px;
   }
   .scout-controls .schedule-select .field-label {
     font-size: 11px;
   }
   .scout-search input {
-    font-size: 16px;
+    height: 38px;
+    font-size: 13px;
+  }
+  .scout-search input::placeholder {
+    font-size: 12px;
+  }
+  .scout-page .home-controls {
+    gap: 6px;
+    padding: 0;
+    margin-bottom: 18px;
+    border: 0;
+    background: transparent;
+  }
+  .scout-page .home-phase, .scout-page .home-category-picker {
+    padding: 4px;
+    border-radius: 8px;
+    background: var(--fundo-card);
+  }
+  .scout-page .home-phase button, .scout-page .home-sub-strip button {
+    min-height: 34px;
+    font-size: 12px;
+    padding-block: 6px;
+  }
+  .scout-page .home-category-arrow {
+    width: 28px;
+    height: 34px;
   }
   .scout-profile-filter {
-    gap: 6px;
-    padding: 8px 11px;
+    min-height: 38px;
+    gap: 5px;
+    padding: 6px 9px;
     font-size: 12px;
+  }
+  .scout-profile-filter > .icon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  .scout-profile-filter > span:not(.icon) {
+    font-size: 11px;
+  }
+  .scout-profile-filters, .scout-order-tabs {
+    padding-bottom: 13px;
   }
   .scout-profile-filters {
     margin-bottom: 14px;
@@ -691,17 +747,43 @@
     gap: 8px;
   }
   .scout-leaders > button {
+    display: flex;
+    min-height: 132px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 5px;
     padding: 11px;
   }
+  .scout-leader-icon {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+  }
   .scout-leader-title {
-    font-size: 11px;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .2px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .scout-leaders strong {
+    min-width: 0;
+    line-height: 1;
     font-size: 26px;
   }
   .scout-leader-name {
+    display: -webkit-box;
+    min-width: 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     font-size: 11px;
     line-height: 1.45;
+    overflow-wrap: anywhere;
   }
   .scout-leader-name small {
     font-size: 10px;
@@ -829,5 +911,48 @@
   }
   .scout-history-table th:first-child {
     width: 64%;
+  }
+}
+
+@media (max-width: 390px) {
+  .scout-controls {
+    grid-template-columns: minmax(0, 1fr) 40px;
+    gap: 8px;
+  }
+  .scout-controls > .btn {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .scout-controls .schedule-select-trigger, .scout-search {
+    min-height: 40px;
+  }
+  .scout-search input {
+    height: 38px;
+  }
+  .scout-leaders {
+    gap: 7px;
+  }
+  .scout-leaders > button {
+    min-height: 118px;
+    padding: 9px;
+  }
+  .scout-leader-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .scout-leader-title {
+    padding-top: 1px;
+    font-size: 9px;
+  }
+  .scout-leaders strong {
+    font-size: 24px;
+  }
+  .scout-leader-name {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+  .scout-leader-name small {
+    display: none;
   }
 }

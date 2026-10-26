@@ -25,10 +25,10 @@
   pointer-events: none;
 }
 .home-pager-preview[data-offset="-1"] {
-  left: -100%;
+  left: calc(-100% - var(--home-page-gap, 0px));
 }
 .home-pager-preview[data-offset="1"] {
-  left: 100%;
+  left: calc(100% + var(--home-page-gap, 0px));
 }
 .home-swipe-surface.is-swiping {
   cursor: grabbing;
@@ -222,9 +222,17 @@
   margin-bottom: 20px;
 }
 .home-live {
-  padding: 7px 12px;
-  font-size: 12px;
+  min-height: 26px;
+  padding: 4px 9px;
+  gap: 6px;
+  border-radius: 8px;
+  font-size: 10px;
   font-weight: 600;
+  line-height: 16px;
+}
+.home-live i {
+  width: 7px;
+  height: 7px;
 }
 .home-main-match {
   background: var(--fundo-card);
@@ -457,8 +465,10 @@
 }
 .home-upcoming-list time {
   min-width: 55px;
+  flex-shrink: 0;
+  margin-right: 6px;
   color: var(--texto);
-  font-size: 14px;
+  font-size: 13px;
 }
 .home-upcoming-list > a > span:not(.club-badge):not(.icon) {
   flex: 1;
@@ -801,6 +811,9 @@
   }
 }
 @media (max-width: 760px) {
+  .dashboard .home-section-copy {
+    display: none;
+  }
   .home-page-heading {
     margin-bottom: 18px;
   }
@@ -809,38 +822,151 @@
   }
   .home-controls {
     grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-    margin-bottom: 24px;
+    gap: 6px;
+    padding: 0;
+    margin-bottom: 18px;
+    border: 0;
+    background: transparent;
+  }
+  .home-phase, .home-category-picker {
+    padding: 4px;
+    border-radius: 8px;
+    background: var(--fundo-card);
+  }
+  .home-phase button, .home-controls .home-sub-strip button {
+    min-height: 34px;
+    font-size: 12px;
+    padding-block: 6px;
+  }
+  .home-category-arrow {
+    width: 28px;
+    height: 34px;
   }
   .home-side {
     grid-template-columns: minmax(0, 1fr);
     gap: 24px;
   }
   .home-main-match {
-    padding: 20px;
+    padding: 17px;
   }
   .home-section-heading h2 {
-    font-size: 17px;
+    font-size: 15px;
+  }
+  .home-section-heading {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .home-section-copy, .home-match-top, .home-match-location {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .home-match-top {
+    gap: 8px;
+  }
+  .home-match-venue {
+    gap: 4px;
+  }
+  .home-team {
+    gap: 7px;
   }
   .home-team strong {
-    font-size: 14px;
+    font-size: 13px;
   }
   .home-scoreboard {
-    padding: 28px 0;
-    gap: 12px;
+    padding: 18px 0;
+    gap: 8px;
   }
   .home-team .club-badge {
-    width: 60px !important;
-    height: 60px !important;
+    width: 50px !important;
+    height: 50px !important;
   }
   .home-score {
-    font-size: 34px;
+    font-size: 29px;
+    gap: 6px;
+  }
+  .home-match-meta {
+    padding: 12px 0;
+    gap: 10px;
+  }
+  .home-match-meta > div {
+    gap: 7px;
+  }
+  .home-match-meta small {
+    font-size: 11px;
+    margin-bottom: 2px;
+  }
+  .home-match-meta strong {
+    font-size: 13px;
+  }
+  .home-match-location {
+    gap: 7px;
+    margin-bottom: 14px;
+  }
+  .home-match-cta {
+    min-height: 42px;
+    padding: 9px;
+    gap: 8px;
+    font-size: 13px;
   }
   .category-moment, .home-upcoming {
-    padding: 20px;
+    padding: 17px;
+  }
+  .home-focus, .home-side {
+    gap: 26px;
+  }
+  .home-upcoming {
+    padding: 0;
+    background: transparent;
+  }
+  .home-upcoming > .home-section-copy {
+    margin-bottom: 14px;
+  }
+  .home-upcoming-list {
+    padding: 2px 15px;
+    border: 1px solid var(--linha);
+    border-radius: 10px;
+    background: var(--fundo-card);
+  }
+  .home-upcoming-list > a:last-child {
+    padding-bottom: 12px;
+  }
+  .moment-results {
+    margin: 16px 0;
+    gap: 6px;
+  }
+  .moment-result {
+    gap: 6px;
   }
   .moment-result strong {
-    width: 46px;
+    width: 36px;
+    font-size: 14px;
+  }
+  .moment-result small {
+    font-size: 11px;
+  }
+  .moment-footer {
+    padding-top: 11px;
+    gap: 6px;
+  }
+  .moment-footer p, .moment-footer > small {
+    font-size: 11px;
+  }
+  .home-upcoming-list > a {
+    padding-block: 12px;
+    gap: 8px;
+  }
+  .home-upcoming-list strong {
+    font-size: 13px;
+  }
+  .home-upcoming-list time {
+    margin-right: 8px;
+    font-size: 12px;
+  }
+  .home-upcoming-list small {
+    font-size: 11px;
+  }
+  .home-section-heading > a {
+    font-size: 12px;
   }
   .home-history {
     margin-top: 28px;
@@ -860,31 +986,34 @@
 }
 @media (max-width: 380px) {
   .home-main-match, .category-moment, .home-upcoming {
-    padding: 16px;
+    padding: 15px;
+  }
+  .home-upcoming {
+    padding: 0;
   }
   .home-scoreboard {
     gap: 8px;
   }
   .home-team .club-badge {
-    width: 52px !important;
-    height: 52px !important;
+    width: 42px !important;
+    height: 42px !important;
   }
   .home-team strong {
-    font-size: 14px;
+    font-size: 13px;
   }
   .home-score {
-    font-size: 30px;
-    gap: 7px;
+    font-size: 27px;
+    gap: 5px;
   }
   .moment-result strong {
-    width: 38px;
-    font-size: 16px;
+    width: 32px;
+    font-size: 13px;
   }
   .moment-results {
     gap: 5px;
   }
   .moment-result small {
-    font-size: 12px;
+    font-size: 11px;
   }
   .home-preparation {
     flex-wrap: wrap;
@@ -894,7 +1023,7 @@
 @media (max-width: 760px) {
   .home-controls .home-sub-strip button {
     flex-basis: calc((100% - 12px) / 3);
-    padding: 8px 4px;
+    padding: 6px 4px;
   }
 }
 
@@ -906,22 +1035,41 @@
 }
 @media (max-width: 760px) {
   .home-history-match {
-    padding: 16px;
-    gap: 16px;
+    padding: 15px;
+    gap: 12px;
   }
   .home-history-meta {
-    flex-wrap: wrap;
-    gap: 5px 7px;
+    gap: 6px;
+    overflow: hidden;
   }
   .home-history-meta > small {
-    flex-basis: 100%;
-    padding-left: 25px;
+    flex: 1;
   }
   .home-history-team {
-    gap: 10px;
-    padding: 9px;
+    gap: 8px;
+    padding: 7px;
   }
   .home-history-team > span:not(.club-badge) {
-    font-size: 14px;
+    font-size: 13px;
+  }
+  .home-history-meta time {
+    font-size: 12px;
+  }
+  .home-history-meta > small, .home-history-team small {
+    font-size: 11px;
+  }
+  .home-history-score {
+    font-size: 23px;
+  }
+  .home-history-team .club-badge {
+    width: 30px !important;
+    height: 30px !important;
+  }
+  .home-history-footer {
+    padding-top: 10px;
+    gap: 7px;
+  }
+  .home-history-footer > span {
+    font-size: 11px;
   }
 }

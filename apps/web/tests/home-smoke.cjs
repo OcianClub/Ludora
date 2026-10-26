@@ -292,12 +292,13 @@ const output = path.resolve(__dirname, '../../../test-results/web-home');
     try {
       await page.getByRole('heading', { name: 'Momento da categoria' }).waitFor();
       state.mode = 'slow';
-      await page.getByRole('button', { name: 'Atualizar', exact: true }).click();
+      const refresh = page.waitForResponse(response => new URL(response.url()).pathname === '/partidas/home');
+      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
       assert.equal(await page.locator('.home-pager-current .home-main-match').count(), 1);
       assert.equal(await page.locator('.home-skeleton').count(), 0);
-      await page.getByRole('button', { name: 'Atualizar', exact: true }).waitFor();
+      await refresh;
       state.mode = 'fail';
-      await page.getByRole('button', { name: 'Atualizar', exact: true }).click();
+      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
       await page.getByRole('alert').waitFor();
       assert.equal(await page.locator('.home-pager-current .home-history-match').count(), 5);
       state.mode = 'normal';

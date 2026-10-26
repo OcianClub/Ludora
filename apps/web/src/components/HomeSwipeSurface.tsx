@@ -10,7 +10,7 @@ type GestureGeometry = {
   next: ButtonPosition;
 };
 
-export function HomeSwipeSurface({ children, footer, renderPage, categoryId, categoryIndex, canPrevious, canNext, onStep }: {
+export function HomeSwipeSurface({ children, footer, renderPage, categoryId, categoryIndex, canPrevious, canNext, onStep, swipeFromButtons = false }: {
   children: ReactNode;
   footer?: ReactNode;
   renderPage: (offset: number) => ReactNode;
@@ -19,6 +19,7 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
   canPrevious: boolean;
   canNext: boolean;
   onStep: (direction: number) => void;
+  swipeFromButtons?: boolean;
 }) {
   const surface = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
@@ -41,7 +42,7 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
       x: button.offsetLeft, y: button.offsetTop, width: button.offsetWidth,
     });
     return {
-      width: track.current.clientWidth || 1,
+      width: (track.current.clientWidth || 1) + (parseFloat(getComputedStyle(track.current).getPropertyValue('--home-page-gap')) || 0),
       indicator: strip?.querySelector<HTMLElement>('.home-sub-indicator') ?? null,
       active: position(active),
       previous: position(buttons[categoryIndex - 1] ?? active),
@@ -114,8 +115,9 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
     }
     if (!track.current || old.id === undefined || old.id === categoryId || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const direction = categoryIndex < old.index ? -1 : 1;
+    const gap = parseFloat(getComputedStyle(track.current).getPropertyValue('--home-page-gap')) || 0;
     animations.current = [track.current.animate([
-      { transform: `translateX(${direction * 100}%)` },
+      { transform: gap ? `translateX(calc(${direction * 100}% + ${direction * gap}px))` : `translateX(${direction * 100}%)` },
       { transform: 'translateX(0)' },
     ], { duration: 280, easing: 'cubic-bezier(.22,.7,.2,1)' })];
   }, [categoryId, categoryIndex]);
@@ -203,7 +205,8 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
         suppressClick.current = false;
         const target = event.target as Element;
         const inStrip = target.closest('.home-sub-strip');
-        if (!inStrip && target.closest('.home-controls, button, input, select, textarea, [contenteditable="true"]')) return;
+        if (!inStrip && target.closest('.home-controls, input, select, textarea, [contenteditable="true"], [data-swipe-ignore]')) return;
+        if (!inStrip && !swipeFromButtons && target.closest('button')) return;
         geometry.current = measureGesture();
         if (!geometry.current) return;
         drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false, distance: 0 };
