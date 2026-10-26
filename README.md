@@ -1,4 +1,5 @@
-# Ludora
+<img width="827" height="302" alt="logo-final" src="https://github.com/user-attachments/assets/83f20ad2-5511-4a4a-9a99-4972ad143699" />
+
 
 Sistema de gestão e acompanhamento de clubes de futebol e
 futsal, desenvolvida como projeto acadêmico do curso de Desenvolvimento de
@@ -15,13 +16,13 @@ controle de acesso e atualizações em tempo real.
 |---|---|---|
 | Mobile | Acompanhar clubes, consultar estatísticas e operar partidas | Em desenvolvimento |
 | Web | Gestão de clubes, atletas, times, competições, partidas e acessos | Em desenvolvimento |
-| Desktop | Gestão administrativa com Electron | Ainda não iniciado |
+| Desktop | Painel interno da equipe Ludora (Super Admin): clubes, permissões, banco e logs | Em desenvolvimento |
 | API | Autenticação, regras de negócio, dados e tempo real | Implementada |
 | Scout IA | Processamento dos perfis estatísticos dos atletas | Implementado; execução opcional |
 
-**Tecnologias:** React Native + Expo, React + Vite, Node.js + Express +
-TypeScript, Prisma + PostgreSQL/Supabase, Socket.IO e Python + FastAPI.
-O projeto usa pnpm workspaces, com cores, ícones e tipos compartilhados.
+**Tecnologias:** React Native + Expo, React + Vite, Electron, Node.js +
+Express + TypeScript, Prisma + PostgreSQL/Supabase, Socket.IO e Python +
+FastAPI. O projeto usa pnpm workspaces, com cores, ícones e tipos compartilhados.
 
 ## 1. Requisitos e instalação
 
@@ -66,6 +67,7 @@ Edite os arquivos antes de iniciar:
 | `services/api/.env` | Conexões do banco, JWT, CORS e integrações |
 | `apps/web/.env` | `VITE_API_URL=http://localhost:3000` |
 | `apps/mobile/.env` | `EXPO_PUBLIC_API_URL` conforme aparelho/emulador |
+| `apps/desktop/.env` | Opcional: `MAIN_VITE_API_URL` (padrão `http://localhost:3000`) |
 
 ### API
 
@@ -80,6 +82,7 @@ Preencha as variáveis no exemplo:
 | `RESEND_API_KEY` / `EMAIL_FROM` | Envio de códigos, recuperação de senha e convites |
 | `INVITE_BASE_URL` | URL da interface que receberá links de convite |
 | `PYTHON_AI_URL` | Endereço do Scout IA; deixe vazio se não for executá-lo |
+| `SUPERADMIN_EMAILS` | E-mails com acesso ao painel desktop, separados por vírgula; vazio = ninguém |
 
 Na implementação atual, `RESEND_API_KEY` também é necessária para inicializar a
 API, pois o cliente de e-mail é criado na importação do módulo. O remetente de
@@ -192,12 +195,33 @@ A chave privada de conta de serviço não deve ficar no app nem no Git.
 Mudanças em dependências nativas exigem outro APK. Alterações comuns em
 TypeScript, telas e estilos são carregadas pelo Metro.
 
-## 6. Desktop e Scout IA
+## 6. Desktop (Super Admin)
 
-**Desktop:** a pasta `apps/desktop` está reservada para Electron, mas ainda não
-contém uma aplicação executável. Por enquanto, a administração é feita pelo web.
+O desktop é o painel interno da equipe Ludora: cadastra e administra os
+clubes-clientes, ajusta permissões, consulta usuários e acompanha o banco e os logs
+da API em tempo real. Não é distribuído aos clubes. Detalhes, rotas e limitações em
+[docs/desktop-super-admin.md](docs/desktop-super-admin.md).
 
-**Scout IA (opcional):** a API inicia sem Python; o aviso de Scout IA desativado
+O acesso é decidido **no servidor**: só entram contas cujo e-mail esteja em
+`SUPERADMIN_EMAILS` no `services/api/.env`, separados por vírgula. A conta precisa já
+existir e estar confirmada. Reinicie a API depois de alterar a variável.
+
+Com a API em execução (seção 3), abra **outro terminal na raiz**:
+
+```powershell
+pnpm dev:desktop
+```
+
+Entre com uma conta de `SUPERADMIN_EMAILS`. A URL da API pode ser trocada em
+**Ajustes** dentro do app. O painel nunca acessa o banco diretamente (só a API) e
+guarda o token cifrado pelo sistema.
+
+Se a API estiver ligada a um banco compartilhado, criar clube, alterar cargo e
+encerrar sessões alteram dados reais. Use um clube de teste.
+
+## 7. Scout IA (opcional)
+
+A API inicia sem Python; o aviso de Scout IA desativado
 é esperado quando `PYTHON_AI_URL` está vazio. Para habilitá-lo, execute no Windows:
 
 ```powershell
@@ -220,7 +244,7 @@ Ludora/
 │   │   └── src/                  Componentes, contextos, hooks, serviços e estilos
 │   ├── web/
 │   │   └── src/                  Páginas, componentes, contextos, serviços e estilos
-│   └── desktop/                  Reservado para Electron; ainda não iniciado
+│   └── desktop/                  Painel Super Admin (Electron + React)
 ├── services/
 │   ├── api/
 │   │   ├── prisma/               Schema, migrations e seeds
@@ -251,10 +275,13 @@ Não use esse comando para preparar uma base compartilhada ou de produção.
 
 | Comando na raiz | Finalidade |
 |---|---|
-| `pnpm test:app` | Suíte principal da API e mobile |
+| `pnpm test:app` | Suíte principal da API (inclui o módulo `/admin`) e mobile |
 | `pnpm test:app:completo` | Compila a API e executa todas as suítes incluídas de API, mobile e utilitários web |
 | `pnpm --filter @ludora/mobile exec tsc --noEmit` | Tipos do mobile |
 | `pnpm --filter @ludora/web exec tsc --noEmit` | Tipos do web |
+| `pnpm test:desktop` | Regras de segurança do desktop (URL da API e caminhos permitidos) |
+| `pnpm build:desktop` | Tipos e build do desktop |
+| `pnpm dist:desktop` | Instalador do desktop para Windows, em `apps/desktop/release` |
 | `pnpm perf:scout` | Benchmark sintético do processamento do Scout |
 
 Os testes automatizados não substituem testes de interface, entrega de push
@@ -272,11 +299,15 @@ ou comportamento do aparelho sem internet.
 | Erro de módulo nativo | Instale um development build compatível com as dependências atuais |
 | API falha por chave Resend ausente | Configure `RESEND_API_KEY` no ambiente do backend |
 | Falha ao enviar código por e-mail | Confira chave, remetente e restrições de destinatários do Resend |
+| Desktop diz que a conta não tem acesso | Confira se o e-mail está em `SUPERADMIN_EMAILS` e reinicie a API |
+| Desktop não conecta | URL em **Ajustes** e API em execução; no Render gratuito a primeira chamada pode demorar |
+| Electron não abre ou não foi instalado | Rode `node apps\desktop\node_modules\electron\install.js` e repita `pnpm dev:desktop` |
 
 ## Documentação complementar
 
 - [Referência técnica e contratos da API](docs/referencia-tecnica.md)
 - [Arquitetura do sistema](docs/arquitetura-ludora.md)
+- [Painel Super Admin do desktop](docs/desktop-super-admin.md)
 - [Checklist de validação no aparelho](docs/validacao-mobile.md)
 - [Relatório de testes de 21/10/2026](docs/validacao-mobile-2026-10-21.md)
 - [Documentação técnica em PDF](docs/ludora-documentacao-tecnica.pdf)

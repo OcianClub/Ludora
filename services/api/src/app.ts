@@ -17,6 +17,8 @@ import jogadorRoutes from './modules/jogadores/jogador.routes';
 import criarNotificacaoRoutes from './modules/notificacoes/notificacao.routes';
 import { criarPartidaRoutes } from './modules/partidas/partida.routes';
 import scoutRoutes from './modules/scout/scout.routes';
+import { criarAdminRoutes } from './modules/admin/admin.routes';
+import { registrarRequisicoes } from './modules/admin/superadmin';
 
 export function criarApp(io: Server) {
   const app = express();
@@ -25,6 +27,7 @@ export function criarApp(io: Server) {
   app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 0));
   app.use(cors(corsOptions));
   app.use(comprimirConsultas);
+  app.use(registrarRequisicoes);
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -46,6 +49,7 @@ export function criarApp(io: Server) {
   });
   app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '256kb' }));
 
+  app.use(criarAdminRoutes(io));
   app.use(authRoutes);
   app.use(criarCadastroRoutes());
   app.use(criarRecuperacaoRoutes(io));

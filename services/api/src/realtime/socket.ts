@@ -4,6 +4,7 @@ import { getUsuarioIdPeloToken } from '../auth/jwt';
 import { corsOptions } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { idPositivo } from '../utils/id';
+import { registrarNamespaceAdmin } from '../modules/admin/superadmin';
 
 export function criarSocketServer(
   autenticarToken = getUsuarioIdPeloToken,
@@ -44,5 +45,6 @@ export function criarSocketServer(
     socket.join(`usuario:${socket.data.usuarioId}`);
   });
 
+  registrarNamespaceAdmin(io);
   return io;
 }

@@ -1,0 +1,42 @@
+{
+  "name": "@ludora/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Painel Super Admin da Ludora (uso interno da equipe de desenvolvimento)",
+  "author": "Equipe Ludora",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "build": "pnpm run typecheck && electron-vite build",
+    "dist:dir": "pnpm run build && electron-builder --config electron-builder.yml --dir",
+    "dist:win": "pnpm run build && electron-builder --config electron-builder.yml --win",
+    "dist:mac": "pnpm run build && electron-builder --config electron-builder.yml --mac",
+    "dist:linux": "pnpm run build && electron-builder --config electron-builder.yml --linux",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "^5.2.0",
+    "@fontsource/oswald": "^5.2.0",
+    "@ludora/design-tokens": "workspace:*",
+    "@ludora/icons": "workspace:*",
+    "@ludora/shared-types": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "44.8.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.5.3",
+    "vite": "^6.3.0"
+  }
+}

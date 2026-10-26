@@ -1,0 +1,29 @@
+appId: br.com.ludora.desktop
+productName: Ludora Admin
+copyright: Equipe Ludora
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+asar: true
+# Sem assinatura de código o Windows mostra o aviso do SmartScreen na instalação.
+# Para uso interno da equipe isso é aceitável; para distribuição, assine o app.
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Ludora Admin
+mac:
+  target: [dmg]
+  category: public.app-category.developer-tools
+linux:
+  executableName: ludora-admin
+  target: [AppImage]
+  category: Development

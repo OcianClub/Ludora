@@ -5,6 +5,10 @@
   "packageManager": "pnpm@11.20.0",
   "scripts": {
     "dev:api": "pnpm --filter @ludora/api run start",
+    "dev:desktop": "pnpm --filter @ludora/desktop run dev",
+    "build:desktop": "pnpm --filter @ludora/desktop run build",
+    "dist:desktop": "pnpm --filter @ludora/desktop run dist:win",
+    "test:desktop": "pnpm --filter @ludora/desktop run test",
     "dev:mobile": "pnpm --filter @ludora/mobile run start",
     "dev:mobile:go": "pnpm --filter @ludora/mobile run start:go",
     "dev:mobile:clean": "pnpm --filter @ludora/mobile run start:clean",

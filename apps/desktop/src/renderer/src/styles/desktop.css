@@ -1,0 +1,60 @@
+/* Complementos do desktop. Só usa tokens do tema (theme.ts / design-tokens):
+   tudo o que é base visual vem dos CSS do web. */
+
+.admin-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--primaria);
+  background: var(--fundo-botao); border: 1px solid var(--borda-botao); border-radius: 999px; padding: 6px 12px; }
+
+.rt-pill { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--texto-sec);
+  border: 1px solid var(--borda); border-radius: 999px; padding: 6px 12px; background: var(--fundo-card); }
+.rt-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--texto-sec); }
+.rt-conectado { color: var(--texto); } .rt-conectado .rt-dot { background: var(--primaria); box-shadow: 0 0 0 3px var(--fundo-botao); }
+.rt-conectando .rt-dot { background: var(--amarelo); animation: rt-pulso 1s ease-in-out infinite; }
+.rt-erro, .rt-desconectado { color: var(--titulo-erro); } .rt-erro .rt-dot, .rt-desconectado .rt-dot { background: var(--vermelho); }
+@keyframes rt-pulso { 50% { opacity: .35; } }
+
+.linha-clube { display: inline-flex; align-items: center; gap: 12px; }
+.linha-clube span { display: flex; flex-direction: column; line-height: 1.25; }
+.linha-clube small, .achado small { color: var(--texto-sec); font-size: 11px; }
+.linha-clube:hover strong { color: var(--primaria); }
+.plano-tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .8px; padding: 2px 8px; border-radius: 4px;
+  color: var(--primaria); background: var(--fundo-botao); border: 1px solid var(--borda-botao); }
+
+.notice-ok { padding: 12px 16px; margin-bottom: 16px; border-radius: 8px; color: var(--primaria); background: var(--fundo-botao); border: 1px solid var(--borda-botao); }
+.dica { font-size: 12px; color: var(--texto-sec); }
+.voltar { display: inline-block; margin-bottom: 14px; font-size: 13px; color: var(--texto-sec); }
+.voltar:hover { color: var(--primaria); }
+.bloco { margin-top: 20px; }
+.bloco-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.card .section-title { margin-bottom: 14px; }
+
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+.cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; border: 1px solid var(--borda); border-radius: 8px; padding: 12px; }
+.cats legend { padding: 0 6px; }
+.achados { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.achado { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--borda); border-radius: 8px; }
+.achado span { display: flex; flex-direction: column; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 8px; border: 1px solid var(--borda); border-radius: 6px; }
+
+.estado { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.estado-ok { color: var(--primaria); } .estado-falha { color: var(--titulo-erro); } .estado-neutro { color: var(--texto-sec); }
+.integracoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.integracoes > div { display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid var(--borda); border-radius: 8px; }
+.integracoes > div > span:first-child { font-size: 11px; color: var(--texto-sec); text-transform: uppercase; letter-spacing: .6px; }
+.tabelas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.tabela-item { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--linha); border-radius: 8px; font-size: 13px; }
+.tabela-item span { color: var(--texto-sec); }
+
+.logs-pagina { display: flex; flex-direction: column; height: calc(100vh - var(--topbar-h) - 56px); min-height: 420px; }
+.log-console { flex: 1; overflow-y: auto; background: var(--fundo-card); border: 1px solid var(--borda); border-radius: 10px;
+  padding: 8px 0; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 12px; }
+.log-linha { display: grid; grid-template-columns: 78px 56px 1fr auto; gap: 12px; padding: 3px 14px; align-items: baseline; }
+.log-linha:hover { background: var(--fundo-card-sec); }
+.log-linha time, .log-ms { color: var(--texto-sec); }
+.log-nivel { font-weight: 700; }
+.nivel-info .log-nivel { color: var(--texto-sec); }
+.nivel-audit .log-nivel { color: var(--primaria); }
+.nivel-warn .log-nivel { color: var(--amarelo); }
+.nivel-error .log-nivel, .nivel-error .log-msg { color: var(--titulo-erro); }
+.log-msg { overflow-wrap: anywhere; }
+.log-vazio { padding: 24px; text-align: center; color: var(--texto-sec); font-family: var(--font-corpo); }
