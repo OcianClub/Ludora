@@ -237,10 +237,6 @@
   gap: 3px;
   min-width: 0;
 }
-.current-club > .icon:last-child {
-  display: none;
-  color: var(--texto-sec);
-}
 
 .current-club strong {
   max-width: 100%;
@@ -337,9 +333,12 @@
   .workspace {
     margin-left: 0;
   }
+  .workspace-header {
+    border-bottom: 0;
+  }
   .workspace-header-inner {
-    min-height: 84px;
-    padding: 12px var(--workspace-gutter);
+    min-height: 72px;
+    padding: 12px var(--workspace-gutter) 8px;
   }
   .workspace-actions {
     gap: 8px;
@@ -347,20 +346,42 @@
   .header-profile-link {
     display: grid;
   }
+  .workspace-actions .profile-link {
+    width: 42px;
+    height: 42px;
+  }
+  .workspace-actions .header-profile-link {
+    border: 1.5px solid var(--borda-botao);
+  }
   .workspace-actions .switch-club-link {
     display: none;
   }
   .current-club {
-    gap: 8px;
+    flex: 1;
+    gap: 12px;
   }
-  .current-club > .icon:last-child {
-    display: inline-block;
+  .current-club .club-badge {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 8px;
+    background: var(--fundo-card);
+    color: var(--primaria);
+    font-family: var(--font-titulo);
+    font-size: 25px;
+  }
+  .current-club-copy {
+    gap: 2px;
   }
   .current-club strong {
-    font-size: 18px;
+    font-size: 17px;
+    line-height: 23px;
+  }
+  .current-club-role {
+    font-size: 12px;
+    line-height: 16px;
   }
   .content {
-    padding: 24px var(--workspace-gutter) calc(100px + env(safe-area-inset-bottom, 0px));
+    padding: 8px var(--workspace-gutter) calc(100px + env(safe-area-inset-bottom, 0px));
   }
   .mobile-navigation {
     display: block;

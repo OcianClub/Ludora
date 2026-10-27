@@ -77,6 +77,9 @@ export function Select({ label, options, emptyLabel = 'Selecionar...', className
   );
 }
 
+// Somente Modal controla o scroll da página. Bloqueios nos consumidores podem
+// restaurar "hidden" depois desta limpeza e travar todas as rotas.
+// O contador mantém o bloqueio até fechar o último modal sobreposto.
 let activeModals = 0;
 let restorePageScroll: (() => void) | undefined;
 

@@ -36,13 +36,7 @@ export default function Layout() {
   }, []);
   useEffect(() => {
     setMoreOpen(false);
-  }, [location.pathname, clube?.id]);
-  useEffect(() => {
-    if (!moreOpen) return;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = overflow; };
-  }, [moreOpen]);
+  }, [location.key, clube?.id]);
   return (
     <div className="layout">
       <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
@@ -104,7 +98,6 @@ export default function Layout() {
                 <strong>{clube?.nome || 'Selecione um clube'}</strong>
                 <small className="current-club-role">{role}</small>
               </span>
-              <Icon name="chevronRight" size={16} />
             </Link>
 
             <div className="workspace-actions">
@@ -114,7 +107,7 @@ export default function Layout() {
               </Link>
               <Notifications />
               <NavLink to="/perfil" className="profile-link header-profile-link" aria-label="Meu perfil">
-                <Icon name="user" />
+                <Icon name="user" size={24} />
               </NavLink>
             </div>
           </div>

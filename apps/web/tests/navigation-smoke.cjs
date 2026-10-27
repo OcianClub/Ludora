@@ -128,7 +128,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-navigation');
         assert.equal(await page.locator('.sidebar').isVisible(), false);
         assert.equal(await page.locator('.header-profile-link').isVisible(), true);
         assert.equal(await page.locator('.switch-club-link').isVisible(), false);
-        assert.equal(await page.locator('.current-club > .icon:last-child').isVisible(), true);
+        assert.equal(await page.locator('.current-club > .icon').count(), 0);
         const nav = page.getByRole('navigation', { name: 'Navegação principal no celular' });
         const box = await nav.boundingBox();
         assert.equal(Math.round(box.y + box.height), 900);

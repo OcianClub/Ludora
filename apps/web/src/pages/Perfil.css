@@ -33,13 +33,19 @@
   font-size: 13px;
   font-weight: 500;
 }
-.perfil-atalhos button:hover,
-.perfil-atalhos button[aria-selected="true"] {
-  background: var(--fundo-botao);
-  color: var(--primaria);
+@media (hover: hover) and (pointer: fine) {
+  .perfil-atalhos button:hover {
+    background: var(--fundo-card-sec);
+    color: var(--texto);
+  }
 }
 .perfil-atalhos button[aria-selected="true"] {
+  background: var(--fundo-card-sec);
+  color: var(--texto);
   font-weight: 600;
+}
+.perfil-atalhos button[aria-selected="true"] .icon {
+  color: var(--primaria);
 }
 .perfil-section-description,
 .perfil-form-hint {
