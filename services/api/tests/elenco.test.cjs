@@ -73,6 +73,14 @@ function banco(t, inicial = []) {
 const ano = anoTemporada();
 const dados = { nome: 'Alex Carter', cpf: '12345678901', dtNasc: `${ano - 13}-06-10`, numCamisa: 10 };
 const residente = { ...aluno(2, ano - 14, 14, 10), nome: 'James Walker', cpf: '98765432100', posicao: 'Ala' };
+
+test('edição bloqueia troca de CPF e rejeita foto com SVG sem alterar cadastro', async t => {
+  const db = banco(t, [residente]);
+  await assert.rejects(salvarAluno(1, 7, { cpf: '12345678901' }, 2), /CPF não pode ser alterado/);
+  await assert.rejects(salvarAluno(1, 7, { foto: 'data:image/svg+xml;base64,AAAA' }, 2), /imagem JPEG/);
+  assert.equal(db.rows()[0].cpf, residente.cpf);
+  assert.equal(db.rows()[0].foto, undefined);
+});
 test('cadastro retorna conflito identificado sem alterar dados; confirmação transfere e deixa anterior vazio', async t => {
   const db = banco(t, [residente]);
   await assert.rejects(salvarAluno(1, 7, dados), e => e.status === 409 && e.detalhes.conflito_camisa.nome === 'James Walker');

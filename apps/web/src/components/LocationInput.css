@@ -1,0 +1,10 @@
+.location-field { position:relative; }
+.location-suggestions { position:relative; margin-top:4px; border:1px solid var(--borda); border-radius:6px; background:var(--fundo-card); overflow:hidden; }
+.location-suggestions [role=option] { padding:10px 12px; display:flex; flex-direction:column; gap:3px; cursor:pointer; border-bottom:1px solid var(--borda); }
+.location-suggestions [role=option][aria-selected=true] { background:var(--fundo-botao); box-shadow:inset 3px 0 var(--primaria); }
+.location-suggestions strong { font-weight:500; font-size:13px; }
+.location-suggestions small,.location-suggestions p { font-size:11px; color:var(--texto-sec); }
+.location-suggestions p { padding:10px 12px; }
+.places-attribution { display:block; text-align:right; padding:0 12px 10px; font-family:Arial,sans-serif; font-size:14px; color:var(--texto); }
+.places-attribution { color:#fff; font-weight:400; white-space:nowrap; letter-spacing:normal; }
+[data-theme=light] .places-attribution { color:#1f1f1f; }

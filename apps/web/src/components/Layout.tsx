@@ -98,7 +98,7 @@ export default function Layout() {
       <div className="workspace">
         <header className="workspace-header">
           <div className="workspace-header-inner">
-            <Link to="/selecionar-clube" className="current-club" title={`${clube?.nome || 'Selecione um clube'} · ${role}`} aria-label={`${clube?.nome || 'Selecione um clube'}, ${role}. Trocar clube`}>
+            <Link to="/clube" className="current-club" title={`${clube?.nome || 'Clube'} · ${role}`} aria-label={`Ver perfil do clube ${clube?.nome || ''}`}>
               <ClubBadge src={clube?.escudo} name={clube?.nome} size={46} />
               <span className="current-club-copy">
                 <strong>{clube?.nome || 'Selecione um clube'}</strong>

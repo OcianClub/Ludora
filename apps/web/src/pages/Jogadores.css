@@ -30,3 +30,20 @@
 .alunos-list .alunos-students li { padding:12px 0; }
 .alunos-preview p { margin-bottom:8px; font-weight:600; }
 .alunos-students .actions { flex:0 0 auto; flex-wrap:wrap; }
+.alunos-category-toggle { display:flex; flex:1; align-items:center; justify-content:space-between; gap:12px; text-align:left; padding:8px 4px; border:0; background:none; color:var(--texto); }
+.alunos-category-toggle strong { font-family:var(--font-titulo); font-size:26px; color:var(--texto); }
+.alunos-category-toggle small { display:block; color:var(--texto-sec); font-size:11px; margin-top:3px; }
+.alunos-category-toggle>.icon { color:var(--primaria); }
+.alunos-category-toggle:hover strong { color:var(--primaria); }
+.alunos-category [hidden] { display:none; }
+.position-options button { color:var(--texto); }
+.alunos-category-toggle[aria-expanded=true]>.icon { transform:rotate(90deg); }
+.alunos-category header { padding-bottom:16px; }
+.alunos-students li>.student-identity { flex:1; min-width:0; }
+.alunos-students .student-identity small { display:flex; align-items:center; gap:6px; }
+.student-identity a:hover { color:var(--primaria); }
+.student-games { flex:none; text-align:center; font-size:13px; }
+.student-games small { font-size:10px; }
+.student-open { flex:none; display:grid; place-items:center; width:32px; height:38px; color:var(--primaria); border-radius:6px; }
+.student-open:hover { background:var(--fundo-botao); }
+@media(max-width:480px) { .student-games { font-size:12px; } .alunos-students .student-identity small { font-size:11px; } .student-open { width:24px; } }

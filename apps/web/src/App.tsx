@@ -7,6 +7,8 @@ import RegistrarPage from './pages/Registrar';
 import SelecionarClubePage from './pages/SelecionarClube';
 import DashboardPage from './pages/Dashboard';
 import JogadoresPage from './pages/Jogadores';
+import JogadorPerfil from './pages/JogadorPerfil';
+import ClubePerfil from './pages/ClubePerfil';
 import TimesPage from './pages/Times';
 import PartidasPage from './pages/Partidas';
 import PartidaDetalhePage from './pages/PartidaDetalhe';
@@ -16,6 +18,7 @@ import PerfilPage from './pages/Perfil';
 import MembrosPage from './pages/Membros';
 import RecuperarSenhaPage from './pages/RecuperarSenha';
 import ConvitePage from './pages/Convite';
+import { TooltipLayer } from './components/Tooltip';
 
 function Protegida({ children }: { children: React.ReactNode }) {
   const { token, clube } = useAuth();
@@ -49,6 +52,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <RouteNavigation />
+        <TooltipLayer />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/registrar" element={<RegistrarPage />} />
@@ -61,6 +65,10 @@ export default function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/jogadores" element={<JogadoresPage />} />
+            <Route path="/jogadores/:id" element={<JogadorPerfil />} />
+            <Route path="/jogadores/:id/partidas" element={<JogadorPerfil history="partidas" />} />
+            <Route path="/jogadores/:id/campeonatos" element={<JogadorPerfil history="campeonatos" />} />
+            <Route path="/clube" element={<ClubePerfil />} />
             <Route path="/elenco" element={<ElencoPage />} />
             <Route path="/times" element={<TimesPage />} />
             <Route path="/partidas" element={<PartidasPage />} />

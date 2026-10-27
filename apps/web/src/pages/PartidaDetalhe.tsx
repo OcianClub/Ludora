@@ -14,6 +14,7 @@ import { formatMatchDate } from '../components/MatchCard';
 import { Icon } from '../components/Icon';
 import { EVENT_TYPES, EventIcon } from '../components/EventIcon';
 import { MatchEditor, ScoreEditor } from '../components/MatchEditors';
+import { PositionIcon } from '../components/PositionIcon';
 import { ConfirmDelete } from '../components/CollectionControls';
 
 const STATUS_NEXT: Record<string, string> = { AGENDADA: 'PREPARADA', PREPARADA: 'AO_VIVO', AO_VIVO: 'FINALIZADA' };
@@ -342,7 +343,7 @@ export default function PartidaDetalhePage() {
                 <button type="button" key={j.id} className={`escalacao-item${selecionado ? ' selecionado' : ''}`} aria-pressed={selecionado} disabled={!podeGerenciar || savingLineup} onClick={() => toggleJogador(j.id)}>
                   <div className="esc-camisa">#{j.numCamisa || '?'}</div>
                   <div className="esc-nome">{j.nome}</div>
-                  <div className="esc-posicao">{j.posicao}</div>
+                  <div className="esc-posicao position-inline"><PositionIcon position={j.posicao}/>{j.posicao}</div>
                   {selecionado && <div className="esc-check">✓</div>}
                 </button>
               );

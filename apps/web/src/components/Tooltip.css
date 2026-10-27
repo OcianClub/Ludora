@@ -1,0 +1,5 @@
+.tooltip-target { display:inline-flex; align-items:center; vertical-align:middle; cursor:help; border-radius:4px; }
+.position-inline { display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.tooltip-target:focus-visible { outline:2px solid var(--primaria); outline-offset:4px; }
+.ludora-tooltip { position:fixed; z-index:10000; display:flex; align-items:center; gap:9px; width:max-content; max-width:min(256px,calc(100vw - 24px)); padding:10px 12px; background:var(--fundo-card); color:var(--texto); border:1px solid var(--borda); border-radius:6px; box-shadow:0 8px 24px #0004; font-size:12px; line-height:1.5; }
+.position-badge { display:inline-flex; align-items:center; gap:7px; padding:0; border:0; background:none; color:inherit; }

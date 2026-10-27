@@ -1,3 +1,4 @@
+import { PositionLabel } from '@/src/components/PositionIcon';
 import { Icon, type IconName } from '@ludora/icons';
 import React, {
   memo,
@@ -23,10 +24,9 @@ import {
 import { Redirect, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Polygon, Line, Text as SvgText } from 'react-native-svg';
-import PagerView, {
-  type PagerViewOnPageScrollEvent,
-} from 'react-native-pager-view';
-import Animated, { useEvent, useSharedValue } from 'react-native-reanimated';
+import { CategoryPager, type CategoryPagerHandle } from '@/src/components/CategoryPager';
+import { CategoryPageMotion } from '@/src/components/CategoryPageMotion';
+import { useCategoryPagerMotion } from '@/src/hooks/useCategoryPagerMotion';
 
 import {
   obterPerfisJogadores,
@@ -269,10 +269,7 @@ const CardJogador = memo(function CardJogador({
           <Text style={styles.cardNome} numberOfLines={1}>
             {jogador.nome}
           </Text>
-          <Text style={styles.cardSub}>
-            {jogador.posicao}
-            {idade ? ` • ${idade} anos` : ''}
-          </Text>
+          <PositionLabel position={jogador.posicao} textStyle={styles.cardSub} suffix={idade ? ` · ${idade} anos` : ''}/>
         </View>
 
         <View style={styles.cardDireita}>
@@ -389,7 +386,7 @@ function ModalScout({
               <Text style={styles.scoutNome} numberOfLines={1}>
                 {jogador.nome}
               </Text>
-              <Text style={styles.scoutPosicao}>{jogador.posicao}</Text>
+              <PositionLabel position={jogador.posicao} textStyle={styles.scoutPosicao}/>
               <View
                 style={{
                   flexDirection: 'row',
@@ -517,7 +514,6 @@ function ModalScout({
 }
 
 // ── Tela Principal ────────────────────────────────────────────────────────────
-const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 
 export default function Estatisticas() {
   const { colors, tema } = useTheme();
@@ -533,16 +529,10 @@ export default function Estatisticas() {
   const medicaoTela = useRef<ReturnType<
     typeof iniciarMedicaoCarregamento
   > | null>(null);
-  const pagerRef = useRef<PagerView>(null);
+  const pagerRef = useRef<CategoryPagerHandle>(null);
   const paginasScroll = useRef<Record<number, FlatList<Jogador> | null>>({});
-  const progressoPagina = useSharedValue(0);
-  const acompanharPagina = useEvent<PagerViewOnPageScrollEvent>(
-    (event) => {
-      'worklet';
-      progressoPagina.value = event.position + event.offset;
-    },
-    ['onPageScroll']
-  );
+  const pagerMotion = useCategoryPagerMotion(pagerRef);
+  const progressoPagina = pagerMotion.progress;
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -567,14 +557,15 @@ export default function Estatisticas() {
   const [tipoAtivo, setTipoAtivo] = useState<'INICIACAO' | 'BASE'>('INICIACAO');
 
   const subsAtivos = tipoAtivo === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
-  const trocarSub = useCallback((index: number) => {
-    pagerRef.current?.setPage(index);
-  }, []);
+  const trocarSub = useCallback((index: number, velocity?: number) => {
+    pagerMotion.goTo(index, velocity);
+  }, [pagerMotion.goTo]);
   const trocarTipo = useCallback(
     (tipo: 'INICIACAO' | 'BASE') => {
       setTipoAtivo(tipo);
       setSubIndex(0);
       progressoPagina.value = 0;
+      pagerMotion.origin.value = 0;
       pagerRef.current?.setPageWithoutAnimation(0);
     },
     [progressoPagina]
@@ -760,7 +751,7 @@ export default function Estatisticas() {
         onTrocarTipo={trocarTipo}
         indexAtual={subIndex}
         onChangeIndex={trocarSub}
-        progressoPagina={progressoPagina}
+        progressoPagina={progressoPagina} originPagina={pagerMotion.origin} settlingPagina={pagerMotion.settling}
       />
 
       {consultaLocal !== null && (
@@ -770,15 +761,14 @@ export default function Estatisticas() {
           onAtualizar={() => void atualizarScout()}
         />
       )}
-      <AnimatedPagerView
+      <CategoryPager
         key={clubeAtivo?.id}
         ref={pagerRef}
         style={{ flex: 1 }}
         initialPage={subIndex}
         onPageSelected={({ nativeEvent }) => setSubIndex(nativeEvent.position)}
-        onPageScroll={acompanharPagina}
+        progress={progressoPagina} origin={pagerMotion.origin} settling={pagerMotion.settling} onSettled={pagerMotion.onSettled}
         keyboardDismissMode="on-drag"
-        offscreenPageLimit={1}
       >
         {paginas.map(
           (
@@ -796,9 +786,10 @@ export default function Estatisticas() {
               style={{ flex: 1 }}
               collapsable={false}
             >
+              <CategoryPageMotion index={indexPagina} progress={progressoPagina} origin={pagerMotion.origin} settling={pagerMotion.settling}>
               <PaginaCategoria
                 grupo={`${clubeAtivo?.id}-${tipoAtivo}`}
-                preparar={Math.abs(indexPagina - subIndex) <= 1}
+                preparar
               >
                 {carregando ? (
                   <ScrollView
@@ -1139,10 +1130,11 @@ export default function Estatisticas() {
                   />
                 )}
               </PaginaCategoria>
+              </CategoryPageMotion>
             </View>
           )
         )}
-      </AnimatedPagerView>
+      </CategoryPager>
 
       {jogadorSelecionado &&
         clubeAtivo?.id &&

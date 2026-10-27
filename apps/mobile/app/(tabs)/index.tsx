@@ -13,10 +13,9 @@ import { HeaderClube } from '@/src/components/HeaderClube';
 import { PaginaCategoria } from '@/src/components/PaginaCategoria';
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
-import PagerView, {
-  type PagerViewOnPageScrollEvent,
-} from 'react-native-pager-view';
-import Animated, { useEvent, useSharedValue } from 'react-native-reanimated';
+import { CategoryPager, type CategoryPagerHandle } from '@/src/components/CategoryPager';
+import { CategoryPageMotion } from '@/src/components/CategoryPageMotion';
+import { useCategoryPagerMotion } from '@/src/hooks/useCategoryPagerMotion';
 import {
   atualizarStatusPartida,
   fetchEscalacaoPartida,
@@ -45,20 +44,13 @@ import { obterPerfisJogadores } from '@/src/services/mlService';
 import { iniciarMedicaoCarregamento } from '@/src/utils/desempenho';
 import { AvisoConsultaLocal } from '@/src/components/AvisoConsultaLocal';
 
-const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 
 export default function Home() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const pagerRef = useRef<PagerView>(null);
-  const progressoPagina = useSharedValue(0);
-  const acompanharPagina = useEvent<PagerViewOnPageScrollEvent>(
-    (event) => {
-      'worklet';
-      progressoPagina.value = event.position + event.offset;
-    },
-    ['onPageScroll']
-  );
+  const pagerRef = useRef<CategoryPagerHandle>(null);
+  const pagerMotion = useCategoryPagerMotion(pagerRef);
+  const progressoPagina = pagerMotion.progress;
   const carregouUmaVez = useRef(false);
   const clubeCarregadoId = useRef<number | null>(null);
   const controle = useRef(criarControleRequisicoes()).current;
@@ -272,14 +264,15 @@ export default function Home() {
       setFaseAtiva(novaFase);
       setSubIndex(0);
       progressoPagina.value = 0;
+      pagerMotion.origin.value = 0;
       pagerRef.current?.setPageWithoutAnimation(0);
     },
     [progressoPagina]
   );
 
-  const handleSubChange = useCallback((index: number) => {
-    pagerRef.current?.setPage(index);
-  }, []);
+  const handleSubChange = useCallback((index: number, velocity?: number) => {
+    pagerMotion.goTo(index, velocity);
+  }, [pagerMotion.goTo]);
 
   const onPageSelected = (e: any) => {
     const index = e.nativeEvent.position;
@@ -295,7 +288,7 @@ export default function Home() {
         onTrocarTipo={handleTrocarFase}
         indexAtual={subIndex}
         onChangeIndex={handleSubChange}
-        progressoPagina={progressoPagina}
+        progressoPagina={progressoPagina} originPagina={pagerMotion.origin} settlingPagina={pagerMotion.settling}
       />
       {consultaLocal !== null && !mudouClubeNaTela && (
         <AvisoConsultaLocal
@@ -323,14 +316,13 @@ export default function Home() {
         </View>
       )}
 
-      <AnimatedPagerView
+      <CategoryPager
         ref={pagerRef}
         style={styles.pagerView}
         initialPage={0}
         onPageSelected={onPageSelected}
-        onPageScroll={acompanharPagina}
+        progress={progressoPagina} origin={pagerMotion.origin} settling={pagerMotion.settling} onSettled={pagerMotion.onSettled}
         scrollEnabled={true}
-        offscreenPageLimit={1}
       >
         {resumos.map(({ sub, proximoJogo, historico, agenda }, index) => {
           return (
@@ -339,9 +331,10 @@ export default function Home() {
               style={styles.pageContainer}
               collapsable={false}
             >
+              <CategoryPageMotion index={index} progress={progressoPagina} origin={pagerMotion.origin} settling={pagerMotion.settling}>
               <PaginaCategoria
                 grupo={`${clubeAtivo?.id}-${faseAtiva}`}
-                preparar={Math.abs(index - subIndex) <= 1}
+                preparar
               >
                 <HomeCategoria
                   ativa={index === subIndex && !partidaSelecionada}
@@ -359,10 +352,11 @@ export default function Home() {
                   onIniciarPartida={handleIniciarPartida}
                 />
               </PaginaCategoria>
+              </CategoryPageMotion>
             </View>
           );
         })}
-      </AnimatedPagerView>
+      </CategoryPager>
 
       {partidaSelecionada && (
         <Modal

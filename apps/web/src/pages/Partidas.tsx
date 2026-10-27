@@ -12,6 +12,10 @@ import { LiveMatchesCarousel } from '../components/LiveMatchesCarousel';
 import { SchedulePeriodDialog } from '../components/SchedulePeriodDialog';
 import { intervaloAgenda, grupoSituacao, ordenarAgenda, rotuloDiaAgenda, agruparAgenda, type PeriodoAgenda } from '../utils/scheduleFilters';
 import { teamName } from '../utils/teamIdentity';
+import { matchHasOwnTeam, selectMatchTeam } from '../utils/matchTeams';
+import { HomeCategories } from '../components/HomeCategories';
+import { MatchDateField, MatchTimeField } from '../components/MatchDateTime';
+import { LocationInput } from '../components/LocationInput';
 import './Partidas.css';
 import './ScheduleCreate.css';
 
@@ -108,6 +112,7 @@ export default function PartidasPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [picker, setPicker] = useState<'categoria' | 'competicao' | 'mandante' | 'visitante' | null>(null);
   const [pickerSearch, setPickerSearch] = useState('');
+  const [pickerPhase, setPickerPhase] = useState('INICIACAO');
   const [form, setForm] = useState(FORM_VAZIO);
   const [salvando, setSalvando] = useState(false);
   const savingRef = useRef(false);
@@ -243,6 +248,7 @@ export default function PartidasPage() {
     if (!categorias.some(category => String(category.id) === form.categoria_id)) return 'Esta categoria não está mais disponível. Selecione outra categoria.';
     if (!form.mandante_id || !form.visitante_id) return 'Selecione os dois times do confronto.';
     if (form.mandante_id === form.visitante_id) return 'Mandante e visitante precisam ser times diferentes.';
+    if (!clube || !matchHasOwnTeam(times.find(t => String(t.id) === form.mandante_id), times.find(t => String(t.id) === form.visitante_id), clube.id)) return 'O confronto precisa ter um time do seu clube e um adversário.';
     if ([form.mandante_id, form.visitante_id].some(id => !times.some(team => String(team.id) === id && String(team.categoria_id) === form.categoria_id))) return 'Os dois times precisam pertencer à categoria selecionada. Escolha os times novamente.';
     if (!form.data) return 'Informe a data da partida.';
     const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(form.data);
@@ -291,7 +297,20 @@ export default function PartidasPage() {
 
   function openPicker(value: typeof picker) {
     setPickerSearch('');
+    if (value === 'categoria') setPickerPhase(categorias.find(c => String(c.id) === form.categoria_id)?.tipo || 'INICIACAO');
     setPicker(value);
+  }
+  function chooseCategory(name: string, nextPhase = pickerPhase) {
+    const category = categorias.find(c => c.nome === name && c.tipo === nextPhase);
+    if (category && String(category.id) !== form.categoria_id) setForm(f => ({ ...f, categoria_id: String(category.id), mandante_id: '', visitante_id: '', competicao_id: '', rodada: '' }));
+    setErro('');
+  }
+  function chooseTeam(side: 'mandante' | 'visitante', teamId: number) {
+    if (!clube) return;
+    try {
+      const selection = selectMatchTeam(times, clube.id, Number(form.categoria_id), side, teamId, form);
+      setForm(f => ({ ...f, ...selection })); setErro(''); setPicker(null);
+    } catch (error) { setErro(error instanceof Error ? error.message : 'Não foi possível selecionar o time.'); }
   }
   const formCategory = categorias.find(category => String(category.id) === form.categoria_id);
   const formCompetition = competicoes.find(competition => String(competition.id) === form.competicao_id);
@@ -489,25 +508,21 @@ export default function PartidasPage() {
             })}
             <span className="schedule-create-vs" aria-hidden="true">VS</span>
           </div></section>
-          <fieldset className="schedule-create-mando"><legend>Mando de campo</legend><button type="button" aria-pressed={form.emCasa === 'true'} onClick={() => setForm(f => ({ ...f, emCasa: 'true' }))}><Icon name="home" size={17} />Em casa</button><button type="button" aria-pressed={form.emCasa === 'false'} onClick={() => setForm(f => ({ ...f, emCasa: 'false' }))}><Icon name="bus" size={17} />Fora</button></fieldset>
+          <div className="schedule-auto-mando" role="status"><Icon name={form.emCasa === 'true' ? 'home' : 'bus'} size={20}/><div><strong>{formHome || formAway ? (form.emCasa === 'true' ? 'Em casa · seu clube é mandante' : 'Fora · seu clube é visitante') : 'Mando definido pelo confronto'}</strong><small>Ao escolher um adversário, seu clube ocupa o outro lado automaticamente.</small></div></div>
           <div className="schedule-create-date">
-            <Input label="Data" type="date" min={minimumDate} value={form.data} onChange={e => { setForm(f => ({ ...f, data: e.target.value })); setErro(''); }} error={erro.includes('data') ? erro : ''} required />
-            <Input label="Horário" type="time" value={form.horario} onChange={e => { setForm(f => ({ ...f, horario: e.target.value })); setErro(''); }} error={erro.includes('horário') ? erro : ''} required />
+            <MatchDateField min={minimumDate} value={form.data} onChange={data => { setForm(f => ({ ...f, data })); setErro(''); }}/>
+            <MatchTimeField value={form.horario} onChange={horario => { setForm(f => ({ ...f, horario })); setErro(''); }}/>
           </div>
-          <Input label="Local · opcional" placeholder="Ginásio, campo ou endereço" value={form.local} onChange={e => setForm(f => ({ ...f, local: e.target.value }))} />
+          <LocationInput value={form.local} onChange={local => setForm(f => ({ ...f, local }))}/>
           {formCompetition && <Input label="Rodada · opcional" type="number" min="1" step="1" value={form.rodada} onChange={e => { setForm(f => ({ ...f, rodada: e.target.value })); setErro(''); }} />}
-          {erro && !erro.includes('data') && !erro.includes('horário') && <p className="schedule-create-error" role="alert">{erro}</p>}
+          {erro && <p className="schedule-create-error" role="alert">{erro}</p>}
         </form>
       </Modal>
       <Modal open={!!picker && modal} onClose={() => setPicker(null)} title={picker === 'categoria' ? 'Categoria da partida' : picker === 'competicao' ? 'Selecionar competição' : `Selecionar ${picker}`} className="schedule-picker-dialog">
         {picker === 'categoria' ? <div className="schedule-category-options">
           <p>{formHome || formAway ? 'Ao mudar de categoria, selecione novamente os times e a competição.' : 'Selecione a categoria em que a partida será criada.'}</p>
-          {(['INICIACAO', 'BASE'] as const).map(tipo => <section key={tipo}><h3>{tipo === 'BASE' ? 'Base' : 'Iniciação'}</h3><div>
-            {categorias.filter(category => category.tipo === tipo).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true })).map(category => <button key={category.id} type="button" aria-pressed={form.categoria_id === String(category.id)} onClick={() => {
-              if (form.categoria_id !== String(category.id)) setForm(f => ({ ...f, categoria_id: String(category.id), mandante_id: '', visitante_id: '', competicao_id: '', rodada: '' }));
-              setErro(''); setPicker(null);
-            }}>{category.nome}{form.categoria_id === String(category.id) && <Icon name="checkAll" size={16} />}</button>)}
-          </div></section>)}
+          <HomeCategories categories={[...categorias].sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true }))} phase={pickerPhase} selected={formCategory} label="Categoria da partida" onSelect={chooseCategory} onPhase={next => { setPickerPhase(next); const first = categorias.filter(c => c.tipo === next).sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true }))[0]; if (first) chooseCategory(first.nome, next); }} />
+          <Btn type="button" disabled={!formCategory || formCategory.tipo !== pickerPhase} onClick={() => setPicker(null)}>Usar categoria</Btn>
           {!categorias.length && <p className="schedule-picker-empty">Nenhuma categoria disponível. Cadastre as categorias do clube antes de organizar uma partida.</p>}
         </div> : <div className="schedule-picker-content">
           <Input label={picker === 'competicao' ? 'Buscar competição ou ano' : 'Buscar time'} type="search" placeholder={picker === 'competicao' ? 'Buscar competição ou ano' : 'Buscar time'} value={pickerSearch} onChange={event => setPickerSearch(event.target.value)} />
@@ -526,10 +541,13 @@ export default function PartidasPage() {
                 </button>
               ))}
             </> : <>
-              {times.filter(item => String(item.categoria_id) === form.categoria_id && normalizarBusca(item.nome).includes(normalizarBusca(pickerSearch))).map(item => {
-                const alreadySelected = String(item.id) === (picker === 'mandante' ? form.visitante_id : form.mandante_id);
+              {erro && <p className="notice-error" role="alert">{erro}</p>}
+              {times.filter(item => String(item.categoria_id) === form.categoria_id && normalizarBusca(item.nome).includes(normalizarBusca(pickerSearch))).sort((a,b) => {
+                const priority = (team: Time) => team.clube_representado_id === clube?.id ? 0 : team.clube_representado_id ? 1 : 2;
+                return priority(a) - priority(b) || a.nome.localeCompare(b.nome, 'pt-BR');
+              }).map(item => {
                 const selected = String(item.id) === (picker === 'mandante' ? form.mandante_id : form.visitante_id);
-                return <button key={item.id} type="button" aria-pressed={selected} disabled={alreadySelected} onClick={() => { setForm(f => ({ ...f, [picker === 'mandante' ? 'mandante_id' : 'visitante_id']: String(item.id) })); setErro(''); setPicker(null); }}><ClubBadge src={item.escudo || item.clubeRepresentado?.escudo} name={item.nome} size={42} /><span><strong>{teamName(item.nome)}</strong><small>{alreadySelected ? 'Já selecionado no outro lado' : formCategory?.nome}</small></span>{selected && <Icon name="checkAll" size={18} />}</button>;
+                return <button key={item.id} type="button" aria-pressed={selected} onClick={() => chooseTeam(picker === 'mandante' ? 'mandante' : 'visitante', item.id)}><ClubBadge src={item.escudo || item.clubeRepresentado?.escudo} name={item.nome} size={42} /><span><strong>{teamName(item.nome)}</strong><small className={item.clube_representado_id ? 'text-primaria' : ''}>{item.clube_representado_id ? `Clube Ludora${item.clube_representado_id === clube?.id ? ' · seu clube' : ''}` : 'Adversário cadastrado'} · {formCategory?.nome}</small></span>{selected && <Icon name="checkAll" size={18} />}</button>;
               })}
               {!times.some(item => String(item.categoria_id) === form.categoria_id && normalizarBusca(item.nome).includes(normalizarBusca(pickerSearch))) && <p className="schedule-picker-empty">{pickerSearch ? 'Nenhum time encontrado. Tente outro nome ou limpe a busca.' : 'Nenhum time cadastrado nesta categoria. Escolha outra categoria ou cadastre os times primeiro.'}</p>}
             </>}

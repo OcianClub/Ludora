@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { categoriaPorNascimento, planejarTemporada } from './elenco.rules';
+import { fotoValida } from '../../utils/foto';
 
 export class ErroElenco extends Error {
   constructor(public status: number, mensagem: string, public detalhes: object = {}) { super(mensagem); }
@@ -53,6 +54,8 @@ export async function salvarAluno(clubeId: number, usuarioId: number, entrada: a
     const atual = id ? await tx.jogador.findFirst({ where: { id, categoria: { clube_id: clubeId } } }) : null;
     if (id && !atual) throw new ErroElenco(404, 'Jogador não encontrado neste clube.');
     if (atual) await exigirCategoria(tx, usuarioId, clubeId, atual.categoria_id);
+    if (atual && entrada.cpf !== undefined && entrada.cpf !== atual.cpf) throw new ErroElenco(400, 'O CPF não pode ser alterado.');
+    if (entrada.foto !== undefined && !fotoValida(entrada.foto)) throw new ErroElenco(400, 'Use uma imagem JPEG, PNG ou WebP de até 130 KB.');
     const nome = entrada.nome === undefined ? atual?.nome : typeof entrada.nome === 'string' ? entrada.nome.trim() : '';
     if (!nome || !/\p{L}/u.test(nome) || /[\uFE0F\u20E3]/u.test(nome) || !/^[\p{L}\p{M} '\u2019-]+$/u.test(nome) || nome.length > 120) throw new ErroElenco(400, 'Informe um nome válido, sem emojis ou símbolos.');
     const nascimento = entrada.dtNasc ?? atual?.dtNasc.toISOString().slice(0, 10);
@@ -84,7 +87,7 @@ export async function salvarAluno(clubeId: number, usuarioId: number, entrada: a
     const informada = entrada.posicao === undefined ? atual?.posicao ?? 'Alas' : entrada.posicao;
     const posicao = ['Ala', 'Ala Direito', 'Ala Esquerdo'].includes(informada) ? 'Alas' : informada;
     if (typeof posicao !== 'string' || !['Goleiro', 'Fixo', 'Pivô', 'Alas'].includes(posicao)) throw new ErroElenco(400, 'Posição inválida.');
-    const data = { nome, dtNasc: new Date(`${nascimento}T00:00:00Z`), posicao, numCamisa: camisa, categoria_id: categoria.id };
+    const data = { nome, dtNasc: new Date(`${nascimento}T00:00:00Z`), posicao, numCamisa: camisa, categoria_id: categoria.id, ...(entrada.foto !== undefined ? { foto: entrada.foto as string | null } : {}) };
     return atual ? tx.jogador.update({ where: { id: atual.id }, data, include: { categoria: true } }) :
       tx.jogador.create({ data: { ...data, cpf, perfil_ml: 'Sem dados' }, include: { categoria: true } });
   });

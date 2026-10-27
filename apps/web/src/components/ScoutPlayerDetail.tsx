@@ -4,6 +4,7 @@ import { fetchContextoScout, type PerfilJogador } from '../services/api';
 import { formatMatchDate } from './MatchCard';
 import { hasAssessment, profileClass, profileDescription } from '../utils/scoutPlayers';
 import { resumirContextoScout, formatarMediaScout, type ContextoScout } from '../../../mobile/src/utils/contextoScout';
+import { PositionIcon } from './PositionIcon';
 
 const AXES = [
   ['finalizacao', 'Finalização'], ['tecnica', 'Técnica'], ['intensidade', 'Intensidade'],
@@ -37,7 +38,7 @@ export function ScoutPlayerDetail({ player, category, onClose }: { player: Perfi
   return <Modal open title="Ficha do atleta" className="scout-detail-dialog" onClose={onClose}>
     <header className={`scout-detail-identity scout-tone-${profileClass(player)}`}>
       <span className="scout-shirt">{player.numCamisa != null ? `#${player.numCamisa}` : '—'}</span>
-      <div><h2>{player.nome}</h2><p>{player.posicao || 'Posição não informada'} · {category}{player.idade != null ? ` · ${player.idade} anos` : ''}</p>
+      <div><h2>{player.nome}</h2><p className="position-inline"><PositionIcon position={player.posicao}/>{player.posicao || 'Posição não informada'} · {category}{player.idade != null ? ` · ${player.idade} anos` : ''}</p>
         <span className="scout-profile-label">{hasAssessment(player) ? player.perfil_ml : 'Ainda não avaliado'}</span>
       </div>
       <div className="scout-rating"><span>Índice</span><strong>{hasAssessment(player) ? player.nota_geral!.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—'}</strong></div>

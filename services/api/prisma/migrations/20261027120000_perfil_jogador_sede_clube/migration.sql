@@ -1,0 +1,2 @@
+ALTER TABLE "Jogador" ADD COLUMN "foto" TEXT;
+ALTER TABLE "Clube" ADD COLUMN "endereco" JSONB;

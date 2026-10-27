@@ -1,4 +1,5 @@
 import { Router, type Response } from 'express';
+import type { Prisma } from '@prisma/client';
 import { salvarAluno, ErroElenco, categoriaCalculada, atualizarTemporada } from './elenco.service';
 import { anoTemporada } from './elenco.rules';
 
@@ -16,6 +17,7 @@ import { limitarOperacaoPesada } from '../../middlewares/rate-limit.middleware';
 import { idPositivo } from '../../utils/id';
 import { consultarPerfis } from './perfis.service';
 import { consultarContextoScout } from './contexto-scout.service';
+import { contarParticipacoes } from './participacoes';
 
 const router = Router();
 
@@ -40,7 +42,7 @@ router.get('/jogadores/categoria', exigirGestorDoClube, async (req, res) => {
 });
 
 router.post('/jogadores', exigirGestorDoClube, async (req, res) => {
-  try { res.status(201).json(await salvarAluno((req as any).clubeId, (req as any).usuarioId, req.body)); }
+  try { const { cpf: _private, ...player } = await salvarAluno((req as any).clubeId, (req as any).usuarioId, req.body); res.status(201).json(player); }
   catch (erro) { responderErro(res, erro); }
 });
 
@@ -108,13 +110,30 @@ router.get('/jogadores', exigirClubePublico, async (req, res) => {
 
   try {
     const escopo = await obterEscopoCategoriasLeitura((req as any).usuarioId, clube_id);
+    const category = req.query.categoria_id === undefined ? null : idPositivo(req.query.categoria_id);
+    const limit = req.query.limite === undefined ? null : idPositivo(req.query.limite);
+    if (req.query.categoria_id !== undefined && !category || req.query.limite !== undefined && (!limit || limit > 100)) return res.status(400).json({ error: 'Categoria ou limite inválido (máximo 100).' });
+    if (category && !escopo.acessoTotal && !escopo.categoriaIds.includes(category)) return res.status(403).json({ error: 'Categoria fora do seu acesso.' });
+    const search = typeof req.query.busca === 'string' ? req.query.busca.trim().slice(0, 160) : '';
+    const position = typeof req.query.posicao === 'string' ? req.query.posicao : '';
+    if (position && !['Goleiro', 'Fixo', 'Pivô', 'Alas'].includes(position)) return res.status(400).json({ error: 'Posição inválida.' });
+    const where: Prisma.JogadorWhereInput = {
+      ativo: true, categoria: { clube_id },
+      ...(category ? { categoria_id: category } : escopo.acessoTotal ? {} : { categoria_id: { in: escopo.categoriaIds } }),
+      ...(search ? { nome: { contains: search, mode: 'insensitive' } } : {}),
+      ...(position ? { posicao: position === 'Alas' ? { startsWith: 'ala', mode: 'insensitive' } : { equals: position, mode: 'insensitive' } } : {}),
+      ...(req.query.camisa === 'missing' ? { numCamisa: null } : req.query.camisa === 'assigned' ? { numCamisa: { not: null } } : {}),
+    };
+    if (req.query.resumo === 'true') {
+      const groups = await prisma.jogador.groupBy({ by: ['categoria_id'], where, _count: { _all: true, numCamisa: true } });
+      return res.json(groups.map(group => ({ categoria_id: group.categoria_id, total: group._count._all, semCamisa: group._count._all - group._count.numCamisa })));
+    }
+    const offset = req.query.offset === undefined ? 0 : Number(req.query.offset);
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000) return res.status(400).json({ error: 'Página inválida.' });
     const jogadores = await prisma.jogador.findMany({
-      where: { 
-        ativo: true,
-        categoria: { clube_id },
-        ...(escopo.acessoTotal ? {} : { categoria_id: { in: escopo.categoriaIds } }),
-      },
-      orderBy: { nome: 'asc' },
+      where,
+      orderBy: [{ nome: req.query.ordem === 'desc' ? 'desc' : 'asc' }, { id: 'asc' }],
+      ...(limit ? { take: limit, skip: offset } : {}),
       select: {
         id: true,
         nome: true,
@@ -125,14 +144,15 @@ router.get('/jogadores', exigirClubePublico, async (req, res) => {
         ativo: true,
       },
     });
-    res.json(jogadores);
+    const participations = await contarParticipacoes(prisma, jogadores.map(player => player.id), clube_id);
+    res.json(jogadores.map(player => ({ ...player, totalPartidas: participations.get(player.id) ?? 0 })));
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar jogadores' }); }
 });
 
 router.patch('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async (req, res) => {
   const id = idPositivo(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID inválido' });
-  try { res.json(await salvarAluno((req as any).clubeId, (req as any).usuarioId, req.body, id)); }
+  try { const { cpf: _private, ...player } = await salvarAluno((req as any).clubeId, (req as any).usuarioId, req.body, id); res.json(player); }
   catch (erro) { responderErro(res, erro); }
 });
 

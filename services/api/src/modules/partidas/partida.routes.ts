@@ -20,6 +20,7 @@ import { criarHomeRoutes } from './home.routes';
 import { criarAgendaRoutes } from './agenda.routes';
 import { consultarAgenda } from './agenda.service';
 import { perspectivaPartida } from './visibilidade';
+import { mandoDoClube } from './mando';
 import {
   aplicarMudancaPlacar,
   ConflitoPartida,
@@ -121,6 +122,7 @@ export function criarPartidaRoutes(io: Server) {
       grupo,
     } = req.body;
     try {
+      if (horario != null && horario !== '' && (typeof horario !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horario))) return res.status(400).json({ error: 'Horário inválido. Use HH:MM entre 00:00 e 23:59.' });
       const dataFormatada = data ? new Date(`${data}T00:00:00Z`) : new Date();
       const catId = idPositivo(categoria_id);
       const mandanteId = idPositivo(mandante_id);
@@ -159,13 +161,17 @@ export function criarPartidaRoutes(io: Server) {
           .status(403)
           .json({ error: 'Você não administra a categoria selecionada' });
       }
-      const timesValidos = await prisma.time.count({
+      const timesValidos = await prisma.time.findMany({
         where: { id: { in: [mandanteId, visitanteId] }, categoria_id: catId },
+        select:{id:true,clube_representado_id:true},
       });
-      if (timesValidos !== 2)
+      if (timesValidos.length !== 2)
         return res
           .status(403)
           .json({ error: 'Times não pertencem à categoria selecionada' });
+      let mando: boolean;
+      try { mando = mandoDoClube(timesValidos,mandanteId,visitanteId,(req as any).clubeId); }
+      catch(e) { return res.status(400).json({error:(e as Error).message}); }
       if (compId) {
         const competicaoValida = await prisma.competicao.count({
           where: { id: compId, clube_id: (req as any).clubeId },
@@ -196,7 +202,7 @@ export function criarPartidaRoutes(io: Server) {
           data: dataFormatada,
           horario,
           local,
-          emCasa: emCasa !== undefined ? emCasa : true,
+          emCasa: mando,
           categoria_id: catId,
           competicao_id: compId,
           rodada: rodada ? Number(rodada) : null,
@@ -264,6 +270,7 @@ export function criarPartidaRoutes(io: Server) {
         categoria_id,
       } = req.body;
       try {
+        if (horario != null && horario !== '' && (typeof horario !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horario))) return res.status(400).json({ error: 'Horário inválido. Use HH:MM entre 00:00 e 23:59.' });
         const atual = await prisma.partida.findUnique({
           where: { id: Number(req.params.id) },
           select: { mandante_id: true, visitante_id: true, categoria_id: true },
@@ -291,14 +298,15 @@ export function criarPartidaRoutes(io: Server) {
           prisma.categoria.count({
             where: { id: categoriaId, clube_id: (req as any).clubeId },
           }),
-          prisma.time.count({
+          prisma.time.findMany({
             where: {
               id: { in: [mandanteId, visitanteId] },
               categoria_id: categoriaId,
             },
+            select:{id:true,clube_representado_id:true},
           }),
         ]);
-        if (!categoriaValida || timesValidos !== 2) {
+        if (!categoriaValida || timesValidos.length !== 2) {
           return res
             .status(403)
             .json({ error: 'Categoria ou times não pertencem ao clube ativo' });
@@ -314,6 +322,9 @@ export function criarPartidaRoutes(io: Server) {
             .status(403)
             .json({ error: 'Você não administra a categoria de destino' });
         }
+        let mando: boolean;
+        try { mando=mandoDoClube(timesValidos,mandanteId,visitanteId,(req as any).clubeId); }
+        catch(e) { return res.status(400).json({error:(e as Error).message}); }
         const dataAtualizada = data ? new Date(`${data}T00:00:00Z`) : undefined;
         if (dataAtualizada && Number.isNaN(dataAtualizada.getTime())) {
           return res.status(400).json({ error: 'Data inválida' });
@@ -326,7 +337,7 @@ export function criarPartidaRoutes(io: Server) {
             data: dataAtualizada,
             horario,
             local,
-            emCasa,
+            emCasa: mando,
             rodada: rodada ? Number(rodada) : undefined,
             grupo: grupo ?? null,
             categoria_id: categoria_id ? categoriaId : undefined,

@@ -209,6 +209,7 @@ export class ErroJogador extends Error {
   constructor(mensagem: string, public conflito?: ConflitoCamisa) { super(mensagem); }
 }
 export type DadosJogador = {
+  foto?: string | null;
   nome?: string; cpf?: string; dtNasc?: string; posicao?: string; numCamisa?: number | null;
   confirmar_camisa?: { jogador_id: number; camisa_anterior: number | null };
 };

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from './Icon';
 import { Btn, Modal } from './UI';
 import './CollectionControls.css';
+import { PositionIcon } from './PositionIcon';
 
 export type ViewMode = 'grid' | 'list';
 export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (value: ViewMode) => void }) {
@@ -45,11 +46,10 @@ export function ConfirmDelete({ name, busy, error, onClose, onConfirm }: { name:
     <div className="collection-dialog-actions"><Btn type="button" variant="ghost" disabled={busy} onClick={onClose}>Cancelar</Btn><Btn type="button" variant="danger" disabled={busy} onClick={onConfirm}>{busy ? 'Excluindo...' : 'Confirmar exclusão'}</Btn></div>
   </Modal>;
 }
-export function PositionBadge({ position }: { position: string }) {
+export function PositionBadge({ position, showLabel = false }: { position: string; showLabel?: boolean }) {
   const label = normalizePosition(position);
-  return <span className={`position-badge position-${label === 'Goleiro' ? 'keeper' : label === 'Fixo' ? 'back' : label === 'Pivô' ? 'pivot' : 'wing'}`}>
-    {label === 'Goleiro' && <Icon name="defense" size={14} />}{label}
-  </span>;
+  return showLabel ? <span className="position-symbol" data-tooltip={label}><PositionIcon position={label} decorative tooltip={false}/>{label}</span>
+    : <PositionIcon position={label}/>;
 }
 export function normalizePosition(value: string) { return /^ala/i.test(value) ? 'Alas' : value; }
 export const POSITIONS = ['Goleiro', 'Fixo', 'Pivô', 'Alas'];

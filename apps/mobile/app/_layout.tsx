@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 
 import {
@@ -47,7 +48,7 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}><ThemeProvider>
       <ClubeAtivoProvider>
         <NotificacoesProvider>
           <Stack screenOptions={{ headerShown: false }}>
@@ -58,6 +59,6 @@ export default function RootLayout() {
           </Stack>
         </NotificacoesProvider>
       </ClubeAtivoProvider>
-    </ThemeProvider>
+    </ThemeProvider></GestureHandlerRootView>
   );
 }

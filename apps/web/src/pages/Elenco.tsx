@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { fetchJogadoresPerfis, fetchCategorias, type PerfilJogador, type Categoria } from '../services/api';
 import { Btn, Modal, Spinner, Empty } from '../components/UI';
 import { POSITIONS, normalizePosition } from '../components/CollectionControls';
+import { PositionIcon } from '../components/PositionIcon';
 import { FilterSelect } from '../components/FilterSelect';
 import { ScoutPlayerDetail } from '../components/ScoutPlayerDetail';
 import { HomeCategories } from '../components/HomeCategories';
@@ -135,7 +136,7 @@ export default function ElencoPage() {
           const keeper = normalizePosition(player.posicao) === 'Goleiro';
           return <article key={player.id} className={`scout-player scout-tone-${profileClass(player)}`}>
             <button className="scout-player-main" type="button" onClick={() => openPlayer(player)} aria-label={`Ver ficha de ${player.nome}`}>
-              <span className="scout-shirt">{player.numCamisa != null ? `#${player.numCamisa}` : '—'}</span><span className="scout-player-identity"><strong>{player.nome}</strong><span>{normalizePosition(player.posicao) || 'Posição não informada'}{player.idade != null ? ` · ${player.idade} anos` : ''}</span></span>
+              <span className="scout-shirt">{player.numCamisa != null ? `#${player.numCamisa}` : '—'}</span><span className="scout-player-identity"><strong>{player.nome}</strong><span className="position-inline"><PositionIcon position={player.posicao}/>{normalizePosition(player.posicao) || 'Posição não informada'}{player.idade != null ? ` · ${player.idade} anos` : ''}</span></span>
               <span className="scout-rating"><span>Índice</span><strong>{assessed ? player.nota_geral!.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—'}</strong></span><Icon name="chevronRight" size={18} />
             </button>
             <div className="scout-player-bottom"><span className="scout-profile-label">{assessed ? player.perfil_ml : 'Não avaliado'}</span><dl className="scout-player-metrics"><div><dt>Escalações</dt><dd>{player.totalPartidas}</dd></div><div><dt>Gols</dt><dd>{player.totalGols}</dd></div><div><dt>{keeper ? 'Defesas' : 'Assistências'}</dt><dd>{keeper ? player.totalDefesas : player.totalAssistencias}</dd></div></dl></div>

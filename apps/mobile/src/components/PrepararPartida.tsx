@@ -1,3 +1,4 @@
+import { PositionLabel } from '@/src/components/PositionIcon';
 import { Icon } from '@ludora/icons';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -263,7 +264,7 @@ export default function PrepararPartida({ partida, competicao, onFechar, onConfi
           <Text style={[styles.jogadorNome, !presente && { color: '#555' }]} numberOfLines={1}>
             {nomeCurto(j.nome)}
           </Text>
-          <Text style={styles.jogadorPosicao}>{j.posicao}</Text>
+          <PositionLabel position={j.posicao} textStyle={styles.jogadorPosicao}/>
         </View>
 
         {presente && (

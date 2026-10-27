@@ -16,6 +16,7 @@ model Clube {
   escudo    String?
   cidade    String?
   estado    String?
+  endereco  Json?
   plano     String   @default("FREE")
   criado_em DateTime @default(now())
 
@@ -183,6 +184,7 @@ model AuditoriaVinculoTime {
 model Jogador {
   id           Int                 @id @default(autoincrement())
   nome         String
+  foto         String?
   cpf          String              @unique
   dtNasc       DateTime            @db.Date
   numCamisa    Int?

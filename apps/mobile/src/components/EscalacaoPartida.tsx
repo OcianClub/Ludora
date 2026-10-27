@@ -1,3 +1,4 @@
+import { PositionLabel } from '@/src/components/PositionIcon';
 import { Icon } from '@ludora/icons';
 import React, { useState, useCallback, useEffect } from 'react';
 import {
@@ -57,7 +58,7 @@ function JogadorRow({ escalado }: { escalado: JogadorEscalado }) {
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowNome}>{escalado.jogador.nome}</Text>
-        <Text style={styles.rowPos}>{escalado.jogador.posicao}</Text>
+        <PositionLabel position={escalado.jogador.posicao} textStyle={styles.rowPos}/>
       </View>
       {escalado.titular && (
         <View style={styles.rowBadge}>
@@ -429,7 +430,7 @@ export default function EscalacaoPartida({
                           <View style={styles.cardCamisa}><Text style={styles.cardCamisaNum}>{item.numCamisa}</Text></View>
                           <View style={{ flex: 1 }}>
                             <Text style={styles.cardNome}>{item.jogador.nome}</Text>
-                            <Text style={styles.cardPos}>{item.jogador.posicao}</Text>
+                            <PositionLabel position={item.jogador.posicao} textStyle={styles.cardPos}/>
                           </View>
                           <View style={styles.tagTitular}><Text style={styles.tagTitularTxt}>EM CAMPO</Text></View>
                           <Icon name="chevron-right" size={20} color={colors.textoSecundario} />
@@ -445,7 +446,7 @@ export default function EscalacaoPartida({
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={styles.cardNome}>{item.jogador.nome}</Text>
-                            <Text style={styles.cardPos}>{item.jogador.posicao}</Text>
+                            <PositionLabel position={item.jogador.posicao} textStyle={styles.cardPos}/>
                           </View>
                           <View style={styles.tagBanco}><Text style={styles.tagBancoTxt}>BANCO</Text></View>
                           <Icon name="arrow-up-circle-outline" size={20} color={colors.primaria} />
@@ -493,7 +494,7 @@ export default function EscalacaoPartida({
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.cardNome}>{item.nome}</Text>
-                      <Text style={styles.cardPos}>{item.posicao}{semCamisa ? ' · Segure para definir camisa' : ''}</Text>
+                      <PositionLabel position={item.posicao} textStyle={styles.cardPos} suffix={semCamisa ? ' · Segure para definir camisa' : ''}/>
                     </View>
                     <View style={styles.tagTitular}><Text style={styles.tagTitularTxt}>TITULAR</Text></View>
                     <Icon name="close-circle" size={20} color={colors.texto} />
@@ -529,7 +530,7 @@ export default function EscalacaoPartida({
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.cardNome, !convocado && { color: colors.textoSecundario }]}>{item.nome}</Text>
-                      <Text style={styles.cardPos}>{item.posicao}{semCamisa ? ' · Segure p/ definir camisa' : ''}</Text>
+                      <PositionLabel position={item.posicao} textStyle={styles.cardPos} suffix={semCamisa ? ' · Segure p/ definir camisa' : ''}/>
                     </View>
                     {convocado ? (
                       <>

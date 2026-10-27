@@ -205,8 +205,9 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
         suppressClick.current = false;
         const target = event.target as Element;
         const inStrip = target.closest('.home-sub-strip');
-        if (!inStrip && target.closest('.home-controls, input, select, textarea, [contenteditable="true"], [data-swipe-ignore]')) return;
-        if (!inStrip && !swipeFromButtons && target.closest('button')) return;
+        if (inStrip) return;
+        if (target.closest('.home-controls, input, select, textarea, [contenteditable="true"], [data-swipe-ignore]')) return;
+        if (!swipeFromButtons && target.closest('button')) return;
         geometry.current = measureGesture();
         if (!geometry.current) return;
         drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false, distance: 0 };

@@ -19,6 +19,9 @@ import { criarPartidaRoutes } from './modules/partidas/partida.routes';
 import scoutRoutes from './modules/scout/scout.routes';
 import { criarAdminRoutes } from './modules/admin/admin.routes';
 import { registrarRequisicoes } from './modules/admin/superadmin';
+import locaisRoutes from './modules/partidas/locais.routes';
+import perfilJogadorRoutes from './modules/jogadores/perfil.routes';
+import perfilClubeRoutes from './modules/clubes/perfil-clube.routes';
 
 export function criarApp(io: Server) {
   const app = express();
@@ -54,13 +57,16 @@ export function criarApp(io: Server) {
   app.use(criarCadastroRoutes());
   app.use(criarRecuperacaoRoutes(io));
   app.use(clubeRoutes);
+  app.use(perfilClubeRoutes);
   app.use(membrosRoutes);
   app.use(vinculoTimeRoutes);
   app.use(conviteRoutes);
   app.use(cadastroRoutes);
   app.use(jogadorRoutes);
+  app.use(perfilJogadorRoutes);
   app.use(criarNotificacaoRoutes());
   app.use(criarPartidaRoutes(io));
+  app.use(locaisRoutes);
   app.use(escalacaoRoutes);
   app.use(scoutRoutes);
 

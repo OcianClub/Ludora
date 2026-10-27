@@ -30,10 +30,9 @@ import {
 } from '@/src/utils/filtrosJogos';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import PagerView, {
-  type PagerViewOnPageScrollEvent,
-} from 'react-native-pager-view';
-import Animated, { useEvent, useSharedValue } from 'react-native-reanimated';
+import { CategoryPager, type CategoryPagerHandle } from '@/src/components/CategoryPager';
+import { CategoryPageMotion } from '@/src/components/CategoryPageMotion';
+import { useCategoryPagerMotion } from '@/src/hooks/useCategoryPagerMotion';
 import { fetchAgenda } from '@/src/services/api';
 import { CartaoJogo, type PartidaJogo } from '@/src/components/CartaoJogo';
 import { agoraAgenda, categoriaAgenda, secoesAgenda, unirPaginasAgenda, type GrupoAgenda } from '@/src/utils/agendaJogos';
@@ -55,22 +54,15 @@ import { criarControleRequisicoes } from '@/src/utils/request';
 
 type Partida = PartidaJogo;
 
-const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 
 export default function Jogos() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { clubeAtivo, podeGerenciar } = useClubeAtivo();
-  const pagerRef = useRef<PagerView>(null);
+  const pagerRef = useRef<CategoryPagerHandle>(null);
   const organizarRef = useRef<OrganizarPartidasRef>(null);
-  const progressoPagina = useSharedValue(0);
-  const acompanharPagina = useEvent<PagerViewOnPageScrollEvent>(
-    (event) => {
-      'worklet';
-      progressoPagina.value = event.position + event.offset;
-    },
-    ['onPageScroll']
-  );
+  const pagerMotion = useCategoryPagerMotion(pagerRef);
+  const progressoPagina = pagerMotion.progress;
   const carregouUmaVez = useRef(false);
   const clubeCarregadoId = useRef<number | null>(null);
   const controle = useRef(criarControleRequisicoes()).current;
@@ -202,14 +194,15 @@ export default function Jogos() {
       setTipoFiltro(novaFase);
       setSubIndex(0);
       progressoPagina.value = 0;
+      pagerMotion.origin.value = 0;
       pagerRef.current?.setPageWithoutAnimation(0);
     },
     [progressoPagina]
   );
 
-  const handleSubChange = useCallback((index: number) => {
-    pagerRef.current?.setPage(index);
-  }, []);
+  const handleSubChange = useCallback((index: number, velocity?: number) => {
+    pagerMotion.goTo(index, velocity);
+  }, [pagerMotion.goTo]);
 
   const onPageSelected = (e: any) => {
     const index = e.nativeEvent.position;
@@ -242,16 +235,15 @@ export default function Jogos() {
         onTrocarTipo={handleTrocarFase}
         indexAtual={subIndex}
         onChangeIndex={handleSubChange}
-        progressoPagina={progressoPagina}
+        progressoPagina={progressoPagina} originPagina={pagerMotion.origin} settlingPagina={pagerMotion.settling}
       />
 
-      <AnimatedPagerView
+      <CategoryPager
         ref={pagerRef}
         style={{ flex: 1 }}
         initialPage={0}
         onPageSelected={onPageSelected}
-        onPageScroll={acompanharPagina}
-        offscreenPageLimit={1}
+        progress={progressoPagina} origin={pagerMotion.origin} settling={pagerMotion.settling} onSettled={pagerMotion.onSettled}
       >
         {secoesPorSub.map(({ sub, secoes }, indexPagina) => {
           return (
@@ -260,9 +252,10 @@ export default function Jogos() {
               style={{ flex: 1 }}
               collapsable={false}
             >
+              <CategoryPageMotion index={indexPagina} progress={progressoPagina} origin={pagerMotion.origin} settling={pagerMotion.settling}>
               <PaginaCategoria
                 grupo={`${clubeAtivo?.id}-${tipoFiltro}`}
-                preparar={Math.abs(indexPagina - subIndex) <= 1}
+                preparar
               >
                 <SectionList
                   sections={carregando ? [] : secoes}
@@ -392,10 +385,11 @@ export default function Jogos() {
                   }}
                 />
               </PaginaCategoria>
+              </CategoryPageMotion>
             </View>
           );
         })}
-      </AnimatedPagerView>
+      </CategoryPager>
 
       {/* FAB ICON */}
       {podeGerenciar && (

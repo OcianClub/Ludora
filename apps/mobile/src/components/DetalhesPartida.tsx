@@ -1,3 +1,4 @@
+import { PositionLabel } from '@/src/components/PositionIcon';
 import { Icon } from '@ludora/icons';
 import React, { useState, useRef } from 'react';
 import {
@@ -1487,9 +1488,7 @@ export default function DetalhesPartida({
                             <Text style={styles.jogadorSelectNome}>
                               {item.jogador.nome}
                             </Text>
-                            <Text style={styles.jogadorSelectPos}>
-                              {item.jogador.posicao}
-                            </Text>
+                            <PositionLabel position={item.jogador.posicao} textStyle={styles.jogadorSelectPos}/>
                           </View>
                           <Icon
                             name="chevron-right"
@@ -1522,9 +1521,7 @@ export default function DetalhesPartida({
                       <Text style={styles.modalJogadorNome}>
                         {jogadorGol.jogador.nome}
                       </Text>
-                      <Text style={styles.modalJogadorPos}>
-                        {jogadorGol.jogador.posicao}
-                      </Text>
+                      <PositionLabel position={jogadorGol.jogador.posicao} textStyle={styles.modalJogadorPos}/>
                     </View>
                   </View>
                   {(() => {
@@ -1811,9 +1808,7 @@ export default function DetalhesPartida({
                           <Text style={styles.jogadorSelectNome}>
                             {item.jogador.nome}
                           </Text>
-                          <Text style={styles.jogadorSelectPos}>
-                            {item.jogador.posicao}
-                          </Text>
+                          <PositionLabel position={item.jogador.posicao} textStyle={styles.jogadorSelectPos}/>
                         </View>
                         <Icon
                           name="chevron-right"
@@ -1843,9 +1838,7 @@ export default function DetalhesPartida({
                     <Text style={styles.modalJogadorNome}>
                       {jogadorEvento.jogador.nome}
                     </Text>
-                    <Text style={styles.modalJogadorPos}>
-                      {jogadorEvento.jogador.posicao}
-                    </Text>
+                    <PositionLabel position={jogadorEvento.jogador.posicao} textStyle={styles.modalJogadorPos}/>
                   </View>
                 </View>
                 {(() => {

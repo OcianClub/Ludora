@@ -20,6 +20,7 @@ export function applyTheme(preference = getThemePreference()) {
     texto: colors.texto, 'texto-sec': colors.textoSecundario,
     'texto-sobre-primaria': colors.textoSobrePrimaria,
     amarelo: colors.amarelo, vermelho: colors.vermelho,
+    ciano: colors.ciano, laranja: colors.laranja,
     'vermelho-destaque': colors.vermelhoDestaque,
     'fundo-botao': colors.fundoBotao, 'borda-botao': colors.bordaBotao,
     'fundo-erro': colors.fundoErro, 'borda-erro': colors.bordaErro,

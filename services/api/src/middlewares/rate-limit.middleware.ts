@@ -58,6 +58,8 @@ export const limitarAuth = limitarRequisicoes({
   prefixo: 'auth',
 });
 
+export const limitarLocais = limitarRequisicoes({ janelaMs: 60_000, limite: 60, prefixo: 'locais', porEmail: false });
+
 export const limitarOperacaoPesada = limitarRequisicoes({
   janelaMs: 10 * 60_000,
   limite: 5,

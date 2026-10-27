@@ -17,6 +17,8 @@ export const darkColors  = {
 
   // Cores sólidas puras
   amarelo: '#F0B84E',
+  ciano: '#36C5DB',
+  laranja: '#F58A38',
   vermelho: '#FF4D00',
   vermelhoDestaque: '#F05A4F',
 
@@ -57,6 +59,8 @@ export const lightColors = {
 
   // Cores sólidas puras
   amarelo: '#C98A0B',
+  ciano: '#087E96',
+  laranja: '#B6530E',
   vermelho: '#D63F00',
   vermelhoDestaque: '#D14439',
 
