@@ -11,8 +11,8 @@ export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (va
     <button type="button" aria-pressed={value === 'list'} onClick={() => onChange('list')}><Icon name="list" size={16} /> Lista</button>
   </div>;
 }
-export function Choice({ label, value, options, onChange, disabled = false }: {
-  label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void; disabled?: boolean;
+export function Choice({ label, value, options, onChange, disabled = false, placeholder = 'Selecionar' }: {
+  label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void; disabled?: boolean; placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -28,7 +28,8 @@ export function Choice({ label, value, options, onChange, disabled = false }: {
     <span className="field-label" id={`${id}-label`}>{label}</span>
     <button ref={trigger} type="button" className="field-input choice-trigger" aria-labelledby={`${id}-label ${id}-value`} aria-expanded={open && !disabled} aria-controls={`${id}-options`} disabled={disabled}
       onClick={() => setOpen(!open)} onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('[data-choice-option]')?.focus()); } }}>
-      <span id={`${id}-value`}>{options.find(o => o.value === value)?.label || 'Selecionar'}</span><span aria-hidden="true">⌄</span>
+      <span id={`${id}-value`}>{options.find(o => o.value === value)?.label || placeholder}</span>
+      <svg className="choice-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
     </button>
     {open && !disabled && <div id={`${id}-options`} className="choice-options" role="group" aria-labelledby={`${id}-label`} onKeyDown={e => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); trigger.current?.focus(); }

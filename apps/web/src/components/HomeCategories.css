@@ -1,6 +1,0 @@
-/* Edge padding lets even the first and last category settle in the center. */
-.home-controls .home-sub-strip.category-tabs { scroll-snap-type:x proximity; padding-inline:var(--strip-edge,0px); touch-action:pan-x pan-y; overscroll-behavior-x:contain; }
-.home-controls .home-sub-strip.category-tabs button { flex:0 0 96px; scroll-snap-align:center; }
-.home-controls .home-sub-strip.category-tabs.is-dragging { scroll-snap-type:none; cursor:grabbing; }
-.home-controls .home-sub-strip.category-tabs.is-dragging button { cursor:grabbing; }
-.schedule-category-options .home-controls { width:100%; margin:16px 0; }

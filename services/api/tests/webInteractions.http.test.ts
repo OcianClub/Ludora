@@ -82,6 +82,12 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
     response=await send('GET','/jogadores?categoria_id=9&limite=5&offset=5&ordem=desc&posicao=Alas&camisa=missing');assert.equal(response.status,200);
     const args=reads.at(-1);assert.equal(args.take,5);assert.equal(args.skip,5);assert.equal(args.where.categoria_id,9);assert.equal(args.where.numCamisa,null);assert.equal(args.orderBy[0].nome,'desc');
     assert.equal(args.select.cpf,undefined);
+    response=await send('GET','/jogadores?fase=BASE&limite=25&offset=25');assert.equal(response.status,200);
+    assert.deepEqual(reads.at(-1).where.categoria,{clube_id:2,tipo:'BASE'});
+    assert.equal(reads.at(-1).take,25);assert.equal(reads.at(-1).skip,25);
+    await send('GET','/jogadores?fase=INICIACAO&resumo=true');
+    assert.deepEqual(reads.at(-1).where.categoria,{clube_id:2,tipo:'INICIACAO'});
+    assert.equal((await send('GET','/jogadores?fase=INVALIDA')).status,400);
     assert.equal((await send('GET','/jogadores?limite=1000')).status,400);
     assert.equal((await send('GET','/jogadores?limite=5&offset=-1')).status,400);
     role='TECNICO';assert.equal((await send('GET','/jogadores?categoria_id=77&limite=5')).status,403);

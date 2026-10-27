@@ -1,49 +1,805 @@
-.alunos-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 20px; margin-bottom: 24px; }
-.alunos-toolbar > .field { flex: 1; min-width: 200px; }
-.alunos-tabs { display: flex; padding: 5px; gap: 5px; background: var(--fundo-card); border: 1px solid var(--borda); border-radius: 12px; }
-.alunos-tabs button { border: 0; padding: 12px 28px; border-radius: 8px; color: var(--texto-sec); background: transparent; font-weight: 600; }
-.alunos-tabs button[aria-pressed=true] { color: #fff; background: var(--primaria); }
-.alunos-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-.alunos-category { background: var(--fundo-card); border: 1px solid var(--borda); border-radius: 14px; overflow: hidden; }
-.alunos-category header { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 20px 20px 8px; }
-.alunos-category h2 { font-family: var(--font-titulo); color: var(--primaria); font-size: 22px; }
-.alunos-category header span, .alunos-hint, .alunos-empty { font-size: 12px; color: var(--texto-sec); }
-.alunos-hint { padding: 0 20px 16px; border-bottom: 1px solid var(--linha); }
-.alunos-empty { padding: 28px 20px; }
-.alunos-students { list-style: none; padding: 0 16px; }
-.alunos-students li { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--linha); }
-.alunos-students li:last-child { border-bottom: none; }
-.alunos-students li > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.alunos-students small { display: block; color: var(--texto-sec); margin-top: 3px; }
-.alunos-shirt { display: grid; place-items: center; width: 40px; height: 42px; flex-shrink: 0; background: var(--fundo-card-sec); border: 1px solid var(--borda); border-radius: 9px; font-weight: 700; }
-.alunos-shirt.is-empty { border-style: dashed; color: var(--texto-sec); }
-.alunos-fields { border: none; padding: 0; min-width: 0; }
-.alunos-preview { grid-column: 1/-1; padding: 12px; background: var(--fundo-card-sec); border-radius: 8px; }
-.alunos-conflict { padding: 16px; margin-top: 16px; border: 1px solid var(--amarelo); border-radius: 10px; background: var(--fundo-atencao); }
-.alunos-conflict p { margin: 10px 0; }
-.alunos-error { color: var(--titulo-erro); margin: 16px 0; }
-.alunos-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
-@media (max-width: 900px) { .alunos-grid { grid-template-columns: 1fr; } }
-@media (max-width: 480px) { .alunos-category header { padding: 14px 12px 8px; } .alunos-tabs { width: 100%; } .alunos-tabs button { flex: 1; } .alunos-students { padding: 0 10px; } .alunos-students li { gap: 8px; } }
+.alunos-page {
+  min-width: 0;
+}
 
-.alunos-list { grid-template-columns:1fr; }
-.alunos-list .alunos-students li { padding:12px 0; }
-.alunos-preview p { margin-bottom:8px; font-weight:600; }
-.alunos-students .actions { flex:0 0 auto; flex-wrap:wrap; }
-.alunos-category-toggle { display:flex; flex:1; align-items:center; justify-content:space-between; gap:12px; text-align:left; padding:8px 4px; border:0; background:none; color:var(--texto); }
-.alunos-category-toggle strong { font-family:var(--font-titulo); font-size:26px; color:var(--texto); }
-.alunos-category-toggle small { display:block; color:var(--texto-sec); font-size:11px; margin-top:3px; }
-.alunos-category-toggle>.icon { color:var(--primaria); }
-.alunos-category-toggle:hover strong { color:var(--primaria); }
-.alunos-category [hidden] { display:none; }
-.position-options button { color:var(--texto); }
-.alunos-category-toggle[aria-expanded=true]>.icon { transform:rotate(90deg); }
-.alunos-category header { padding-bottom:16px; }
-.alunos-students li>.student-identity { flex:1; min-width:0; }
-.alunos-students .student-identity small { display:flex; align-items:center; gap:6px; }
-.student-identity a:hover { color:var(--primaria); }
-.student-games { flex:none; text-align:center; font-size:13px; }
-.student-games small { font-size:10px; }
-.student-open { flex:none; display:grid; place-items:center; width:32px; height:38px; color:var(--primaria); border-radius:6px; }
-.student-open:hover { background:var(--fundo-botao); }
-@media(max-width:480px) { .student-games { font-size:12px; } .alunos-students .student-identity small { font-size:11px; } .student-open { width:24px; } }
+.alunos-directory {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--linha);
+  border-radius: 10px;
+  background: var(--fundo-card);
+}
+
+.alunos-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.alunos-table caption {
+  text-align: left;
+}
+
+.alunos-table th {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--linha);
+  color: var(--texto-sec);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.alunos-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--linha);
+  color: var(--texto-sec);
+  font-size: 13px;
+}
+
+.alunos-table tbody tr:hover,
+.alunos-table tbody tr:focus-within {
+  background: var(--fundo-card-claro);
+}
+
+.alunos-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.alunos-cell-shirt {
+  width: 84px;
+}
+
+.alunos-cell-name {
+  width: 40%;
+  overflow-wrap: anywhere;
+}
+
+.alunos-player-link {
+  color: var(--texto);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.alunos-player-link:hover {
+  color: var(--primaria);
+}
+
+.alunos-cell-position > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alunos-cell-age,
+.alunos-cell-category {
+  white-space: nowrap;
+}
+
+.alunos-cell-open {
+  width: 50px;
+}
+
+.alunos-mobile-meta {
+  display: none;
+}
+
+.alunos-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--linha);
+  color: var(--texto-sec);
+  font-size: 12px;
+}
+
+.alunos-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alunos-pagination .btn {
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 8px;
+}
+
+.alunos-directory-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--texto-sec);
+}
+
+.alunos-directory-empty h3 {
+  color: var(--texto);
+  font-size: 15px;
+}
+
+.alunos-directory-empty p {
+  max-width: 380px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.alunos-controls {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.alunos-navigation {
+  display: grid;
+  grid-template-columns: 240px 200px;
+  align-items: end;
+  gap: 12px;
+}
+
+.alunos-navigation .home-phase {
+  margin: 0;
+  background: var(--fundo-card);
+}
+
+.alunos-navigation .home-phase button {
+  min-height: 36px;
+}
+
+.alunos-filters {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.5fr) minmax(0, 2fr);
+  align-items: end;
+  gap: 12px;
+}
+
+.alunos-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 44px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--fundo-card);
+  color: var(--texto-sec);
+}
+
+.alunos-search input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--texto);
+  font-size: 13px;
+}
+
+.alunos-extra-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.alunos-filter-toggle {
+  display: none;
+}
+
+.alunos-page .field,
+.alunos-create-dialog .field {
+  min-width: 0;
+}
+
+.alunos-page .field-input,
+.alunos-create-dialog .field-input {
+  min-height: 44px;
+  border-color: var(--borda);
+  background: var(--fundo-card);
+  color: var(--texto);
+}
+
+.alunos-page .choice-options button[aria-pressed="true"],
+.alunos-create-dialog .choice-options button[aria-pressed="true"] {
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+  font-weight: 600;
+}
+
+.alunos-page .choice-options button:hover,
+.alunos-create-dialog .choice-options button:hover {
+  background: var(--fundo-card-claro);
+  color: var(--texto);
+}
+
+.alunos-results-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  margin-bottom: 18px;
+  border-top: 1px solid var(--linha);
+}
+
+.alunos-results-bar p {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px 12px;
+  margin: 0;
+  color: var(--texto-sec);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.alunos-results-bar p strong {
+  color: var(--texto);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.alunos-clear {
+  min-height: 36px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--primaria);
+  font-size: 12px;
+}
+
+.alunos-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.alunos-active-filters button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+  background: var(--fundo-card);
+  color: var(--texto-sec);
+  font-size: 12px;
+}
+
+.alunos-shirt {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 42px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+  font-family: var(--font-titulo);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.alunos-shirt.is-empty {
+  color: var(--texto-sec);
+}
+
+.student-open {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 44px;
+  border-radius: 6px;
+  color: var(--texto-sec);
+}
+
+.student-open:hover {
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+}
+
+.alunos-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  margin-block: 16px;
+  border: 1px solid var(--borda-erro);
+  border-radius: 8px;
+  background: var(--fundo-erro);
+  color: var(--titulo-erro);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.alunos-create-dialog,
+.alunos-filter-dialog {
+  width: min(620px, calc(100% - 32px));
+  max-width: 620px;
+  max-height: 90dvh;
+  background: var(--fundo);
+}
+
+.alunos-create-dialog .modal-header,
+.alunos-filter-dialog .modal-header {
+  flex-shrink: 0;
+}
+
+.alunos-create-dialog .modal-body,
+.alunos-filter-dialog .modal-body {
+  min-height: 0;
+  padding: 20px;
+  overscroll-behavior: contain;
+}
+
+.alunos-create-dialog .modal-close,
+.alunos-filter-dialog .modal-close {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+}
+
+.alunos-form-intro {
+  color: var(--texto-sec);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.alunos-fields {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+}
+
+.alunos-form-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.alunos-form-heading h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.alunos-form-heading > span {
+  color: var(--texto-sec);
+  font-size: 11px;
+}
+
+.alunos-form-heading--section {
+  padding-top: 18px;
+  border-top: 1px solid var(--linha);
+}
+
+.alunos-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  grid-column: 1 / -1;
+  padding: 12px;
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  background: var(--fundo-card);
+  color: var(--texto-sec);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.alunos-preview p {
+  margin-top: 4px;
+}
+
+.alunos-preview > .icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--primaria);
+}
+
+.alunos-preview strong {
+  color: var(--texto);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.alunos-create-dialog .position-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.alunos-create-dialog .position-options button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 9px 6px;
+  color: var(--texto);
+  font-size: 12px;
+}
+
+.alunos-create-dialog .position-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  line-height: 1;
+}
+
+.alunos-create-dialog .position-options button > .icon {
+  flex-shrink: 0;
+  color: var(--primaria);
+}
+
+.alunos-shirt-field {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.alunos-shirt-field > .field {
+  flex: 0 0 140px;
+}
+
+.alunos-shirt-field > small {
+  padding-top: 18px;
+  color: var(--texto-sec);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.alunos-create-dialog .position-options button[aria-pressed="true"] {
+  border-color: transparent;
+  box-shadow: none;
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+}
+
+.alunos-create-dialog .modal-footer,
+.alunos-filter-dialog .modal-footer {
+  flex-shrink: 0;
+  padding: 14px 20px max(14px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--linha);
+}
+
+.alunos-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.alunos-conflict {
+  padding: 14px;
+  margin-top: 16px;
+  border: 1px solid var(--borda-atencao);
+  border-radius: 8px;
+  background: var(--fundo-atencao);
+  color: var(--titulo-atencao);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.alunos-conflict p {
+  margin-block: 10px;
+}
+
+.alunos-conflict .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.alunos-filter-group {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.alunos-filter-group legend {
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.alunos-filter-group > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.alunos-filter-group button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--fundo-card);
+  color: var(--texto-sec);
+  font-size: 13px;
+}
+
+.alunos-filter-group button[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--primaria);
+  color: #fff;
+}
+
+.alunos-search:focus-within,
+.alunos-page button:focus-visible,
+.alunos-page a:focus-visible,
+.alunos-filter-dialog button:focus-visible,
+.alunos-create-dialog .position-options button:focus-visible {
+  outline: 2px solid var(--primaria);
+  outline-offset: 3px;
+}
+
+@media (max-width: 900px) {
+  .alunos-filters {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .alunos-extra-filters {
+    display: none;
+  }
+
+  .alunos-filter-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    background: var(--fundo-card);
+    color: var(--texto);
+    font-size: 12px;
+  }
+
+  .alunos-filter-toggle > span:not(.icon) {
+    color: var(--primaria);
+    font-weight: 600;
+  }
+}
+
+@media (max-width: 600px) {
+  .alunos-table,
+  .alunos-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .alunos-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .alunos-table tr {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-inline: 12px;
+    padding-block: 12px;
+    border-bottom: 1px solid var(--linha);
+  }
+
+  .alunos-table tr:last-child {
+    border-bottom: 0;
+  }
+
+  .alunos-table td {
+    padding: 0;
+    border: 0;
+  }
+
+  .alunos-table .alunos-cell-shirt,
+  .alunos-table .alunos-cell-open {
+    flex-shrink: 0;
+    width: auto;
+  }
+
+  .alunos-table .alunos-cell-name {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+
+  .alunos-player-link {
+    font-size: 13px;
+  }
+
+  .alunos-table .alunos-cell-position,
+  .alunos-table .alunos-cell-age,
+  .alunos-table .alunos-cell-category {
+    display: none;
+  }
+
+  .alunos-mobile-meta {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .alunos-pagination {
+    padding: 12px;
+    font-size: 11px;
+  }
+
+  .alunos-page .page-header {
+    align-items: center;
+    gap: 12px;
+  }
+
+  .alunos-page .page-header .page-sub {
+    display: none;
+  }
+
+  .alunos-page .page-header > .btn {
+    min-height: 40px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .alunos-controls {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .alunos-navigation {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .alunos-navigation .home-phase {
+    height: 42px;
+    padding: 3px;
+  }
+
+  .alunos-navigation .home-phase button {
+    min-width: 0;
+    min-height: 34px;
+    padding: 6px;
+    font-size: 11px;
+  }
+
+  .alunos-navigation .field-label {
+    font-size: 11px;
+  }
+
+  .alunos-navigation .field-input {
+    min-height: 42px;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+
+  .alunos-search {
+    height: 42px;
+  }
+
+  .alunos-search input {
+    font-size: 12px;
+  }
+
+  .alunos-filter-toggle {
+    min-height: 42px;
+    padding-inline: 10px;
+  }
+
+  .alunos-results-bar {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding-top: 12px;
+    margin-bottom: 14px;
+  }
+
+  .alunos-results-bar p {
+    flex-direction: column;
+    gap: 3px;
+    font-size: 11px;
+  }
+
+  .alunos-results-bar p strong {
+    font-size: 13px;
+  }
+
+  .alunos-results-bar .alunos-clear {
+    order: 3;
+    flex-basis: 100%;
+    min-height: 30px;
+    text-align: left;
+  }
+
+  .student-open {
+    width: 28px;
+  }
+
+  .alunos-create-dialog {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .alunos-create-dialog .modal-body {
+    flex: 1;
+  }
+
+  .alunos-filter-dialog {
+    position: fixed;
+    inset: auto 0 0;
+    width: 100%;
+    max-height: 90dvh;
+    margin: 0;
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .alunos-filter-dialog .modal-body,
+  .alunos-create-dialog .modal-body {
+    padding: 16px;
+  }
+
+  .alunos-create-dialog .modal-header,
+  .alunos-filter-dialog .modal-header {
+    padding: 10px 16px;
+  }
+
+  .alunos-create-dialog .modal-footer,
+  .alunos-filter-dialog .modal-footer {
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .alunos-footer > .btn {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .alunos-create-dialog .position-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .alunos-create-dialog .alunos-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .alunos-create-dialog .birth-fields {
+    grid-template-columns: minmax(64px, .7fr) minmax(0, 1.4fr) minmax(86px, 1fr);
+    gap: 6px;
+  }
+
+  .alunos-create-dialog .birth-fields .field-input {
+    padding-inline: 8px;
+  }
+
+  .alunos-shirt-field > .field {
+    flex-basis: 110px;
+  }
+}

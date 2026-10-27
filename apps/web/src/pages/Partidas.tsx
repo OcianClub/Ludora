@@ -13,7 +13,7 @@ import { SchedulePeriodDialog } from '../components/SchedulePeriodDialog';
 import { intervaloAgenda, grupoSituacao, ordenarAgenda, rotuloDiaAgenda, agruparAgenda, type PeriodoAgenda } from '../utils/scheduleFilters';
 import { teamName } from '../utils/teamIdentity';
 import { matchHasOwnTeam, selectMatchTeam } from '../utils/matchTeams';
-import { HomeCategories } from '../components/HomeCategories';
+import { CategoryFilter as HomeCategories } from '../components/CategoryFilter';
 import { MatchDateField, MatchTimeField } from '../components/MatchDateTime';
 import { LocationInput } from '../components/LocationInput';
 import './Partidas.css';

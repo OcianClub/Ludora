@@ -22,7 +22,7 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
     const query=new URL(route.request().url()).searchParams;
     if(pathname==='/locais/sugestoes') return route.fulfill({json:{items:[{id:'local:demo',label:'Ginásio de demonstração',source:'local'}],providerEnabled:false,unavailable:false}});
     if(pathname==='/jogadores') {
-      let rows=jogadores.filter(j=>(!query.get('categoria_id')||j.categoria_id===Number(query.get('categoria_id')))&&j.nome.toLowerCase().includes((query.get('busca')||'').toLowerCase())&&(!query.get('posicao')||j.posicao===query.get('posicao'))&&(!query.get('camisa')||(query.get('camisa')==='missing'?j.numCamisa==null:j.numCamisa!=null)));
+      let rows=jogadores.filter(j=>(!query.get('fase')||categorias.find(c=>c.id===j.categoria_id)?.tipo===query.get('fase'))&&(!query.get('categoria_id')||j.categoria_id===Number(query.get('categoria_id')))&&j.nome.toLowerCase().includes((query.get('busca')||'').toLowerCase())&&(!query.get('posicao')||j.posicao===query.get('posicao'))&&(!query.get('camisa')||(query.get('camisa')==='missing'?j.numCamisa==null:j.numCamisa!=null)));
       if(query.get('resumo')==='true')return route.fulfill({json:categorias.map(c=>{const group=rows.filter(j=>j.categoria_id===c.id);return {categoria_id:c.id,total:group.length,semCamisa:group.filter(j=>j.numCamisa==null).length};})});
       rows.sort((a,b)=>a.nome.localeCompare(b.nome)*(query.get('ordem')==='desc'?-1:1));
       if(query.has('limite'))rows=rows.slice(Number(query.get('offset')||0),Number(query.get('offset')||0)+Number(query.get('limite')));

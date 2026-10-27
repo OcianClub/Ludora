@@ -117,8 +117,10 @@ router.get('/jogadores', exigirClubePublico, async (req, res) => {
     const search = typeof req.query.busca === 'string' ? req.query.busca.trim().slice(0, 160) : '';
     const position = typeof req.query.posicao === 'string' ? req.query.posicao : '';
     if (position && !['Goleiro', 'Fixo', 'Pivô', 'Alas'].includes(position)) return res.status(400).json({ error: 'Posição inválida.' });
+    const phase = req.query.fase;
+    if (phase !== undefined && phase !== 'INICIACAO' && phase !== 'BASE') return res.status(400).json({ error: 'Grupo de categorias inválido.' });
     const where: Prisma.JogadorWhereInput = {
-      ativo: true, categoria: { clube_id },
+      ativo: true, categoria: { clube_id, ...(phase ? { tipo: phase } : {}) },
       ...(category ? { categoria_id: category } : escopo.acessoTotal ? {} : { categoria_id: { in: escopo.categoriaIds } }),
       ...(search ? { nome: { contains: search, mode: 'insensitive' } } : {}),
       ...(position ? { posicao: position === 'Alas' ? { startsWith: 'ala', mode: 'insensitive' } : { equals: position, mode: 'insensitive' } } : {}),

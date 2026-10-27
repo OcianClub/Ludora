@@ -5,6 +5,7 @@
   "packageManager": "pnpm@11.20.0",
   "scripts": {
     "dev:api": "pnpm --filter @ludora/api run start",
+    "dev:ml": "cd services/ml && .\\.venv\\Scripts\\python.exe -m uvicorn main:app --reload",
     "dev:desktop": "pnpm --filter @ludora/desktop run dev",
     "build:desktop": "pnpm --filter @ludora/desktop run build",
     "dist:desktop": "pnpm --filter @ludora/desktop run dist:win",

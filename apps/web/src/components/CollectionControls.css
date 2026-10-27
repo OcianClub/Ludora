@@ -7,6 +7,13 @@
 .collection-view button[aria-pressed=true] { color:var(--primaria); background:var(--fundo-botao); }
 .choice { position:relative; min-width:0; }
 .choice-trigger { display:flex; justify-content:space-between; align-items:center; gap:10px; text-align:left; width:100%; }
+.choice-chevron {
+  flex-shrink: 0;
+  color: var(--texto-sec);
+}
+.choice-trigger[aria-expanded="true"] .choice-chevron {
+  transform: rotate(180deg);
+}
 .choice-options { position:absolute; top:100%; left:0; right:0; margin-top:5px; z-index:20; max-height:225px; overflow:auto; background:var(--fundo-card); border:1px solid var(--borda); box-shadow:0 10px 30px #0003; border-radius:10px; padding:5px; min-width:100px; }
 .choice-options button { display:block; width:100%; text-align:left; padding:10px; border:0; border-radius:6px; background:transparent; color:var(--texto); }
 .choice-options button:hover,.choice-options button[aria-pressed=true] { background:var(--fundo-botao); color:var(--primaria); }

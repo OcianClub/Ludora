@@ -1,0 +1,45 @@
+.birth-date-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.birth-date-field legend {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  color: var(--texto);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.birth-date-field legend .icon {
+  color: var(--primaria);
+}
+
+.birth-date-field .birth-fields {
+  display: grid;
+  grid-template-columns: minmax(72px, .8fr) minmax(0, 1.5fr) minmax(94px, 1fr);
+  gap: 10px;
+}
+
+.birth-date-field .choice-trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.birth-date-field .choice-trigger {
+  gap: 6px;
+}
+
+.birth-date-hint {
+  display: block;
+  margin-top: 10px;
+  color: var(--texto-sec);
+  font-size: 12px;
+  line-height: 1.5;
+}

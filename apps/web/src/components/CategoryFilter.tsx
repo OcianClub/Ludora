@@ -1,6 +1,24 @@
 import { useEffect, useLayoutEffect, useId, useRef } from 'react';
-import type { Categoria } from '../services/api';
-import './HomeCategories.css';
+import './CategoryFilter.css';
+
+/** Minimal category shape; the filter is independent of API and routing. */
+export type FilterCategory = { id: number; nome: string; tipo: string };
+
+export function PhaseFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return <div className="home-phase" role="group" aria-label="Grupo de categorias">
+    {['INICIACAO', 'BASE'].map(phase => <button type="button" key={phase} aria-pressed={value === phase} onClick={() => onChange(phase)}>{phase === 'INICIACAO' ? 'Iniciação' : 'Base'}</button>)}
+  </div>;
+}
+
+export type CategoryFilterProps = {
+  categories: FilterCategory[];
+  phase: string;
+  selected?: FilterCategory;
+  onPhase: (phase: string) => void;
+  onSelect: (name: string) => void;
+  label?: string;
+  hint?: string;
+};
 
 function Chevron({ right = false }: { right?: boolean }) {
   return (
@@ -10,23 +28,16 @@ function Chevron({ right = false }: { right?: boolean }) {
   );
 }
 
-export function HomeCategories({ categories, phase, selected, onPhase, onSelect, label = 'Categoria da visão geral', hint = 'Deslize o conteúdo para trocar a categoria ou use os botões e as setas do teclado no seletor.' }: {
-  categories: Categoria[];
-  phase: string;
-  selected?: Categoria;
-  onPhase: (phase: string) => void;
-  onSelect: (name: string) => void;
-  label?: string;
-  hint?: string;
-}) {
+export function CategoryFilter({ categories, phase, selected, onPhase, onSelect, label = 'Categoria', hint = 'Deslize para trocar a categoria ou use os botões e as setas do teclado no seletor.' }: CategoryFilterProps) {
   const strip = useRef<HTMLDivElement>(null);
   const indicator = useRef<HTMLSpanElement>(null);
   const hintId = useId();
   const gesture = useRef<{ x: number; scroll: number; moved: boolean } | null>(null);
+  const pressed = useRef(false);
   const userScroll = useRef(false);
   const suppressClick = useRef(false);
   const settleTimer = useRef<ReturnType<typeof setTimeout>>();
-  const latest = useRef({ available: [] as Categoria[], onSelect });
+  const latest = useRef({ available: [] as FilterCategory[], onSelect });
   const available = categories.filter(category => category.tipo === phase);
   latest.current = { available, onSelect };
   const index = available.findIndex(category => category.id === selected?.id);
@@ -58,7 +69,7 @@ export function HomeCategories({ categories, phase, selected, onPhase, onSelect,
       left: active.offsetLeft - (container.clientWidth - active.clientWidth) / 2,
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
     });
-  }, [selected?.id]);
+  }, [selected?.id, phase]);
 
   useEffect(() => {
     const container = strip.current;
@@ -66,7 +77,7 @@ export function HomeCategories({ categories, phase, selected, onPhase, onSelect,
     const settle = () => {
       clearTimeout(settleTimer.current);
       settleTimer.current = setTimeout(() => {
-        if (!userScroll.current || gesture.current) return;
+        if (!userScroll.current || pressed.current || gesture.current) return;
         const buttons = [...container.querySelectorAll<HTMLButtonElement>('button')];
         const center = container.scrollLeft + container.clientWidth / 2;
         const closest = buttons.reduce<HTMLButtonElement | null>((best, button) => !best || Math.abs(button.offsetLeft + button.offsetWidth / 2 - center) < Math.abs(best.offsetLeft + best.offsetWidth / 2 - center) ? button : best, null);
@@ -121,10 +132,17 @@ export function HomeCategories({ categories, phase, selected, onPhase, onSelect,
         <div className="home-sub-strip category-tabs" ref={strip} data-swipe-ignore
           role="group" aria-label={label} aria-describedby={hintId}
           onPointerDown={event => {
+            if (!event.isPrimary || event.button !== 0) return;
+            pressed.current = true;
+            clearTimeout(settleTimer.current);
             userScroll.current = true; suppressClick.current = false;
-            if (event.pointerType !== 'mouse' || event.button !== 0) return;
+            // Interrupt a previous centering animation before taking ownership.
+            event.currentTarget.scrollTo({ left: event.currentTarget.scrollLeft, behavior: 'instant' });
             gesture.current = { x: event.clientX, scroll: event.currentTarget.scrollLeft, moved: false };
+            if (event.pointerType === 'mouse') event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
           }}
+          onDragStart={event => event.preventDefault()}
           onPointerMove={event => {
             const start = gesture.current;
             if (!start) return;
@@ -138,14 +156,30 @@ export function HomeCategories({ categories, phase, selected, onPhase, onSelect,
           }}
           onPointerUp={event => {
             const moved = gesture.current?.moved;
+            pressed.current = false;
             gesture.current = null; event.currentTarget.classList.remove('is-dragging');
             if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-            if (moved) event.currentTarget.dispatchEvent(new Event('scroll'));
+            if (!moved) {
+              const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('button');
+              if (target && event.currentTarget.contains(target)) {
+                const buttons = [...event.currentTarget.querySelectorAll('button')];
+                const category = available[buttons.indexOf(target)];
+                if (category) { userScroll.current = false; onSelect(category.nome); }
+              }
+              suppressClick.current = true;
+            }
+            event.currentTarget.dispatchEvent(new Event('scroll'));
           }}
-          onPointerCancel={event => { gesture.current = null; event.currentTarget.classList.remove('is-dragging'); event.currentTarget.dispatchEvent(new Event('scroll')); }}
-          onPointerLeave={() => { if (!gesture.current?.moved) gesture.current = null; }}
+          onPointerCancel={event => { pressed.current = false; gesture.current = null; event.currentTarget.classList.remove('is-dragging'); event.currentTarget.dispatchEvent(new Event('scroll')); }}
+          onLostPointerCapture={event => {
+            if (!pressed.current || event.target !== event.currentTarget) return;
+            pressed.current = false; gesture.current = null;
+            event.currentTarget.classList.remove('is-dragging');
+            event.currentTarget.dispatchEvent(new Event('scroll'));
+          }}
           onClickCapture={event => { if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); suppressClick.current = false; } }}
           onKeyDown={event => {
+            suppressClick.current = false;
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
             event.preventDefault();
             select(event.key === 'Home' ? 0 : event.key === 'End' ? available.length - 1 : index + (event.key === 'ArrowLeft' ? -1 : 1), true);

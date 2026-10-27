@@ -6,7 +6,7 @@ import { POSITIONS, normalizePosition } from '../components/CollectionControls';
 import { PositionIcon } from '../components/PositionIcon';
 import { FilterSelect } from '../components/FilterSelect';
 import { ScoutPlayerDetail } from '../components/ScoutPlayerDetail';
-import { HomeCategories } from '../components/HomeCategories';
+import { CategoryFilter } from '../components/CategoryFilter';
 import { HomeSwipeSurface } from '../components/HomeSwipeSurface';
 import { useAuth } from '../contexts/AuthContext';
 import { Icon, type IconName } from '../components/Icon';
@@ -156,7 +156,7 @@ export default function ElencoPage() {
         const next = phaseCategories[phaseCategories.indexOf(category!) + direction];
         if (next) change({ categoria_id: String(next.id), atleta: '' });
       }} renderPage={renderCategory}>
-      <HomeCategories categories={phaseCategories} phase={phase} selected={category}
+      <CategoryFilter categories={phaseCategories} phase={phase} selected={category}
         label="Subcategoria do scout"
         hint="Deslize o conteúdo para trocar o sub ou use as setas do teclado."
         onPhase={value => change({ fase: value, categoria_id: '', atleta: '' })}

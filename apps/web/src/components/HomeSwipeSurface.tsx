@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type PointerEvent, type ReactNode } from 'react';
 
-type Drag = { id: number; x: number; y: number; horizontal: boolean; distance: number };
+type Drag = { id: number; x: number; y: number; horizontal: boolean; distance: number; time: number; velocity: number; lastX: number };
 type ButtonPosition = { x: number; y: number; width: number };
 type GestureGeometry = {
   width: number;
@@ -8,6 +8,8 @@ type GestureGeometry = {
   active: ButtonPosition;
   previous: ButtonPosition;
   next: ButtonPosition;
+  strip: HTMLElement;
+  scroll: number;
 };
 
 export function HomeSwipeSurface({ children, footer, renderPage, categoryId, categoryIndex, canPrevious, canNext, onStep, swipeFromButtons = false }: {
@@ -37,7 +39,7 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
     const strip = surface.current?.querySelector<HTMLElement>('.home-sub-strip');
     const buttons = strip?.querySelectorAll<HTMLButtonElement>('button');
     const active = buttons?.[categoryIndex];
-    if (!active || !buttons || !track.current) return null;
+    if (!strip || !active || !buttons || !track.current) return null;
     const position = (button: HTMLButtonElement): ButtonPosition => ({
       x: button.offsetLeft, y: button.offsetTop, width: button.offsetWidth,
     });
@@ -47,6 +49,8 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
       active: position(active),
       previous: position(buttons[categoryIndex - 1] ?? active),
       next: position(buttons[categoryIndex + 1] ?? active),
+      strip,
+      scroll: strip.scrollLeft,
     };
   }
 
@@ -77,6 +81,12 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
     const width = geometry.current?.width || 1;
     if (track.current) track.current.style.transform = `translate3d(${distance}px, 0, 0)`;
     const position = indicatorPosition(-distance / width);
+    const measured = geometry.current;
+    if (measured) {
+      const progress = -distance / width;
+      const neighbor = progress < 0 ? measured.previous : measured.next;
+      measured.strip.scrollLeft = measured.scroll + (neighbor.x - measured.active.x) * Math.min(1, Math.abs(progress));
+    }
     if (position) {
       position.indicator.style.transition = 'none';
       position.indicator.style.transform = position.transform;
@@ -119,7 +129,7 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
     animations.current = [track.current.animate([
       { transform: gap ? `translateX(calc(${direction * 100}% + ${direction * gap}px))` : `translateX(${direction * 100}%)` },
       { transform: 'translateX(0)' },
-    ], { duration: 280, easing: 'cubic-bezier(.22,.7,.2,1)' })];
+    ], { duration: 400, easing: 'cubic-bezier(.25,.8,.25,1)' })];
   }, [categoryId, categoryIndex]);
 
   useEffect(() => {
@@ -154,8 +164,9 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
     const position = indicatorPosition(direction);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const options: KeyframeAnimationOptions = {
-      duration: reduced ? 0 : 230,
-      easing: 'cubic-bezier(.22,.7,.2,1)',
+      // Keep a visible glide even after a fast flick or an almost-complete drag.
+      duration: reduced ? 0 : direction ? 340 + Math.min(1, Math.abs(target - distance) / (geometry.current?.width || 1)) * 80 : 280,
+      easing: 'cubic-bezier(.25,.8,.25,1)',
       fill: 'forwards',
     };
     const slide = element.animate([
@@ -193,7 +204,9 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
     const direction = start.distance < 0 ? 1 : -1;
     const allowed = direction > 0 ? canNext : canPrevious;
     const threshold = Math.min(64, (geometry.current?.width || 1) * .18);
-    settle(start.distance, !cancelled && allowed && Math.abs(start.distance) >= threshold ? direction : 0);
+    const flick = performance.now() - start.time < 100 && Math.abs(start.velocity) > .45
+      && Math.sign(start.velocity) === Math.sign(start.distance) && Math.abs(start.distance) > 16;
+    settle(start.distance, !cancelled && allowed && (Math.abs(start.distance) >= threshold || flick) ? direction : 0);
   }
 
   return (
@@ -210,13 +223,17 @@ export function HomeSwipeSurface({ children, footer, renderPage, categoryId, cat
         if (!swipeFromButtons && target.closest('button')) return;
         geometry.current = measureGesture();
         if (!geometry.current) return;
-        drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false, distance: 0 };
+        drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false, distance: 0, time: performance.now(), velocity: 0, lastX: event.clientX };
       }}
       onPointerMove={event => {
         const start = drag.current;
         if (!start || start.id !== event.pointerId) return;
         const dx = event.clientX - start.x;
         const dy = event.clientY - start.y;
+        const now = performance.now();
+        if (now > start.time) start.velocity = (event.clientX - start.lastX) / (now - start.time);
+        start.time = now;
+        start.lastX = event.clientX;
         if (!start.horizontal && Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) {
           drag.current = null;
           return;

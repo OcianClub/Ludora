@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchHomePartidas, fetchCategorias, fetchEscalacao, type HomePartida, type Categoria } from '../services/api';
 import { Btn } from '../components/UI';
-import { HomeCategories } from '../components/HomeCategories';
+import { CategoryFilter } from '../components/CategoryFilter';
 import { HomeSwipeSurface } from '../components/HomeSwipeSurface';
 import { HomeHistoryMatch, HomeMatch, RESULTADOS } from '../components/HomeMatch';
 import { ClubBadge } from '../components/Brand';
@@ -216,7 +216,7 @@ export default function DashboardPage() {
       }}>
       <h1 className="sr-only">Visão geral do clube</h1>
 
-      {data && <HomeCategories categories={data.categories} phase={phase} selected={current}
+      {data && <CategoryFilter categories={data.categories} phase={phase} selected={current}
         onPhase={next => { setPhase(next); setCategory(''); }} onSelect={setCategory} />}
 
       {error && (
