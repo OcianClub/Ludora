@@ -311,6 +311,7 @@
 }
 .schedule-create-dialog {
   max-width: 680px;
+  max-height: min(860px, calc(100dvh - 32px));
 }
 
 .schedule-create-dialog .modal-footer {
@@ -343,5 +344,112 @@
 .schedule-review-dialog button:focus-visible {
   outline: 2px solid var(--primaria);
   outline-offset: 3px;
+}
+
+@media (min-width: 601px) and (max-width: 760px) {
+  .schedule-create-dialog {
+    width: calc(100% - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  .schedule-create-dialog .modal-body {
+    padding: 16px 18px;
+  }
+
+  .schedule-create-form {
+    gap: 15px;
+  }
+
+  .schedule-create-team {
+    min-height: 150px;
+    padding: 15px 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .schedule-create-dialog {
+    height: var(--schedule-create-height, 100dvh);
+    max-height: var(--schedule-create-height, 100dvh);
+  }
+
+  .schedule-create-dialog .modal-header {
+    min-height: 58px;
+    padding: 10px 16px;
+  }
+
+  .schedule-create-dialog .modal-body {
+    padding: 12px 16px 16px;
+  }
+
+  .schedule-create-dialog .modal-footer {
+    padding: 10px 16px max(10px, env(safe-area-inset-bottom));
+  }
+
+  .schedule-create-form {
+    gap: 14px;
+  }
+
+  .schedule-create-top {
+    gap: 10px;
+    padding: 0 0 12px;
+  }
+
+  .schedule-create-sub {
+    min-height: 40px;
+    padding: 8px 12px;
+  }
+
+  .schedule-create-competition {
+    min-height: 48px;
+    padding: 10px 12px;
+  }
+
+  .schedule-create-team {
+    min-height: 132px;
+    gap: 6px;
+    padding: 12px 8px;
+  }
+
+  .schedule-create-add {
+    width: 44px;
+    height: 44px;
+  }
+
+  .schedule-create-vs {
+    width: 30px;
+    height: 30px;
+    font-size: 10px;
+  }
+
+  .schedule-create-date {
+    padding-top: 14px;
+  }
+
+  .schedule-create-actions .btn {
+    min-height: 42px;
+  }
+}
+
+@media (max-width: 380px) {
+  .schedule-create-dialog .modal-body {
+    padding-inline: 12px;
+  }
+
+  .schedule-create-dialog .modal-footer {
+    padding-inline: 12px;
+  }
+
+  .schedule-create-club .club-badge {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  .schedule-create-club strong {
+    font-size: 17px;
+  }
+
+  .schedule-create-date {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 

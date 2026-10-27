@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { requestJson } from '../services/api';
 import { Btn, Modal } from './UI';
@@ -14,6 +14,7 @@ const emptyData: NoticeResponse = { notificacoes: [], totalNaoLidas: 0, proximoC
 export function Notifications() {
   const { clube } = useAuth();
   const navigate = useNavigate();
+  const { key: navigationKey } = useLocation();
   const dialogId = useId();
   const currentClub = useRef(clube?.id);
   currentClub.current = clube?.id;
@@ -99,11 +100,9 @@ export function Notifications() {
   }, [clube?.id, clube?.meuPapel]);
 
   useEffect(() => {
-    if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = previousOverflow; };
-  }, [open]);
+    setOpen(false);
+    setConfirmation(null);
+  }, [navigationKey]);
 
   async function mutate(endpoint: string, method: 'PATCH' | 'DELETE', apply: () => void, feedback: string) {
     if (busyRef.current) return false;

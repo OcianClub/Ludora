@@ -54,7 +54,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
               await page.getByRole('group', { name: 'Categoria das partidas' }).getByRole('button', { name: phase.toUpperCase(), exact: true }).click();
               if (sub.startsWith('todos')) return;
               await page.getByRole('combobox', { name: 'Subcategoria', exact: true }).click();
-              await page.getByRole('option', { name: sub.toUpperCase(), exact: true }).click();
+              await page.getByRole('option', { name: sub.replace(/^sub-/i, 'Sub-'), exact: true }).click();
               return;
             }
             await page.getByRole('combobox', { name: label, exact: true }).filter({ visible: true }).click();
@@ -72,7 +72,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
           if (label === 'Categoria') {
             const [phase, sub] = option.split(' · ');
             await dialog.getByRole('group', { name: 'Categoria' }).getByRole('button', { name: phase.toUpperCase(), exact: true }).click();
-            if (sub && !sub.startsWith('todos')) await dialog.getByRole('group', { name: 'Sub' }).getByRole('button', { name: sub.toUpperCase(), exact: true }).click();
+            if (sub && !sub.startsWith('todos')) await dialog.getByRole('group', { name: 'Sub' }).getByRole('button', { name: sub.replace(/^sub-/i, 'Sub-'), exact: true }).click();
           } else {
             await dialog.getByRole('group', { name: label }).getByRole('button', { name: option, exact: true }).click();
           }
@@ -80,6 +80,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
         }
         const carousel = page.getByRole('region', { name: 'Carrossel de partidas ao vivo' });
         await carousel.waitFor();
+        const toolbarYWithoutFilters = (await page.locator('.schedule-results-toolbar').boundingBox()).y;
         assert.equal(await page.getByRole('combobox', { name: 'Local', exact: true }).count(), 0);
         assert.equal(await page.locator('.schedule-section').filter({ has: page.getByRole('button', { name: /^Hoje/ }) }).locator('.match-card').count(), 5);
         assert.equal(await page.locator('.schedule-section').filter({ has: page.getByRole('button', { name: /^A seguir/ }) }).locator('.match-card').count(), 5);
@@ -118,6 +119,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
           assert.ok(top.y < 420, 'Partidas aparecem sem uma tela inteira de filtros');
           await chooseFilter('Situação', 'Finalizadas');
         } else await legend.getByRole('button', { name: /Finalizadas/ }).click();
+        assert.ok(Math.abs((await page.locator('.schedule-results-toolbar').boundingBox()).y - toolbarYWithoutFilters) < 1, 'Filtros ativos não deslocam o conteúdo');
         assert.equal(await carousel.count(), 0);
         assert.equal(await page.locator('.match-card').count(), 12);
         await page.getByRole('button', { name: 'Limpar tudo', exact: true }).click();
@@ -132,7 +134,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
         if (!mobile) {
           await page.getByRole('combobox', { name: 'Subcategoria' }).click();
           const subOptions = await page.getByRole('option').allTextContents();
-          assert.ok(subOptions.every(label => /SUB-(12|14|16|18)|TODOS/.test(label)));
+          assert.deepEqual(subOptions.map(label => label.replace('✓', '')), ['Todos os subs', 'Sub-12', 'Sub-14', 'Sub-16', 'Sub-18']);
           await page.getByRole('combobox', { name: 'Subcategoria' }).press('Escape');
         }
         await chooseFilter('Categoria', 'Iniciação · todos os subs');
