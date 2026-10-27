@@ -1,7 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { fetchPartidas, criarPartida, fetchTimes, fetchCategorias, fetchCompeticoes, type Partida, type Time, type Categoria, type Competicao } from '../services/api';
-import { Btn, Modal, Input, Select, Spinner, Empty } from '../components/UI';
+import { Btn, Modal, Input, Spinner, Empty } from '../components/UI';
+import { ClubBadge } from '../components/Brand';
 import { useAuth } from '../contexts/AuthContext';
 import { MatchCard, formatMatchDate } from '../components/MatchCard';
 import { Icon } from '../components/Icon';
@@ -12,6 +13,7 @@ import { SchedulePeriodDialog } from '../components/SchedulePeriodDialog';
 import { intervaloAgenda, grupoSituacao, ordenarAgenda, rotuloDiaAgenda, agruparAgenda, type PeriodoAgenda } from '../utils/scheduleFilters';
 import { teamName } from '../utils/teamIdentity';
 import './Partidas.css';
+import './ScheduleCreate.css';
 
 const STATUSES = [
   { value: 'PROXIMAS', label: 'Próximas (agendadas e preparadas)' },
@@ -103,8 +105,12 @@ export default function PartidasPage() {
   const [competicoes, setCompeticoes] = useState<Competicao[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [picker, setPicker] = useState<'categoria' | 'competicao' | 'mandante' | 'visitante' | null>(null);
+  const [pickerSearch, setPickerSearch] = useState('');
   const [form, setForm] = useState(FORM_VAZIO);
   const [salvando, setSalvando] = useState(false);
+  const savingRef = useRef(false);
   const [erro, setErro] = useState('');
   const [loadError, setLoadError] = useState('');
   const [periodOpen, setPeriodOpen] = useState(false);
@@ -194,6 +200,24 @@ export default function PartidasPage() {
   }, [moreOpen, mobileFilters]);
 
   useEffect(() => {
+    if (!modal || !window.visualViewport) return;
+    const viewport = window.visualViewport;
+    const update = () => {
+      document.documentElement.style.setProperty('--schedule-create-height', `${viewport.height}px`);
+      document.documentElement.style.setProperty('--schedule-create-top', `${viewport.offsetTop}px`);
+    };
+    update();
+    viewport.addEventListener('resize', update);
+    viewport.addEventListener('scroll', update);
+    return () => {
+      viewport.removeEventListener('resize', update);
+      viewport.removeEventListener('scroll', update);
+      document.documentElement.style.removeProperty('--schedule-create-height');
+      document.documentElement.style.removeProperty('--schedule-create-top');
+    };
+  }, [modal]);
+
+  useEffect(() => {
     if (searchParams.has('local')) changeFilters({ local: '' });
   }, [searchParams]);
 
@@ -214,28 +238,67 @@ export default function PartidasPage() {
     return () => { loadVersion.current++; };
   }, [clube?.id]);
 
-  async function salvar(event: React.FormEvent) {
+  function validarPartida() {
+    if (!form.categoria_id) return 'Selecione a categoria da partida.';
+    if (!categorias.some(category => String(category.id) === form.categoria_id)) return 'Esta categoria não está mais disponível. Selecione outra categoria.';
+    if (!form.mandante_id || !form.visitante_id) return 'Selecione os dois times do confronto.';
+    if (form.mandante_id === form.visitante_id) return 'Mandante e visitante precisam ser times diferentes.';
+    if ([form.mandante_id, form.visitante_id].some(id => !times.some(team => String(team.id) === id && String(team.categoria_id) === form.categoria_id))) return 'Os dois times precisam pertencer à categoria selecionada. Escolha os times novamente.';
+    if (!form.data) return 'Informe a data da partida.';
+    const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(form.data);
+    if (!dateMatch) return 'Use uma data válida no formato DD/MM/AAAA.';
+    const [year, month, day] = dateMatch.slice(1).map(Number);
+    const parsedDate = new Date(year, month - 1, day);
+    if (parsedDate.getFullYear() !== year || parsedDate.getMonth() !== month - 1 || parsedDate.getDate() !== day) return 'A data informada não existe. Confira dia, mês e ano.';
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (parsedDate < today) return 'Escolha hoje ou uma data futura para organizar a partida.';
+    if (!form.horario) return 'Informe o horário da partida.';
+    const timeMatch = /^(\d{2}):(\d{2})$/.exec(form.horario);
+    if (!timeMatch || Number(timeMatch[1]) > 23 || Number(timeMatch[2]) > 59) return 'Informe um horário válido entre 00:00 e 23:59.';
+    if (form.competicao_id && form.competicao_id !== 'amistoso' && !competicoes.some(item => String(item.id) === form.competicao_id && item.tipo === categorias.find(category => String(category.id) === form.categoria_id)?.tipo)) return 'Escolha uma competição compatível com a categoria da partida.';
+    if (form.competicao_id && form.competicao_id !== 'amistoso' && form.rodada && (!Number.isSafeInteger(Number(form.rodada)) || Number(form.rodada) < 1)) return 'Informe uma rodada inteira a partir de 1 ou deixe o campo vazio.';
+    return '';
+  }
+
+  function revisarPartida(event: React.FormEvent) {
     event.preventDefault();
-    if (salvando) return;
+    const validation = validarPartida();
+    setErro(validation);
+    if (!validation) setReviewOpen(true);
+    else requestAnimationFrame(() => document.querySelector<HTMLElement>('.schedule-create-dialog [aria-invalid="true"], .schedule-create-error')?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  }
+
+  async function salvar() {
+    if (savingRef.current) return;
+    const validation = validarPartida();
+    if (validation) { setErro(validation); setReviewOpen(false); return; }
+    savingRef.current = true;
     setErro(''); setSalvando(true);
     try {
       await criarPartida({
         mandante_id: Number(form.mandante_id), visitante_id: Number(form.visitante_id),
-        data: form.data, horario: form.horario, local: form.local || undefined,
+        data: form.data, horario: form.horario, local: form.local.trim() || undefined,
         categoria_id: Number(form.categoria_id),
-        competicao_id: form.competicao_id ? Number(form.competicao_id) : undefined,
-        rodada: form.rodada ? Number(form.rodada) : undefined,
+        competicao_id: form.competicao_id && form.competicao_id !== 'amistoso' ? Number(form.competicao_id) : undefined,
+        rodada: form.competicao_id && form.competicao_id !== 'amistoso' && form.rodada ? Number(form.rodada) : undefined,
         emCasa: form.emCasa === 'true',
       });
-      setModal(false); carregar();
+      setReviewOpen(false); setModal(false); carregar();
     } catch (error) {
       setErro(error instanceof Error ? error.message : 'Não foi possível criar a partida.');
-    } finally { setSalvando(false); }
+    } finally { savingRef.current = false; setSalvando(false); }
   }
 
-  const timeOpts = times.filter(time => String(time.categoria_id) === form.categoria_id).map(time => ({ value: time.id, label: teamName(time.nome) }));
-  const catOpts = categorias.map(category => ({ value: category.id, label: category.nome }));
-  const compOpts = competicoes.filter(competition => competition.tipo === categorias.find(category => String(category.id) === form.categoria_id)?.tipo).map(competition => ({ value: competition.id, label: `${competition.nome} (${competition.ano})` }));
+  function openPicker(value: typeof picker) {
+    setPickerSearch('');
+    setPicker(value);
+  }
+  const formCategory = categorias.find(category => String(category.id) === form.categoria_id);
+  const formCompetition = competicoes.find(competition => String(competition.id) === form.competicao_id);
+  const formHome = times.find(time => String(time.id) === form.mandante_id);
+  const formAway = times.find(time => String(time.id) === form.visitante_id);
+  const localToday = new Date();
+  const minimumDate = `${localToday.getFullYear()}-${String(localToday.getMonth() + 1).padStart(2, '0')}-${String(localToday.getDate()).padStart(2, '0')}`;
   const matches = useMemo(() => {
     const teams = new Map(times.map(time => [time.id, time]));
     const categories = new Map(categorias.map(category => [category.id, category]));
@@ -291,7 +354,7 @@ export default function PartidasPage() {
     <div className="match-schedule">
       <div className="page-header">
         <div><span className="eyebrow">DENTRO DA QUADRA</span><h1 className="page-title">Partidas</h1><p className="page-sub">{podeGerenciar ? 'Gerencie, acompanhe e consulte os resultados das partidas do clube.' : 'Acompanhe a agenda, os placares e os resultados do clube.'}</p></div>
-        {podeGerenciar && <Btn className="schedule-desktop-new" aria-label="Nova partida" title="Nova partida" onClick={() => { setForm({ ...FORM_VAZIO, categoria_id: filtroCategoria }); setErro(''); setModal(true); }}><Icon name="plus" size={18} />Nova partida</Btn>}
+        {podeGerenciar && <Btn className="schedule-desktop-new" aria-label="Nova partida" title="Nova partida" onClick={() => { setForm({ ...FORM_VAZIO, categoria_id: filtroCategoria }); setErro(''); setReviewOpen(false); setModal(true); }}><Icon name="plus" size={18} />Nova partida</Btn>}
       </div>
 
       <div className="schedule-status-summary" role="group" aria-label="Filtrar por situação">
@@ -307,7 +370,11 @@ export default function PartidasPage() {
           <Btn variant="ghost" className="schedule-mobile-filter-button" aria-haspopup="dialog" onClick={() => openFilters(true)}>
             <Icon name="filters" size={18} />Filtros{!!chips.length && <span className="schedule-filter-count">{chips.length}</span>}
           </Btn>
-          {podeGerenciar && <Btn className="schedule-mobile-new" aria-label="Nova partida" title="Nova partida" onClick={() => { setForm({ ...FORM_VAZIO, categoria_id: filtroCategoria }); setErro(''); setModal(true); }}><Icon name="plus" size={16} />Nova partida</Btn>}
+          <div className="schedule-view-toggle" role="group" aria-label="Visualização das partidas">
+            <button type="button" aria-label="Cards" title="Cards" aria-pressed={!list} onClick={() => changeFilters({ visualizacao: '' })}><Icon name="grid" size={16} /></button>
+            <button type="button" aria-label="Lista" title="Lista" aria-pressed={list} onClick={() => changeFilters({ visualizacao: 'lista' })}><Icon name="list" size={16} /></button>
+          </div>
+          {podeGerenciar && <Btn className="schedule-mobile-new" aria-label="Nova partida" title="Nova partida" onClick={() => { setForm({ ...FORM_VAZIO, categoria_id: filtroCategoria }); setErro(''); setReviewOpen(false); setModal(true); }}><Icon name="plus" size={16} />Nova partida</Btn>}
         </div>
         <div className="schedule-filter-primary">
           <div className="schedule-search">
@@ -403,23 +470,76 @@ export default function PartidasPage() {
         {filterError && <p className="notice-error" role="alert">{filterError}</p>}
         </div>
       </Modal>
-      <Modal open={modal} onClose={() => { if (!salvando) setModal(false); }} title="Nova partida">
-        <form onSubmit={salvar} className="form-grid">
-          <Select label="Categoria" options={catOpts} value={form.categoria_id} onChange={e => setForm(f => ({ ...f, categoria_id: e.target.value, mandante_id:'', visitante_id:'', competicao_id:'' }))} required className="full" />
-          <Select label="Mandante" options={timeOpts} value={form.mandante_id} onChange={e => setForm(f => ({ ...f, mandante_id: e.target.value }))} required />
-          <Select label="Visitante" options={timeOpts} value={form.visitante_id} onChange={e => setForm(f => ({ ...f, visitante_id: e.target.value }))} required />
-          <Input label="Data" type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} required />
-          <Input label="Horário" type="time" value={form.horario} onChange={e => setForm(f => ({ ...f, horario: e.target.value }))} />
-          <Input label="Local" value={form.local} onChange={e => setForm(f => ({ ...f, local: e.target.value }))} className="full" />
-          <Select label="Competição" options={compOpts} value={form.competicao_id} onChange={e => setForm(f => ({ ...f, competicao_id: e.target.value }))} />
-          <Input label="Rodada" type="number" value={form.rodada} onChange={e => setForm(f => ({ ...f, rodada: e.target.value }))} />
-          <Select label="Mando" options={[{ value: 'true', label: 'Em casa' }, { value: 'false', label: 'Fora' }]} value={form.emCasa} onChange={e => setForm(f => ({ ...f, emCasa: e.target.value }))} />
-          {erro && <div style={{ color: 'var(--titulo-erro)', fontSize: 13, gridColumn: '1/-1' }}>{erro}</div>}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', gridColumn: '1/-1' }}>
-            <Btn variant="ghost" type="button" disabled={salvando} onClick={() => setModal(false)}>Cancelar</Btn>
-            <Btn type="submit" disabled={salvando}>{salvando ? 'Salvando...' : 'Criar'}</Btn>
+      <Modal open={modal && !reviewOpen} onClose={() => { if (!salvando) setModal(false); }} title="Organizar partida" className="schedule-create-dialog"
+        footer={<div className="schedule-create-actions"><Btn variant="ghost" type="button" onClick={() => setModal(false)}>Cancelar</Btn><Btn type="submit" form="schedule-create-form"><Icon name="checkAll" size={17} />Criar partida</Btn></div>}>
+        <form id="schedule-create-form" onSubmit={revisarPartida} className="schedule-create-form" noValidate>
+          <div className="schedule-create-top">
+            <div className="schedule-create-club"><ClubBadge src={clube?.escudo} name={clube?.nome} size={44} /><strong>{clube?.nome || 'Seu clube'}</strong></div>
+            <button className="schedule-create-sub" type="button" aria-label="Selecionar categoria da partida" aria-haspopup="dialog" onClick={() => openPicker('categoria')}>{formCategory?.nome || 'Categoria'}<Icon name="chevronRight" size={17} /></button>
           </div>
+          <div className="field"><span className="field-label">Competição</span><button className="schedule-create-competition" type="button" aria-haspopup="dialog" onClick={() => openPicker('competicao')}><Icon name="trophy" size={21} /><span>{formCompetition?.nome || (form.competicao_id === 'amistoso' ? 'Amistoso' : 'Selecionar competição')}</span><Icon name="chevronRight" size={17} /></button></div>
+          <section className="schedule-create-matchup" aria-labelledby="matchup-title"><h3 id="matchup-title">Confronto</h3><div>
+            {(['mandante', 'visitante'] as const).map(side => {
+              const team = side === 'mandante' ? formHome : formAway;
+              return <button key={side} className="schedule-create-team" data-selected={!!team} type="button" aria-label={`Selecionar ${side}${team ? `: ${teamName(team.nome)}` : ''}`} aria-haspopup="dialog" onClick={() => { if (!form.categoria_id) { setErro('Selecione a categoria antes de escolher os times.'); openPicker('categoria'); } else openPicker(side); }}>
+                {team ? <ClubBadge src={team.escudo || team.clubeRepresentado?.escudo} name={team.nome} size={54} /> : <span className="schedule-create-add"><Icon name="plus" size={28} /></span>}
+                <small>{side === 'mandante' ? 'MANDANTE' : 'VISITANTE'}</small><strong>{team ? teamName(team.nome) : 'Selecionar time'}</strong>
+                {team && <span className="schedule-create-change"><Icon name="switchClub" size={13} />Trocar</span>}
+              </button>;
+            })}
+            <span className="schedule-create-vs" aria-hidden="true">VS</span>
+          </div></section>
+          <fieldset className="schedule-create-mando"><legend>Mando de campo</legend><button type="button" aria-pressed={form.emCasa === 'true'} onClick={() => setForm(f => ({ ...f, emCasa: 'true' }))}><Icon name="home" size={17} />Em casa</button><button type="button" aria-pressed={form.emCasa === 'false'} onClick={() => setForm(f => ({ ...f, emCasa: 'false' }))}><Icon name="bus" size={17} />Fora</button></fieldset>
+          <div className="schedule-create-date">
+            <Input label="Data" type="date" min={minimumDate} value={form.data} onChange={e => { setForm(f => ({ ...f, data: e.target.value })); setErro(''); }} error={erro.includes('data') ? erro : ''} required />
+            <Input label="Horário" type="time" value={form.horario} onChange={e => { setForm(f => ({ ...f, horario: e.target.value })); setErro(''); }} error={erro.includes('horário') ? erro : ''} required />
+          </div>
+          <Input label="Local · opcional" placeholder="Ginásio, campo ou endereço" value={form.local} onChange={e => setForm(f => ({ ...f, local: e.target.value }))} />
+          {formCompetition && <Input label="Rodada · opcional" type="number" min="1" step="1" value={form.rodada} onChange={e => { setForm(f => ({ ...f, rodada: e.target.value })); setErro(''); }} />}
+          {erro && !erro.includes('data') && !erro.includes('horário') && <p className="schedule-create-error" role="alert">{erro}</p>}
         </form>
+      </Modal>
+      <Modal open={!!picker && modal} onClose={() => setPicker(null)} title={picker === 'categoria' ? 'Categoria da partida' : picker === 'competicao' ? 'Selecionar competição' : `Selecionar ${picker}`} className="schedule-picker-dialog">
+        {picker === 'categoria' ? <div className="schedule-category-options">
+          <p>{formHome || formAway ? 'Ao mudar de categoria, selecione novamente os times e a competição.' : 'Selecione a categoria em que a partida será criada.'}</p>
+          {(['INICIACAO', 'BASE'] as const).map(tipo => <section key={tipo}><h3>{tipo === 'BASE' ? 'Base' : 'Iniciação'}</h3><div>
+            {categorias.filter(category => category.tipo === tipo).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true })).map(category => <button key={category.id} type="button" aria-pressed={form.categoria_id === String(category.id)} onClick={() => {
+              if (form.categoria_id !== String(category.id)) setForm(f => ({ ...f, categoria_id: String(category.id), mandante_id: '', visitante_id: '', competicao_id: '', rodada: '' }));
+              setErro(''); setPicker(null);
+            }}>{category.nome}{form.categoria_id === String(category.id) && <Icon name="checkAll" size={16} />}</button>)}
+          </div></section>)}
+          {!categorias.length && <p className="schedule-picker-empty">Nenhuma categoria disponível. Cadastre as categorias do clube antes de organizar uma partida.</p>}
+        </div> : <div className="schedule-picker-content">
+          <Input label={picker === 'competicao' ? 'Buscar competição ou ano' : 'Buscar time'} type="search" placeholder={picker === 'competicao' ? 'Buscar competição ou ano' : 'Buscar time'} value={pickerSearch} onChange={event => setPickerSearch(event.target.value)} />
+          <div className="schedule-picker-options">
+            {picker === 'competicao' ? <>
+              <button type="button" aria-pressed={form.competicao_id === 'amistoso'} onClick={() => { setForm(f => ({ ...f, competicao_id: 'amistoso', rodada: '' })); setErro(''); setPicker(null); }}><span className="schedule-picker-icon"><Icon name="ball" size={23} /></span><span><strong>Amistoso</strong><small>Sem competição</small></span>{form.competicao_id === 'amistoso' && <Icon name="checkAll" size={18} />}</button>
+              {competicoes.filter(item => (!formCategory || item.tipo === formCategory.tipo) && normalizarBusca(`${item.nome} ${item.ano}`).includes(normalizarBusca(pickerSearch))).map(item => (
+                <button key={item.id} type="button" aria-pressed={form.competicao_id === String(item.id)} onClick={() => {
+                  setForm(f => ({ ...f, competicao_id: String(item.id), rodada: f.competicao_id === String(item.id) ? f.rodada : '' }));
+                  setErro('');
+                  setPicker(null);
+                }}>
+                  <span className="schedule-picker-icon"><Icon name="trophy" size={23} /></span>
+                  <span><strong>{item.nome}</strong><small>Temporada {item.ano}</small></span>
+                  {form.competicao_id === String(item.id) && <Icon name="checkAll" size={18} />}
+                </button>
+              ))}
+            </> : <>
+              {times.filter(item => String(item.categoria_id) === form.categoria_id && normalizarBusca(item.nome).includes(normalizarBusca(pickerSearch))).map(item => {
+                const alreadySelected = String(item.id) === (picker === 'mandante' ? form.visitante_id : form.mandante_id);
+                const selected = String(item.id) === (picker === 'mandante' ? form.mandante_id : form.visitante_id);
+                return <button key={item.id} type="button" aria-pressed={selected} disabled={alreadySelected} onClick={() => { setForm(f => ({ ...f, [picker === 'mandante' ? 'mandante_id' : 'visitante_id']: String(item.id) })); setErro(''); setPicker(null); }}><ClubBadge src={item.escudo || item.clubeRepresentado?.escudo} name={item.nome} size={42} /><span><strong>{teamName(item.nome)}</strong><small>{alreadySelected ? 'Já selecionado no outro lado' : formCategory?.nome}</small></span>{selected && <Icon name="checkAll" size={18} />}</button>;
+              })}
+              {!times.some(item => String(item.categoria_id) === form.categoria_id && normalizarBusca(item.nome).includes(normalizarBusca(pickerSearch))) && <p className="schedule-picker-empty">{pickerSearch ? 'Nenhum time encontrado. Tente outro nome ou limpe a busca.' : 'Nenhum time cadastrado nesta categoria. Escolha outra categoria ou cadastre os times primeiro.'}</p>}
+            </>}
+          </div>
+        </div>}
+      </Modal>
+      <Modal open={reviewOpen} onClose={() => { if (!salvando) setReviewOpen(false); }} title="Revisar partida" className="schedule-review-dialog">
+        <div className="schedule-review"><p>Confira principalmente a categoria antes de confirmar.</p><section className="schedule-review-category"><span>Categoria da partida</span><strong>{formCategory?.nome || 'Não informada'}</strong><small>{formCategory?.tipo === 'BASE' ? 'Base' : 'Iniciação'}</small></section><dl>
+          <div><dt>Clube</dt><dd>{clube?.nome || 'Seu clube'}</dd></div><div><dt>Competição</dt><dd>{formCompetition?.nome || 'Amistoso'}</dd></div><div><dt>Mandante</dt><dd>{teamName(formHome?.nome || '')}</dd></div><div><dt>Visitante</dt><dd>{teamName(formAway?.nome || '')}</dd></div><div><dt>Data</dt><dd>{formatMatchDate(form.data)}</dd></div><div><dt>Horário</dt><dd>{form.horario}</dd></div><div><dt>Mando</dt><dd>{form.emCasa === 'true' ? 'Em casa' : 'Fora'}</dd></div><div><dt>Local</dt><dd>{form.local || 'Local não definido'}</dd></div>
+        </dl>{erro && <p className="schedule-create-error" role="alert">{erro}</p>}<div className="schedule-review-actions"><Btn onClick={salvar} disabled={salvando}><Icon name="checkAll" size={17} />{salvando ? 'Criando...' : 'Confirmar e criar'}</Btn><Btn variant="ghost" type="button" disabled={salvando} onClick={() => setReviewOpen(false)}>Voltar e editar</Btn></div></div>
       </Modal>
     </div>
   );

@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Partida } from '../services/api';
 import { ClubBadge } from './Brand';
 import { Icon } from './Icon';
@@ -15,8 +15,14 @@ export function formatMatchDate(value: string) {
 }
 
 export function MatchCard({ partida: p, featured = false, actions, compactLive = false }: { partida: Partida; featured?: boolean; actions?: ReactNode; compactLive?: boolean }) {
+  const navigate = useNavigate();
   const hasScore = p.status === 'AO_VIVO' || p.status === 'FINALIZADA';
-  return <article className={`match-card${featured ? ' match-card-featured' : ''}${p.status === 'AO_VIVO' ? ' match-card-live' : ''}`}>
+  const openMatch = () => navigate(`/partidas/${p.id}`);
+  const ignoreNestedAction = (target: EventTarget | null) => target instanceof Element && !!target.closest('a, button, input, select, textarea');
+  return <article className={`match-card match-card-interactive${featured ? ' match-card-featured' : ''}${p.status === 'AO_VIVO' ? ' match-card-live' : ''}`}
+    role="link" tabIndex={0} aria-label={`Ver partida ${teamName(p.mandante?.nome || 'Mandante')} contra ${teamName(p.visitante?.nome || 'Visitante')}`}
+    onClick={event => { if (!ignoreNestedAction(event.target)) openMatch(); }}
+    onKeyDown={event => { if ((event.key === 'Enter' || event.key === ' ') && !ignoreNestedAction(event.target)) { event.preventDefault(); openMatch(); } }}>
     <div className="match-card-header">
       <span>{p.categoria?.nome || 'Categoria não informada'}</span>
       <div className="match-card-badges">

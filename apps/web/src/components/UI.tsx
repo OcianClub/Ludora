@@ -77,10 +77,48 @@ export function Select({ label, options, emptyLabel = 'Selecionar...', className
   );
 }
 
+let activeModals = 0;
+let restorePageScroll: (() => void) | undefined;
+
+function lockPageScroll() {
+  if (activeModals++ === 0) {
+    const root = document.documentElement;
+    const body = document.body;
+    const x = window.scrollX;
+    const y = window.scrollY;
+    const rootOverflow = root.style.overflow;
+    const rootGutter = root.style.scrollbarGutter;
+    const bodyStyles = ['position', 'top', 'left', 'width', 'overflow'] as const;
+    const previous = bodyStyles.map(property => body.style[property]);
+    root.style.scrollbarGutter = 'stable';
+    root.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${y}px`;
+    body.style.left = `-${x}px`;
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    restorePageScroll = () => {
+      root.style.overflow = rootOverflow;
+      root.style.scrollbarGutter = rootGutter;
+      bodyStyles.forEach((property, index) => { body.style[property] = previous[index]; });
+      window.scrollTo({ left: x, top: y, behavior: 'instant' });
+    };
+  }
+  return () => {
+    if (--activeModals === 0) {
+      restorePageScroll?.();
+      restorePageScroll = undefined;
+    }
+  };
+}
+
 // ── Modal ──
 export function Modal({ open, onClose, title, children, className = '', id, footer }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; className?: string; id?: string; footer?: React.ReactNode }) {
   const dialogRef = React.useRef<HTMLDialogElement>(null);
   const titleId = React.useId();
+  React.useLayoutEffect(() => {
+    if (open) return lockPageScroll();
+  }, [open]);
   React.useEffect(() => {
     const dialog = dialogRef.current;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -94,6 +132,12 @@ export function Modal({ open, onClose, title, children, className = '', id, foot
   return (
       <dialog ref={dialogRef} id={id} className={`modal ${className}`} aria-labelledby={titleId}
         onKeyDown={event => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            onClose();
+            return;
+          }
           if (event.key !== 'Tab') return;
           const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
             'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',

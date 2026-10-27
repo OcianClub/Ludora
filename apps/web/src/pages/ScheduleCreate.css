@@ -1,0 +1,347 @@
+.schedule-create-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--linha);
+}
+
+.schedule-create-club strong {
+  overflow-wrap: anywhere;
+}
+
+.schedule-create-club .club-badge,
+.schedule-create-team .club-badge,
+.schedule-picker-options .club-badge {
+  flex-shrink: 0;
+  border: 0;
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+}
+
+.schedule-create-sub {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--primaria);
+  color: white;
+  font-weight: 600;
+}
+
+.schedule-create-sub > .icon,
+.schedule-create-competition > .icon:last-child {
+  transform: rotate(90deg);
+}
+
+.schedule-create-competition {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--fundo-card);
+  color: var(--texto);
+  text-align: left;
+}
+
+.schedule-create-competition > span:not(.icon) {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.schedule-create-competition > .icon:first-child {
+  color: var(--primaria);
+}
+
+.schedule-create-competition > .icon:last-child {
+  color: var(--texto-sec);
+}
+
+.schedule-create-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 180px;
+  padding: 20px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--fundo-card);
+  color: var(--texto);
+  text-align: center;
+}
+
+.schedule-create-team:hover {
+  border-color: var(--borda-botao);
+}
+
+.schedule-create-team[data-selected="true"] {
+  border-color: var(--borda-botao);
+}
+
+.schedule-create-add {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 3px;
+  border-radius: 50%;
+  background: var(--fundo-card-sec);
+  color: var(--primaria);
+}
+
+.schedule-create-team small {
+  color: var(--texto-sec);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.schedule-create-team strong {
+  max-width: 100%;
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.schedule-create-change {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--primaria);
+  font-size: 11px;
+}
+
+.schedule-picker-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.schedule-category-options,
+.schedule-picker-content {
+  display: grid;
+  gap: 22px;
+}
+
+.schedule-category-options > p {
+  margin: 0;
+  color: var(--texto-sec);
+  font-size: 13px;
+}
+
+.schedule-category-options h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.schedule-category-options section > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.schedule-category-options button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 48px;
+  padding: 10px 6px;
+  border: 1px solid var(--borda);
+  border-radius: 9px;
+  background: var(--fundo);
+  color: var(--texto);
+  font-size: 13px;
+}
+
+.schedule-category-options button[aria-pressed="true"] {
+  border-color: var(--primaria);
+  background: var(--primaria);
+  color: white;
+}
+
+.schedule-picker-options {
+  display: grid;
+  gap: 4px;
+}
+
+.schedule-picker-options > button {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+  min-height: 72px;
+  padding: 12px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--texto);
+  text-align: left;
+}
+
+.schedule-picker-options > button:not(:disabled):hover {
+  background: var(--fundo-card-claro);
+  border-color: var(--linha);
+}
+
+.schedule-picker-options > button[aria-pressed="true"] {
+  border-color: var(--borda-botao);
+}
+
+.schedule-picker-options > button > .icon:last-child {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--primaria);
+}
+
+.schedule-category-options button:not([aria-pressed="true"]):hover {
+  background: var(--fundo-card-sec);
+}
+
+.schedule-picker-empty {
+  padding: 16px 10px;
+  color: var(--texto-sec);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.schedule-picker-options > button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.schedule-picker-options > button > span:not(.club-badge):not(.schedule-picker-icon) {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.schedule-picker-options strong {
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.schedule-picker-options small {
+  color: var(--texto-sec);
+  font-size: 12px;
+}
+
+.schedule-picker-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  background: var(--fundo-card-sec);
+  color: var(--primaria);
+}
+
+@media (max-width: 600px) {
+  .schedule-create-dialog {
+    inset: var(--schedule-create-top, 0px) 0 auto;
+    height: var(--schedule-create-height, 100dvh);
+    max-height: var(--schedule-create-height, 100dvh);
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    max-width: none;
+  }
+
+  .schedule-create-dialog .modal-body {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .schedule-picker-dialog {
+    position: fixed;
+    inset: auto 0 0;
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - 24px);
+    margin: 0;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .schedule-picker-dialog .modal-body {
+    padding: 18px 18px max(22px, env(safe-area-inset-bottom));
+  }
+
+  .schedule-create-team {
+    min-height: 164px;
+    padding: 18px 10px;
+  }
+
+  .schedule-create-form {
+    gap: 22px;
+  }
+
+  .schedule-create-date {
+    padding-top: 20px;
+    border-top: 1px solid var(--linha);
+  }
+
+  .schedule-create-date .field-input {
+    min-width: 0;
+    width: 100%;
+    height: 48px;
+    font-size: 14px;
+  }
+
+  .schedule-create-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .schedule-create-actions .btn-primary {
+    flex: 1;
+  }
+}
+.schedule-create-dialog {
+  max-width: 680px;
+}
+
+.schedule-create-dialog .modal-footer {
+  flex-shrink: 0;
+  padding: 14px 20px max(14px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--linha);
+}
+
+.schedule-create-dialog {
+  background: var(--fundo);
+}
+
+.schedule-create-dialog .modal-header,
+.schedule-picker-dialog .modal-header,
+.schedule-review-dialog .modal-header {
+  flex-shrink: 0;
+}
+
+.schedule-create-dialog .modal-close,
+.schedule-picker-dialog .modal-close,
+.schedule-review-dialog .modal-close {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+}
+
+.schedule-create-dialog button:focus-visible,
+.schedule-picker-dialog button:focus-visible,
+.schedule-review-dialog button:focus-visible {
+  outline: 2px solid var(--primaria);
+  outline-offset: 3px;
+}
+

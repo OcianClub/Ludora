@@ -283,8 +283,20 @@ export async function fetchPartidas(params?: { categoria_id?: number; mes?: numb
   return res.json();
 }
 export async function criarPartida(dados: Partial<Partida> & { mandante_id: number; visitante_id: number; data: string; categoria_id: number }) {
-  const res = await apiFetch('/partidas', { method: 'POST', body: JSON.stringify(dados) });
-  if (!res.ok) throw new Error('Erro ao criar partida');
+  let res: Response;
+  try {
+    res = await apiFetch('/partidas', { method: 'POST', body: JSON.stringify(dados) });
+  } catch {
+    throw new Error('A conexão foi interrompida. Confira a agenda antes de tentar novamente para evitar criar a mesma partida duas vezes.');
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const fallback = res.status === 403 ? 'Você não tem permissão para criar partidas neste clube.'
+      : res.status === 409 ? 'Já existe uma partida com estes dados. Confira a agenda do clube.'
+      : res.status === 400 || res.status === 422 ? 'Confira os dados da partida antes de confirmar novamente.'
+      : 'Não foi possível criar a partida agora. Seus dados foram mantidos para você tentar novamente.';
+    throw new Error(res.status < 500 && typeof body?.error === 'string' ? body.error : fallback);
+  }
   return res.json();
 }
 export async function atualizarPartida(id: number, dados: Partial<Partida>) {

@@ -15,6 +15,9 @@
 .match-card-featured .match-team strong { font-family: var(--font-titulo); font-size: 18px; }
 .match-card-featured .match-score { font-size: 44px; }
 .match-card-live { border-color: var(--primaria); background: var(--fundo-card); }
+.match-card-interactive { cursor: pointer; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+.match-card-interactive:hover { border-color: var(--borda-botao); background: var(--fundo-card-claro); }
+.match-card-interactive:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
 @media (max-width: 600px) { .match-card-featured { padding: 18px; }.match-teams { gap: 10px; } }
 .match-card-badges {
   display: flex;

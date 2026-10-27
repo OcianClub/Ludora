@@ -1055,8 +1055,20 @@
   .home-history-meta time {
     font-size: 12px;
   }
-  .home-history-meta > small, .home-history-team small {
+  .home-history-meta > small {
     font-size: 11px;
+  }
+  .home-result-tag {
+    padding: 3px 7px;
+    border-radius: 4px;
+    font-size: 10px;
+    line-height: 15px;
+  }
+  .home-history-team small {
+    margin-top: 3px;
+    padding: 1px 5px;
+    font-size: 9px;
+    line-height: 13px;
   }
   .home-history-score {
     font-size: 23px;

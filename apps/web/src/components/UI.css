@@ -216,3 +216,4 @@ tr:hover td { background: var(--fundo-card-sec); }
   .modal-body { padding: 16px; }
 }
 .modal::backdrop { background: rgba(0, 0, 0, .72); }
+.modal-body { overscroll-behavior: contain; }
