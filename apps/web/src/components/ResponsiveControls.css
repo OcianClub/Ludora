@@ -1,0 +1,52 @@
+@media (max-width: 760px) {
+  button.compact-filter-button,
+  :is(.scout-controls, .alunos-filters, .schedule-mobile-actions) button.compact-filter-button {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 36px;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+    gap: 0;
+    font-size: 0;
+  }
+
+  .compact-filter-button > .compact-control-label,
+  .compact-view-toggle button > span:not(.icon) {
+    display: none;
+  }
+
+  .compact-filter-button > .compact-filter-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 15px;
+    padding: 1px 3px;
+    border-radius: 5px;
+    background: var(--primaria);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 13px;
+  }
+
+  .compact-view-toggle.compact-view-toggle {
+    width: max-content;
+    flex-shrink: 0;
+  }
+
+  .compact-view-toggle.compact-view-toggle button {
+    display: inline-flex;
+    flex: 0 0 30px;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    min-height: 30px;
+    padding: 6px;
+    gap: 0;
+    font-size: 0;
+  }
+}

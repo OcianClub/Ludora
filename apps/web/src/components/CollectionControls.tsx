@@ -1,15 +1,14 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Icon } from './Icon';
 import { Btn, Modal } from './UI';
 import './CollectionControls.css';
+import './ResponsiveControls.css';
 import { PositionIcon } from './PositionIcon';
+import { CollectionViewToggle } from './CollectionToolbar';
 
 export type ViewMode = 'grid' | 'list';
 export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (value: ViewMode) => void }) {
-  return <div className="collection-view segmented-control" data-second={value === 'list'} role="group" aria-label="Modo de visualização">
-    <button type="button" aria-pressed={value === 'grid'} onClick={() => onChange('grid')}><Icon name="grid" size={16} /> Blocos</button>
-    <button type="button" aria-pressed={value === 'list'} onClick={() => onChange('list')}><Icon name="list" size={16} /> Lista</button>
-  </div>;
+  return <CollectionViewToggle className="collection-view" value={value} onChange={next => onChange(next === 'list' ? 'list' : 'grid')}
+    options={[{ value: 'grid', label: 'Blocos', icon: 'grid' }, { value: 'list', label: 'Lista', icon: 'list' }]} />;
 }
 export function Choice({ label, value, options, onChange, disabled = false, placeholder = 'Selecionar' }: {
   label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void; disabled?: boolean; placeholder?: string;

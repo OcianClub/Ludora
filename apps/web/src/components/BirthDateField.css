@@ -36,6 +36,17 @@
   gap: 6px;
 }
 
+.birth-date-field .birth-fields .field-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .birth-date-hint {
   display: block;
   margin-top: 10px;

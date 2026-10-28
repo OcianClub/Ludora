@@ -122,7 +122,7 @@ export function Modal({ open, onClose, title, children, className = '', id, foot
   React.useLayoutEffect(() => {
     if (open) return lockPageScroll();
   }, [open]);
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     const dialog = dialogRef.current;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (open && dialog && !dialog.open) dialog.showModal();

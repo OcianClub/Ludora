@@ -1,0 +1,325 @@
+:root {
+  --collection-control-height: 44px;
+  --collection-control-font-size: 13px;
+}
+
+.collection-control.collection-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  height: var(--collection-control-height);
+  min-height: var(--collection-control-height);
+  max-height: var(--collection-control-height);
+  padding: 0 12px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--fundo-card);
+  color: var(--texto-sec);
+}
+
+.collection-control.collection-search input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--texto);
+  font-size: var(--collection-control-font-size);
+}
+
+.collection-control.collection-search input::placeholder {
+  color: var(--texto-sec);
+  font-size: inherit;
+}
+
+.collection-control.collection-filter-button.compact-filter-button {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 var(--collection-control-height);
+  align-items: center;
+  justify-content: center;
+  width: var(--collection-control-height);
+  min-width: var(--collection-control-height);
+  max-width: var(--collection-control-height);
+  height: var(--collection-control-height);
+  min-height: var(--collection-control-height);
+  padding: 0;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--fundo-card);
+  color: var(--texto-sec);
+}
+
+.collection-filter-button.collection-control > .compact-filter-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 15px;
+  padding: 1px 3px;
+  border-radius: 5px;
+  background: var(--primaria);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 13px;
+}
+
+.collection-control.collection-mode-toggle.compact-view-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  height: var(--collection-control-height);
+  padding: 4px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--fundo-card);
+}
+
+.collection-control.collection-mode-toggle.compact-view-toggle::before {
+  display: none;
+}
+
+.collection-control.collection-mode-toggle button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: auto;
+  height: calc(var(--collection-control-height) - 10px);
+  min-height: calc(var(--collection-control-height) - 10px);
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--texto-sec);
+  font-size: 12px;
+}
+
+.collection-control.collection-mode-toggle button[aria-pressed="true"] {
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+}
+
+.collection-search:focus-within {
+  outline: 2px solid var(--primaria);
+  outline-offset: 3px;
+}
+
+.modal.collection-filter-dialog {
+  width: min(620px, calc(100% - 32px));
+  max-width: 620px;
+  min-height: 0;
+  max-height: min(90dvh, var(--collection-filter-height, 90dvh));
+  padding: 0;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--fundo);
+  overflow: hidden;
+  resize: none;
+}
+
+.modal.collection-filter-dialog .modal-header {
+  flex-shrink: 0;
+  min-height: 0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--linha);
+}
+
+.modal.collection-filter-dialog .modal-title {
+  font-size: 18px;
+}
+
+.modal.collection-filter-dialog .modal-close {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+}
+
+.modal.collection-filter-dialog .modal-body {
+  min-height: 0;
+  padding: 20px;
+  gap: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.modal.collection-filter-dialog .schedule-filter-fields {
+  display: grid;
+  gap: 16px;
+}
+
+.modal.collection-filter-dialog :is(.alunos-filter-group, .scout-filter-options, .schedule-choice-group) {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.modal.collection-filter-dialog :is(.alunos-filter-group, .scout-filter-options, .schedule-choice-group) legend {
+  margin: 0 0 8px;
+  padding: 0;
+  color: var(--texto);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.modal.collection-filter-dialog :is(.alunos-filter-group, .scout-filter-options, .schedule-choice-group) button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid var(--linha);
+  border-radius: 7px;
+  background: var(--fundo-card);
+  color: var(--texto-sec);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.modal.collection-filter-dialog :is(.alunos-filter-group, .schedule-choice-group) > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.modal.collection-filter-dialog .schedule-select-inline,
+.modal.collection-filter-dialog .schedule-select-options-inline {
+  flex-shrink: 0;
+}
+
+.modal.collection-filter-dialog .schedule-select-options-inline {
+  max-height: 220px;
+}
+
+.modal.collection-filter-dialog .schedule-select-options [role="option"] {
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.modal.collection-filter-dialog :is(.alunos-filter-group, .scout-filter-options, .schedule-choice-group) button[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--primaria);
+  color: #fff;
+}
+
+.modal.collection-filter-dialog :is(.field-input, .schedule-select-trigger) {
+  background: var(--fundo-card);
+}
+
+.modal.collection-filter-dialog .modal-footer {
+  flex-shrink: 0;
+  padding: 14px 20px max(14px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--linha);
+  background: var(--fundo);
+}
+
+.collection-filter-actions,
+.collection-filter-actions > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.collection-filter-actions {
+  width: 100%;
+}
+
+.collection-filter-actions .btn {
+  min-height: 40px;
+}
+
+.collection-filter-actions > .btn-ghost {
+  padding-inline: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--texto-sec);
+}
+
+.collection-filter-actions > .btn-ghost:hover {
+  color: var(--texto);
+}
+
+@media (min-width: 901px) {
+  .alunos-filters > button.collection-control.collection-filter-button {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --collection-control-height: 40px;
+    --collection-control-font-size: 12px;
+  }
+
+  .collection-control.collection-mode-toggle button {
+    flex: 0 0 30px;
+    width: 30px;
+    padding: 6px;
+    gap: 0;
+  }
+
+  .collection-mode-toggle .compact-control-label {
+    display: none;
+  }
+
+  .modal.collection-filter-dialog {
+    position: fixed;
+    inset: auto 0 var(--collection-filter-bottom, 0px);
+    width: 100%;
+    max-width: none;
+    max-height: calc(var(--collection-filter-height, 100dvh) - 16px);
+    margin: 0;
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modal.collection-filter-dialog .modal-header {
+    padding: 8px 14px;
+  }
+
+  .modal.collection-filter-dialog .modal-title {
+    font-family: var(--font-corpo);
+    font-size: 16px;
+  }
+
+  .modal.collection-filter-dialog .modal-body {
+    padding: 14px;
+    gap: 16px;
+  }
+
+  .modal.collection-filter-dialog :is(.alunos-filter-group, .scout-filter-options, .schedule-choice-group) legend {
+    font-size: 12px;
+  }
+
+  .modal.collection-filter-dialog :is(.alunos-filter-group, .scout-filter-options, .schedule-choice-group) button {
+    min-height: 36px;
+    padding: 6px 9px;
+    font-size: 12px;
+  }
+
+  .modal.collection-filter-dialog .modal-footer {
+    padding: 10px 14px max(10px, env(safe-area-inset-bottom));
+  }
+
+  .collection-filter-actions .btn {
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+}

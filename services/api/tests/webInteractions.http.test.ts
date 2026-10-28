@@ -88,6 +88,23 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
     await send('GET','/jogadores?fase=INICIACAO&resumo=true');
     assert.deepEqual(reads.at(-1).where.categoria,{clube_id:2,tipo:'INICIACAO'});
     assert.equal((await send('GET','/jogadores?fase=INVALIDA')).status,400);
+    for (const [field, expected] of [
+      ['camisa', {numCamisa:{sort:'asc',nulls:'last'}}],
+      ['idade', {dtNasc:'desc'}],
+      ['posicao', {posicao:'asc'}],
+      ['categoria', {categoria:{faixaIdade:'asc'}}],
+    ] as const) {
+      assert.equal((await send('GET',`/jogadores?ordenar_por=${field}&ordem=asc&limite=25&offset=25`)).status,200);
+      assert.deepEqual(reads.at(-1).orderBy[0],expected);
+      assert.equal(reads.at(-1).take,25);
+      assert.equal(reads.at(-1).skip,25);
+      assert.deepEqual(reads.at(-1).where.categoria,{clube_id:2});
+    }
+    await send('GET','/jogadores?ordenar_por=idade&ordem=desc');
+    assert.deepEqual(reads.at(-1).orderBy[0],{dtNasc:'asc'});
+    await send('GET','/jogadores?ordenar_por=camisa&ordem=desc');
+    assert.deepEqual(reads.at(-1).orderBy[0],{numCamisa:{sort:'desc',nulls:'last'}});
+    assert.equal((await send('GET','/jogadores?ordenar_por=invalido')).status,400);
     assert.equal((await send('GET','/jogadores?limite=1000')).status,400);
     assert.equal((await send('GET','/jogadores?limite=5&offset=-1')).status,400);
     role='TECNICO';assert.equal((await send('GET','/jogadores?categoria_id=77&limite=5')).status,403);

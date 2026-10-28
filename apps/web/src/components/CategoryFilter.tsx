@@ -31,6 +31,7 @@ function Chevron({ right = false }: { right?: boolean }) {
 export function CategoryFilter({ categories, phase, selected, onPhase, onSelect, label = 'Categoria', hint = 'Deslize para trocar a categoria ou use os botões e as setas do teclado no seletor.' }: CategoryFilterProps) {
   const strip = useRef<HTMLDivElement>(null);
   const indicator = useRef<HTMLSpanElement>(null);
+  const positioned = useRef(false);
   const hintId = useId();
   const gesture = useRef<{ x: number; scroll: number; moved: boolean } | null>(null);
   const pressed = useRef(false);
@@ -38,7 +39,8 @@ export function CategoryFilter({ categories, phase, selected, onPhase, onSelect,
   const suppressClick = useRef(false);
   const settleTimer = useRef<ReturnType<typeof setTimeout>>();
   const latest = useRef({ available: [] as FilterCategory[], onSelect });
-  const available = categories.filter(category => category.tipo === phase);
+  const available = categories.filter(category => category.tipo === phase)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true }));
   latest.current = { available, onSelect };
   const index = available.findIndex(category => category.id === selected?.id);
 
@@ -47,17 +49,34 @@ export function CategoryFilter({ categories, phase, selected, onPhase, onSelect,
     const active = container?.querySelector<HTMLButtonElement>('[aria-pressed="true"]');
     const highlight = indicator.current;
     if (!container || !active || !highlight) return;
+    let lastWidth = container.clientWidth;
+    let lastItemWidth = active.offsetWidth;
+    let frame = 0;
     function update() {
-      container!.style.setProperty('--strip-edge', `${Math.max(0, container!.clientWidth / 2 - active!.offsetWidth / 2)}px`);
+      const width = container!.clientWidth;
+      container!.style.setProperty('--sub-item-width', `${Math.min(96, Math.max(60, (width - 12) / 3))}px`);
+      const resized = width !== lastWidth || active!.offsetWidth !== lastItemWidth;
+      const instant = !positioned.current || resized;
+      if (instant) highlight!.style.transition = 'none';
+      container!.style.setProperty('--strip-edge', `${Math.max(0, width / 2 - active!.offsetWidth / 2)}px`);
       highlight!.style.width = `${active!.offsetWidth}px`;
       highlight!.style.height = `${active!.offsetHeight}px`;
       highlight!.style.transform = `translate(${active!.offsetLeft}px, ${active!.offsetTop}px)`;
+      if (instant) {
+        container!.scrollLeft = active!.offsetLeft - (width - active!.offsetWidth) / 2;
+        void highlight!.offsetWidth;
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => highlight!.style.removeProperty('transition'));
+      }
+      positioned.current = true;
+      lastWidth = width;
+      lastItemWidth = active!.offsetWidth;
     }
     update();
     const observer = new ResizeObserver(update);
     observer.observe(container);
     observer.observe(active);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
   }, [selected?.id, phase]);
 
   useEffect(() => {

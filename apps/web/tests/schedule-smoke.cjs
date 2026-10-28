@@ -47,16 +47,15 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
         await page.route('**/partidas?*', route => route.request().isNavigationRequest() ? route.fallback() : route.fulfill({ contentType: 'application/json', body: JSON.stringify(matches) }));
         await page.goto(base + '/partidas');
         const mobile = width <= 760;
+        const currentPanel = page.locator('.home-pager-current');
         async function chooseFilter(label, option) {
+          if (label === 'Categoria') {
+            const [phase, sub] = option.split(' · ');
+            await page.getByRole('group', { name: 'Fase', exact: true }).getByRole('button', { name: phase, exact: true }).click();
+            if (!sub.startsWith('todos')) await page.getByRole('button', { name: sub.toUpperCase(), exact: true }).click();
+            return;
+          }
           if (!mobile) {
-            if (label === 'Categoria') {
-              const [phase, sub] = option.split(' · ');
-              await page.getByRole('group', { name: 'Categoria das partidas' }).getByRole('button', { name: phase.toUpperCase(), exact: true }).click();
-              if (sub.startsWith('todos')) return;
-              await page.getByRole('combobox', { name: 'Subcategoria', exact: true }).click();
-              await page.getByRole('option', { name: sub.replace(/^sub-/i, 'Sub-'), exact: true }).click();
-              return;
-            }
             await page.getByRole('combobox', { name: label, exact: true }).filter({ visible: true }).click();
             await page.getByRole('option', { name: option, exact: true }).click();
             return;
@@ -69,21 +68,15 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
           assert.equal(await dialog.getByRole('button', { name: 'Aplicar filtros' }).evaluate(el => el === document.activeElement), true, 'Foco permanece no modal');
           await page.keyboard.press('Tab');
           assert.equal(await close.evaluate(el => el === document.activeElement), true);
-          if (label === 'Categoria') {
-            const [phase, sub] = option.split(' · ');
-            await dialog.getByRole('group', { name: 'Categoria' }).getByRole('button', { name: phase.toUpperCase(), exact: true }).click();
-            if (sub && !sub.startsWith('todos')) await dialog.getByRole('group', { name: 'Sub' }).getByRole('button', { name: sub.replace(/^sub-/i, 'Sub-'), exact: true }).click();
-          } else {
-            await dialog.getByRole('group', { name: label }).getByRole('button', { name: option, exact: true }).click();
-          }
+          await dialog.getByRole('group', { name: label }).getByRole('button', { name: option, exact: true }).click();
           await dialog.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
         }
         const carousel = page.getByRole('region', { name: 'Carrossel de partidas ao vivo' });
         await carousel.waitFor();
         const toolbarYWithoutFilters = (await page.locator('.schedule-results-toolbar').boundingBox()).y;
         assert.equal(await page.getByRole('combobox', { name: 'Local', exact: true }).count(), 0);
-        assert.equal(await page.locator('.schedule-section').filter({ has: page.getByRole('button', { name: /^Hoje/ }) }).locator('.match-card').count(), 5);
-        assert.equal(await page.locator('.schedule-section').filter({ has: page.getByRole('button', { name: /^A seguir/ }) }).locator('.match-card').count(), 5);
+        assert.equal(await currentPanel.locator('.schedule-section').filter({ has: page.getByRole('button', { name: /^Hoje/ }) }).locator('.match-card').count(), 3);
+        assert.equal(await currentPanel.locator('.schedule-section').filter({ has: page.getByRole('button', { name: /^A seguir/ }) }).locator('.match-card').count(), 2);
         if (mobile) {
           const unchangedUrl = page.url();
           await page.getByRole('button', { name: /^Filtros/ }).click();
@@ -103,9 +96,9 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
           await page.setViewportSize({ width, height: 950 });
           await dialog.getByRole('button', { name: 'Fechar janela', exact: true }).click();
         }
-        assert.equal(await carousel.locator('.match-card').count(), 24);
+        assert.equal(await carousel.locator('.match-card').count(), 12);
         assert.equal(await carousel.locator('.status-ao-vivo').count(), 0);
-        assert.equal(await carousel.getByRole('img', { name: 'Partida ao vivo' }).count(), 24);
+        assert.equal(await carousel.getByRole('img', { name: 'Partida ao vivo' }).count(), 12);
         assert.equal(await page.getByRole('button', { name: /Carregar mais jogos ao vivo/ }).count(), 0);
         await page.getByRole('button', { name: 'Próximas partidas ao vivo', exact: true }).click();
         assert.ok(await carousel.evaluate(el => el.scrollLeft > 0));
@@ -115,28 +108,22 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
         if (mobile) {
           assert.equal(await legend.isVisible(), false);
           assert.equal(await page.getByRole('searchbox').filter({ visible: true }).count(), 0);
-          const top = await page.locator('.schedule-live-section').boundingBox();
+          const top = await currentPanel.locator('.schedule-live-section').boundingBox();
           assert.ok(top.y < 420, 'Partidas aparecem sem uma tela inteira de filtros');
           await chooseFilter('Situação', 'Finalizadas');
         } else await legend.getByRole('button', { name: /Finalizadas/ }).click();
         assert.ok(Math.abs((await page.locator('.schedule-results-toolbar').boundingBox()).y - toolbarYWithoutFilters) < 1, 'Filtros ativos não deslocam o conteúdo');
         assert.equal(await carousel.count(), 0);
-        assert.equal(await page.locator('.match-card').count(), 12);
+        assert.equal(await currentPanel.locator('.match-card').count(), 10);
         await page.getByRole('button', { name: 'Limpar tudo', exact: true }).click();
-        assert.ok(await page.locator('.schedule-section-toggle').count() <= 5);
+        assert.ok(await currentPanel.locator('.schedule-section-toggle').count() <= 5);
         assert.equal(await carousel.evaluate(el => getComputedStyle(el).scrollSnapType), 'none');
         await chooseFilter('Categoria', 'Iniciação · sub-7');
-        assert.ok((await page.locator('.match-card-header > span:first-child').allTextContents()).every(text => text === 'sub-7'));
+        assert.ok((await currentPanel.locator('.match-card-header > span:first-child').allTextContents()).every(text => text === 'sub-7'));
         await chooseFilter('Categoria', 'Base · todos os subs');
         assert.equal(await carousel.count(), 0);
-        assert.equal(await page.locator('.match-card').count(), 1);
-        assert.ok(await page.getByRole('button', { name: 'Remover filtro Base', exact: true }).count());
-        if (!mobile) {
-          await page.getByRole('combobox', { name: 'Subcategoria' }).click();
-          const subOptions = await page.getByRole('option').allTextContents();
-          assert.deepEqual(subOptions.map(label => label.replace('✓', '')), ['Todos os subs', 'Sub-12', 'Sub-14', 'Sub-16', 'Sub-18']);
-          await page.getByRole('combobox', { name: 'Subcategoria' }).press('Escape');
-        }
+        assert.equal(await currentPanel.locator('.match-card').count(), 1);
+        assert.deepEqual(await page.locator('.home-sub-strip button').allTextContents(), ['SUB-12', 'SUB-14', 'SUB-16', 'SUB-18']);
         await chooseFilter('Categoria', 'Iniciação · todos os subs');
         await page.getByRole('button', { name: mobile ? /^Filtros/ : /Mais filtros/ }).click();
         const more = page.getByRole('dialog', { name: mobile ? 'Filtrar partidas' : 'Mais filtros', exact: true });
@@ -153,8 +140,8 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
           await more.getByRole('option', { name: 'Preparada', exact: true }).click();
         }
         await more.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
-        assert.ok((await page.locator('.match-card .status-badge').allTextContents()).every(text => text === 'Preparada'));
-        assert.equal(await page.locator('.match-card').count(), 5);
+        assert.ok((await currentPanel.locator('.match-card .status-badge').allTextContents()).every(text => text === 'Preparada'));
+        assert.equal(await currentPanel.locator('.match-card').count(), 3);
         await page.getByRole('button', { name: 'Limpar tudo', exact: true }).click();
 
         await chooseFilter('Período', 'Hoje');
@@ -172,15 +159,15 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
         await periodDialog.getByRole('textbox', { name: 'Até', exact: true }).fill('2025-10-31');
         await periodDialog.getByRole('button', { name: mobile ? 'Aplicar filtros' : 'Aplicar período', exact: true }).click();
         assert.equal(await carousel.count(), 0);
-        assert.ok(await page.locator('.schedule-history-day').count());
+        assert.ok(await currentPanel.locator('.schedule-history-day').count());
         if (mobile) await page.getByRole('button', { name: /^Filtros/ }).click();
-        await page.getByRole('searchbox', { name: 'Buscar time, adversário ou local' }).filter({ visible: true }).fill('uniao');
+        await page.getByRole('searchbox', { name: 'Buscar time, adversário ou local' }).filter({ visible: true }).fill('santos');
         if (mobile) await page.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
-        assert.ok(await page.locator('.match-card').count());
+        assert.ok(await currentPanel.locator('.match-card').count());
         await page.getByRole('button', { name: 'Limpar tudo', exact: true }).click();
         const liveWidth = (await carousel.locator('.match-card').first().boundingBox()).width;
         await page.getByRole('group', { name: 'Visualização das partidas' }).getByRole('button', { name: 'Lista', exact: true }).click();
-        assert.ok(await page.locator('.schedule-list').count());
+        assert.ok(await currentPanel.locator('.schedule-list').count());
         assert.equal(await carousel.evaluate(el => el.classList.contains('schedule-list')), false);
         assert.equal((await carousel.locator('.match-card').first().boundingBox()).width, liveWidth);
         await chooseFilter(mobile ? 'Ordenar' : 'Ordenar por', 'Por categoria');
@@ -198,7 +185,9 @@ const output = path.resolve(__dirname, '../../../test-results/web-schedule');
           assert.ok((await accordion.boundingBox()).height >= 44, 'Título menor preserva área de toque');
         }
         for (const theme of ['dark', 'light']) {
-          await page.evaluate(value => { localStorage.setItem('ludora_tema', value); window.dispatchEvent(new Event('ludora:theme-change')); scrollTo(0, 0); }, theme);
+          await page.evaluate(value => localStorage.setItem('ludora_tema', value), theme);
+          await page.reload();
+          await carousel.waitFor();
           await page.screenshot({ path: path.join(output, `schedule-prototype-${width}-${theme}.png`), animations: 'disabled' });
         }
         if (mobile) {

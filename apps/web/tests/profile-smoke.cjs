@@ -55,6 +55,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-profile');
         await page.getByRole('dialog').getByRole('link', { name: 'Times', exact: true }).click();
         await page.waitForURL('**/times');
         await page.locator('.header-profile-link').click();
+        await page.getByRole('dialog', { name: 'Conta e aparência', exact: true }).getByRole('link', { name: 'Meu perfil', exact: true }).click();
         await page.waitForURL('**/perfil');
         await checkScroll();
         await page.getByRole('tab', { name: 'Conta', exact: true }).click();

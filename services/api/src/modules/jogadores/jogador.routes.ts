@@ -132,9 +132,18 @@ router.get('/jogadores', exigirClubePublico, async (req, res) => {
     }
     const offset = req.query.offset === undefined ? 0 : Number(req.query.offset);
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000) return res.status(400).json({ error: 'Página inválida.' });
+    const sortBy = req.query.ordenar_por ?? 'nome';
+    if (typeof sortBy !== 'string' || !['nome', 'camisa', 'posicao', 'idade', 'categoria'].includes(sortBy)) return res.status(400).json({ error: 'Ordenação inválida.' });
+    const direction = req.query.ordem === 'desc' ? 'desc' : 'asc';
+    const primaryOrder: Prisma.JogadorOrderByWithRelationInput[] =
+      sortBy === 'camisa' ? [{ numCamisa: { sort: direction, nulls: 'last' } }] :
+      sortBy === 'posicao' ? [{ posicao: direction }] :
+      sortBy === 'idade' ? [{ dtNasc: direction === 'asc' ? 'desc' : 'asc' }] :
+      sortBy === 'categoria' ? [{ categoria: { faixaIdade: direction } }, { categoria: { nome: direction } }] :
+      [{ nome: direction }];
     const jogadores = await prisma.jogador.findMany({
       where,
-      orderBy: [{ nome: req.query.ordem === 'desc' ? 'desc' : 'asc' }, { id: 'asc' }],
+      orderBy: [...primaryOrder, ...(sortBy === 'nome' ? [] : [{ nome: 'asc' as const }]), { id: 'asc' }],
       ...(limit ? { take: limit, skip: offset } : {}),
       select: {
         id: true,

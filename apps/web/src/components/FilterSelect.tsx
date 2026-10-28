@@ -36,7 +36,7 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
   }
 
   return (
-    <div className="schedule-select field" ref={root} onBlur={event => {
+    <div className={`schedule-select field${inlineOptions ? ' schedule-select-inline' : ''}`} ref={root} onBlur={event => {
       if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
     }}>
       <span className="field-label" id={`${id}-label`}>{label}</span>

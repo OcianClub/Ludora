@@ -89,8 +89,8 @@ const output=path.join(root,'test-results',fixture?'fixture':'real-api');fs.mkdi
     await page.locator('.notification-row').first().waitFor();
     await page.screenshot({path:path.join(output,'notifications.png')});
     await page.getByRole('button',{name:'Fechar janela'}).click();
-    await page.locator('.sidebar').hover();
-    await page.getByRole('switch',{name:'Tema escuro'}).setChecked(false);
+    await page.getByRole('button', { name: 'Menu da conta', exact: true }).click();
+    await page.getByRole('radio', { name: 'Tema claro', exact: true }).click();
     await page.getByRole('link',{name:'Visão geral',exact:true}).click();
     await page.getByRole('heading',{name:'Momento da categoria',exact:true}).waitFor();
     await page.screenshot({path:path.join(output,'home-light.png')});

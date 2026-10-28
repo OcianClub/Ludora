@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { fetchJogadoresPerfis, fetchCategorias, type PerfilJogador, type Categoria } from '../services/api';
-import { Btn, Modal, Spinner, Empty } from '../components/UI';
+import { Btn, Spinner, Empty } from '../components/UI';
 import { POSITIONS, normalizePosition } from '../components/CollectionControls';
 import { PositionIcon } from '../components/PositionIcon';
 import { FilterSelect } from '../components/FilterSelect';
 import { ScoutPlayerDetail } from '../components/ScoutPlayerDetail';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { HomeSwipeSurface } from '../components/HomeSwipeSurface';
+import { CollectionSearch, CollectionFilterButton, CollectionViewToggle, CollectionFilterDialog } from '../components/CollectionToolbar';
 import { useAuth } from '../contexts/AuthContext';
 import { Icon, type IconName } from '../components/Icon';
 import { hasAssessment, profileClass, searchScout, sortScout, SCOUT_PROFILES, SCOUT_ORDERS } from '../utils/scoutPlayers';
 import './Partidas.css';
 import './Dashboard.css';
 import './Elenco.css';
+import '../components/ResponsiveControls.css';
 
 const PROFILE_ICONS: Record<string, IconName> = { Artilheiro: 'ball', Armador: 'switchClub', Paredão: 'defense' };
 
@@ -126,7 +128,11 @@ export default function ElencoPage() {
           <span className="scout-leader-icon"><Icon name={leader.icon as IconName} size={19} /></span><span className="scout-leader-title">{leader.title}</span><strong>{leader.player ? leader.value.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—'}</strong><span className="scout-leader-name">{leader.player?.nome || 'Sem registros'}{leader.player && leader.tied > 1 && <small>+{leader.tied - 1} empatados</small>}</span>
         </button>)}</div>
       </section>
-      <div className="scout-section-heading scout-athletes-heading"><div><h2>Atletas</h2><p role="status">{filtered.length} de {categoryPlayers.length} atletas · {category?.nome.toUpperCase()}</p></div><div className="schedule-view-toggle" role="group" aria-label="Visualização do elenco"><button type="button" aria-label="Cards" aria-pressed={!list} onClick={() => change({ visualizacao: '' })}><Icon name="grid" size={16} /><span>Cards</span></button><button type="button" aria-label="Lista" aria-pressed={list} onClick={() => change({ visualizacao: 'lista' })}><Icon name="list" size={16} /><span>Lista</span></button></div></div>
+      <div className="scout-section-heading scout-athletes-heading">
+        <div><h2>Atletas</h2><p role="status">{filtered.length} de {categoryPlayers.length} atletas · {category?.nome.toUpperCase()}</p></div>
+        <CollectionViewToggle className="schedule-view-toggle" label="Visualização do elenco" value={list ? 'lista' : 'cards'} onChange={value => change({ visualizacao: value === 'lista' ? 'lista' : '' })}
+          options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />
+      </div>
       <div data-swipe-ignore className="scout-order-tabs" role="group" aria-label="Ordenar atletas">{SCOUT_ORDERS.map(item => <button type="button" key={item.value} aria-pressed={order === item.value} onClick={() => change({ ordem: item.value })}>{item.label}</button>)}</div>
       <p className="scout-data-note">Totais acumulados · índice calculado com os registros disponíveis.</p>
       {!filtered.length ? <div className="scout-empty"><Empty icon="👥" message={categoryPlayers.length ? 'Nenhum atleta corresponde aos filtros.' : 'Nenhum atleta cadastrado nesta categoria.'} />{!!chips.length && <Btn variant="ghost" onClick={clear}>Limpar filtros</Btn>}</div> : <>
@@ -165,18 +171,20 @@ export default function ElencoPage() {
           if (next) change({ categoria_id: String(next.id), atleta: '' });
         }} />
       <div className="scout-controls">
-        <div className="scout-search"><Icon name="search" size={18} /><label htmlFor="scout-search" className="sr-only">Buscar atleta</label><input id="scout-search" type="search" placeholder="Nome, camisa ou posição" value={search} onChange={event => change({ busca: event.target.value })} /></div>
+        <CollectionSearch className="scout-search" id="scout-search" label="Buscar atleta" placeholder="Nome, camisa ou posição" value={search} onChange={value => change({ busca: value })} />
         <div className="scout-desktop-position"><FilterSelect label="Posição" emptyLabel="Todas" options={POSITIONS.map(value => ({ value, label: value }))} value={position} onChange={value => change({ posicao: value })} /></div>
-        <Btn variant="ghost" onClick={() => { setDraftPosition(position); setDraftRecords(records); setDraftAssessment(assessment); setDraftOrder(order); setFiltersOpen(true); }} aria-label="Mais filtros" aria-haspopup="dialog"><Icon name="filters" size={17} /><span className="scout-more-label">Mais filtros</span></Btn>
+        <CollectionFilterButton label="Mais filtros" onClick={() => { setDraftPosition(position); setDraftRecords(records); setDraftAssessment(assessment); setDraftOrder(order); setFiltersOpen(true); }} />
       </div>
       {loading ? <div className="scout-loading" role="status" aria-label="Carregando elenco">{[1, 2, 3, 4, 5, 6].map(id => <div className="scout-skeleton" key={id} />)}</div> : error ? <div role="alert" className="notice-error"><p>{error}</p><Btn variant="ghost" onClick={() => setVersion(value => value + 1)}>Tentar novamente</Btn></div> : null}
     </HomeSwipeSurface>
-    <Modal open={filtersOpen} title="Filtrar elenco" className="scout-filter-dialog" onClose={() => setFiltersOpen(false)} footer={<div className="scout-filter-footer"><button type="button" onClick={() => { setDraftPosition(''); setDraftRecords(''); setDraftAssessment(''); setDraftOrder('rating'); }}>Limpar</button><Btn onClick={() => { change({ posicao: draftPosition, registros: draftRecords, avaliacao: draftAssessment, ordem: draftOrder }); setFiltersOpen(false); }}>Aplicar filtros</Btn></div>}>
+    <CollectionFilterDialog open={filtersOpen} title="Filtrar elenco" className="scout-filter-dialog" onClose={() => setFiltersOpen(false)}
+      onClear={() => { setDraftPosition(''); setDraftRecords(''); setDraftAssessment(''); setDraftOrder('rating'); }}
+      onApply={() => { change({ posicao: draftPosition, registros: draftRecords, avaliacao: draftAssessment, ordem: draftOrder }); setFiltersOpen(false); }}>
       <fieldset className="scout-filter-options"><legend>Posição</legend>{['', ...POSITIONS].map(value => <button type="button" key={value} aria-pressed={draftPosition === value} onClick={() => setDraftPosition(value)}>{value || 'Todas'}</button>)}</fieldset>
       <fieldset className="scout-filter-options"><legend>Participação</legend>{[{ value: '', label: 'Todos' }, { value: 'with', label: 'Com escalações' }, { value: 'without', label: 'Sem escalações' }].map(item => <button type="button" key={item.value} aria-pressed={draftRecords === item.value} onClick={() => setDraftRecords(item.value)}>{item.label}</button>)}</fieldset>
       <fieldset className="scout-filter-options"><legend>Avaliação</legend>{[{ value: '', label: 'Todos' }, { value: 'with', label: 'Com avaliação' }, { value: 'without', label: 'Não avaliados' }].map(item => <button type="button" key={item.value} aria-pressed={draftAssessment === item.value} onClick={() => setDraftAssessment(item.value)}>{item.label}</button>)}</fieldset>
       <FilterSelect label="Ordenar por" emptyLabel="Índice" options={SCOUT_ORDERS.filter(item => item.value !== 'rating')} value={draftOrder === 'rating' ? '' : draftOrder} onChange={value => setDraftOrder(value || 'rating')} inlineOptions />
-    </Modal>
+    </CollectionFilterDialog>
     {selected && !loading && <ScoutPlayerDetail key={`${clube?.id}-${selected.id}`} player={selected} category={categories.find(item => item.id === selected.categoria_id)?.nome.toUpperCase() || 'Sem categoria'} onClose={() => change({ atleta: '' })} />}
   </div>;
 }

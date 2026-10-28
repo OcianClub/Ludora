@@ -24,7 +24,16 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
     if(pathname==='/jogadores') {
       let rows=jogadores.filter(j=>(!query.get('fase')||categorias.find(c=>c.id===j.categoria_id)?.tipo===query.get('fase'))&&(!query.get('categoria_id')||j.categoria_id===Number(query.get('categoria_id')))&&j.nome.toLowerCase().includes((query.get('busca')||'').toLowerCase())&&(!query.get('posicao')||j.posicao===query.get('posicao'))&&(!query.get('camisa')||(query.get('camisa')==='missing'?j.numCamisa==null:j.numCamisa!=null)));
       if(query.get('resumo')==='true')return route.fulfill({json:categorias.map(c=>{const group=rows.filter(j=>j.categoria_id===c.id);return {categoria_id:c.id,total:group.length,semCamisa:group.filter(j=>j.numCamisa==null).length};})});
-      rows.sort((a,b)=>a.nome.localeCompare(b.nome)*(query.get('ordem')==='desc'?-1:1));
+      const direction=query.get('ordem')==='desc'?-1:1;
+      const sortBy=query.get('ordenar_por')||'nome';
+      rows.sort((a,b)=>{
+        if(sortBy==='camisa'&&(a.numCamisa==null||b.numCamisa==null)&&a.numCamisa!==b.numCamisa)return a.numCamisa==null?1:-1;
+        const comparison=sortBy==='camisa'?(a.numCamisa??0)-(b.numCamisa??0):
+          sortBy==='idade'?b.dtNasc.localeCompare(a.dtNasc):
+          sortBy==='categoria'?categorias.find(c=>c.id===a.categoria_id).faixaIdade-categorias.find(c=>c.id===b.categoria_id).faixaIdade:
+          sortBy==='posicao'?a.posicao.localeCompare(b.posicao):a.nome.localeCompare(b.nome);
+        return comparison*direction||(sortBy==='nome'?0:a.nome.localeCompare(b.nome))||a.id-b.id;
+      });
       if(query.has('limite'))rows=rows.slice(Number(query.get('offset')||0),Number(query.get('offset')||0)+Number(query.get('limite')));
       return route.fulfill({json:rows.map(row=>({...row,totalPartidas:5}))});
     }

@@ -4,6 +4,8 @@
   align-items: center;
   gap: 16px;
   width: 100%;
+  min-width: 0;
+  position: relative;
   padding: 8px;
   margin-bottom: 28px;
   border: 1px solid var(--linha);
@@ -123,7 +125,7 @@
 }
 
 .home-controls .home-sub-strip.category-tabs { scroll-snap-type:none; padding-inline:var(--strip-edge,0px); touch-action:pan-y pinch-zoom; overscroll-behavior-x:contain; }
-.home-controls .home-sub-strip.category-tabs button { flex:0 0 96px; }
+.home-controls .home-sub-strip.category-tabs button { flex:0 0 var(--sub-item-width,96px); white-space:nowrap; }
 .home-controls .home-sub-strip.category-tabs.is-dragging { cursor:grabbing; }
 @media (max-width: 1100px) {
   .home-controls { grid-template-columns:200px minmax(0,1fr); gap:6px 12px; }
@@ -133,5 +135,5 @@
   .home-phase, .home-category-picker { padding:4px; border-radius:8px; background:var(--fundo-card); }
   .home-phase button, .home-controls .home-sub-strip button { min-height:34px; font-size:12px; padding-block:6px; }
   .home-category-arrow { width:28px; height:34px; }
-  .home-controls .home-sub-strip.category-tabs button { flex-basis:96px; padding:6px 4px; }
+  .home-controls .home-sub-strip.category-tabs button { padding:6px 4px; }
 }

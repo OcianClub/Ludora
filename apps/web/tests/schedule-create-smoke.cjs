@@ -20,8 +20,8 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5188';
       await require('./visual-fixture.cjs').install(page);
       const crest = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="18" fill="royalblue"/></svg>');
       await page.route('**/times', route => route.fulfill({ json: [
-        { id: 13, nome: 'Ocian', categoria_id: 1, escudo: crest },
-        { id: 14, nome: 'Santos', categoria_id: 1 },
+        { id: 13, nome: 'Ocian', categoria_id: 1, escudo: crest, clube_representado_id: 2 },
+        { id: 14, nome: 'Santos', categoria_id: 1, clube_representado_id: 3 },
       ] }));
       let posts = 0;
       let failSave = width === 320;
@@ -48,9 +48,10 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5188';
       assert.equal(background, await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor));
       await form.getByRole('button', { name: 'Selecionar categoria da partida' }).click();
       const categories = page.getByRole('dialog', { name: 'Categoria da partida', exact: true });
-      assert.equal(await categories.getByRole('heading', { name: 'Iniciação', exact: true }).count(), 1);
-      assert.equal(await categories.getByRole('heading', { name: 'Base', exact: true }).count(), 1);
-      await categories.getByRole('button', { name: 'sub-7', exact: true }).click();
+      assert.equal(await categories.getByRole('button', { name: 'Iniciação', exact: true }).count(), 1);
+      assert.equal(await categories.getByRole('button', { name: 'Base', exact: true }).count(), 1);
+      await categories.getByRole('button', { name: 'SUB-7', exact: true }).click();
+      await categories.getByRole('button', { name: 'Usar categoria', exact: true }).click();
       assert.equal(await page.locator('body').evaluate(el => getComputedStyle(el).position), 'fixed', 'Fechar um modal filho mantém o fundo bloqueado');
       assert.equal(await form.getByRole('button', { name: 'Selecionar categoria da partida' }).evaluate(el => el === document.activeElement), true);
       if (width < 600) {
@@ -78,7 +79,7 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5188';
       await home.getByRole('button', { name: /Ocian/ }).click();
       await form.getByRole('button', { name: 'Selecionar visitante' }).click();
       const away = page.getByRole('dialog', { name: 'Selecionar visitante', exact: true });
-      assert.equal(await away.getByRole('button', { name: /Ocian/ }).isDisabled(), true);
+      assert.ok(await away.getByRole('button', { name: /Ocian/ }).isVisible());
       await away.getByRole('searchbox').fill('Santos');
       await away.getByRole('button', { name: /Santos/ }).click();
       const cards = form.locator('.schedule-create-team');
@@ -89,12 +90,23 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5188';
       const second = await cards.nth(1).boundingBox();
       assert.equal(first.y, second.y);
       assert.ok(second.x > first.x + first.width);
-      await form.getByLabel('Data', { exact: true }).fill('2002-12-21');
       await form.getByLabel('Horário', { exact: true }).fill('19:30');
       await form.getByRole('button', { name: 'Criar partida', exact: true }).click();
-      assert.ok(await form.getByText('Escolha hoje ou uma data futura para organizar a partida.').isVisible());
+      assert.ok(await form.getByText('Informe a data da partida.', { exact: true }).isVisible());
       assert.equal(posts, 0);
-      await form.getByLabel('Data', { exact: true }).fill('2027-12-21');
+      await form.getByRole('button', { name: 'Data', exact: true }).click();
+      const calendar = page.getByRole('dialog', { name: 'Data da partida', exact: true });
+      assert.ok(await calendar.getByRole('button', { name: 'Mês anterior', exact: true }).isDisabled(), 'Calendário impede voltar a um mês anterior ao atual');
+      await calendar.getByRole('button', { name: /^Ano / }).click();
+      await calendar.getByRole('button', { name: '2027', exact: true }).click();
+      await calendar.getByRole('button', { name: /^Mês (?!anterior)/ }).click();
+      await calendar.getByRole('button', { name: 'dezembro', exact: true }).click();
+      await calendar.getByRole('button', { name: /21 de dezembro de 2027/ }).click();
+      await form.getByLabel('Horário', { exact: true }).fill('25:80');
+      await form.getByRole('button', { name: 'Criar partida', exact: true }).click();
+      assert.equal(posts, 0);
+      assert.ok(await form.getByText('Informe um horário válido entre 00:00 e 23:59.', { exact: true }).isVisible());
+      await form.getByLabel('Horário', { exact: true }).fill('19:30');
       assert.equal(await form.locator('[aria-invalid="true"]').count(), 0);
       await form.screenshot({ path: path.resolve(__dirname, `../../../test-results/web-schedule/create-${width}-${theme}.png`) });
       assert.ok(await form.evaluate(el => el.scrollWidth <= el.clientWidth));
@@ -103,7 +115,7 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5188';
       await review.waitFor();
       assert.equal(posts, 0);
       await review.getByRole('button', { name: 'Voltar e editar' }).click();
-      assert.equal(await form.getByLabel('Data', { exact: true }).inputValue(), '2027-12-21');
+      assert.ok((await form.getByRole('button', { name: 'Data', exact: true }).textContent()).includes('21/12/2027'));
       await form.getByRole('button', { name: 'Criar partida', exact: true }).click();
       await review.getByRole('button', { name: 'Confirmar e criar' }).click();
       if (failSave) {

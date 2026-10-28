@@ -21,52 +21,87 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5189';
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/*', route => new URL(route.request().url()).origin === new URL(base).origin ? route.continue() : route.abort());
-      await require('./visual-fixture.cjs').install(page);
+      await require('./visual-fixture.cjs').install(page, { playerCount: 32 });
       await page.goto(base + '/jogadores');
-      await page.locator('.alunos-table').waitFor();
-      const rows = page.locator('.alunos-table tbody tr');
+      await page.getByRole('button', { name: 'Tabela', exact: true }).click();
+      await page.locator('.home-pager-current .alunos-table').waitFor();
+      await page.waitForFunction(() => document.querySelector('.home-pager-current .alunos-directory')?.getAttribute('aria-busy') === 'false' && [...document.querySelectorAll('.home-pager-current .alunos-player-link')].length === 25 && [...document.querySelectorAll('.home-pager-current .alunos-player-link')].every(link => Number(link.getAttribute('href').split('/').pop()) < 200));
+      const rows = page.locator('.home-pager-current .alunos-table tbody tr');
       assert.equal(await rows.count(), 25);
       assert.equal(await page.locator('.alunos-category-toggle').count(), 0);
-      const firstNames = await rows.locator('.alunos-player-link').allTextContents();
+      const firstNames = await rows.locator('.home-pager-current .alunos-player-link').allTextContents();
       assert.deepEqual(firstNames, [...firstNames].sort((a, b) => a.localeCompare(b)));
       await page.getByRole('button', { name: 'Próxima página', exact: true }).click();
-      await page.waitForFunction(() => document.querySelectorAll('.alunos-table tbody tr').length === 7);
+      await page.waitForFunction(() => document.querySelectorAll('.home-pager-current .alunos-table tbody tr').length === 7);
       await page.getByRole('button', { name: 'Página anterior', exact: true }).click();
-      await page.waitForFunction(() => document.querySelectorAll('.alunos-table tbody tr').length === 25);
+      await page.waitForFunction(() => document.querySelectorAll('.home-pager-current .alunos-table tbody tr').length === 25);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-      const filter = page.getByRole('button', { name: 'Subcategoria Todos os subs' });
-      await filter.click();
-      await page.locator('[data-choice-option]').filter({ hasText: /^SUB-7$/ }).click();
-      await page.waitForFunction(() => document.querySelectorAll('.alunos-table tbody tr').length === 8);
-      assert.equal(await page.locator('.alunos-table .alunos-cell-category').count(), 0);
+      assert.equal(await page.getByRole('button', { name: 'Todos os subs', exact: true }).count(), 0);
+      await page.getByRole('button', { name: 'SUB-8', exact: true }).click();
+      await page.waitForFunction(() => document.querySelector('.home-pager-current .alunos-directory')?.getAttribute('aria-busy') === 'false' && [...document.querySelectorAll('.home-pager-current .alunos-player-link')].every(link => {const id=Number(link.getAttribute('href').split('/').pop());return id>=200&&id<300;}));
+      assert.equal(await page.locator('.home-pager-current .alunos-table .alunos-cell-category').count(), 25);
       await page.goto(base + '/jogadores');
-      await page.locator('.alunos-table').waitFor();
-      assert.equal(await rows.count(), 8, 'A seleção deve persistir ao voltar à página');
-      assert.equal(await page.getByRole('button', { name: 'Subcategoria SUB-7', exact: true }).count(), 1);
-      await page.getByRole('button', { name: 'Limpar filtros' }).click();
+      await page.getByRole('button', { name: 'Tabela', exact: true }).click();
+      await page.locator('.home-pager-current .alunos-table').waitFor();
+      assert.equal(await rows.count(), 25, 'A seleção deve persistir ao voltar à página');
+      assert.equal(await page.getByRole('button', { name: 'SUB-8', exact: true }).getAttribute('aria-pressed'), 'true');
       if (width < 901) {
         await page.getByRole('button', { name: 'Filtros', exact: true }).click();
         const filters = page.getByRole('dialog', { name: 'Filtrar jogadores' });
         await filters.getByRole('button', { name: 'Sem número', exact: true }).click();
-        await filters.getByRole('button', { name: 'Ver jogadores' }).click();
+        await filters.getByRole('button', { name: 'Aplicar filtros' }).click();
         await filters.waitFor({ state: 'hidden' });
         await page.getByRole('button', { name: 'Remover filtro de camisa' }).click();
       }
-      await page.waitForFunction(() => document.querySelectorAll('.alunos-table tbody tr').length === 25);
+      await page.waitForFunction(() => document.querySelectorAll('.home-pager-current .alunos-table tbody tr').length === 25);
       await page.getByLabel('Buscar aluno', { exact: true }).fill('Nome inexistente');
       await page.getByRole('heading', { name: 'Nenhum jogador encontrado' }).waitFor();
       await page.locator('.alunos-search input').fill('');
-      await page.locator('.alunos-table').waitFor();
+      await page.locator('.home-pager-current .alunos-table').waitFor();
       await page.getByRole('button', { name: 'Base', exact: true }).click();
-      await page.waitForFunction(() => [...document.querySelectorAll('.alunos-player-link')].length === 25 && [...document.querySelectorAll('.alunos-player-link')].every(link => Number(link.getAttribute('href').split('/').pop()) >= 500));
+      await page.waitForFunction(() => [...document.querySelectorAll('.home-pager-current .alunos-player-link')].length === 25 && [...document.querySelectorAll('.home-pager-current .alunos-player-link')].every(link => Number(link.getAttribute('href').split('/').pop()) >= 500));
       await page.getByRole('button', { name: 'Iniciação', exact: true }).click();
-      await page.waitForFunction(() => [...document.querySelectorAll('.alunos-player-link')].length === 25 && [...document.querySelectorAll('.alunos-player-link')].every(link => Number(link.getAttribute('href').split('/').pop()) < 500));
+      await page.waitForFunction(() => [...document.querySelectorAll('.home-pager-current .alunos-player-link')].length === 25 && [...document.querySelectorAll('.home-pager-current .alunos-player-link')].every(link => Number(link.getAttribute('href').split('/').pop()) < 500));
+      await page.getByRole('button', { name: 'Lista', exact: true }).click();
+      await page.locator('.home-pager-current .alunos-sub-toggle').first().waitFor();
+      assert.equal(await page.locator('.home-pager-current .alunos-sub-toggle').count(), 4);
+      assert.equal(await page.locator('.home-pager-current .alunos-list:visible li').count(), 0);
+      await page.locator('.home-pager-current .alunos-sub-toggle').first().click();
+      await page.waitForFunction(() => [...document.querySelectorAll('.home-pager-current .alunos-list')].filter(el => el.getBoundingClientRect().height > 0).reduce((sum, el) => sum + el.querySelectorAll('li').length, 0) === 25);
+      assert.equal(await page.locator('.home-pager-current .alunos-list:visible li').count(), 25);
+      await page.getByRole('button', { name: 'Carregar mais jogadores', exact: true }).click();
+      await page.waitForFunction(() => [...document.querySelectorAll('.home-pager-current .alunos-list')].filter(el => el.getBoundingClientRect().height > 0).reduce((sum, el) => sum + el.querySelectorAll('li').length, 0) === 32);
+      await page.locator('.home-pager-current .alunos-sub-toggle').first().click();
+      assert.equal(await page.locator('.home-pager-current .alunos-list:visible li').count(), 0);
+      await page.locator('.home-pager-current .alunos-sub-toggle').first().click();
+      assert.equal(await page.locator('.home-pager-current .alunos-list:visible li').count(), 32);
+      await page.screenshot({ path: path.join(output, `list-${width}-${theme}.png`) });
+      assert.equal(await page.locator('.home-pager-current .alunos-table').count(), 0);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await page.getByRole('button', { name: 'Tabela', exact: true }).click();
+      await page.locator('.home-pager-current .alunos-table').waitFor();
+      assert.equal(await rows.count(), 25);
+      if (width === 1366 || width === 390 && theme === 'dark') {
+        for (const label of ['Camisa', 'Idade', 'Categoria', 'Posição', 'Jogador']) {
+          for (const direction of ['crescente', 'decrescente']) {
+            await page.getByRole('button', { name: `${label}: ordenar em ordem ${direction}`, exact: true }).click();
+            await page.waitForFunction(() => document.querySelector('.home-pager-current .alunos-directory')?.getAttribute('aria-busy') === 'false');
+            assert.equal(await page.getByRole('columnheader', { name: label }).getAttribute('aria-sort'), direction === 'crescente' ? 'ascending' : 'descending');
+          }
+          await page.getByRole('button', { name: `${label}: restaurar ordenação padrão`, exact: true }).click();
+          await page.waitForFunction(() => document.querySelector('.home-pager-current .alunos-directory')?.getAttribute('aria-busy') === 'false');
+          assert.equal(await page.locator('.home-pager-current th[aria-sort]').count(), 0);
+          const search = new URL(page.url()).searchParams;
+          assert.equal(search.has('ordenar_por'), false);
+          assert.equal(search.has('ordem'), false);
+        }
+      }
       await page.screenshot({ path: path.join(output, `players-${width}-${theme}.png`), fullPage: true });
       if (width === 390 && theme === 'dark') {
-        await page.locator('.alunos-player-link').first().click();
+        await page.locator('.home-pager-current .alunos-player-link').first().click();
         await page.waitForURL(/\/jogadores\/\d+/);
         await page.goBack();
-        await page.locator('.alunos-table').waitFor();
+        await page.locator('.home-pager-current .alunos-table').waitFor();
         assert.equal(await rows.count(), 25);
       }
       await page.getByRole('button', { name: '+ Adicionar aluno', exact: true }).click();
@@ -109,7 +144,7 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5189';
       await dialog.waitFor({ state: 'hidden' });
       assert.deepEqual(errors, []);
       await context.close();
-      console.log(`PASS jogadores ${width}px ${theme}: filtro de sub, limpeza, modal e rodapé acessíveis, sem overflow`);
+      console.log(`PASS jogadores ${width}px ${theme}: tabela/lista, ordenação, filtros, paginação e cadastro, sem overflow`);
     }
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -7,7 +7,7 @@ export function LiveMatchesCarousel({ matches, renderMatch }: {
   renderMatch: (match: Partida) => ReactNode;
 }) {
   const track = useRef<HTMLDivElement>(null);
-  const gesture = useRef<{ pointer: number; x: number; left: number; dragging: boolean } | null>(null);
+  const gesture = useRef<{ pointer: number; x: number; y: number; left: number; dragging: boolean } | null>(null);
   const suppressClick = useRef(false);
   const [edges, setEdges] = useState({ start: true, end: false });
   const id = useId();
@@ -34,12 +34,12 @@ export function LiveMatchesCarousel({ matches, renderMatch }: {
   return <section className="schedule-live-section" aria-labelledby={`${id}-title`}>
     <div className="schedule-live-heading">
       <div><h2 id={`${id}-title`}><Icon name="live" />Ao vivo<span>{matches.length}</span></h2><p>Partidas em andamento · deslize para acompanhar</p></div>
-      <div className="schedule-carousel-controls">
+      <div className="schedule-carousel-controls" data-swipe-ignore>
         <button type="button" aria-label="Partidas ao vivo anteriores" disabled={edges.start} onClick={() => step(-1)}><Icon name="chevronLeft" /></button>
         <button type="button" aria-label="Próximas partidas ao vivo" disabled={edges.end} onClick={() => step(1)}><Icon name="chevronRight" /></button>
       </div>
     </div>
-    <div ref={track} className="schedule-live-carousel" tabIndex={0} role="region" aria-label="Carrossel de partidas ao vivo"
+    <div ref={track} className="schedule-live-carousel" data-swipe-ignore tabIndex={0} role="region" aria-label="Carrossel de partidas ao vivo"
       onKeyDown={event => {
         suppressClick.current = false;
         if (event.target !== event.currentTarget) return;
@@ -47,19 +47,23 @@ export function LiveMatchesCarousel({ matches, renderMatch }: {
       }}
       onPointerDown={event => {
         suppressClick.current = false;
-        if (event.pointerType !== 'mouse' || event.button !== 0) return;
-        gesture.current = { pointer: event.pointerId, x: event.clientX, left: event.currentTarget.scrollLeft, dragging: false };
+        if (!event.isPrimary || event.button !== 0) return;
+        gesture.current = { pointer: event.pointerId, x: event.clientX, y: event.clientY, left: event.currentTarget.scrollLeft, dragging: false };
       }}
       onPointerMove={event => {
         const current = gesture.current;
         if (!current || current.pointer !== event.pointerId) return;
         const distance = event.clientX - current.x;
+        if (!current.dragging && Math.abs(event.clientY - current.y) > 10 && Math.abs(event.clientY - current.y) >= Math.abs(distance)) {
+          gesture.current = null;
+          return;
+        }
         if (!current.dragging && Math.abs(distance) > 8) {
           current.dragging = true;
           event.currentTarget.setPointerCapture(event.pointerId);
           event.currentTarget.classList.add('is-dragging');
         }
-        if (current.dragging) { suppressClick.current = true; event.currentTarget.scrollLeft = current.left - distance; }
+        if (current.dragging) { event.preventDefault(); suppressClick.current = true; event.currentTarget.scrollLeft = current.left - distance; }
       }}
       onPointerUp={event => {
         gesture.current = null;

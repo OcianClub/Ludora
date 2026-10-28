@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Notifications } from './Notifications';
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Brand, ClubBadge } from './Brand';
 import { Icon, IconName } from './Icon';
 import { Modal } from './UI';
+import { AccountMenu } from './AccountMenu';
 import './Layout.css';
 
 const NAV: { to: string; label: string; icon: IconName }[] = [
@@ -21,13 +23,45 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function Layout() {
-  const { usuario, clube } = useAuth();
+  const { clube } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => {
+    try { return localStorage.getItem('ludora_sidebar_expanded') === 'true'; }
+    catch { return false; }
+  });
+  const [compactSidebar, setCompactSidebar] = useState(() => matchMedia('(max-width: 1050px)').matches);
+  const [tabletExpanded, setTabletExpanded] = useState(false);
+  const expanded = compactSidebar ? tabletExpanded : sidebarExpanded;
+  const sidebarRef = useRef<HTMLElement>(null);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const navigationRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const role = clube?.meuPapel ? ROLE_LABELS[clube.meuPapel] || clube.meuPapel : 'Visualização pública';
   const gerenciaClube = ['ADMIN', 'TECNICO', 'MESARIO'].includes(clube?.meuPapel || '');
   const extraLinks = NAV.slice(4);
   const moreActive = extraLinks.some(item => location.pathname.startsWith(item.to)) || location.pathname === '/membros';
+  function toggleSidebar() {
+    if (compactSidebar) setTabletExpanded(value => !value);
+    else setSidebarExpanded(value => {
+      try { localStorage.setItem('ludora_sidebar_expanded', String(!value)); } catch {}
+      return !value;
+    });
+  }
+  useEffect(() => {
+    const media = matchMedia('(max-width: 1050px)');
+    const update = () => { setCompactSidebar(media.matches); setTabletExpanded(false); };
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    if (!compactSidebar || !tabletExpanded) return;
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Element;
+      if (!sidebarRef.current?.contains(target) && !target.closest('[data-account-popover], dialog')) setTabletExpanded(false);
+    };
+    document.addEventListener('pointerdown', outside);
+    return () => document.removeEventListener('pointerdown', outside);
+  }, [compactSidebar, tabletExpanded]);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 760px)');
     const closeOnDesktop = () => { if (!media.matches) setMoreOpen(false); };
@@ -36,25 +70,56 @@ export default function Layout() {
   }, []);
   useEffect(() => {
     setMoreOpen(false);
+    setTabletExpanded(false);
   }, [location.key, clube?.id]);
+  useLayoutEffect(() => {
+    const navigation = navigationRef.current;
+    const layout = layoutRef.current;
+    if (!navigation || !layout) return;
+    const viewport = window.visualViewport;
+    const measure = () => {
+      layout.style.setProperty('--mobile-navigation-height', `${navigation.getBoundingClientRect().height}px`);
+      const offset = viewport && viewport.scale === 1
+        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        : 0;
+      navigation.style.setProperty('--mobile-navigation-offset', `${offset}px`);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(navigation);
+    viewport?.addEventListener('resize', measure);
+    viewport?.addEventListener('scroll', measure);
+    window.addEventListener('resize', measure);
+    measure();
+    return () => {
+      observer.disconnect();
+      viewport?.removeEventListener('resize', measure);
+      viewport?.removeEventListener('scroll', measure);
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
   return (
-    <div className="layout">
+    <div className="layout" data-sidebar-expanded={expanded} ref={layoutRef}>
       <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
       
-      <aside className="sidebar">
+      <aside className="sidebar" ref={sidebarRef}>
+        <div className="sidebar-top">
         <Link to="/dashboard" className="sidebar-brand" aria-label="Ludora — visão geral">
           <Brand />
         </Link>
+        <button type="button" className="sidebar-toggle" aria-label={expanded ? 'Recolher navegação' : 'Expandir navegação'}
+          aria-expanded={expanded} aria-controls="sidebar-navigation" onClick={toggleSidebar}>
+          <Icon name={expanded ? 'sidebarCollapse' : 'sidebarExpand'} size={20} />
+        </button>
+        </div>
         
         <span className="sidebar-label">MEU CLUBE</span>
         
-        <nav className="sidebar-nav" aria-label="Navegação principal">
+        <nav id="sidebar-navigation" className="sidebar-nav" aria-label="Navegação principal">
           {NAV.slice(0, 4).map(item => (
             <NavLink
               key={item.to}
               to={item.to}
               aria-label={item.label}
-              title={item.label}
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
             >
               <span className="nav-icon"><Icon name={item.icon} /></span>
@@ -67,25 +132,17 @@ export default function Layout() {
               key={item.to}
               to={item.to}
               aria-label={item.label}
-              title={item.label}
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
             >
               <span className="nav-icon"><Icon name={item.icon} /></span>
               <span className="nav-label">{item.label}</span>
             </NavLink>
           ))}
-          {clube?.meuPapel === 'ADMIN' && <NavLink to="/membros" aria-label="Pessoas e acessos" title="Pessoas e acessos" className={({isActive})=>`nav-item${isActive?' active':''}`}><span className="nav-icon"><Icon name="user"/></span><span className="nav-label">Pessoas e acessos</span></NavLink>}
+          {clube?.meuPapel === 'ADMIN' && <NavLink to="/membros" aria-label="Pessoas e acessos" className={({isActive})=>`nav-item${isActive?' active':''}`}><span className="nav-icon"><Icon name="user"/></span><span className="nav-label">Pessoas e acessos</span></NavLink>}
         </nav>
 
         <div className="sidebar-footer">
-          <NavLink to="/perfil" className="sidebar-usuario" aria-label="Meu perfil" title="Meu perfil e preferências">
-            <span className="usuario-avatar">{usuario?.nome?.[0] || '?'}</span>
-            <span className="usuario-info">
-              <strong>{usuario?.nome || 'Meu perfil'}</strong>
-              <small>Conta e preferências</small>
-            </span>
-            <Icon name="chevronRight" size={16} />
-          </NavLink>
+          <AccountMenu />
         </div>
       </aside>
 
@@ -106,9 +163,7 @@ export default function Layout() {
                 <span>Trocar clube</span>
               </Link>
               <Notifications />
-              <NavLink to="/perfil" className="profile-link header-profile-link" aria-label="Meu perfil">
-                <Icon name="user" size={24} />
-              </NavLink>
+              <AccountMenu header />
             </div>
           </div>
         </header>
@@ -117,8 +172,8 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
-      <div className="mobile-navigation">
-        <nav className="bottom-nav" aria-label="Navegação principal no celular">
+      {createPortal(<div className="mobile-navigation">
+        <nav className="bottom-nav" ref={navigationRef} aria-label="Navegação principal no celular">
           {NAV.slice(0, 4).map(item => (
             <NavLink key={item.to} to={item.to} aria-label={item.label}
               className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
@@ -162,7 +217,7 @@ export default function Layout() {
           </section>
 
         </Modal>
-      </div>
+      </div>, document.body)}
     </div>
   );
 }

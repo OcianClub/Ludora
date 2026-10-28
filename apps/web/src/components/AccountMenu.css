@@ -1,0 +1,184 @@
+.account-trigger[aria-expanded="true"] {
+  background: var(--fundo-card-sec);
+}
+
+.account-popover {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  padding: 4px;
+  overflow: hidden;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--fundo-card);
+  color: var(--texto);
+  box-shadow: 0 12px 36px #0003;
+  transform-origin: bottom left;
+  animation: account-popover-enter 160ms ease-out;
+}
+
+.account-popover-header {
+  transform-origin: top right;
+}
+
+.account-popover-heading {
+  flex-shrink: 0;
+  padding: 9px 10px 12px;
+  border-bottom: 1px solid var(--linha);
+}
+
+.account-popover-heading > p {
+  margin: 0 0 9px;
+  overflow: hidden;
+  color: var(--texto-sec);
+  font-size: 12px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-theme-options {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--fundo);
+}
+
+.account-theme-options button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--texto-sec);
+}
+
+.account-theme-options button:hover {
+  color: var(--texto);
+}
+
+.account-theme-options button[aria-checked="true"] {
+  background: var(--fundo-card-sec);
+  color: var(--primaria);
+}
+
+.account-popover-heading > small {
+  display: block;
+  margin-top: 8px;
+  color: var(--titulo-erro);
+  font-size: 12px;
+}
+
+.account-popover-links {
+  min-height: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.account-popover-links > a,
+.account-popover-footer > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--texto);
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.account-popover-links > a:hover,
+.account-popover-footer > button:hover {
+  background: var(--fundo-card-sec);
+}
+
+.account-popover-links > a > .icon,
+.account-popover-footer .icon {
+  color: var(--texto-sec);
+}
+
+.account-popover-links > .account-menu-profile {
+  min-height: 58px;
+  margin-bottom: 4px;
+}
+
+.account-menu-profile > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.account-menu-profile strong,
+.account-menu-profile small {
+  display: block;
+}
+
+.account-menu-profile strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.account-menu-profile small {
+  margin-top: 2px;
+  color: var(--texto-sec);
+  font-size: 12px;
+}
+
+.account-menu-profile .usuario-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+  font-size: 12px;
+}
+
+.account-popover-footer {
+  flex-shrink: 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--linha);
+}
+
+.account-popover :is(button, a):focus-visible,
+.sidebar-toggle:focus-visible,
+.account-trigger:focus-visible {
+  outline: 2px solid var(--primaria);
+  outline-offset: -2px;
+}
+
+@media (max-width: 760px) {
+  .account-theme-options button {
+    width: 36px;
+    height: 34px;
+  }
+
+  .account-popover-links > a,
+  .account-popover-footer > button {
+    min-height: 44px;
+  }
+}
+
+@keyframes account-popover-enter {
+  from { transform: translateY(6px) scale(.98); }
+  to { transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-popover {
+    animation: none;
+  }
+}
