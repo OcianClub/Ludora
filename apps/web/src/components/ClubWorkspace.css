@@ -1,0 +1,825 @@
+.sidebar-footer .notifications-trigger.profile-link {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  margin: 0 auto;
+  border: 0;
+  border-radius: 10px;
+  background: var(--fundo-card);
+  color: var(--texto);
+}
+.nav-pending-count {
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--fundo-card-sec);
+  color: var(--texto-sec);
+  font-size: 11px;
+}
+.layout[data-sidebar-expanded="false"] .nav-pending-count {
+  display: none;
+}
+.layout .home-controls {
+  display: flex;
+  position: sticky;
+  top: 0;
+  padding: 12px 0;
+  background: var(--fundo);
+  border: 0;
+}
+.layout .home-phase {
+  background: var(--fundo);
+}
+.layout .home-category-picker {
+  background: transparent;
+}
+.layout .home-sub-strip button {
+  min-height: 38px;
+  font-size: 13px;
+}
+.layout .home-sub-strip button[aria-selected="true"] {
+  background: var(--primaria);
+  color: #fff;
+}
+
+.match-schedule .schedule-status-summary {
+  display: flex;
+  gap: 22px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 0;
+  margin-bottom: 20px;
+  border: 0;
+  border-bottom: 1px solid var(--linha);
+  border-radius: 0;
+  background: transparent;
+  scrollbar-width: none;
+}
+.match-schedule .schedule-status-summary button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 8px 3px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--texto-sec);
+  font-size: 13px;
+}
+.match-schedule .schedule-status-summary button[aria-selected="true"] {
+  border-bottom-color: var(--primaria);
+  color: var(--texto);
+  font-weight: 600;
+}
+.schedule-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ed4b68;
+}
+.match-schedule .schedule-filter-primary {
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, 190px) minmax(130px, 160px) auto;
+}
+.match-schedule .schedule-results-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-block: 14px 20px;
+}
+.schedule-results-toolbar .schedule-active-filters {
+  flex: 1;
+}
+.schedule-results-toolbar .schedule-view-toggle {
+  margin-left: auto;
+}
+.schedule-date-group {
+  min-width: 0;
+}
+.schedule-date-group h2 {
+  margin: 6px 0 14px;
+  font-size: 14px;
+  color: var(--texto-sec);
+  font-weight: 500;
+}
+.schedule-match-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 390px), 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.schedule-match-grid.is-list {
+  grid-template-columns: 1fr;
+}
+.match-schedule .schedule-list .match-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, .65fr) auto;
+  gap: 14px 24px;
+  padding: 16px 20px;
+}
+.match-schedule .schedule-list .match-card-header {
+  grid-column: 1 / -1;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--linha);
+}
+.match-schedule .schedule-list .match-teams {
+  gap: 18px;
+  padding: 0;
+}
+.match-schedule .schedule-list .match-team {
+  flex-direction: row;
+  gap: 12px;
+  text-align: left;
+  min-width: 0;
+}
+.match-schedule .schedule-list .match-team:last-child {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+.match-schedule .schedule-list .match-team .club-badge {
+  width: 40px !important;
+  height: 40px !important;
+  flex-shrink: 0;
+}
+.match-schedule .schedule-list .match-team strong {
+  font-family: var(--font-corpo);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.match-schedule .schedule-list .match-score {
+  font-size: 28px;
+  gap: 8px;
+}
+.match-schedule .schedule-list .match-info {
+  gap: 8px;
+  padding: 0 0 0 24px;
+  border: 0;
+  border-left: 1px solid var(--linha);
+}
+.match-schedule .schedule-list .match-card-actions {
+  margin: 0;
+}
+.match-schedule .schedule-list .match-card-actions > a {
+  min-height: 40px;
+  font-size: 12px;
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .match-schedule .schedule-list .match-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .match-schedule .schedule-list .match-teams {
+    grid-column: 1 / -1;
+  }
+  .match-schedule .schedule-list .match-info {
+    padding: 0;
+    border: 0;
+  }
+}
+.schedule-results {
+  display: grid;
+  gap: 24px;
+}
+.schedule-status-section .schedule-section-toggle {
+  min-height: 56px;
+  padding: 10px 14px;
+}
+.schedule-status-section .schedule-section-copy strong {
+  font-size: 15px;
+  gap: 8px;
+}
+.schedule-status-section .schedule-section-chevron {
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: 0;
+}
+.schedule-status-section > div:not([hidden]) {
+  padding: 14px 12px 12px;
+}
+.match-result {
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.match-result.result-V {
+  background: var(--fundo-botao);
+  color: var(--primaria);
+}
+.match-result.result-D {
+  background: var(--fundo-erro);
+  color: var(--titulo-erro);
+}
+.match-result.result-E {
+  background: var(--fundo-atencao);
+  color: var(--titulo-atencao);
+}
+
+.scout-page .scout-controls {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.scout-page .scout-overview {
+  margin-bottom: 18px;
+}
+.scout-page .scout-leaders > button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  min-height: 70px;
+  padding: 12px 16px;
+  gap: 4px 12px;
+}
+.scout-page .scout-leader-icon {
+  display: none;
+}
+.scout-page .scout-leader-title {
+  grid-column: 1;
+  grid-row: 1;
+  white-space: normal;
+  font-size: 12px;
+}
+.scout-page .scout-leaders strong {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  font-size: 28px;
+}
+.scout-page .scout-leader-name {
+  grid-column: 1;
+  grid-row: 2;
+  line-height: 1.4;
+}
+.scout-page .scout-athlete-count {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.scout-page .scout-athlete-count p {
+  margin: 0;
+}
+.scout-page .scout-profile-filter {
+  min-height: 36px;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+.scout-page .scout-order-tabs {
+  align-items: center;
+  padding-bottom: 10px;
+}
+.scout-order-label {
+  color: var(--texto-sec);
+  font-size: 12px;
+  white-space: nowrap;
+  padding-right: 5px;
+}
+
+.alunos-page .alunos-filters {
+  display: flex;
+  align-items: end;
+  flex-wrap: nowrap;
+  margin-top: 4px;
+}
+.alunos-page .alunos-search {
+  flex: 1;
+}
+.alunos-page .alunos-extra-filters {
+  display: flex;
+  align-items: end;
+  flex-shrink: 0;
+}
+.alunos-page .alunos-filter-toggle {
+  order: 3;
+}
+.alunos-missing-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: var(--collection-control-height);
+  padding: 8px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texto-sec);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.alunos-missing-chip[aria-pressed="true"] {
+  border-color: var(--primaria);
+  background: var(--primaria);
+  color: #fff;
+}
+.alunos-page .alunos-results-bar p {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.alunos-page .alunos-table {
+  min-width: 540px;
+}
+
+.dashboard .home-focus {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-areas: "feature pending" "upcoming moment";
+  align-items: stretch;
+  gap: 24px;
+}
+.dashboard .home-feature {
+  grid-area: feature;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard .home-main-match {
+  flex: 1;
+  padding: 20px;
+}
+.dashboard .home-scoreboard {
+  padding-block: 20px;
+}
+.dashboard .home-focus-public {
+  grid-template-areas: "feature moment" "upcoming upcoming";
+}
+.category-moment {
+  grid-area: moment;
+}
+.dashboard .home-upcoming {
+  grid-area: upcoming;
+  padding: 22px;
+  border-radius: 10px;
+  background: var(--fundo-card);
+}
+.home-pending {
+  grid-area: pending;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.home-pending-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 22px;
+  border-radius: 10px;
+  background: var(--fundo-card);
+}
+.home-pending-intro {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.home-pending-symbol,
+.home-pending-item-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--fundo-card-sec);
+  color: var(--primaria);
+}
+.home-pending-symbol {
+  background: var(--fundo-botao);
+}
+.home-pending-intro h3 {
+  margin: 0 0 5px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.home-pending-intro p {
+  margin: 0;
+  color: var(--texto-sec);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.home-pending-items {
+  display: grid;
+  gap: 10px;
+}
+.home-pending-items a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--linha);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--fundo-card) 75%, var(--fundo-card-sec));
+  color: var(--texto-sec);
+}
+.home-pending-items a:hover {
+  background: color-mix(in srgb, var(--fundo-card) 45%, var(--fundo-card-sec));
+}
+.home-pending-item-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+}
+.home-pending-count {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: 27px;
+  height: 27px;
+  padding-inline: 6px;
+  border-radius: 6px;
+  background: var(--primaria);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.home-pending-item-copy {
+  flex: 1;
+  min-width: 0;
+}
+.home-pending-item-copy strong {
+  display: block;
+  color: var(--texto);
+  font-size: 14px;
+  font-weight: 600;
+}
+.home-pending-item-copy small {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--texto) 76%, var(--texto-sec));
+}
+.home-pending-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: auto 0 0;
+  color: var(--texto-sec);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.dashboard .home-match-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+  margin: 0;
+  padding: 18px 0;
+}
+.dashboard .home-match-meta small {
+  display: none;
+}
+.dashboard .home-match-meta strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.dashboard .home-match-meta .icon {
+  width: 19px !important;
+  height: 19px !important;
+}
+.dashboard .home-match-meta .home-match-location {
+  flex: 1 1 180px;
+  min-width: 0;
+  font-size: 14px;
+  margin: 0;
+}
+@media (max-width: 760px) {
+  .dashboard .home-match-meta {
+    gap: 10px 16px;
+    padding: 14px 0;
+  }
+  .dashboard .home-match-meta strong,
+  .dashboard .home-match-meta .home-match-location {
+    font-size: 13px;
+  }
+  .dashboard .home-match-meta .icon {
+    width: 17px !important;
+    height: 17px !important;
+  }
+}
+.home-countdown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primaria);
+  font-size: 12px;
+}
+.home-upcoming-day h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0 10px;
+  color: var(--texto);
+  font-size: 12px;
+  font-weight: 600;
+}
+.home-upcoming-day h3 > .icon {
+  color: var(--primaria);
+}
+.home-upcoming-day {
+  display: grid;
+  gap: 6px;
+}
+.home-upcoming-day > a {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  border-bottom: 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--fundo-card) 75%, var(--fundo-card-sec));
+}
+.home-upcoming-day > a > span:not(.club-badge):not(.icon) {
+  flex: 1;
+  min-width: 0;
+}
+.home-upcoming-day time {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 66px;
+  padding: 7px 6px;
+  margin-right: 0;
+  border-radius: 6px;
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+  font-size: 12px;
+  font-weight: 600;
+}
+.home-upcoming-day time > .icon {
+  color: var(--texto-sec);
+}
+.home-upcoming-day strong {
+  color: var(--texto);
+  font-weight: 600;
+}
+.home-upcoming-day small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.home-upcoming-day small > .icon {
+  color: var(--texto-sec);
+}
+.home-upcoming-day > a > .club-badge {
+  color: var(--texto);
+}
+.home-upcoming-day > a:hover {
+  background: color-mix(in srgb, var(--fundo-card) 45%, var(--fundo-card-sec));
+}
+
+@media (min-width: 1151px) {
+  .layout:has(.match-schedule) {
+    --workspace-max-width: 1504px;
+    --workspace-gutter: 40px;
+  }
+}
+@media (min-width: 381px) and (max-width: 760px) {
+  .layout:has(.match-schedule) {
+    --workspace-gutter: 14px;
+  }
+}
+@media (min-width: 761px) and (max-width: 1150px) {
+  .schedule-match-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .match-schedule .schedule-filter-primary {
+    grid-template-columns: minmax(120px, 1fr) 150px 130px auto;
+  }
+}
+@media (max-width: 760px) {
+  .layout .home-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 8px 0;
+  }
+  .layout .home-phase {
+    width: 100%;
+    padding: 4px;
+  }
+  .layout .home-category-picker {
+    padding: 0;
+    border: 0;
+  }
+  .layout .home-phase button {
+    min-height: 36px;
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+  .layout .home-sub-strip button {
+    min-height: 36px;
+    font-size: 12px;
+  }
+  .match-schedule .schedule-status-summary {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 12px;
+  }
+  .match-schedule .schedule-status-summary button {
+    min-height: 40px;
+    font-size: 12px;
+  }
+  .match-schedule .schedule-filter-primary {
+    display: none;
+  }
+  .match-schedule .schedule-mobile-actions {
+    display: flex;
+  }
+  .match-schedule .schedule-mobile-actions .collection-search {
+    flex: 1;
+    width: 0;
+  }
+  .match-schedule .schedule-filters .schedule-mobile-actions > .collection-mode-toggle,
+  .match-schedule .schedule-results-toolbar > .collection-mode-toggle {
+    display: none;
+  }
+  .match-schedule .schedule-mobile-new, .alunos-page .alunos-add {
+    position: fixed;
+    bottom: calc(var(--mobile-navigation-height, 73px) + 16px);
+    right: 18px;
+    z-index: 20;
+    width: 48px;
+    height: 48px;
+    min-height: 48px;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 12px;
+    font-size: 0;
+    gap: 0;
+    box-shadow: 0 4px 14px #0003;
+  }
+  .match-schedule .schedule-mobile-new .icon, .alunos-page .alunos-add .icon {
+    width: 22px !important;
+    height: 22px !important;
+  }
+  .alunos-page .alunos-add > .alunos-add-label {
+    display: none;
+  }
+  .schedule-match-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .match-schedule .schedule-list .match-card {
+    display: block;
+    padding: 14px;
+  }
+  .match-schedule .schedule-list .match-card-header {
+    margin-bottom: 14px;
+  }
+  .match-schedule .schedule-list .match-teams {
+    gap: 10px;
+  }
+  .match-schedule .schedule-list .match-team {
+    flex-direction: column;
+    text-align: center;
+    gap: 7px;
+  }
+  .match-schedule .schedule-list .match-team:last-child {
+    flex-direction: column;
+    text-align: center;
+  }
+  .match-schedule .schedule-list .match-team strong {
+    min-height: 0;
+    font-size: 12px;
+  }
+  .match-schedule .schedule-list .match-info {
+    margin-top: 14px;
+    padding: 12px 0;
+    border-left: 0;
+    border-top: 1px solid var(--linha);
+  }
+  .schedule-date-group h2 {
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+  .schedule-status-section .schedule-section-toggle {
+    min-height: 48px;
+    padding: 8px 10px;
+  }
+  .schedule-status-section .schedule-section-copy strong {
+    font-size: 13px;
+  }
+  .match-schedule .schedule-results-toolbar {
+    margin-block: 10px 16px;
+  }
+  .scout-page .scout-leaders {
+    gap: 7px;
+  }
+  .scout-page .scout-leaders > button {
+    min-height: 78px;
+    padding: 10px;
+    gap: 5px;
+  }
+  .scout-page .scout-leaders strong {
+    font-size: 24px;
+  }
+  .scout-page .scout-leader-title {
+    font-size: 10px;
+  }
+  .scout-page .scout-leader-name {
+    font-size: 11px;
+  }
+  .scout-page .scout-profile-filter {
+    min-height: 34px;
+    padding: 6px 9px;
+    font-size: 12px;
+  }
+  .scout-page .scout-order-tabs button {
+    min-height: 34px;
+    padding: 6px 10px;
+  }
+  .scout-order-label {
+    display: none;
+  }
+  .scout-page .scout-controls {
+    grid-template-columns: minmax(0, 1fr) 40px;
+    gap: 8px;
+  }
+  .alunos-page .alunos-extra-filters {
+    display: none;
+  }
+  .alunos-page .page-header {
+    height: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .alunos-page .page-header > div {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .alunos-page .alunos-sub-toggle {
+    display: none;
+  }
+  .alunos-page .alunos-sub-group {
+    border: 0;
+  }
+  .alunos-page .alunos-list li {
+    min-height: 64px;
+    padding: 10px;
+  }
+  .alunos-page .alunos-list .alunos-player-link {
+    font-size: 13px;
+  }
+  .alunos-page .alunos-results-bar p {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .alunos-page .alunos-results-bar p strong {
+    font-size: 13px;
+  }
+  .dashboard .home-focus {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "feature" "pending" "upcoming" "moment";
+    gap: 24px;
+  }
+  .dashboard .home-focus-public {
+    grid-template-areas: "feature" "moment" "upcoming";
+  }
+  .dashboard .page-header {
+    margin-bottom: 6px;
+  }
+  .dashboard .page-title {
+    font-size: 21px;
+  }
+  .dashboard .page-sub {
+    font-size: 12px;
+  }
+  .home-pending-card {
+    padding: 16px;
+    gap: 16px;
+  }
+  .dashboard .home-main-match,
+  .dashboard .home-upcoming {
+    padding: 16px;
+  }
+  .dashboard .home-scoreboard {
+    padding-block: 18px;
+  }
+  .home-pending-intro h3 {
+    font-size: 15px;
+  }
+  .home-pending-items a {
+    padding: 10px;
+    gap: 9px;
+  }
+  .home-pending-item-copy strong {
+    font-size: 13px;
+  }
+  .home-upcoming-day > a {
+    gap: 14px;
+    padding: 12px;
+  }
+}

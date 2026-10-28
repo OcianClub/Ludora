@@ -63,11 +63,12 @@ export function AccountMenu({ header = false }: { header?: boolean }) {
       }
       const panelWidth = Math.min(280, width - 24);
       const collapsed = !header && (anchor.closest('aside')?.getBoundingClientRect().width || 0) < 100;
-      const availableHeight = header ? top + height - box.bottom - 20 : collapsed ? height - 24 : box.top - top - 20;
+      const above = header && top + height - box.bottom < Math.min(360, box.top - top);
+      const availableHeight = header && !above ? top + height - box.bottom - 20 : collapsed ? height - 24 : box.top - top - 20;
       element.style.width = `${panelWidth}px`;
       element.style.maxHeight = `${Math.max(160, Math.min(440, availableHeight))}px`;
       const x = header ? box.right - panelWidth : collapsed ? box.right + 12 : box.left;
-      const y = header ? box.bottom + 8 : collapsed ? box.bottom - element.offsetHeight : box.top - element.offsetHeight - 8;
+      const y = header && !above ? box.bottom + 8 : collapsed ? box.bottom - element.offsetHeight : box.top - element.offsetHeight - 8;
       element.style.left = `${Math.max(left + 12, Math.min(x, left + width - panelWidth - 12))}px`;
       element.style.top = `${Math.max(top + 12, Math.min(y, top + height - element.offsetHeight - 12))}px`;
     }
@@ -175,7 +176,7 @@ export function AccountMenu({ header = false }: { header?: boolean }) {
         <Link to="/perfil?secao=conta" onClick={() => close()}><Icon name="defense" size={18} /><span>Conta e segurança</span></Link>
       </nav>
       <div className="account-popover-footer"><button type="button" onClick={() => { close(true); setLogoutOpen(true); }}><Icon name="logout" size={18} /><span>Sair da conta</span></button></div>
-    </div>, document.body)}
+    </div>, trigger.current?.closest('dialog') || document.body)}
     <LogoutDialog open={logoutOpen} onClose={() => { setLogoutOpen(false); trigger.current?.focus({ preventScroll: true }); }} />
   </>;
 }

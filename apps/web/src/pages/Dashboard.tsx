@@ -1,10 +1,11 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { fetchHomePartidas, fetchCategorias, fetchEscalacao, type HomePartida, type Categoria } from '../services/api';
 import { Btn } from '../components/UI';
 import { CategoryFilter } from '../components/CategoryFilter';
-import { HomeSwipeSurface } from '../components/HomeSwipeSurface';
-import { HomeHistoryMatch, HomeMatch, RESULTADOS } from '../components/HomeMatch';
+import { useClubCategory } from '../hooks/useClubCategory';
+import { useClubPending } from '../contexts/ClubPendingContext';
+import { HomeHistoryTable, HomeMatch, RESULTADOS } from '../components/HomeMatch';
 import { ClubBadge } from '../components/Brand';
 import { Icon } from '../components/Icon';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,6 +28,40 @@ function HomeSkeleton() {
   );
 }
 
+function HomePending({ category }: { category: Categoria }) {
+  const data = useClubPending();
+  const { podeGerenciar } = useAuth();
+  if (!podeGerenciar) return null;
+  const missing = data?.missing?.get(category.id) ?? 0;
+  const unassessed = data?.unassessed?.get(category.id) ?? 0;
+  const complete = Boolean(data?.missing && data.unassessed);
+  const total = missing + unassessed;
+  return <section className="home-pending" aria-labelledby="home-pending-title">
+    <div className="home-section-heading"><h2 id="home-pending-title">Pendências</h2><span className="home-category-label">{category.nome.toUpperCase()}</span></div>
+    <div className="home-pending-card">
+      <div className="home-pending-intro">
+        <span className="home-pending-symbol"><Icon name={complete && !total ? 'checkAll' : 'alert'} size={24} /></span>
+        <div><h3>{!data ? 'Consultando a categoria' : complete && !total ? 'Tudo em dia' : 'Atenção à categoria'}</h3><p>Confira os cadastros e as avaliações dos atletas.</p></div>
+      </div>
+      {!data ? <p className="home-inline-empty" role="status">Consultando pendências…</p> : <div className="home-pending-items">
+        <Link to={`/jogadores?categoria=${category.id}&camisa=missing`}>
+          <span className="home-pending-item-icon"><Icon name="shirt" size={21} /></span>
+          <span className="home-pending-item-copy"><strong>Numeração do elenco</strong><small>{data.missing === null ? 'Consulta indisponível. Abrir jogadores.' : missing ? 'Jogadores com camisa ainda não definida' : 'Todos os jogadores com camisa definida'}</small></span>
+          {missing > 0 && <span className="home-pending-count" aria-label={`${missing} jogadores sem camisa`}>{missing}</span>}
+          <Icon name="chevronRight" size={17} />
+        </Link>
+        <Link to={`/elenco?categoria_id=${category.id}&perfil=pending`}>
+          <span className="home-pending-item-icon"><Icon name="radar" size={21} /></span>
+          <span className="home-pending-item-copy"><strong>Avaliações dos atletas</strong><small>{data.unassessed === null ? 'Consulta indisponível. Abrir scout.' : unassessed ? 'Atletas que ainda não têm avaliação' : 'Todos os atletas com avaliação disponível'}</small></span>
+          {unassessed > 0 && <span className="home-pending-count" aria-label={`${unassessed} atletas não avaliados`}>{unassessed}</span>}
+          <Icon name="chevronRight" size={17} />
+        </Link>
+      </div>}
+      <p className="home-pending-note"><Icon name="info" size={16} /><span>{complete && !total ? 'Nenhuma pendência identificada nesta categoria.' : 'Selecione um item para consultar e atualizar os registros.'}</span></p>
+    </div>
+  </section>;
+}
+
 const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, podeGerenciar, starters = null, lineupError = false }: {
   current: Categoria;
   matches: HomePartida[];
@@ -41,7 +76,7 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
   const preparation = podeGerenciar && principal && !principal.somente_leitura && ['AGENDADA', 'PREPARADA'].includes(principal.status);
   return (
     <div className="home-swipe-content">
-      <div className="home-focus">
+      <div className={`home-focus${podeGerenciar ? '' : ' home-focus-public'}`}>
         <section className="home-feature">
           <div className="home-section-heading">
             <h2>{principal?.status === 'AO_VIVO' ? 'Agora em campo' : principal?.data.slice(0, 10) === hojeCalendario() ? 'É dia de jogo' : 'Próxima partida'}</h2>
@@ -64,7 +99,7 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
           )}
         </section>
 
-        <aside className="home-side">
+
           <section className="category-moment">
             <div className="home-section-heading"><h2>Momento da categoria</h2></div>
             <p className="home-section-copy">Últimas 5 partidas · selecione para ver detalhes</p>
@@ -87,27 +122,30 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
           </section>
 
           <section className="home-upcoming">
-            <div className="home-section-heading"><h2>Na sequência</h2><Link to="/partidas">Ver agenda<Icon name="chevronRight" size={15} /></Link></div>
+            <div className="home-section-heading"><h2>Na sequência</h2><Link to={`/partidas?status=PROXIMAS&categoria_id=${current.id}`}>Ver agenda<Icon name="chevronRight" size={15} /></Link></div>
             <p className="home-section-copy">Próximos compromissos do {current.nome.toUpperCase()}</p>
             {seguintes.length ? <div className="home-upcoming-list">
-              {seguintes.map(match => {
-                const opponent = match.emCasa ? match.visitante : match.mandante;
-                return <Link key={match.id} to={`/partidas/${match.id}`}>
-                  <time dateTime={match.data.slice(0, 10)}>{dataHome(match.data)}<small>{match.horario || 'A definir'}</small></time>
-                  <ClubBadge src={opponent?.escudo} name={teamName(opponent?.nome || 'Adversário')} size={34} />
-                  <span><strong>{teamName(opponent?.nome || 'Adversário')}</strong><small>{match.emCasa ? 'Em casa' : 'Fora de casa'}</small></span>
-                  <Icon name="chevronRight" size={16} />
-                </Link>;
-              })}
+              {[...new Map(seguintes.map(match => [match.data.slice(0, 10), seguintes.filter(item => item.data.slice(0, 10) === match.data.slice(0, 10))])).entries()].map(([day, games]) => <div className="home-upcoming-day" key={day}>
+                <h3><Icon name="calendar" size={16} />{day === hojeCalendario() ? 'Hoje · ' : ''}{dataHome(day)}</h3>
+                {games.map(match => {
+                  const opponent = match.emCasa ? match.visitante : match.mandante;
+                  return <Link key={match.id} to={`/partidas/${match.id}`}>
+                    <time><Icon name="clock" size={14} />{match.horario || 'A definir'}</time>
+                    <ClubBadge src={opponent?.escudo} name={teamName(opponent?.nome || 'Adversário')} size={34} />
+                    <span><strong>{teamName(opponent?.nome || 'Adversário')}</strong><small><Icon name={match.emCasa ? 'home' : 'bus'} size={13} />{match.emCasa ? 'Em casa' : 'Fora de casa'}</small></span>
+                    <Icon name="chevronRight" size={16} />
+                  </Link>;
+                })}
+              </div>)}
             </div> : <p className="home-inline-empty">Sem outros compromissos marcados para esta categoria.</p>}
           </section>
-        </aside>
+        {podeGerenciar && <HomePending category={current} />}
       </div>
 
       <section className="home-history">
         <div className="home-section-heading"><h2>Histórico de partidas</h2><span className="home-category-label">{current.nome.toUpperCase()}</span></div>
         <p className="home-section-copy">Últimos cinco confrontos · mais recente primeiro</p>
-        {historico.length ? <ul className="home-history-list" aria-label="Últimas cinco partidas">{historico.map(match => <li key={match.id}><HomeHistoryMatch partida={match} /></li>)}</ul>
+        {historico.length ? <HomeHistoryTable partidas={historico} />
           : <div className="home-empty"><Icon name="ball" size={28} /><p>As partidas finalizadas desta categoria aparecerão aqui.</p></div>}
         <Link className="home-history-all" to={`/partidas?status=FINALIZADA&categoria_id=${current.id}`}>Ver histórico completo<Icon name="chevronRight" size={17} /></Link>
       </section>
@@ -118,8 +156,8 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
 export default function DashboardPage() {
   const { clube, podeGerenciar } = useAuth();
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [phase, setPhase] = useState('INICIACAO');
-  const [category, setCategory] = useState('');
+  const [params, setParams] = useSearchParams();
+  const { phase, selected: current } = useClubCategory(snapshot && snapshot.clubId === clube?.id ? snapshot.categories : [], params.get('categoria_id'), params.get('fase'));
   const [pending, setPending] = useState(true);
   const [failure, setFailure] = useState<{ clubId: number; message: string } | null>(null);
   const [version, setVersion] = useState(0);
@@ -127,7 +165,6 @@ export default function DashboardPage() {
   const data = snapshot?.clubId === clube?.id ? snapshot : null;
   const error = failure && failure.clubId === clube?.id ? failure.message : '';
 
-  useEffect(() => { setCategory(''); }, [clube?.id]);
 
   useEffect(() => {
     if (!clube) return;
@@ -175,7 +212,6 @@ export default function DashboardPage() {
   }, [clube?.id, version]);
 
   const available = data?.categories.filter(item => item.tipo === phase) ?? [];
-  const current = available.find(item => item.nome === category) ?? available[0];
   const summary = useMemo(
     () => resumoCategoria(data?.matches ?? [], current?.nome ?? '', hojeCalendario()),
     [data, current?.nome],
@@ -201,23 +237,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <HomeSwipeSurface categoryId={current?.id} categoryIndex={available.indexOf(current)}
-      renderPage={offset => {
-        const item = available[available.indexOf(current) + offset];
-        return data && item ? <HomeCategoryPanel current={item} matches={data.matches}
-          podeGerenciar={podeGerenciar} starters={offset === 0 ? starters : null}
-          lineupError={offset === 0 ? Boolean(lineupError) : false} /> : null;
-      }}
-      canPrevious={available.indexOf(current) > 0}
-      canNext={Boolean(current) && available.indexOf(current) < available.length - 1}
-      onStep={direction => {
-        const next = available[available.indexOf(current) + direction];
-        if (next) setCategory(next.nome);
-      }}>
-      <h1 className="sr-only">Visão geral do clube</h1>
-
+    <div className="dashboard">
+      <div className="page-header"><div><h1 className="page-title">Visão geral</h1><p className="page-sub">Resumo do {clube?.nome || 'clube'}{current ? ` · ${current.nome.toUpperCase()}` : ''}</p></div></div>
       {data && <CategoryFilter categories={data.categories} phase={phase} selected={current}
-        onPhase={next => { setPhase(next); setCategory(''); }} onSelect={setCategory} />}
+        onPhase={next => setParams({ fase: next }, { replace: true, preventScrollReset: true })}
+        onSelect={name => { const next = available.find(item => item.nome === name); if (next) setParams({ categoria_id: String(next.id) }, { replace: true, preventScrollReset: true }); }} />}
 
       {error && (
         <div className="home-load-error" role="alert">
@@ -230,6 +254,7 @@ export default function DashboardPage() {
         <section className="home-empty"><Icon name="team" size={28} /><h2>Nenhuma categoria nesta fase</h2><p>Selecione outra fase para consultar as equipes do clube.</p></section>
       ) : null}
 
-    </HomeSwipeSurface>
+      {data && current && <HomeCategoryPanel current={current} matches={data.matches} podeGerenciar={podeGerenciar} starters={starters} lineupError={Boolean(lineupError)} />}
+    </div>
   );
 }

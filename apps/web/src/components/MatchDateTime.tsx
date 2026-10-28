@@ -46,7 +46,7 @@ export function MatchTimeField({ value, onChange, disabled = false }: { value: s
   const id = useId();
   const error = touched && !!value && !validTimeInput(value);
   return <div className="field"><label className="field-label" htmlFor={id}>Horário</label>
-    <input id={id} className="field-input" type="text" inputMode="numeric" placeholder="HH:MM" autoComplete="off" maxLength={5} value={value} disabled={disabled} aria-invalid={error || undefined} aria-describedby={error ? `${id}-error` : undefined} onChange={event => onChange(formatTimeInput(event.target.value))} onBlur={() => setTouched(true)} pattern="([01][0-9]|2[0-3]):[0-5][0-9]"/>
+    <div className="time-input-wrap"><Icon name="clock" size={18} /><input id={id} className="field-input" type="text" inputMode="numeric" placeholder="HH:MM" autoComplete="off" maxLength={5} value={value} disabled={disabled} aria-invalid={error || undefined} aria-describedby={error ? `${id}-error` : undefined} onChange={event => onChange(formatTimeInput(event.target.value))} onBlur={() => setTouched(true)} pattern="([01][0-9]|2[0-3]):[0-5][0-9]"/></div>
     {error && <span id={`${id}-error`} className="field-error">Use um horário de 00:00 a 23:59.</span>}
   </div>;
 }

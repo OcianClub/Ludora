@@ -8,11 +8,13 @@ import { Icon, IconName } from './Icon';
 import { Modal } from './UI';
 import { AccountMenu } from './AccountMenu';
 import './Layout.css';
+import './ClubWorkspace.css';
+import { ClubPendingProvider, useClubPending } from '../contexts/ClubPendingContext';
 
 const NAV: { to: string; label: string; icon: IconName }[] = [
   { to: '/dashboard', label: 'Visão geral', icon: 'home' },
   { to: '/partidas', label: 'Partidas', icon: 'ball' },
-  { to: '/elenco', label: 'Elenco', icon: 'team' },
+  { to: '/elenco', label: 'Scout', icon: 'radar' },
   { to: '/jogadores', label: 'Jogadores', icon: 'player' },
   { to: '/times', label: 'Times', icon: 'shield' },
   { to: '/competicoes', label: 'Competições', icon: 'trophy' },
@@ -23,7 +25,13 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function Layout() {
+  return <ClubPendingProvider><LayoutContent /></ClubPendingProvider>;
+}
+
+function LayoutContent() {
   const { clube } = useAuth();
+  const pending = useClubPending();
+  const missingShirts = pending?.missing ? [...pending.missing.values()].reduce((sum, value) => sum + value, 0) : 0;
   const [moreOpen, setMoreOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
     try { return localStorage.getItem('ludora_sidebar_expanded') === 'true'; }
@@ -31,6 +39,7 @@ export default function Layout() {
   });
   const [compactSidebar, setCompactSidebar] = useState(() => matchMedia('(max-width: 1050px)').matches);
   const [tabletExpanded, setTabletExpanded] = useState(false);
+  const [mobile, setMobile] = useState(() => matchMedia('(max-width: 760px)').matches);
   const expanded = compactSidebar ? tabletExpanded : sidebarExpanded;
   const sidebarRef = useRef<HTMLElement>(null);
   const layoutRef = useRef<HTMLDivElement>(null);
@@ -64,7 +73,7 @@ export default function Layout() {
   }, [compactSidebar, tabletExpanded]);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 760px)');
-    const closeOnDesktop = () => { if (!media.matches) setMoreOpen(false); };
+    const closeOnDesktop = () => { setMobile(media.matches); if (!media.matches) setMoreOpen(false); };
     media.addEventListener('change', closeOnDesktop);
     return () => media.removeEventListener('change', closeOnDesktop);
   }, []);
@@ -101,10 +110,10 @@ export default function Layout() {
     <div className="layout" data-sidebar-expanded={expanded} ref={layoutRef}>
       <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
       
-      <aside className="sidebar" ref={sidebarRef}>
+      <aside className="sidebar" ref={sidebarRef} data-tooltip-disabled>
         <div className="sidebar-top">
-        <Link to="/dashboard" className="sidebar-brand" aria-label="Ludora — visão geral">
-          <Brand />
+        <Link to="/dashboard" className="sidebar-brand" aria-label="Ludora — visão geral" aria-hidden={!expanded} tabIndex={expanded ? 0 : -1}>
+          <Brand subtitle={false} />
         </Link>
         <button type="button" className="sidebar-toggle" aria-label={expanded ? 'Recolher navegação' : 'Expandir navegação'}
           aria-expanded={expanded} aria-controls="sidebar-navigation" onClick={toggleSidebar}>
@@ -112,7 +121,13 @@ export default function Layout() {
         </button>
         </div>
         
-        <span className="sidebar-label">MEU CLUBE</span>
+        <div className="sidebar-club">
+          <Link to="/clube" className="current-club" aria-label={`Ver perfil do clube ${clube?.nome || ''}`}>
+            <ClubBadge src={clube?.escudo} name={clube?.nome} size={38} />
+            <span className="current-club-copy"><strong>{clube?.nome || 'Seu clube'}</strong><small className="current-club-role">{role}</small></span>
+          </Link>
+          <Link to="/selecionar-clube" className="sidebar-club-switch" aria-label="Trocar clube"><Icon name="switchClub" size={18} /></Link>
+        </div>
         
         <nav id="sidebar-navigation" className="sidebar-nav" aria-label="Navegação principal">
           {NAV.slice(0, 4).map(item => (
@@ -124,6 +139,7 @@ export default function Layout() {
             >
               <span className="nav-icon"><Icon name={item.icon} /></span>
               <span className="nav-label">{item.label}</span>
+              {item.to === '/jogadores' && missingShirts > 0 && <span className="nav-pending-count" aria-label={`${missingShirts} jogadores sem camisa`}>{missingShirts}</span>}
             </NavLink>
           ))}
           <span className="sidebar-group-label">{gerenciaClube ? 'GESTÃO' : 'CLUBE'}</span>
@@ -143,6 +159,7 @@ export default function Layout() {
 
         <div className="sidebar-footer">
           <AccountMenu />
+          {!mobile && <Notifications />}
         </div>
       </aside>
 
@@ -157,13 +174,9 @@ export default function Layout() {
               </span>
             </Link>
 
+            <Link to="/selecionar-clube" className="mobile-club-switch" aria-label="Trocar clube"><Icon name="switchClub" size={18} /></Link>
             <div className="workspace-actions">
-              <Link to="/selecionar-clube" className="btn btn-ghost btn-sm switch-club-link" aria-label="Trocar clube">
-                <Icon name="switchClub" size={18} />
-                <span>Trocar clube</span>
-              </Link>
-              <Notifications />
-              <AccountMenu header />
+              {mobile && <Notifications />}
             </div>
           </div>
         </header>
@@ -215,6 +228,14 @@ export default function Layout() {
             )}
             </nav>
           </section>
+
+          <div className="mobile-more-account">
+            <NavLink to="/perfil" className="mobile-more-item" onClick={() => setMoreOpen(false)}>
+              <span className="mobile-more-item-icon"><Icon name="user" /></span>
+              <span>Conta e preferências</span>
+              <Icon name="chevronRight" size={18} />
+            </NavLink>
+          </div>
 
         </Modal>
       </div>, document.body)}

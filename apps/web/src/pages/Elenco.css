@@ -700,27 +700,6 @@
   .scout-search input::placeholder {
     font-size: 12px;
   }
-  .scout-page .home-controls {
-    gap: 6px;
-    padding: 0;
-    margin-bottom: 18px;
-    border: 0;
-    background: transparent;
-  }
-  .scout-page .home-phase, .scout-page .home-category-picker {
-    padding: 4px;
-    border-radius: 8px;
-    background: var(--fundo-card);
-  }
-  .scout-page .home-phase button, .scout-page .home-sub-strip button {
-    min-height: 34px;
-    font-size: 12px;
-    padding-block: 6px;
-  }
-  .scout-page .home-category-arrow {
-    width: 28px;
-    height: 34px;
-  }
   .scout-profile-filter {
     min-height: 38px;
     gap: 5px;

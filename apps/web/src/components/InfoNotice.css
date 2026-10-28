@@ -1,0 +1,35 @@
+.info-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--fundo-botao);
+}
+
+.info-notice > svg {
+  flex-shrink: 0;
+  color: var(--primaria);
+}
+.info-notice > div {
+  min-width: 0;
+}
+.info-notice strong {
+  color: var(--texto);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.info-notice-description {
+  margin-top: 4px;
+  color: var(--texto-sec);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.info-notice-description p {
+  margin: 0;
+}
+.info-notice-description p + p {
+  margin-top: 4px;
+}

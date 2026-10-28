@@ -104,13 +104,21 @@
   padding: 4px 9px;
   gap: 6px;
   border-radius: 8px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 16px;
 }
+.home-section-heading .home-live {
+  padding-inline: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+[data-theme="light"] .home-section-heading .home-live { color: var(--texto); }
 .home-live i {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
 }
 .home-main-match {
   background: var(--fundo-card);
@@ -125,11 +133,20 @@
   gap: 14px;
   color: var(--texto-sec);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 .home-match-top > span:first-child {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.home-match-competition {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+.home-match-competition > .icon {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 .home-match-venue {
   display: inline-flex;
@@ -144,7 +161,7 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 18px;
-  padding: 34px 0;
+  padding: 24px 0;
 }
 .home-team {
   display: grid;
@@ -159,6 +176,8 @@
   overflow-wrap: anywhere;
 }
 .home-team .club-badge {
+  width: 64px !important;
+  height: 64px !important;
   border: 0;
   background: var(--fundo-card-sec);
   border-radius: 12px;
@@ -170,7 +189,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: clamp(32px, 3vw, 46px);
+  font-size: clamp(34px, 3.2vw, 44px);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -376,141 +395,175 @@
 .home-history {
   margin-top: 36px;
 }
-.home-history-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.home-history-list > li {
-  min-width: 0;
-  overflow: hidden;
+.home-history-table-wrap {
+  overflow-x: auto;
   border: 1px solid var(--linha);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--fundo-card);
 }
-.home-history-match {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 18px;
-  padding: 20px;
+.home-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
 }
-.home-history-match:hover {
-  background: var(--fundo-card-claro);
+.home-history-table th {
+  padding: 14px 16px;
+  background: var(--fundo-card-sec);
+  color: var(--texto-sec);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
 }
-.home-history-match:focus-visible {
-  outline-offset: -3px;
-  border-radius: 12px;
+.home-history-table td {
+  padding: 14px 16px;
+  border-top: 1px solid var(--linha);
+  vertical-align: middle;
 }
-.home-history-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.home-history-table tbody tr:hover {
+  background: color-mix(in srgb, var(--fundo-card-sec) 45%, var(--fundo-card));
 }
-.home-history-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.home-history-meta > .icon {
-  flex-shrink: 0;
-  color: var(--primaria);
-}
-.home-history-meta time {
-  flex-shrink: 0;
-  font-size: 14px;
+.home-history-table time {
+  white-space: nowrap;
   font-weight: 500;
 }
-.home-history-meta > small {
-  min-width: 0;
+.home-history-table .history-competition {
+  max-width: 220px;
   color: var(--texto-sec);
-  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.history-table-teams {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.history-table-teams > span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 28px;
+  color: var(--texto-sec);
+}
+.history-table-teams > span > span:not(.club-badge) {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.home-history-teams {
-  display: grid;
-  gap: 8px;
-  margin-top: auto;
-}
-.home-history-team {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--texto-sec);
-}
-.home-history-team.is-club {
-  background: var(--fundo-card-sec);
-  color: var(--texto);
-}
-.home-history-team .club-badge {
+.history-table-teams .club-badge {
   flex-shrink: 0;
   border: 0;
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--fundo-card-sec);
-  color: var(--texto-sec);
-  font-size: 14px;
 }
-.home-history-team > span:not(.club-badge) {
-  flex: 1;
-  min-width: 0;
-  font-size: 14px;
-  overflow-wrap: anywhere;
-}
-.home-history-team.is-club > span:not(.club-badge) {
-  font-weight: 600;
-}
-.home-history-team small {
-  display: block;
-  width: fit-content;
-  margin-top: 4px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  background: var(--primaria);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 500;
-}
-.home-history-score {
-  flex-shrink: 0;
-  min-width: 30px;
-  margin-left: auto;
+.history-table-teams .is-club {
   color: var(--texto);
-  text-align: right;
-  font-size: 27px;
   font-weight: 600;
+}
+.history-table-score {
+  display: grid;
+  gap: 7px;
+  text-align: center;
+  font-size: 19px;
   font-variant-numeric: tabular-nums;
 }
-.home-history-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding-top: 14px;
-  border-top: 1px solid var(--linha);
+.history-table-score strong {
+  line-height: 28px;
+  font-weight: 600;
 }
-.home-history-footer > span {
+.home-history-table .history-score-cell {
+  text-align: center;
+}
+.history-venue > span,
+.history-table-link {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: var(--texto-sec);
-  font-size: 13px;
+  white-space: nowrap;
 }
-.home-history-footer > .home-history-action {
-  gap: 3px;
+.history-venue {
+  color: var(--texto-sec);
+}
+.history-table-link {
+  min-height: 36px;
   color: var(--primaria);
+  font-size: 12px;
   font-weight: 500;
+}
+.history-table-link:hover {
+  text-decoration: underline;
+}
+.history-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 1100px) {
+  .home-history-table .history-competition,
+  .home-history-table .history-venue {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .home-history-table {
+    table-layout: fixed;
+    font-size: 11px;
+  }
+  .home-history-table th,
+  .home-history-table td {
+    padding: 12px 6px;
+  }
+  .home-history-table th {
+    font-size: 10px;
+  }
+  .home-history-table th:first-child {
+    width: 70px;
+    padding-left: 12px;
+  }
+  .home-history-table td:first-child {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .home-history-table time {
+    white-space: normal;
+    line-height: 1.6;
+  }
+  .home-history-table .history-score-cell {
+    width: 35px;
+  }
+  .home-history-table th:nth-last-child(3) {
+    width: 58px;
+  }
+  .home-history-table th:last-child {
+    width: 26px;
+  }
+  .history-table-teams > span {
+    gap: 6px;
+    overflow-wrap: anywhere;
+  }
+  .history-table-teams .club-badge {
+    width: 23px !important;
+    height: 23px !important;
+  }
+  .home-history-table .home-result-tag {
+    display: inline-block;
+    padding: 4px 5px;
+    font-size: 10px;
+  }
+  .history-table-score {
+    font-size: 16px;
+  }
+  .history-table-link {
+    justify-content: center;
+    min-height: 44px;
+    width: 100%;
+  }
+  .history-table-link > span:not(.icon) {
+    display: none;
+  }
 }
 .home-result-tag {
   flex-shrink: 0;
@@ -869,65 +922,5 @@
   }
   .home-preparation {
     flex-wrap: wrap;
-  }
-}
-
-
-@media (max-width: 1100px) {
-  .home-history-list {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
-  }
-}
-@media (max-width: 760px) {
-  .home-history-match {
-    padding: 15px;
-    gap: 12px;
-  }
-  .home-history-meta {
-    gap: 6px;
-    overflow: hidden;
-  }
-  .home-history-meta > small {
-    flex: 1;
-  }
-  .home-history-team {
-    gap: 8px;
-    padding: 7px;
-  }
-  .home-history-team > span:not(.club-badge) {
-    font-size: 13px;
-  }
-  .home-history-meta time {
-    font-size: 12px;
-  }
-  .home-history-meta > small {
-    font-size: 11px;
-  }
-  .home-result-tag {
-    padding: 3px 7px;
-    border-radius: 4px;
-    font-size: 10px;
-    line-height: 15px;
-  }
-  .home-history-team small {
-    margin-top: 3px;
-    padding: 1px 5px;
-    font-size: 9px;
-    line-height: 13px;
-  }
-  .home-history-score {
-    font-size: 23px;
-  }
-  .home-history-team .club-badge {
-    width: 30px !important;
-    height: 30px !important;
-  }
-  .home-history-footer {
-    padding-top: 10px;
-    gap: 7px;
-  }
-  .home-history-footer > span {
-    font-size: 11px;
   }
 }

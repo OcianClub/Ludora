@@ -71,8 +71,9 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
       try {
         assert.equal(await dialog.locator('.notification-row').count(), 3);
         assert.equal(await dialog.getByRole('heading', { name: 'Hoje', exact: true }).count(), 1);
-        const order = await page.locator('.workspace-actions').evaluate(el => [...el.children].filter(child => child.tagName !== 'DIALOG').map(child => child.className));
-        assert.ok(order[0].includes('switch-club-link') && order[1].includes('notifications-trigger') && order[2].includes('profile-link'));
+        const notificationArea = width <= 760 ? '.workspace-actions' : '.sidebar-footer';
+        assert.equal(await page.locator(`${notificationArea} .notifications-trigger`).count(), 1);
+        assert.equal(await page.locator('.notifications-trigger').count(), 1, 'Apenas uma instância consulta os avisos');
         const centers = await dialog.locator('.notification-row').first().evaluate(el => {
           const card = el.getBoundingClientRect();
           const chevron = el.querySelector(':scope > .icon').getBoundingClientRect();
@@ -146,7 +147,8 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
     }
     const race = await setup(1366);
     try {
-      await race.page.keyboard.press('Escape');
+      await race.dialog.getByRole('button', { name: 'Fechar janela', exact: true }).click();
+      await race.dialog.waitFor({ state: 'hidden' });
       race.state.pauseGet = true;
       const paused = new Promise(resolve => { race.state.onPaused = resolve; });
       await race.page.getByRole('button', { name: /^Notificações,/ }).click();

@@ -2,6 +2,8 @@ import home from '../../../../packages/icons/src/svg/home.svg';
 import ball from '../../../../packages/icons/src/svg/bola.svg';
 import team from '../../../../packages/icons/src/svg/grupo.svg';
 import player from '../../../../packages/icons/src/svg/chuteira.svg';
+import shirt from '../../../../packages/icons/src/svg/mdi-tshirt-crew-outline.svg';
+import alert from '../../../../packages/icons/src/svg/mdi-alert-circle-outline.svg';
 import shield from '../../../../packages/icons/src/svg/escudo.svg';
 import trophy from '../../../../packages/icons/src/svg/trofeu.svg';
 import search from '../../../../packages/icons/src/svg/busca.svg';
@@ -30,11 +32,14 @@ import clock from '../../../../packages/icons/src/svg/clock.svg';
 import radar from '../../../../packages/icons/src/svg/mdi-radar.svg';
 import handshake from '../../../../packages/icons/src/svg/mdi-handshake.svg';
 
-const icons = { home, ball, team, player, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus, bell, checkAll, settings, clock, radar, handshake };
-export type IconName = keyof typeof icons | 'grid' | 'list' | 'filters' | 'table' | 'desktop' | 'phone' | 'sun' | 'moon' | 'sidebarExpand' | 'sidebarCollapse';
+const icons = { home, ball, team, player, shirt, alert, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus, bell, checkAll, settings, clock, radar, handshake };
+export type IconName = keyof typeof icons | 'grid' | 'list' | 'filters' | 'table' | 'desktop' | 'phone' | 'sun' | 'moon' | 'sidebarExpand' | 'sidebarCollapse' | 'info';
 
 // Usa os mesmos desenhos do mobile, sem depender de componentes React Native.
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+  if (name === 'info') return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+    <circle cx="12" cy="12" r="9" /><path d="M12 11v6m0-10v.1" />
+  </svg>;
   if (name === 'desktop' || name === 'phone' || name === 'sun' || name === 'moon' || name === 'sidebarExpand' || name === 'sidebarCollapse') {
     return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
       {name === 'desktop' && <><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M9 21h6m-3-4v4"/></>}

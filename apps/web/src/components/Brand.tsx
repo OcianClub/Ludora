@@ -2,8 +2,8 @@ import { useState } from 'react';
 import logo from '../../../mobile/assets/logo.svg';
 import { Icon } from './Icon';
 
-export function Brand() {
-  return <span className="brand"><img src={logo} alt="" /><span>LUDORA<small>GESTÃO ESPORTIVA</small></span></span>;
+export function Brand({ subtitle = true }: { subtitle?: boolean }) {
+  return <span className="brand"><img src={logo} alt="" /><span>LUDORA{subtitle && <small>GESTÃO ESPORTIVA</small>}</span></span>;
 }
 
 export function ClubBadge({ src, size = 44, name }: { src?: string | null; size?: number; name?: string }) {

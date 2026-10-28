@@ -1,4 +1,20 @@
 .location-field { position:relative; }
+.location-input-wrap {
+  position: relative;
+  min-width: 0;
+}
+.location-input-wrap > .icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--texto-sec);
+}
+.location-input-wrap > .field-input {
+  width: 100%;
+  padding-left: 42px;
+}
 .location-suggestions { position:relative; margin-top:4px; border:1px solid var(--borda); border-radius:6px; background:var(--fundo-card); overflow:hidden; }
 .location-suggestions [role=option] { padding:10px 12px; display:flex; flex-direction:column; gap:3px; cursor:pointer; border-bottom:1px solid var(--borda); }
 .location-suggestions [role=option][aria-selected=true] { background:var(--fundo-botao); box-shadow:inset 3px 0 var(--primaria); }

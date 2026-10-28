@@ -8,10 +8,11 @@ import { Choice, PositionBadge, POSITIONS, normalizePosition } from '../componen
 import { BirthDateField } from '../components/BirthDateField';
 import { formatCpf, digitsOnly, cleanName } from '../utils/playerForm';
 import { Icon } from '../components/Icon';
+import { InfoNotice } from '../components/InfoNotice';
 import { Link, useSearchParams } from 'react-router-dom';
 import { playerAge } from '../utils/playerAge';
 import { CategoryFilter } from '../components/CategoryFilter';
-import { HomeSwipeSurface } from '../components/HomeSwipeSurface';
+import { useClubCategory } from '../hooks/useClubCategory';
 import { CollectionSearch, CollectionFilterButton, CollectionViewToggle, CollectionFilterDialog } from '../components/CollectionToolbar';
 import './Dashboard.css';
 import '../components/ResponsiveControls.css';
@@ -29,21 +30,9 @@ const SORT_FIELDS = [
 type SortField = typeof SORT_FIELDS[number]['value'];
 type CategoryRows = { items: Jogador[]; loading: boolean; error: string };
 
-function storedSelection(clubId?: number): Record<string, string> {
-  try {
-    const saved = JSON.parse(localStorage.getItem(`ludora_jogadores_filtros_${clubId}`) || '{}');
-    return {
-      fase: saved.fase === 'BASE' ? 'BASE' : 'INICIACAO',
-      ...(Number.isSafeInteger(Number(saved.categoria)) && Number(saved.categoria) > 0 ? { categoria: String(saved.categoria) } : {}),
-    };
-  } catch {
-    return { fase: 'INICIACAO' };
-  }
-}
-
 export default function JogadoresPage() {
   const { podeGerenciar, clube } = useAuth();
-  const [params, setParams] = useSearchParams(storedSelection(clube?.id));
+  const [params, setParams] = useSearchParams();
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +66,7 @@ export default function JogadoresPage() {
   }, { replace: true, preventScrollReset: true });
   const busca = params.get('busca') || '';
   const setBusca = (value: string) => changeFilter('busca', value);
-  const tipo = params.get('fase') === 'BASE' ? 'BASE' : 'INICIACAO';
+  const { phase: tipo, selected: sharedCategory } = useClubCategory(categorias, params.get('categoria'), params.get('fase'));
   const setTipo = (value: string) => setParams(current => {
     const next = new URLSearchParams(current);
     next.set('fase', value);
@@ -85,6 +74,8 @@ export default function JogadoresPage() {
     return next;
   }, { replace: true, preventScrollReset: true });
   const [modal, setModal] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const savingRef = useRef(false);
   useEffect(() => {
     if ((!modal && !filtersOpen) || !window.visualViewport) return;
     const viewport = window.visualViewport;
@@ -153,17 +144,13 @@ export default function JogadoresPage() {
   const [notice, setNotice] = useState('');
   const [origin, setOrigin] = useState<Categoria | null>(null);
   const [counts, setCounts] = useState<{ categoria_id: number; total: number; semCamisa: number }[]>([]);
-  const categoryFilter = params.get('categoria') || '';
+  const categoryFilter = sharedCategory ? String(sharedCategory.id) : '';
   const requestedPage = Number(params.get('pagina') || 1);
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const baseQuery = new URLSearchParams({ busca, posicao: position, camisa: shirtFilter, ordem: order, ordenar_por: sortField, fase: tipo }).toString();
   const tableScope = `${clube?.id}:${baseQuery}:${versao}`;
-  const tableScopeRef = useRef(tableScope);
-  tableScopeRef.current = tableScope;
   const tableCache = useRef(new Map<string, Jogador[]>());
   const tableMetadata = useRef<{ scope: string; counts: typeof counts; categories: Categoria[] }>();
-  const tableRequests = useRef(new Map<number, AbortController>());
-  const [, setPreviewVersion] = useState(0);
   const query = new URLSearchParams({
     busca, posicao: position, camisa: shirtFilter, ordem: order, ordenar_por: sortField, fase: tipo,
     ...(!listView && categoryFilter ? { categoria_id: categoryFilter } : {}),
@@ -177,11 +164,6 @@ export default function JogadoresPage() {
   useEffect(() => {
     tableCache.current.clear();
     tableMetadata.current = undefined;
-    const requests = tableRequests.current;
-    return () => {
-      requests.forEach(controller => controller.abort());
-      requests.clear();
-    };
   }, [tableScope]);
 
   function cacheTableRows(key: string, items: Jogador[]) {
@@ -193,7 +175,7 @@ export default function JogadoresPage() {
   useEffect(() => {
     if (previousClub.current !== clube?.id) {
       previousClub.current = clube?.id;
-      setParams(storedSelection(clube?.id), { replace: true });
+      setParams({}, { replace: true });
       setModal(false);
       return;
     }
@@ -296,6 +278,7 @@ export default function JogadoresPage() {
   }, [form.dtNasc, modal, clube?.id]);
 
   function abrir(categoria: Categoria | null = null) {
+    setReviewOpen(false);
     setOrigin(categoria);
     setErro(''); setConflito(null); setPrevisao(null); setForm(FORM_VAZIO);
     setModal(true);
@@ -305,11 +288,23 @@ export default function JogadoresPage() {
     setForm(f => ({ ...f, [campo]: sanitized })); setConflito(null); setErro('');
   }
   const categoriaPronta = previsao?.nascimento === form.dtNasc ? previsao : null;
+  function validarAluno() {
+    if (!form.nome.trim()) return 'Informe o nome completo do aluno.';
+    if (digitsOnly(form.cpf).length !== 11) return 'Informe os 11 dígitos do CPF.';
+    if (!categoriaPronta) return erroCategoria || 'Selecione uma data de nascimento válida e aguarde a identificação da categoria.';
+    if (form.numCamisa && (Number(form.numCamisa) < 1 || Number(form.numCamisa) > 99)) return 'A camisa deve estar entre 1 e 99.';
+    return '';
+  }
+  function revisarAluno() {
+    const validation = validarAluno();
+    setErro(validation);
+    if (!validation) setReviewOpen(true);
+  }
   async function salvar(confirmacao?: ConflitoCamisa) {
-    if (salvando || !categoriaPronta) return;
-    if (!form.nome.trim()) { setErro('Informe o nome completo do aluno.'); return; }
-    if (digitsOnly(form.cpf).length !== 11) { setErro('Informe os 11 dígitos do CPF.'); return; }
-    if (form.numCamisa && (Number(form.numCamisa) < 1 || Number(form.numCamisa) > 99)) { setErro('A camisa deve estar entre 1 e 99.'); return; }
+    if (savingRef.current) return;
+    const validation = validarAluno();
+    if (validation || !categoriaPronta) { setErro(validation); setReviewOpen(false); return; }
+    savingRef.current = true;
     setErro(''); setSalvando(true);
     try {
       const dados: DadosJogador = { nome: form.nome, dtNasc: form.dtNasc, posicao: form.posicao,
@@ -318,47 +313,25 @@ export default function JogadoresPage() {
         ...(confirmacao ? { confirmar_camisa: { jogador_id: confirmacao.jogador_id, camisa_anterior: confirmacao.camisa_anterior } } : {}) };
       await criarJogador(dados);
       setNotice('Aluno salvo com sucesso.');
+      setReviewOpen(false);
       setParams({ fase: categoriaPronta.categoria.tipo, categoria: String(categoriaPronta.categoria.id) }, { replace: true });
       setModal(false);
       setVersao(v => v + 1);
     } catch (err) {
-      if (err instanceof ErroJogador && err.conflito) setConflito(err.conflito);
+      if (err instanceof ErroJogador && err.conflito) { setConflito(err.conflito); setReviewOpen(false); }
       else { setConflito(null); setErro(err instanceof Error ? err.message : 'Não foi possível salvar'); }
-    } finally { setSalvando(false); }
+    } finally { savingRef.current = false; setSalvando(false); }
   }
 
   const blocos = categorias.filter(c => c.tipo === tipo).sort((a, b) =>
     Number(a.nome.replace(/\D/g, '')) - Number(b.nome.replace(/\D/g, '')));
-  const displayed = listView ? blocos : blocos.filter(category => !categoryFilter || String(category.id) === categoryFilter);
+  const displayed = blocos.filter(category => !categoryFilter || String(category.id) === categoryFilter);
   const totals = counts.filter(count => displayed.some(category => category.id === count.categoria_id));
   const total = totals.reduce((sum, count) => sum + count.total, 0);
   const missingShirts = totals.reduce((sum, count) => sum + count.semCamisa, 0);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const selectedCategory = blocos.find(category => String(category.id) === categoryFilter);
   const categoryIndex = selectedCategory ? blocos.indexOf(selectedCategory) : 0;
-  useEffect(() => {
-    if (loading || erroLista || !selectedCategory) return;
-    for (const neighbor of [blocos[categoryIndex - 1], blocos[categoryIndex + 1]]) {
-      if (!neighbor) continue;
-      if (listView) {
-        if (!categoryRows[neighbor.id]) void loadSub(neighbor.id);
-        continue;
-      }
-      if (tableCache.current.has(`${neighbor.id}:1`) || tableRequests.current.has(neighbor.id)) continue;
-      const controller = new AbortController();
-      tableRequests.current.set(neighbor.id, controller);
-      const search = new URLSearchParams(baseQuery);
-      search.set('categoria_id', String(neighbor.id));
-      search.set('limite', String(PAGE_SIZE));
-      requestJson<Jogador[]>(`/jogadores?${search}`, { signal: controller.signal }).then(items => {
-        if (controller.signal.aborted || tableScopeRef.current !== tableScope) return;
-        cacheTableRows(`${neighbor.id}:1`, items);
-        setPreviewVersion(version => version + 1);
-      }).catch(() => {}).finally(() => {
-        if (tableRequests.current.get(neighbor.id) === controller) tableRequests.current.delete(neighbor.id);
-      });
-    }
-  }, [tableScope, selectedCategory?.id, categoryIndex, loading, erroLista, listView]);
   useEffect(() => {
     if (loading || erroLista) return;
     if ((!selectedCategory && blocos.length > 0) || (!listView && page > pages)) {
@@ -370,6 +343,11 @@ export default function JogadoresPage() {
       }, { replace: true, preventScrollReset: true });
     }
   }, [loading, erroLista, selectedCategory?.id, blocos[0]?.id, listView, page, pages, setParams]);
+  useEffect(() => {
+    if (!listView || !selectedCategory || loading || erroLista) return;
+    setExpandedSubs([selectedCategory.id]);
+    if (!categoryRows[selectedCategory.id]) void loadSub(selectedCategory.id);
+  }, [listView, selectedCategory?.id, categoryScope, loading, erroLista]);
   const filtered = Boolean(busca || position || shirtFilter);
   const extraFilterCount = [position, shirtFilter].filter(Boolean).length;
   function clearFilters() {
@@ -410,13 +388,13 @@ export default function JogadoresPage() {
     const jogadores = cached || (offset === 0 ? currentPlayers : []);
     const loading = offset === 0 ? currentLoading && !cached : !listView && !cached;
     const expandedSubs = offset === 0 ? openedSubs : [selectedCategory.id];
-    const total = counts.filter(count => listView || count.categoria_id === selectedCategory.id).reduce((sum, count) => sum + count.total, 0);
+    const total = counts.filter(count => count.categoria_id === selectedCategory.id).reduce((sum, count) => sum + count.total, 0);
     const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     return (
     <section className={`alunos-directory${listView ? ' alunos-directory--list' : ''}`} aria-labelledby={`alunos-list-heading-${selectedCategory.id}`} aria-busy={loading}>
       <h2 id={`alunos-list-heading-${selectedCategory.id}`} className="sr-only" tabIndex={-1} ref={offset === 0 ? listHeading : undefined}>Lista de jogadores</h2>
       {erroLista ? <div role="alert" className="alunos-error">{erroLista}<Btn variant="ghost" onClick={() => setVersao(v => v + 1)}>Tentar novamente</Btn></div> : loading && (!jogadores.length || listView) ? <Spinner /> : listView ? <div className="alunos-sub-list">
-        {blocos.map(category => {
+        {blocos.filter(category => category.id === selectedCategory.id).map(category => {
           const rows = categoryRows[category.id];
           const count = counts.find(value => value.categoria_id === category.id)?.total || 0;
           const expanded = expandedSubs.includes(category.id);
@@ -452,11 +430,9 @@ export default function JogadoresPage() {
             {sortHeader('nome', 'Jogador')}
             {sortHeader('posicao', 'Posição')}
             {sortHeader('idade', 'Idade')}
-            {sortHeader('categoria', 'Categoria')}
             <th scope="col"><span className="sr-only">Acessar ficha</span></th>
           </tr></thead>
           <tbody>{jogadores.map(aluno => {
-            const categoryName = categorias.find(category => category.id === aluno.categoria_id)?.nome.toUpperCase() || '—';
             const age = playerAge(aluno.dtNasc);
             const ageLabel = Number.isFinite(age) ? `${age} anos` : 'Idade não informada';
             return <tr key={aluno.id}>
@@ -466,7 +442,6 @@ export default function JogadoresPage() {
               </td>
               <td className="alunos-cell-position"><span><PositionBadge position={aluno.posicao}/>{normalizePosition(aluno.posicao)}</span></td>
               <td className="alunos-cell-age">{ageLabel}</td>
-              <td className="alunos-cell-category">{categoryName}</td>
               <td className="alunos-cell-open"><Link className="student-open" to={`/jogadores/${aluno.id}`} state={{ from: `/jogadores?${params}` }} aria-label={`Abrir perfil de ${aluno.nome}`}><Icon name="chevronRight" size={18}/></Link></td>
             </tr>;
           })}</tbody>
@@ -491,16 +466,10 @@ export default function JogadoresPage() {
   }
 
   return <div className="alunos-page">
-    <HomeSwipeSurface swipeFromButtons categoryId={selectedCategory?.id || blocos[0]?.id} categoryIndex={categoryIndex}
-      canPrevious={categoryIndex > 0} canNext={categoryIndex < blocos.length - 1}
-      onStep={direction => { const next = blocos[categoryIndex + direction]; if (next) chooseSub(String(next.id), false); }}
-      renderPage={renderCategory}
-      footer={!blocos.length ? loading ? <Spinner /> : <p className="alunos-sub-message">{erroLista || 'Nenhuma categoria disponível neste grupo.'}</p> : undefined}>
     <div className="page-header">
       <div><h1 className="page-title">Jogadores</h1><p className="page-sub">Cadastros, camisas e categorias do {clube?.nome}.</p></div>
-      {podeGerenciar && <Btn aria-label="+ Adicionar aluno" onClick={() => abrir(selectedCategory)}><Icon name="plus" size={16} />Adicionar aluno</Btn>}
+      {podeGerenciar && <Btn className="alunos-add" aria-label="+ Adicionar aluno" onClick={() => abrir(selectedCategory)}><Icon name="plus" size={16} /><span className="alunos-add-label">Adicionar aluno</span></Btn>}
     </div>
-    <section className="alunos-controls" aria-label="Filtros de jogadores">
     <CategoryFilter
       categories={categorias}
       phase={tipo}
@@ -514,16 +483,11 @@ export default function JogadoresPage() {
       <CollectionFilterButton className="alunos-filter-toggle" count={extraFilterCount} onClick={openFilters} />
       <div className="alunos-extra-filters">
       <Choice label="Posição" value={position} onChange={setPosition} options={[{value:'',label:'Todas'},...POSITIONS.map(value=>({value,label:value}))]} />
-      <Choice label="Camisa" value={shirtFilter} onChange={setShirtFilter} options={[{value:'',label:'Todas'},{value:'missing',label:'Sem número'},{value:'assigned',label:'Com número'}]} />
-      <Choice label="Ordenar" value={manualSort ? `${sortField}:${order}` : 'default'} onChange={value => { if (value === 'default') { resetSort(); return; } const [field, direction] = value.split(':'); setSort(field, direction); }} options={[{ value: 'default', label: 'Padrão' }, ...SORT_FIELDS.flatMap(field => [
-        { value: `${field.value}:asc`, label: `${field.label} ${['nome', 'posicao'].includes(field.value) ? 'A–Z' : 'crescente'}` },
-        { value: `${field.value}:desc`, label: `${field.label} ${['nome', 'posicao'].includes(field.value) ? 'Z–A' : 'decrescente'}` },
-      ])]} />
+      <button className="alunos-missing-chip" type="button" aria-pressed={shirtFilter === 'missing'} onClick={() => setShirtFilter(shirtFilter === 'missing' ? '' : 'missing')}>Sem camisa <span>{missingShirts}</span></button>
       </div>
     </div>
-    </section>
     <div className="alunos-results-bar">
-      <p role="status">{loading ? 'Carregando jogadores…' : erroLista ? 'Consulta indisponível' : <><strong>{total} {total === 1 ? 'jogador' : 'jogadores'}</strong><span>{missingShirts} sem camisa · {displayed.length} {displayed.length === 1 ? 'categoria' : 'categorias'}</span></>}</p>
+      <p role="status">{loading ? 'Carregando jogadores…' : erroLista ? 'Consulta indisponível' : <><strong>{total} {total === 1 ? 'jogador' : 'jogadores'}</strong><span>{selectedCategory?.nome.toUpperCase()}</span></>}</p>
       {filtered && <button type="button" className="alunos-clear" onClick={clearFilters}>Limpar filtros</button>}
       <CollectionViewToggle className="alunos-view-toggle" value={listView ? 'lista' : 'tabela'} onChange={value => setView(value === 'lista' ? 'lista' : 'tabela')}
         options={[{ value: 'tabela', label: 'Tabela', icon: 'table' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />
@@ -533,7 +497,8 @@ export default function JogadoresPage() {
       {shirtFilter && <button type="button" onClick={() => setShirtFilter('')} aria-label="Remover filtro de camisa">{shirtFilter === 'missing' ? 'Sem camisa' : 'Com camisa'}<span aria-hidden="true">×</span></button>}
     </div>}
     {notice && <div className="collection-notice" role="status">{notice}</div>}
-    </HomeSwipeSurface>
+    {renderCategory(0)}
+    {!blocos.length && (loading ? <Spinner /> : <p className="alunos-sub-message">{erroLista || 'Nenhuma categoria disponível neste grupo.'}</p>)}
 
     <CollectionFilterDialog open={filtersOpen} className="alunos-filter-dialog" title="Filtrar jogadores" onClose={() => setFiltersOpen(false)}
       onClear={() => setDraftFilters({ position: '', shirt: '', sort: 'default', direction: 'asc' })} onApply={applyFilters} applyLabel="Aplicar filtros">
@@ -545,16 +510,19 @@ export default function JogadoresPage() {
       ].map(group => <fieldset className="alunos-filter-group" key={group.label}><legend>{group.label}</legend><div>{group.options.map(option => <button key={option.value} type="button" aria-pressed={group.value === option.value} onClick={() => group.change(option.value)}>{option.label}{group.value === option.value && <Icon name="checkAll" size={16}/>}</button>)}</div></fieldset>)}
     </CollectionFilterDialog>
 
-    <Modal open={modal} className="alunos-create-dialog" onClose={() => { if (!salvando) setModal(false); }} title="Adicionar aluno" footer={<div className="alunos-footer"><Btn variant="ghost" type="button" disabled={salvando} onClick={() => setModal(false)}>Cancelar</Btn>
+    <Modal open={modal && !reviewOpen} className="alunos-create-dialog" onClose={() => { if (!salvando) setModal(false); }} title="Adicionar aluno" footer={<div className="alunos-footer"><Btn variant="ghost" type="button" disabled={salvando} onClick={() => setModal(false)}>Cancelar</Btn>
       {!conflito && <Btn type="submit" form="alunos-create-form" disabled={salvando || !categoriaPronta}>{salvando ? 'Salvando…' : 'Salvar aluno'}</Btn>}</div>}>
       <p className="alunos-form-intro">Cadastre o aluno no clube. A categoria será definida pela data de nascimento.</p>
-      <form id="alunos-create-form" noValidate onSubmit={e => { e.preventDefault(); void salvar(); }}>
+      <form id="alunos-create-form" noValidate onSubmit={e => { e.preventDefault(); revisarAluno(); }}>
         <fieldset disabled={salvando || !!conflito} className="form-grid alunos-fields">
           <div className="alunos-form-heading full"><h3>Dados do aluno</h3><span>Campos obrigatórios</span></div>
           <Input label="Nome completo" placeholder="Ex.: João Pedro da Silva" autoComplete="name" value={form.nome} onChange={e => alterar('nome', e.target.value)} required />
           <Input label="CPF" value={form.cpf} onChange={e => alterar('cpf', e.target.value)} required placeholder="000.000.000-00" inputMode="numeric" maxLength={14} pattern="[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}" />
           <BirthDateField value={form.dtNasc} onChange={value => alterar("dtNasc", value)} />
-          <div className="alunos-preview" role="status"><Icon name="team" size={18}/><div><strong>Categoria do aluno</strong>{origin && <p>Você abriu o cadastro pelo {origin.nome.toUpperCase()}. {categoriaPronta && (categoriaPronta.categoria.id === origin.id ? "O aluno pertence a este sub." : `Pelo nascimento, será cadastrado no ${categoriaPronta.categoria.nome.toUpperCase()}, não no ${origin.nome.toUpperCase()}.`)}</p>}<p>{categoriaPronta ? `${categoriaPronta.categoria.nome.toUpperCase()} · ${categoriaPronta.categoria.tipo === 'BASE' ? 'Base' : 'Iniciação'} · Temporada ${categoriaPronta.temporada}` : erroCategoria || (form.dtNasc ? 'Calculando categoria...' : 'Selecione dia, mês e ano para identificar o sub.')}</p></div></div>
+          <InfoNotice title="Categoria do aluno" className="alunos-category-notice">
+            {origin && <p>Cadastro aberto pelo {origin.nome.toUpperCase()}. {categoriaPronta && (categoriaPronta.categoria.id === origin.id ? 'O aluno pertence a este sub.' : `Pelo nascimento, será cadastrado no ${categoriaPronta.categoria.nome.toUpperCase()}.`)}</p>}
+            <p>{categoriaPronta ? `${categoriaPronta.categoria.nome.toUpperCase()} · ${categoriaPronta.categoria.tipo === 'BASE' ? 'Base' : 'Iniciação'} · Temporada ${categoriaPronta.temporada}` : erroCategoria || (form.dtNasc ? 'Calculando categoria...' : 'Selecione dia, mês e ano para identificar o sub.')}</p>
+          </InfoNotice>
           <div className="alunos-form-heading alunos-form-heading--section full"><h3>Dentro de campo</h3></div>
           <div className="full"><span className="field-label">Posição</span><div className="position-options" role="group" aria-label="Posição do aluno">{POSITIONS.map(value => (
             <button type="button" key={value} aria-pressed={form.posicao === value} onClick={() => alterar('posicao', value)}>
@@ -571,6 +539,20 @@ export default function JogadoresPage() {
         </div>}
         {erro && <p className="alunos-error" role="alert">{erro}</p>}
       </form>
+    </Modal>
+    <Modal open={reviewOpen && modal} className="alunos-review-dialog" title="Revisar aluno" onClose={() => { if (!salvando) setReviewOpen(false); }}
+      footer={<div className="alunos-footer"><Btn variant="ghost" disabled={salvando} onClick={() => setReviewOpen(false)}>Voltar e editar</Btn><Btn disabled={salvando} onClick={() => void salvar()}><Icon name="checkAll" size={17}/>{salvando ? 'Salvando…' : 'Confirmar e salvar'}</Btn></div>}>
+      <p className="alunos-form-intro">Confira os dados e a categoria. O aluno só será cadastrado após sua confirmação.</p>
+      <InfoNotice title={categoriaPronta?.categoria.nome.toUpperCase() || 'Categoria do aluno'}>{categoriaPronta?.categoria.tipo === 'BASE' ? 'Base' : 'Iniciação'} · Temporada {categoriaPronta?.temporada}</InfoNotice>
+      <dl className="alunos-review-details">
+        <div><dt>Clube</dt><dd>{clube?.nome}</dd></div>
+        <div><dt>Nome completo</dt><dd>{form.nome}</dd></div>
+        <div><dt>CPF</dt><dd>{form.cpf}</dd></div>
+        <div><dt>Nascimento</dt><dd>{form.dtNasc.split('-').reverse().join('/')}</dd></div>
+        <div><dt>Posição</dt><dd><PositionBadge position={form.posicao} showLabel /></dd></div>
+        <div><dt>Camisa</dt><dd>{form.numCamisa || 'Ainda não definida'}</dd></div>
+      </dl>
+      {erro && <p className="alunos-error" role="alert">{erro}</p>}
     </Modal>
   </div>;
 }

@@ -17,6 +17,7 @@ export function formatMatchDate(value: string) {
 export function MatchCard({ partida: p, featured = false, actions, compactLive = false }: { partida: Partida; featured?: boolean; actions?: ReactNode; compactLive?: boolean }) {
   const navigate = useNavigate();
   const hasScore = p.status === 'AO_VIVO' || p.status === 'FINALIZADA';
+  const result = p.emCasa ? p.gols_mandante - p.gols_visitante : p.gols_visitante - p.gols_mandante;
   const openMatch = () => navigate(`/partidas/${p.id}`);
   const ignoreNestedAction = (target: EventTarget | null) => target instanceof Element && !!target.closest('a, button, input, select, textarea');
   return <article className={`match-card match-card-interactive${featured ? ' match-card-featured' : ''}${p.status === 'AO_VIVO' ? ' match-card-live' : ''}`}
@@ -28,7 +29,7 @@ export function MatchCard({ partida: p, featured = false, actions, compactLive =
       <div className="match-card-badges">
         {compactLive && p.status === 'AO_VIVO'
           ? <span className="match-live-indicator" role="img" aria-label="Partida ao vivo" title="Partida ao vivo"><Icon name="live" size={19} /></span>
-          : <StatusBadge status={p.status} />}
+          : p.status === 'FINALIZADA' ? <span className={`match-result result-${result > 0 ? 'V' : result < 0 ? 'D' : 'E'}`}>{result > 0 ? 'Vitória' : result < 0 ? 'Derrota' : 'Empate'}</span> : <StatusBadge status={p.status} />}
         <span className="match-venue"><Icon name={p.emCasa ? 'home' : 'bus'} size={14} />{p.emCasa ? 'Casa' : 'Fora'}</span>
       </div>
     </div>
@@ -44,6 +45,6 @@ export function MatchCard({ partida: p, featured = false, actions, compactLive =
       </div>
       <span className="match-location"><Icon name="location" size={17} />{p.local || 'Local a definir'}</span>
     </div>
-    <div className="match-card-actions"><Link className={`btn btn-${featured ? 'primary' : 'ghost'} btn-md`} to={`/partidas/${p.id}`}>{p.status === 'AO_VIVO' ? 'Acompanhar ao vivo' : 'Ver partida'}<Icon name={p.status === 'AO_VIVO' ? 'live' : 'chevronRight'} size={18} /></Link>{actions}</div>
+    <div className="match-card-actions"><Link className={`btn btn-${featured ? 'primary' : 'ghost'} btn-md`} to={`/partidas/${p.id}`}>{p.status === 'AO_VIVO' ? 'Acompanhar ao vivo' : p.status === 'FINALIZADA' ? 'Ver súmula' : 'Ver detalhes'}<Icon name={p.status === 'AO_VIVO' ? 'live' : 'chevronRight'} size={18} /></Link>{actions}</div>
   </article>;
 }

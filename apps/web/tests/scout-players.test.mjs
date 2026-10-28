@@ -17,6 +17,9 @@ test('ordenação usa a métrica escolhida e mantém ausências no fim', () => {
   assert.deepEqual(sortScout(players, 'rating').map(player => player.id), [2, 1, 3]);
   assert.deepEqual(sortScout(players, 'assists').map(player => player.id), [1, 3, 2]);
   assert.deepEqual(sortScout(players, 'shirt').map(player => player.id), [1, 2, 3]);
+  assert.deepEqual(sortScout(players, 'rating', true).map(player => player.id), [1, 2, 3]);
+  assert.deepEqual(sortScout(players, 'shirt', false).map(player => player.id), [2, 1, 3]);
+  assert.deepEqual(sortScout(players, 'goals', true).map(player => player.id), [3, 1, 2]);
   assert.deepEqual(players.map(player => player.id), [1, 2, 3]);
   assert.equal(searchScout('  João Vítor '), 'joao vitor');
 });

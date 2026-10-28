@@ -169,9 +169,9 @@ export async function fetchJogadores(): Promise<Jogador[]> {
   if (!res.ok) throw new Error('Erro ao buscar jogadores');
   return res.json();
 }
-export async function fetchJogadoresPerfis(categoria_id?: number): Promise<PerfilJogador[]> {
+export async function fetchJogadoresPerfis(categoria_id?: number, signal?: AbortSignal): Promise<PerfilJogador[]> {
   const q = categoria_id ? `?categoria_id=${categoria_id}` : '';
-  const res = await apiFetch(`/jogadores/perfis${q}`);
+  const res = await apiFetch(`/jogadores/perfis${q}`, { signal });
   if (!res.ok) throw new Error('Erro ao buscar perfis');
   const dados = await res.json();
   return dados.map((j: any) => ({
@@ -223,6 +223,7 @@ async function salvarDadosJogador(endpoint: string, method: string, dados: Dados
   const res = await apiFetch(endpoint, { method, body: JSON.stringify(dados) });
   const json = await res.json();
   if (!res.ok) throw new ErroJogador(json.error || 'Não foi possível salvar o jogador', json.conflito_camisa);
+  window.dispatchEvent(new Event('ludora:players-changed'));
   return json;
 }
 export async function criarJogador(dados: DadosJogador) {
@@ -234,6 +235,7 @@ export async function atualizarJogador(id: number, dados: DadosJogador) {
 export async function deletarJogador(id: number) {
   const res = await apiFetch(`/jogadores/${id}`, { method: 'DELETE' });
   if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro ao deletar jogador'); }
+  window.dispatchEvent(new Event('ludora:players-changed'));
   return res.json();
 }
 export async function fetchEstatisticasJogador(id: number): Promise<Estatisticas> {

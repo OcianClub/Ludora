@@ -4,12 +4,13 @@ import { fetchJogadoresPerfis, fetchCategorias, type PerfilJogador, type Categor
 import { Btn, Spinner, Empty } from '../components/UI';
 import { POSITIONS, normalizePosition } from '../components/CollectionControls';
 import { PositionIcon } from '../components/PositionIcon';
-import { FilterSelect } from '../components/FilterSelect';
 import { ScoutPlayerDetail } from '../components/ScoutPlayerDetail';
 import { CategoryFilter } from '../components/CategoryFilter';
-import { HomeSwipeSurface } from '../components/HomeSwipeSurface';
+import { FilterSelect } from '../components/FilterSelect';
+import { useClubCategory } from '../hooks/useClubCategory';
 import { CollectionSearch, CollectionFilterButton, CollectionViewToggle, CollectionFilterDialog } from '../components/CollectionToolbar';
 import { useAuth } from '../contexts/AuthContext';
+import { loadClubProfiles } from '../services/clubProfiles';
 import { Icon, type IconName } from '../components/Icon';
 import { hasAssessment, profileClass, searchScout, sortScout, SCOUT_PROFILES, SCOUT_ORDERS } from '../utils/scoutPlayers';
 import './Partidas.css';
@@ -18,6 +19,12 @@ import './Elenco.css';
 import '../components/ResponsiveControls.css';
 
 const PROFILE_ICONS: Record<string, IconName> = { Artilheiro: 'ball', Armador: 'switchClub', Paredão: 'defense' };
+
+function metricValue(player: PerfilJogador, order: string) {
+  if (order === 'rating' || order === 'name') return hasAssessment(player) ? player.nota_geral!.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—';
+  const field = { goals: 'totalGols', assists: 'totalAssistencias', saves: 'totalDefesas', games: 'totalPartidas', shirt: 'numCamisa' } as const;
+  return player[field[order as keyof typeof field]] ?? '—';
+}
 
 export default function ElencoPage() {
   const { clube } = useAuth();
@@ -35,15 +42,15 @@ export default function ElencoPage() {
   const [limit, setLimit] = useState(24);
   const profileTrack = useRef<HTMLDivElement>(null);
   const requestedCategory = params.get('categoria_id') || '';
-  const phase = categories.find(category => String(category.id) === requestedCategory)?.tipo || (params.get('fase') === 'BASE' ? 'BASE' : 'INICIACAO');
+  const { phase, selected: category } = useClubCategory(categories, requestedCategory, params.get('fase'));
   const phaseCategories = useMemo(() => categories.filter(category => category.tipo === phase).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true })), [categories, phase]);
-  const category = phaseCategories.find(item => String(item.id) === requestedCategory) || phaseCategories[0];
   const search = params.get('busca') || '';
   const position = params.get('posicao') || '';
   const profile = params.get('perfil') || '';
   const records = params.get('registros') || '';
   const assessment = params.get('avaliacao') || '';
   const order = SCOUT_ORDERS.some(item => item.value === params.get('ordem')) ? params.get('ordem')! : 'rating';
+  const ascending = params.has('direcao') ? params.get('direcao') === 'asc' : ['name', 'shirt'].includes(order);
   const list = params.get('visualizacao') === 'lista';
   const selected = players.find(player => String(player.id) === params.get('atleta')) || null;
 
@@ -61,7 +68,7 @@ export default function ElencoPage() {
     setLoading(true);
     setError('');
     setPlayers([]);
-    Promise.all([fetchJogadoresPerfis(), fetchCategorias()]).then(([data, cats]) => {
+    Promise.all([loadClubProfiles(version > 0), fetchCategorias()]).then(([data, cats]) => {
       if (active) { setPlayers(data); setCategories(cats); }
     }).catch(() => {
       if (active) setError('Não foi possível carregar o elenco. Verifique sua conexão e tente novamente.');
@@ -78,9 +85,9 @@ export default function ElencoPage() {
       && (!records || (records === 'with' ? player.totalPartidas > 0 : player.totalPartidas === 0))
       && (!assessment || hasAssessment(player) === (assessment === 'with'));
     });
-    const filtered = sortScout(matching.filter(player => !profile || (profile === 'pending' ? !hasAssessment(player) : hasAssessment(player) && player.perfil_ml === profile)), order);
+    const filtered = sortScout(matching.filter(player => !profile || (profile === 'pending' ? !hasAssessment(player) : hasAssessment(player) && player.perfil_ml === profile)), order, ascending);
     return [item.id, { categoryPlayers, matching, filtered }];
-  })), [players, phaseCategories, search, position, records, assessment, profile, order]);
+  })), [players, phaseCategories, search, position, records, assessment, profile, order, ascending]);
   const filterKey = [category?.id, search, position, profile, records, assessment, order].join('|');
   useEffect(() => setLimit(24), [filterKey]);
   useEffect(() => {
@@ -118,22 +125,26 @@ export default function ElencoPage() {
     const category = item;
     const overviewTitle = `scout-overview-title-${item.id}`;
     return <div className="scout-category-content">
-      <div data-swipe-ignore ref={offset === 0 ? profileTrack : undefined} className="scout-profile-filters" role="group" aria-label="Perfil de desempenho">{['', ...SCOUT_PROFILES, 'pending'].map(value => {
-        const count = matching.filter(player => !value || (value === 'pending' ? !hasAssessment(player) : hasAssessment(player) && player.perfil_ml === value)).length;
-        return <button key={value || 'all'} type="button" aria-pressed={profile === value} onClick={() => change({ perfil: value })} className={`scout-profile-filter profile-${value === 'Armador' ? 'playmaker' : value === 'Paredão' ? 'keeper' : 'scorer'}`}><Icon name={PROFILE_ICONS[value] || 'user'} size={18} />{value === 'pending' ? 'Não avaliados' : value || 'Todos'}<span>{count}</span></button>;
-      })}</div>
-      {!!chips.length && <div className="scout-active-filters" aria-label="Filtros ativos">{chips.map(chip => <button type="button" key={chip.key} onClick={() => change({ [chip.key]: '' })} aria-label={`Remover filtro ${chip.text}`} title={chip.text}>{chip.text}<Icon name="minus" size={14} /></button>)}<button type="button" onClick={clear}>Limpar tudo</button></div>}
-      <section className="scout-overview" aria-labelledby={overviewTitle}><div className="scout-section-heading"><h2 id={overviewTitle}>Visão da categoria</h2><span>{category.nome.toUpperCase()}</span></div>
+      <section className="scout-overview" aria-labelledby={overviewTitle}><h2 className="sr-only" id={overviewTitle}>Destaques da categoria</h2>
         <div className="scout-leaders">{leaders.map(leader => <button key={leader.field} type="button" disabled={!leader.player} onClick={() => leader.player && openPlayer(leader.player)} aria-label={leader.player ? `${leader.title}: ${leader.player.nome}, ${leader.value}${leader.tied > 1 ? `, ${leader.tied} atletas empatados` : ''}` : `${leader.title}: sem registros`}>
           <span className="scout-leader-icon"><Icon name={leader.icon as IconName} size={19} /></span><span className="scout-leader-title">{leader.title}</span><strong>{leader.player ? leader.value.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—'}</strong><span className="scout-leader-name">{leader.player?.nome || 'Sem registros'}{leader.player && leader.tied > 1 && <small>+{leader.tied - 1} empatados</small>}</span>
         </button>)}</div>
       </section>
+      <div className="scout-controls">
+        <CollectionSearch className="scout-search" id="scout-search" label="Buscar atleta" placeholder="Nome, camisa ou posição" value={search} onChange={value => change({ busca: value })} />
+        <CollectionFilterButton label="Mais filtros" onClick={() => { setDraftPosition(position); setDraftRecords(records); setDraftAssessment(assessment); setDraftOrder(order); setFiltersOpen(true); }} />
+      </div>
+      <div data-swipe-ignore ref={offset === 0 ? profileTrack : undefined} className="scout-profile-filters" role="group" aria-label="Perfil de desempenho">{['', ...SCOUT_PROFILES, 'pending'].map(value => {
+        const count = matching.filter(player => !value || (value === 'pending' ? !hasAssessment(player) : hasAssessment(player) && player.perfil_ml === value)).length;
+        return <button key={value || 'all'} type="button" aria-pressed={profile === value} onClick={() => change({ perfil: value })} className={`scout-profile-filter profile-${value === 'Armador' ? 'playmaker' : value === 'Paredão' ? 'keeper' : 'scorer'}`}>{value === 'pending' ? 'Não avaliados' : value || 'Todos'}<span>{count}</span></button>;
+      })}</div>
+      {!!chips.length && <div className="scout-active-filters" aria-label="Filtros ativos">{chips.map(chip => <button type="button" key={chip.key} onClick={() => change({ [chip.key]: '' })} aria-label={`Remover filtro ${chip.text}`} title={chip.text}>{chip.text}<Icon name="minus" size={14} /></button>)}<button type="button" onClick={clear}>Limpar tudo</button></div>}
       <div className="scout-section-heading scout-athletes-heading">
-        <div><h2>Atletas</h2><p role="status">{filtered.length} de {categoryPlayers.length} atletas · {category?.nome.toUpperCase()}</p></div>
+        <div className="scout-athlete-count"><h2>Atletas</h2><p role="status">{filtered.length} de {categoryPlayers.length} · {category?.nome.toUpperCase()}</p></div>
         <CollectionViewToggle className="schedule-view-toggle" label="Visualização do elenco" value={list ? 'lista' : 'cards'} onChange={value => change({ visualizacao: value === 'lista' ? 'lista' : '' })}
           options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />
       </div>
-      <div data-swipe-ignore className="scout-order-tabs" role="group" aria-label="Ordenar atletas">{SCOUT_ORDERS.map(item => <button type="button" key={item.value} aria-pressed={order === item.value} onClick={() => change({ ordem: item.value })}>{item.label}</button>)}</div>
+      <div data-swipe-ignore className="scout-order-tabs" role="group" aria-label="Ordenar atletas"><span className="scout-order-label">↕ Ordenar por</span>{SCOUT_ORDERS.map(item => <button type="button" key={item.value} aria-pressed={order === item.value} aria-label={`${item.label}${order === item.value ? ascending ? ', crescente' : ', decrescente' : ''}`} onClick={() => change({ ordem: item.value, direcao: order === item.value ? (ascending ? 'desc' : 'asc') : (['name', 'shirt'].includes(item.value) ? 'asc' : 'desc') })}>{item.label}{order === item.value && <span aria-hidden="true">{ascending ? ' ↑' : ' ↓'}</span>}</button>)}</div>
       <p className="scout-data-note">Totais acumulados · índice calculado com os registros disponíveis.</p>
       {!filtered.length ? <div className="scout-empty"><Empty icon="👥" message={categoryPlayers.length ? 'Nenhum atleta corresponde aos filtros.' : 'Nenhum atleta cadastrado nesta categoria.'} />{!!chips.length && <Btn variant="ghost" onClick={clear}>Limpar filtros</Btn>}</div> : <>
         {list && <div className="scout-list-head" aria-hidden="true"><span>Atleta · Índice</span><span>Perfil · Escalações · Gols · Assistências / Defesas</span></div>}
@@ -143,7 +154,7 @@ export default function ElencoPage() {
           return <article key={player.id} className={`scout-player scout-tone-${profileClass(player)}`}>
             <button className="scout-player-main" type="button" onClick={() => openPlayer(player)} aria-label={`Ver ficha de ${player.nome}`}>
               <span className="scout-shirt">{player.numCamisa != null ? `#${player.numCamisa}` : '—'}</span><span className="scout-player-identity"><strong>{player.nome}</strong><span className="position-inline"><PositionIcon position={player.posicao}/>{normalizePosition(player.posicao) || 'Posição não informada'}{player.idade != null ? ` · ${player.idade} anos` : ''}</span></span>
-              <span className="scout-rating"><span>Índice</span><strong>{assessed ? player.nota_geral!.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—'}</strong></span><Icon name="chevronRight" size={18} />
+              <span className="scout-rating"><span>{order === 'name' ? 'Índice' : SCOUT_ORDERS.find(item => item.value === order)?.label || 'Índice'}</span><strong>{metricValue(player, order)}</strong></span><Icon name="chevronRight" size={18} />
             </button>
             <div className="scout-player-bottom"><span className="scout-profile-label">{assessed ? player.perfil_ml : 'Não avaliado'}</span><dl className="scout-player-metrics"><div><dt>Escalações</dt><dd>{player.totalPartidas}</dd></div><div><dt>Gols</dt><dd>{player.totalGols}</dd></div><div><dt>{keeper ? 'Defesas' : 'Assistências'}</dt><dd>{keeper ? player.totalDefesas : player.totalAssistencias}</dd></div></dl></div>
           </article>;
@@ -155,13 +166,6 @@ export default function ElencoPage() {
 
   return <div className="scout-page">
     <div className="page-header"><div><span className="scout-eyebrow">ANÁLISE DO ELENCO</span><h1 className="page-title">Scout dos jogadores</h1><p className="page-sub">Compare os registros e acompanhe os atletas de cada categoria.</p></div></div>
-    <HomeSwipeSurface swipeFromButtons categoryId={category?.id} categoryIndex={categoryIndex}
-      canPrevious={phaseCategories.indexOf(category!) > 0}
-      canNext={!!category && phaseCategories.indexOf(category) < phaseCategories.length - 1}
-      onStep={direction => {
-        const next = phaseCategories[phaseCategories.indexOf(category!) + direction];
-        if (next) change({ categoria_id: String(next.id), atleta: '' });
-      }} renderPage={renderCategory}>
       <CategoryFilter categories={phaseCategories} phase={phase} selected={category}
         label="Subcategoria do scout"
         hint="Deslize o conteúdo para trocar o sub ou use as setas do teclado."
@@ -170,16 +174,11 @@ export default function ElencoPage() {
           const next = phaseCategories.find(item => item.nome === name);
           if (next) change({ categoria_id: String(next.id), atleta: '' });
         }} />
-      <div className="scout-controls">
-        <CollectionSearch className="scout-search" id="scout-search" label="Buscar atleta" placeholder="Nome, camisa ou posição" value={search} onChange={value => change({ busca: value })} />
-        <div className="scout-desktop-position"><FilterSelect label="Posição" emptyLabel="Todas" options={POSITIONS.map(value => ({ value, label: value }))} value={position} onChange={value => change({ posicao: value })} /></div>
-        <CollectionFilterButton label="Mais filtros" onClick={() => { setDraftPosition(position); setDraftRecords(records); setDraftAssessment(assessment); setDraftOrder(order); setFiltersOpen(true); }} />
-      </div>
       {loading ? <div className="scout-loading" role="status" aria-label="Carregando elenco">{[1, 2, 3, 4, 5, 6].map(id => <div className="scout-skeleton" key={id} />)}</div> : error ? <div role="alert" className="notice-error"><p>{error}</p><Btn variant="ghost" onClick={() => setVersion(value => value + 1)}>Tentar novamente</Btn></div> : null}
-    </HomeSwipeSurface>
+      {!loading && !error && renderCategory(0)}
     <CollectionFilterDialog open={filtersOpen} title="Filtrar elenco" className="scout-filter-dialog" onClose={() => setFiltersOpen(false)}
       onClear={() => { setDraftPosition(''); setDraftRecords(''); setDraftAssessment(''); setDraftOrder('rating'); }}
-      onApply={() => { change({ posicao: draftPosition, registros: draftRecords, avaliacao: draftAssessment, ordem: draftOrder }); setFiltersOpen(false); }}>
+      onApply={() => { change({ posicao: draftPosition, registros: draftRecords, avaliacao: draftAssessment, ordem: draftOrder, direcao: ['name', 'shirt'].includes(draftOrder) ? 'asc' : 'desc' }); setFiltersOpen(false); }}>
       <fieldset className="scout-filter-options"><legend>Posição</legend>{['', ...POSITIONS].map(value => <button type="button" key={value} aria-pressed={draftPosition === value} onClick={() => setDraftPosition(value)}>{value || 'Todas'}</button>)}</fieldset>
       <fieldset className="scout-filter-options"><legend>Participação</legend>{[{ value: '', label: 'Todos' }, { value: 'with', label: 'Com escalações' }, { value: 'without', label: 'Sem escalações' }].map(item => <button type="button" key={item.value} aria-pressed={draftRecords === item.value} onClick={() => setDraftRecords(item.value)}>{item.label}</button>)}</fieldset>
       <fieldset className="scout-filter-options"><legend>Avaliação</legend>{[{ value: '', label: 'Todos' }, { value: 'with', label: 'Com avaliação' }, { value: 'without', label: 'Não avaliados' }].map(item => <button type="button" key={item.value} aria-pressed={draftAssessment === item.value} onClick={() => setDraftAssessment(item.value)}>{item.label}</button>)}</fieldset>

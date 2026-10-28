@@ -43,6 +43,7 @@ export function TooltipLayer() {
     const show = (event: Event) => {
       if (event instanceof PointerEvent && event.pointerType === 'touch') return;
       const element = (event.target as Element)?.closest<HTMLElement>('[data-tooltip], button[aria-label], a[aria-label]');
+      if (element?.closest('[data-tooltip-disabled]') && !element.closest('dialog')) { close(); return; }
       if (element) showFor(element);
     };
     const scroll = () => {

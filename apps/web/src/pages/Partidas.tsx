@@ -5,18 +5,18 @@ import { Btn, Modal, Input, Spinner } from '../components/UI';
 import { ClubBadge } from '../components/Brand';
 import { useAuth } from '../contexts/AuthContext';
 import { MatchCard, formatMatchDate } from '../components/MatchCard';
-import { Icon } from '../components/Icon';
+import { Icon, type IconName } from '../components/Icon';
 import { BlockColumns } from '../components/BlockColumns';
 import { FilterSelect } from '../components/FilterSelect';
-import { LiveMatchesCarousel } from '../components/LiveMatchesCarousel';
 import { SchedulePeriodDialog } from '../components/SchedulePeriodDialog';
 import { intervaloAgenda, grupoSituacao, ordenarAgenda, rotuloDiaAgenda, agruparAgenda, type PeriodoAgenda } from '../utils/scheduleFilters';
 import { teamName } from '../utils/teamIdentity';
 import { matchHasOwnTeam, selectMatchTeam } from '../utils/matchTeams';
 import { CategoryFilter as HomeCategories } from '../components/CategoryFilter';
-import { HomeSwipeSurface } from '../components/HomeSwipeSurface';
+import { useClubCategory } from '../hooks/useClubCategory';
 import { MatchDateField, MatchTimeField } from '../components/MatchDateTime';
 import { LocationInput } from '../components/LocationInput';
+import { InfoNotice } from '../components/InfoNotice';
 import { CollectionSearch, CollectionFilterButton, CollectionViewToggle, CollectionFilterDialog } from '../components/CollectionToolbar';
 import './Partidas.css';
 import './ScheduleCreate.css';
@@ -24,6 +24,7 @@ import './Dashboard.css';
 import '../components/ResponsiveControls.css';
 
 const STATUSES = [
+  { value: 'TODAS', label: 'Todos' },
   { value: 'PROXIMAS', label: 'Próximas (agendadas e preparadas)' },
   { value: 'AGENDADA', label: 'Agendada' },
   { value: 'PREPARADA', label: 'Preparada' },
@@ -32,6 +33,7 @@ const STATUSES = [
   { value: 'CANCELADA', label: 'Cancelada' },
 ];
 const LEGEND = [
+  { id: 'all', value: 'TODAS', label: 'Todos', icon: 'ball' },
   { id: 'live', value: 'AO_VIVO', label: 'Ao vivo', icon: 'live' },
   { id: 'next', value: 'PROXIMAS', label: 'Próximas', icon: 'clock' },
   { id: 'past', value: 'FINALIZADA', label: 'Finalizadas', icon: 'checkAll' },
@@ -64,44 +66,54 @@ function FilterChoices({ label, value, options, onChange, className = '' }: {
   </fieldset>;
 }
 
-function ScheduleSection({ title, description, matches, initialOpen, renderMatch, list, groupDays = false }: {
-  title: string;
-  description: string;
+function ScheduleResults({ matches, renderMatch, list, grouped }: {
   matches: Partida[];
-  initialOpen: boolean;
-  renderMatch: (partida: Partida) => ReactNode;
+  renderMatch: (match: Partida) => ReactNode;
   list: boolean;
-  groupDays?: boolean;
+  grouped: boolean;
+}) {
+  const [limit, setLimit] = useState(48);
+  const groups = new Map<string, Partida[]>();
+  matches.slice(0, limit).forEach(match => {
+    const key = grouped ? match.data.slice(0, 7) : 'live';
+    groups.set(key, [...(groups.get(key) || []), match]);
+  });
+  return <div className={`schedule-results${list ? ' schedule-list' : ''}`}>
+    {[...groups].map(([day, games]) => <section className="schedule-date-group" key={day}>
+      {grouped && <h2>{new Date(`${day}-01T12:00:00Z`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>}
+      <div className={`schedule-match-grid${list ? ' is-list' : ''}`}>{games.map(renderMatch)}</div>
+    </section>)}
+    {matches.length > limit && <Btn variant="ghost" className="schedule-show-more" onClick={() => setLimit(value => value + 48)}>Mostrar mais partidas ({matches.length - limit})</Btn>}
+  </div>;
+}
+
+function ScheduleAccordion({ title, icon, matches, initialOpen = false, renderMatch, list }: {
+  title: string;
+  icon: IconName;
+  matches: Partida[];
+  initialOpen?: boolean;
+  renderMatch: (match: Partida) => ReactNode;
+  list: boolean;
 }) {
   const [open, setOpen] = useState(initialOpen);
-  const [limit, setLimit] = useState(12);
   const id = useId();
   if (!matches.length) return null;
-  const visible = matches.slice(0, limit);
-  const days = new Map<string, Partida[]>();
-  visible.forEach(match => {
-    const day = match.data.slice(0, 10);
-    if (!days.has(day)) days.set(day, []);
-    days.get(day)!.push(match);
-  });
-  return (
-    <section className={`schedule-section${list ? ' schedule-list' : ''}`}>
-      <h2>
-        <button type="button" className="schedule-section-toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)}>
-          <span className="schedule-section-copy"><strong><Icon name="calendar" size={19} /><span className="schedule-section-title">{title}</span><span className="schedule-section-count">{matches.length}</span></strong><small>{description}</small></span>
-          <span className="schedule-section-affordance"><span>{open ? 'Recolher' : 'Expandir'}</span><span className="schedule-section-chevron"><Icon name="chevronRight" size={18} /></span></span>
-        </button>
-      </h2>
-      <div id={id} hidden={!open}>
-        {open && <>
-          {groupDays ? [...days].map(([day, games]) => <div className="schedule-history-day" key={day}>
-            <h3>{rotuloDiaAgenda(day)}</h3><BlockColumns list={list}>{games.map(renderMatch)}</BlockColumns>
-          </div>) : <BlockColumns list={list}>{visible.map(renderMatch)}</BlockColumns>}
-          {matches.length > limit && <Btn variant="ghost" className="schedule-show-more" onClick={() => setLimit(value => value + 12)}>Mostrar mais partidas ({matches.length - limit})</Btn>}
-        </>}
-      </div>
-    </section>
-  );
+  return <section className="schedule-section schedule-status-section">
+    <h2>
+      <button id={`${id}-heading`} className="schedule-section-toggle" type="button"
+        aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)}>
+        <span className="schedule-section-copy"><strong>
+          <Icon name={icon} size={18} />
+          <span className="schedule-section-title">{title}</span>
+          <span className="schedule-section-count">{matches.length}</span>
+        </strong></span>
+        <span className="schedule-section-chevron"><Icon name="chevronRight" size={17} /></span>
+      </button>
+    </h2>
+    <div id={id} hidden={!open} role="region" aria-labelledby={`${id}-heading`}>
+      {open && <ScheduleResults matches={matches} renderMatch={renderMatch} list={list} grouped={title !== 'Ao vivo'} />}
+    </div>
+  </section>;
 }
 
 export default function PartidasPage() {
@@ -114,9 +126,9 @@ export default function PartidasPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [picker, setPicker] = useState<'categoria' | 'competicao' | 'mandante' | 'visitante' | null>(null);
+  const [picker, setPicker] = useState<'categoria' | 'competicao' | 'visitante' | null>(null);
   const [pickerSearch, setPickerSearch] = useState('');
-  const [pickerPhase, setPickerPhase] = useState('INICIACAO');
+  const [draftCategoryId, setDraftCategoryId] = useState('');
   const [form, setForm] = useState(FORM_VAZIO);
   const [salvando, setSalvando] = useState(false);
   const savingRef = useRef(false);
@@ -135,14 +147,12 @@ export default function PartidasPage() {
   const [draftSort, setDraftSort] = useState('');
   const [filterError, setFilterError] = useState('');
   const loadVersion = useRef(0);
-  const filtroStatus = STATUSES.some(item => item.value === searchParams.get('status')) ? searchParams.get('status')! : '';
-  const requestedCategory = categorias.find(category => String(category.id) === searchParams.get('categoria_id'));
-  const phase = requestedCategory?.tipo || (searchParams.get('fase') === 'BASE' ? 'BASE' : 'INICIACAO');
+  const requestedStatus = STATUSES.some(item => item.value === searchParams.get('status')) ? searchParams.get('status')! : '';
+  const { phase, selected: selectedCategory } = useClubCategory(categorias, searchParams.get('categoria_id'), searchParams.get('fase'));
   const phaseCategories = useMemo(() => categorias.filter(category => category.tipo === phase)
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true })), [categorias, phase]);
-  const selectedCategory = requestedCategory || phaseCategories[0];
   const filtroCategoria = selectedCategory ? String(selectedCategory.id) : '';
-  const categoryIndex = Math.max(0, phaseCategories.indexOf(selectedCategory));
+  const categoryIndex = Math.max(0, phaseCategories.indexOf(selectedCategory!));
   const opponent = searchParams.get('busca') || '';
   const mando = searchParams.get('mando') || '';
   const period = ['today', 'week', 'month', 'custom'].includes(searchParams.get('periodo') || '') ? searchParams.get('periodo') as PeriodoAgenda : 'all';
@@ -191,7 +201,7 @@ export default function PartidasPage() {
     setDraftPeriod('');
     setDraftStart('');
     setDraftEnd('');
-    setDraftStatus('');
+    setDraftStatus(['AGENDADA', 'PREPARADA'].includes(filtroStatus) ? 'PROXIMAS' : filtroStatus);
     setDraftMando('');
     setDraftSort('');
     setFilterError('');
@@ -252,7 +262,8 @@ export default function PartidasPage() {
   function validarPartida() {
     if (!form.categoria_id) return 'Selecione a categoria da partida.';
     if (!categorias.some(category => String(category.id) === form.categoria_id)) return 'Esta categoria não está mais disponível. Selecione outra categoria.';
-    if (!form.mandante_id || !form.visitante_id) return 'Selecione os dois times do confronto.';
+    if (!ownTeam(form.categoria_id)) return 'Esta categoria precisa ter exatamente um time vinculado ao seu clube. Confira o cadastro em Times.';
+    if (!form.mandante_id || !form.visitante_id) return 'Selecione o adversário da partida.';
     if (form.mandante_id === form.visitante_id) return 'Mandante e visitante precisam ser times diferentes.';
     if (!clube || !matchHasOwnTeam(times.find(t => String(t.id) === form.mandante_id), times.find(t => String(t.id) === form.visitante_id), clube.id)) return 'O confronto precisa ter um time do seu clube e um adversário.';
     if ([form.mandante_id, form.visitante_id].some(id => !times.some(team => String(team.id) === id && String(team.categoria_id) === form.categoria_id))) return 'Os dois times precisam pertencer à categoria selecionada. Escolha os times novamente.';
@@ -303,25 +314,57 @@ export default function PartidasPage() {
 
   function openPicker(value: typeof picker) {
     setPickerSearch('');
-    if (value === 'categoria') setPickerPhase(categorias.find(c => String(c.id) === form.categoria_id)?.tipo || 'INICIACAO');
+    if (value === 'categoria') setDraftCategoryId(form.categoria_id);
     setPicker(value);
   }
-  function chooseCategory(name: string, nextPhase = pickerPhase) {
-    const category = categorias.find(c => c.nome === name && c.tipo === nextPhase);
-    if (category && String(category.id) !== form.categoria_id) setForm(f => ({ ...f, categoria_id: String(category.id), mandante_id: '', visitante_id: '', competicao_id: '', rodada: '' }));
+  function ownTeam(categoryId: string) {
+    const own = times.filter(team => String(team.categoria_id) === categoryId && team.clube_representado_id === clube?.id);
+    return own.length === 1 ? own[0] : undefined;
+  }
+  function openCreate() {
+    const own = ownTeam(filtroCategoria);
+    setForm({ ...FORM_VAZIO, categoria_id: filtroCategoria, mandante_id: own ? String(own.id) : '' });
+    setErro('');
+    setReviewOpen(false);
+    setPicker(null);
+    setModal(true);
+  }
+  function chooseCategory() {
+    const category = categorias.find(c => String(c.id) === draftCategoryId);
+    if (category && String(category.id) !== form.categoria_id) {
+      const own = ownTeam(String(category.id));
+      setForm(f => ({ ...f, categoria_id: String(category.id), mandante_id: own ? String(own.id) : '', visitante_id: '', emCasa: 'true', competicao_id: '', rodada: '' }));
+    }
+    setErro('');
+    setPicker(null);
+  }
+  function chooseTeam(teamId: number) {
+    if (!clube || !ownTeam(form.categoria_id)) return;
+    const team = times.find(item => item.id === teamId && String(item.categoria_id) === form.categoria_id);
+    if (!team || team.clube_representado_id === clube.id) return;
+    try {
+      const selection = selectMatchTeam(times, clube.id, Number(form.categoria_id), form.emCasa === 'true' ? 'visitante' : 'mandante', teamId, form);
+      setForm(f => ({ ...f, ...selection }));
+      setErro('');
+      setPicker(null);
+    } catch (error) { setErro(error instanceof Error ? error.message : 'Não foi possível selecionar o adversário.'); }
+  }
+  function changeVenue(atHome: boolean) {
+    if ((form.emCasa === 'true') === atHome) return;
+    setForm(f => ({ ...f, mandante_id: f.visitante_id, visitante_id: f.mandante_id, emCasa: String(atHome) }));
     setErro('');
   }
-  function chooseTeam(side: 'mandante' | 'visitante', teamId: number) {
-    if (!clube) return;
-    try {
-      const selection = selectMatchTeam(times, clube.id, Number(form.categoria_id), side, teamId, form);
-      setForm(f => ({ ...f, ...selection })); setErro(''); setPicker(null);
-    } catch (error) { setErro(error instanceof Error ? error.message : 'Não foi possível selecionar o time.'); }
-  }
   const formCategory = categorias.find(category => String(category.id) === form.categoria_id);
+  const categoryChoices = useMemo(() => [...categorias].sort((a, b) =>
+    Number(a.tipo === 'BASE') - Number(b.tipo === 'BASE') || a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true })), [categorias]);
   const formCompetition = competicoes.find(competition => String(competition.id) === form.competicao_id);
   const formHome = times.find(time => String(time.id) === form.mandante_id);
   const formAway = times.find(time => String(time.id) === form.visitante_id);
+  const fixedTeam = ownTeam(form.categoria_id);
+  const selectedOpponent = form.emCasa === 'true' ? formAway : formHome;
+  const availableOpponents = times.filter(team => String(team.categoria_id) === form.categoria_id && team.clube_representado_id !== clube?.id);
+  const visibleOpponents = availableOpponents.filter(team => normalizarBusca(team.nome).includes(normalizarBusca(pickerSearch)))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   const localToday = new Date();
   const minimumDate = `${localToday.getFullYear()}-${String(localToday.getMonth() + 1).padStart(2, '0')}-${String(localToday.getDate()).padStart(2, '0')}`;
   const matches = useMemo(() => {
@@ -342,15 +385,17 @@ export default function PartidasPage() {
       && (!range.inicio || day >= range.inicio)
       && (!range.fim || day <= range.fim);
   }), [matches, phase, opponent, mando, range.inicio, range.fim]);
+  const hasLive = contextualMatches.some(match => match.status === 'AO_VIVO' && (!selectedCategory || match.categoria_id === selectedCategory.id));
+  const filtroStatus = requestedStatus || (hasLive ? 'AO_VIVO' : 'PROXIMAS');
   const resultsByCategory = useMemo(() => new Map((phaseCategories.length ? phaseCategories : [undefined]).map(category => {
     const scoped = contextualMatches.filter(match => !category || match.categoria_id === category.id
       || match.categoria?.nome.toLowerCase() === category.nome.toLowerCase());
-    const filtered = scoped.filter(match => !filtroStatus || (filtroStatus === 'PROXIMAS'
+    const filtered = scoped.filter(match => filtroStatus === 'TODAS' || !filtroStatus || (filtroStatus === 'PROXIMAS'
       ? grupoSituacao(match.status) === 'next' : match.status === filtroStatus));
     const counts = scoped.reduce((total, match) => {
       total[grupoSituacao(match.status)]++;
       return total;
-    }, { live: 0, next: 0, past: 0, cancelled: 0 });
+    }, { all: scoped.length, live: 0, next: 0, past: 0, cancelled: 0 });
     const groups = agruparAgenda(filtered);
     return [category?.id ?? 0, {
       filtered, counts,
@@ -367,7 +412,7 @@ export default function PartidasPage() {
   const filterKey = [phase, filtroCategoria, filtroStatus, period, start, end, opponent, mando, sortCategory].join('|');
   const chips = [
     { id: 'search', label: opponent ? `Busca: ${opponent}` : '', clear: () => changeFilters({ busca: '' }) },
-    { id: 'status', label: STATUSES.find(status => status.value === filtroStatus)?.label || '', clear: () => changeFilters({ status: '' }) },
+    { id: 'preparation', label: ['AGENDADA', 'PREPARADA'].includes(filtroStatus) ? (filtroStatus === 'AGENDADA' ? 'Agendadas' : 'Preparadas') : '', clear: () => changeFilters({ status: 'PROXIMAS' }) },
     { id: 'period', label: period === 'custom' ? customLabel : period !== 'all' ? PERIODS.find(item => item.value === period)?.label || '' : '', clear: () => changeFilters({ periodo: '', de: '', ate: '' }) },
     { id: 'mando', label: mando === 'casa' ? 'Em casa' : mando === 'fora' ? 'Fora de casa' : '', clear: () => changeFilters({ mando: '' }) },
   ].filter(chip => chip.label);
@@ -376,7 +421,7 @@ export default function PartidasPage() {
   }
 
   function clearFilters() {
-    changeFilters({ busca: '', status: '', periodo: '', de: '', ate: '', local: '', mando: '', ordem: '' });
+    changeFilters({ busca: '', status: ['AGENDADA', 'PREPARADA'].includes(filtroStatus) ? 'PROXIMAS' : filtroStatus, periodo: '', de: '', ate: '', local: '', mando: '', ordem: '' });
   }
 
   function renderSchedule(offset: number) {
@@ -392,34 +437,26 @@ export default function PartidasPage() {
       {!!chips.length && <Btn variant="ghost" onClick={clearFilters}>Limpar filtros</Btn>}
     </div>;
     const pageKey = `${category?.id ?? 0}:${filterKey}`;
-    return <div className="schedule-results">
-      {!!result.live.length && <LiveMatchesCarousel key={pageKey} matches={result.live} renderMatch={renderMatch} />}
-      <ScheduleSection key={'today' + pageKey} title="Hoje" description="Partidas programadas para hoje"
-        matches={result.today} initialOpen renderMatch={renderMatch} list={list} />
-      <ScheduleSection key={'upcoming' + pageKey} title="A seguir" description={`Agendadas e preparadas · ${sortCategory ? 'por categoria' : 'por data e horário'}`}
-        matches={result.upcoming} initialOpen renderMatch={renderMatch} list={list} groupDays={!sortCategory} />
-      <ScheduleSection key={'overdue' + pageKey} title="Pendentes de atualização" description="Datas anteriores · confira a situação destas partidas"
-        matches={result.overdue} initialOpen={filtroStatus === 'AGENDADA' || filtroStatus === 'PREPARADA'} renderMatch={renderMatch} list={list} groupDays />
-      <ScheduleSection key={'finished' + pageKey} title="Finalizadas" description="Resultados mais recentes primeiro" matches={result.finished}
-        initialOpen={!!filtroStatus || period !== 'all' || !!opponent} renderMatch={renderMatch} list={list} groupDays />
-      <ScheduleSection key={'cancelled' + pageKey} title="Canceladas" description="Partidas que não serão realizadas" matches={result.cancelled}
-        initialOpen={filtroStatus === 'CANCELADA'} renderMatch={renderMatch} list={list} groupDays />
+    if (filtroStatus === 'TODAS') return <div className="schedule-results">
+      <ScheduleAccordion key={`live:${pageKey}`} title="Ao vivo" icon="live" matches={result.live} initialOpen renderMatch={renderMatch} list={list} />
+      <ScheduleAccordion key={`next:${pageKey}`} title="Próximas" icon="clock" matches={[...result.overdue, ...result.today, ...result.upcoming]} initialOpen renderMatch={renderMatch} list={list} />
+      <ScheduleAccordion key={`past:${pageKey}`} title="Finalizadas" icon="checkAll" matches={result.finished} renderMatch={renderMatch} list={list} />
+      <ScheduleAccordion key={`cancelled:${pageKey}`} title="Canceladas" icon="minus" matches={result.cancelled} renderMatch={renderMatch} list={list} />
     </div>;
+    const ordered = filtroStatus === 'AO_VIVO' ? result.live
+      : filtroStatus === 'FINALIZADA' ? result.finished
+      : filtroStatus === 'CANCELADA' ? result.cancelled
+      : [...result.overdue, ...result.today, ...result.upcoming];
+    return <ScheduleResults key={pageKey} matches={ordered} renderMatch={renderMatch} list={list} grouped={filtroStatus !== 'AO_VIVO'} />;
   }
 
   return (
     <div className="match-schedule">
       <div className="page-header">
         <div><span className="eyebrow">DENTRO DA QUADRA</span><h1 className="page-title">Partidas</h1><p className="page-sub">{podeGerenciar ? 'Gerencie, acompanhe e consulte os resultados das partidas do clube.' : 'Acompanhe a agenda, os placares e os resultados do clube.'}</p></div>
-        {podeGerenciar && <Btn className="schedule-desktop-new" aria-label="Nova partida" title="Nova partida" onClick={() => { setForm({ ...FORM_VAZIO, categoria_id: filtroCategoria }); setErro(''); setReviewOpen(false); setModal(true); }}><Icon name="plus" size={18} />Nova partida</Btn>}
+        {podeGerenciar && <Btn className="schedule-desktop-new" aria-label="Nova partida" title="Nova partida" onClick={openCreate}><Icon name="plus" size={18} />Nova partida</Btn>}
       </div>
 
-      <HomeSwipeSurface swipeFromButtons categoryId={selectedCategory?.id} categoryIndex={categoryIndex}
-        canPrevious={categoryIndex > 0} canNext={categoryIndex < phaseCategories.length - 1}
-        onStep={direction => {
-          const next = phaseCategories[categoryIndex + direction];
-          if (next) changeFilters({ categoria_id: String(next.id) });
-        }} renderPage={renderSchedule} footer={!selectedCategory ? renderSchedule(0) : undefined}>
       <HomeCategories categories={phaseCategories} phase={phase} selected={selectedCategory}
         label="Subcategoria das partidas"
         onPhase={value => changeFilters({ fase: value, categoria_id: '' })}
@@ -427,26 +464,37 @@ export default function PartidasPage() {
           const next = phaseCategories.find(category => category.nome === name);
           if (next) changeFilters({ categoria_id: String(next.id) });
         }} />
-      <div className="schedule-status-summary" role="group" aria-label="Filtrar por situação">
+      <div className="schedule-status-summary" role="tablist" aria-label="Filtrar por situação">
         {LEGEND.map(item => <button type="button" key={item.id}
-          aria-pressed={item.value === 'PROXIMAS' ? ['PROXIMAS', 'AGENDADA', 'PREPARADA'].includes(filtroStatus) : filtroStatus === item.value}
-          onClick={() => changeFilters({ status: (item.value === 'PROXIMAS' ? ['PROXIMAS', 'AGENDADA', 'PREPARADA'].includes(filtroStatus) : filtroStatus === item.value) ? '' : item.value })}>
-          <Icon name={item.icon} size={17} />{item.label}<span>{counts[item.id]}</span>
+          role="tab" aria-selected={item.value === 'PROXIMAS' ? ['PROXIMAS', 'AGENDADA', 'PREPARADA'].includes(filtroStatus) : filtroStatus === item.value}
+          tabIndex={(item.value === 'PROXIMAS' ? ['PROXIMAS', 'AGENDADA', 'PREPARADA'].includes(filtroStatus) : filtroStatus === item.value) ? 0 : -1}
+          onKeyDown={event => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const index = LEGEND.indexOf(item);
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? LEGEND.length - 1 : (index + (event.key === 'ArrowLeft' ? LEGEND.length - 1 : 1)) % LEGEND.length;
+            changeFilters({ status: LEGEND[next].value });
+            event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus();
+          }}
+          onClick={() => changeFilters({ status: item.value })}>
+          {item.id === 'live' && <i className="schedule-live-dot" aria-hidden="true" />}{item.label}<span>{counts[item.id]}</span>
         </button>)}
       </div>
 
       <div className="schedule-filters">
         <div className="schedule-mobile-actions">
+          <CollectionSearch className="schedule-mobile-search" label="Buscar partidas" placeholder="Time ou adversário" value={opponent} onChange={value => changeFilters({ busca: value })} />
           <CollectionFilterButton className="schedule-mobile-filter-button" count={chips.length} onClick={() => openFilters(true)} />
           <CollectionViewToggle className="schedule-view-toggle" label="Visualização das partidas" value={list ? 'lista' : 'cards'} onChange={value => changeFilters({ visualizacao: value === 'lista' ? 'lista' : '' })}
             options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />
-          {podeGerenciar && <Btn className="schedule-mobile-new" aria-label="Nova partida" title="Nova partida" onClick={() => { setForm({ ...FORM_VAZIO, categoria_id: filtroCategoria }); setErro(''); setReviewOpen(false); setModal(true); }}><Icon name="plus" size={16} />Nova partida</Btn>}
+          {podeGerenciar && <Btn className="schedule-mobile-new" aria-label="Nova partida" title="Nova partida" onClick={openCreate}><Icon name="plus" size={16} />Nova partida</Btn>}
         </div>
         <div className="schedule-filter-primary">
           <CollectionSearch className="schedule-search" id="match-search" label="Buscar time, adversário ou local" placeholder="Buscar time, adversário ou local…" value={opponent} onChange={value => changeFilters({ busca: value })} />
           <FilterSelect label="Período" emptyLabel="Todos os períodos" options={[...PERIODS.filter(item => item.value !== 'all'), { value: 'custom', label: period === 'custom' ? customLabel : 'Personalizado…' }]}
             value={period === 'all' ? '' : period} onChange={value => value === 'custom' ? setPeriodOpen(true) : changeFilters({ periodo: value, de: '', ate: '' })} />
-          <CollectionFilterButton label="Mais filtros" count={Number(!!filtroStatus) + Number(!!mando)} onClick={() => openFilters()} />
+        <FilterSelect label="Ordenar por" emptyLabel="Por horário" options={[{ value: 'categoria', label: 'Por categoria' }]} value={sortCategory ? 'categoria' : ''} onChange={value => changeFilters({ ordem: value })} />
+          <CollectionFilterButton label="Mais filtros" count={Number(['AGENDADA', 'PREPARADA'].includes(filtroStatus)) + Number(!!mando)} onClick={() => openFilters()} />
         </div>
       </div>
 
@@ -456,14 +504,13 @@ export default function PartidasPage() {
           {chips.map(chip => <button type="button" key={chip.id} onClick={chip.clear} title={chip.label} aria-label={`Remover filtro ${chip.label}`}><span>{chip.label}</span><Icon name="minus" size={14} /></button>)}
           <button type="button" className="schedule-clear" onClick={clearFilters}>Limpar tudo</button>
         </div>
-        <FilterSelect label="Ordenar por" emptyLabel="Por horário" options={[{ value: 'categoria', label: 'Por categoria' }]} value={sortCategory ? 'categoria' : ''} onChange={value => changeFilters({ ordem: value })} />
         <CollectionViewToggle className="schedule-view-toggle" label="Visualização das partidas" value={list ? 'lista' : 'cards'} onChange={value => changeFilters({ visualizacao: value === 'lista' ? 'lista' : '' })}
           options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />
       </div>
 
       {loadWarning && <div className="schedule-load-warning" role="status"><Icon name="filters" size={20} /><div><strong>Algumas opções não carregaram</strong><p>{loadWarning}</p></div><Btn variant="ghost" size="sm" onClick={carregar}>Atualizar</Btn></div>}
       {loading ? <Spinner /> : loadError ? <div className="schedule-load-error" role="alert"><span><Icon name="ball" size={26} /></span><div><strong>Não foi possível carregar a agenda</strong><p>{loadError}</p></div><Btn onClick={carregar}>Tentar novamente</Btn></div> : null}
-      </HomeSwipeSurface>
+      {renderSchedule(0)}
 
       {periodOpen && <SchedulePeriodDialog inicio={range.inicio} fim={range.fim} onClose={() => setPeriodOpen(false)}
         onApply={(inicio, fim) => { changeFilters({ periodo: 'custom', de: inicio, ate: fim }); setPeriodOpen(false); }} />}
@@ -481,22 +528,14 @@ export default function PartidasPage() {
             <Input label="Até" type="date" value={draftEnd} onChange={event => setDraftEnd(event.target.value)} />
           </div>}
         </>}
-        {mobileFilters ? <>
-          <FilterChoices label="Situação" value={draftStatus} onChange={setDraftStatus} options={[
-            { value: '', label: 'Todas' }, { value: 'AO_VIVO', label: 'Ao vivo', icon: 'live' },
-            { value: 'PROXIMAS', label: 'Próximas', icon: 'clock' }, { value: 'FINALIZADA', label: 'Finalizadas', icon: 'checkAll' },
-            { value: 'AGENDADA', label: 'Agendadas' }, { value: 'PREPARADA', label: 'Preparadas' },
-            { value: 'CANCELADA', label: 'Canceladas', icon: 'minus' },
-          ]} />
-          <FilterChoices label="Mando de campo" value={draftMando} onChange={setDraftMando} options={[
-            { value: '', label: 'Casa e fora' }, { value: 'casa', label: 'Em casa', icon: 'home' }, { value: 'fora', label: 'Fora', icon: 'bus' },
-          ]} />
-        </> : <>
-          <FilterSelect label="Situação" emptyLabel="Todas as situações" options={STATUSES} value={draftStatus} onChange={setDraftStatus} inlineOptions />
-          <FilterSelect label="Mando de campo" emptyLabel="Casa e fora" options={[{ value: 'casa', label: 'Em casa' }, { value: 'fora', label: 'Fora de casa' }]} value={draftMando} onChange={setDraftMando} inlineOptions />
-        </>}
+        {['TODAS', 'PROXIMAS', 'AGENDADA', 'PREPARADA'].includes(filtroStatus) && <FilterChoices label="Preparação" value={draftStatus} onChange={setDraftStatus} options={[
+          { value: filtroStatus === 'TODAS' ? 'TODAS' : 'PROXIMAS', label: filtroStatus === 'TODAS' ? 'Todas as situações' : 'Todas as próximas' }, { value: 'AGENDADA', label: 'Agendadas' }, { value: 'PREPARADA', label: 'Preparadas' },
+        ]} />}
+        <FilterChoices label="Mando de campo" value={draftMando} onChange={setDraftMando} options={[
+          { value: '', label: 'Casa e fora' }, { value: 'casa', label: 'Em casa', icon: 'home' }, { value: 'fora', label: 'Fora', icon: 'bus' },
+        ]} />
         {mobileFilters && <>
-          <FilterChoices label="Ordenar" value={draftSort} onChange={setDraftSort} className="schedule-two-choices" options={[
+          <FilterChoices label="Ordenar" value={draftSort} onChange={setDraftSort} options={[
             { value: '', label: 'Por horário', icon: 'clock' }, { value: 'categoria', label: 'Por categoria' },
           ]} />
         </>}
@@ -504,7 +543,7 @@ export default function PartidasPage() {
         </div>
       </CollectionFilterDialog>
       <Modal open={modal && !reviewOpen} onClose={() => { if (!salvando) setModal(false); }} title="Organizar partida" className="schedule-create-dialog"
-        footer={<div className="schedule-create-actions"><Btn variant="ghost" type="button" onClick={() => setModal(false)}>Cancelar</Btn><Btn type="submit" form="schedule-create-form"><Icon name="checkAll" size={17} />Criar partida</Btn></div>}>
+        footer={<div className="schedule-create-actions"><Btn variant="ghost" type="button" onClick={() => setModal(false)}>Cancelar</Btn><Btn type="submit" form="schedule-create-form"><Icon name="checkAll" size={17} />Organizar partida</Btn></div>}>
         <form id="schedule-create-form" onSubmit={revisarPartida} className="schedule-create-form" noValidate>
           <div className="schedule-create-top">
             <div className="schedule-create-club"><ClubBadge src={clube?.escudo} name={clube?.nome} size={44} /><strong>{clube?.nome || 'Seu clube'}</strong></div>
@@ -512,17 +551,29 @@ export default function PartidasPage() {
           </div>
           <div className="field"><span className="field-label">Competição</span><button className="schedule-create-competition" type="button" aria-haspopup="dialog" onClick={() => openPicker('competicao')}><Icon name="trophy" size={21} /><span>{formCompetition?.nome || (form.competicao_id === 'amistoso' ? 'Amistoso' : 'Selecionar competição')}</span><Icon name="chevronRight" size={17} /></button></div>
           <section className="schedule-create-matchup" aria-labelledby="matchup-title"><h3 id="matchup-title">Confronto</h3><div>
-            {(['mandante', 'visitante'] as const).map(side => {
-              const team = side === 'mandante' ? formHome : formAway;
-              return <button key={side} className="schedule-create-team" data-selected={!!team} type="button" aria-label={`Selecionar ${side}${team ? `: ${teamName(team.nome)}` : ''}`} aria-haspopup="dialog" onClick={() => { if (!form.categoria_id) { setErro('Selecione a categoria antes de escolher os times.'); openPicker('categoria'); } else openPicker(side); }}>
-                {team ? <ClubBadge src={team.escudo || team.clubeRepresentado?.escudo} name={team.nome} size={54} /> : <span className="schedule-create-add"><Icon name="plus" size={28} /></span>}
-                <small>{side === 'mandante' ? 'MANDANTE' : 'VISITANTE'}</small><strong>{team ? teamName(team.nome) : 'Selecionar time'}</strong>
-                {team && <span className="schedule-create-change"><Icon name="switchClub" size={13} />Trocar</span>}
-              </button>;
-            })}
+            <div className="schedule-create-team schedule-fixed-team" data-selected={!!fixedTeam} aria-label={`Seu clube: ${clube?.nome || 'Clube atual'}`}>
+              <ClubBadge src={fixedTeam?.escudo || fixedTeam?.clubeRepresentado?.escudo || clube?.escudo} name={fixedTeam?.nome || clube?.nome} size={48} />
+              <small>SEU CLUBE</small>
+              <strong>{teamName(fixedTeam?.nome || clube?.nome || 'Seu clube')}</strong>
+              <span className="schedule-create-fixed"><Icon name="shield" size={13} />{form.emCasa === 'true' ? 'Mandante' : 'Visitante'} · fixo</span>
+            </div>
+            <button className="schedule-create-team" data-selected={!!selectedOpponent} type="button" aria-label={`Selecionar adversário${selectedOpponent ? `: ${teamName(selectedOpponent.nome)}` : ''}`} aria-haspopup="dialog" onClick={() => {
+              if (!form.categoria_id) { openPicker('categoria'); return; }
+              if (!fixedTeam) { setErro('Cadastre um time do seu clube nesta categoria antes de escolher o adversário.'); return; }
+              openPicker('visitante');
+            }}>
+              {selectedOpponent ? <ClubBadge src={selectedOpponent.escudo || selectedOpponent.clubeRepresentado?.escudo} name={selectedOpponent.nome} size={48} /> : <span className="schedule-create-add"><Icon name="plus" size={26} /></span>}
+              <small>ADVERSÁRIO</small><strong>{selectedOpponent ? teamName(selectedOpponent.nome) : 'Selecionar time'}</strong>
+              {selectedOpponent && <span className="schedule-create-change"><Icon name="switchClub" size={13} />Trocar adversário</span>}
+            </button>
             <span className="schedule-create-vs" aria-hidden="true">VS</span>
           </div></section>
-          <div className="schedule-auto-mando" role="status"><Icon name={form.emCasa === 'true' ? 'home' : 'bus'} size={20}/><div><strong>{formHome || formAway ? (form.emCasa === 'true' ? 'Em casa · seu clube é mandante' : 'Fora · seu clube é visitante') : 'Mando definido pelo confronto'}</strong><small>Ao escolher um adversário, seu clube ocupa o outro lado automaticamente.</small></div></div>
+          {!fixedTeam && form.categoria_id && <InfoNotice title="Time do clube indisponível">Vincule exatamente um time do {clube?.nome} a esta categoria em Times para organizar a partida.</InfoNotice>}
+          <fieldset className="schedule-venue-choice"><legend>Mando de campo</legend><div>
+            <button type="button" aria-pressed={form.emCasa === 'true'} onClick={() => changeVenue(true)}><Icon name="home" size={17} />Em casa</button>
+            <button type="button" aria-pressed={form.emCasa !== 'true'} onClick={() => changeVenue(false)}><Icon name="bus" size={17} />Fora</button>
+          </div></fieldset>
+          <InfoNotice title={form.emCasa === 'true' ? 'Seu clube é o mandante' : 'Seu clube é o visitante'}>{form.emCasa === 'true' ? 'O adversário será o visitante. Para jogar na casa dele, escolha Fora.' : 'O adversário será o mandante. Seu clube continua selecionado à esquerda.'}</InfoNotice>
           <div className="schedule-create-date">
             <MatchDateField min={minimumDate} value={form.data} onChange={data => { setForm(f => ({ ...f, data })); setErro(''); }}/>
             <MatchTimeField value={form.horario} onChange={horario => { setForm(f => ({ ...f, horario })); setErro(''); }}/>
@@ -532,14 +583,35 @@ export default function PartidasPage() {
           {erro && <p className="schedule-create-error" role="alert">{erro}</p>}
         </form>
       </Modal>
-      <Modal open={!!picker && modal} onClose={() => setPicker(null)} title={picker === 'categoria' ? 'Categoria da partida' : picker === 'competicao' ? 'Selecionar competição' : `Selecionar ${picker}`} className="schedule-picker-dialog">
+      <Modal open={!!picker && modal} onClose={() => setPicker(null)} title={picker === 'categoria' ? 'Categoria da partida' : picker === 'competicao' ? 'Selecionar competição' : 'Selecionar adversário'}
+        className={`schedule-picker-dialog${picker === 'categoria' ? ' schedule-category-dialog' : ''}`}
+        footer={picker === 'categoria' ? <Btn type="button" disabled={!categorias.some(category => String(category.id) === draftCategoryId)} onClick={chooseCategory}>Usar categoria</Btn> : undefined}>
         {picker === 'categoria' ? <div className="schedule-category-options">
-          <p>{formHome || formAway ? 'Ao mudar de categoria, selecione novamente os times e a competição.' : 'Selecione a categoria em que a partida será criada.'}</p>
-          <HomeCategories categories={[...categorias].sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true }))} phase={pickerPhase} selected={formCategory} label="Categoria da partida" onSelect={chooseCategory} onPhase={next => { setPickerPhase(next); const first = categorias.filter(c => c.tipo === next).sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true }))[0]; if (first) chooseCategory(first.nome, next); }} />
-          <Btn type="button" disabled={!formCategory || formCategory.tipo !== pickerPhase} onClick={() => setPicker(null)}>Usar categoria</Btn>
+          <p>{formHome || formAway ? 'Ao mudar de categoria, o time do seu clube será atualizado. Escolha novamente o adversário e a competição.' : 'Selecione a categoria em que a partida será criada.'}</p>
+          <div className="schedule-category-groups" role="radiogroup" aria-label="Categoria da partida"
+            onKeyDown={event => {
+              if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+              event.preventDefault();
+              const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
+              const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+              const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (current + (['ArrowLeft', 'ArrowUp'].includes(event.key) ? buttons.length - 1 : 1)) % buttons.length;
+              buttons[next]?.click();
+              buttons[next]?.focus();
+            }}>
+            {['INICIACAO', 'BASE'].filter(phase => categoryChoices.some(category => category.tipo === phase)).map(phase => <section className="schedule-category-group" key={phase}>
+              <h3>{phase === 'BASE' ? 'Base' : 'Iniciação'}</h3>
+              <div>{categoryChoices.filter(category => category.tipo === phase).map(category => <button
+                type="button" role="radio" key={category.id} aria-checked={draftCategoryId === String(category.id)}
+                tabIndex={draftCategoryId === String(category.id) || !categoryChoices.some(item => String(item.id) === draftCategoryId) && category.id === categoryChoices[0]?.id ? 0 : -1}
+                onClick={() => setDraftCategoryId(String(category.id))}>
+                {category.nome.toUpperCase()}{draftCategoryId === String(category.id) && <Icon name="checkAll" size={16} />}
+              </button>)}</div>
+            </section>)}
+          </div>
           {!categorias.length && <p className="schedule-picker-empty">Nenhuma categoria disponível. Cadastre as categorias do clube antes de organizar uma partida.</p>}
         </div> : <div className="schedule-picker-content">
-          <Input label={picker === 'competicao' ? 'Buscar competição ou ano' : 'Buscar time'} type="search" placeholder={picker === 'competicao' ? 'Buscar competição ou ano' : 'Buscar time'} value={pickerSearch} onChange={event => setPickerSearch(event.target.value)} />
+          <p className="schedule-picker-intro">{picker === 'competicao' ? 'Vincule uma competição ou escolha Amistoso para jogar sem competição.' : <>Escolha quem enfrenta o <strong>{clube?.nome}</strong> no <strong>{formCategory?.nome.toUpperCase()}</strong>. Seu clube já está incluído no confronto.</>}</p>
+          <CollectionSearch label={picker === 'competicao' ? 'Buscar competição ou ano' : 'Buscar adversário'} placeholder={picker === 'competicao' ? 'Nome da competição ou ano' : 'Nome do adversário'} value={pickerSearch} onChange={setPickerSearch} />
           <div className="schedule-picker-options">
             {picker === 'competicao' ? <>
               <button type="button" aria-pressed={form.competicao_id === 'amistoso'} onClick={() => { setForm(f => ({ ...f, competicao_id: 'amistoso', rodada: '' })); setErro(''); setPicker(null); }}><span className="schedule-picker-icon"><Icon name="ball" size={23} /></span><span><strong>Amistoso</strong><small>Sem competição</small></span>{form.competicao_id === 'amistoso' && <Icon name="checkAll" size={18} />}</button>
@@ -556,14 +628,15 @@ export default function PartidasPage() {
               ))}
             </> : <>
               {erro && <p className="notice-error" role="alert">{erro}</p>}
-              {times.filter(item => String(item.categoria_id) === form.categoria_id && normalizarBusca(item.nome).includes(normalizarBusca(pickerSearch))).sort((a,b) => {
-                const priority = (team: Time) => team.clube_representado_id === clube?.id ? 0 : team.clube_representado_id ? 1 : 2;
-                return priority(a) - priority(b) || a.nome.localeCompare(b.nome, 'pt-BR');
-              }).map(item => {
-                const selected = String(item.id) === (picker === 'mandante' ? form.mandante_id : form.visitante_id);
-                return <button key={item.id} type="button" aria-pressed={selected} onClick={() => chooseTeam(picker === 'mandante' ? 'mandante' : 'visitante', item.id)}><ClubBadge src={item.escudo || item.clubeRepresentado?.escudo} name={item.nome} size={42} /><span><strong>{teamName(item.nome)}</strong><small className={item.clube_representado_id ? 'text-primaria' : ''}>{item.clube_representado_id ? `Clube Ludora${item.clube_representado_id === clube?.id ? ' · seu clube' : ''}` : 'Adversário cadastrado'} · {formCategory?.nome}</small></span>{selected && <Icon name="checkAll" size={18} />}</button>;
+              {visibleOpponents.map(item => {
+                const selected = item.id === selectedOpponent?.id;
+                return <button key={item.id} type="button" aria-pressed={selected} onClick={() => chooseTeam(item.id)}>
+                  <ClubBadge src={item.escudo || item.clubeRepresentado?.escudo} name={item.nome} size={42} />
+                  <span><strong>{teamName(item.nome)}</strong><small><Icon name={item.clube_representado_id ? 'shield' : 'team'} size={13} />{item.clube_representado_id ? 'Clube Ludora' : 'Adversário cadastrado'} · {formCategory?.nome.toUpperCase()}</small></span>
+                  <Icon name={selected ? 'checkAll' : 'chevronRight'} size={18} />
+                </button>;
               })}
-              {!times.some(item => String(item.categoria_id) === form.categoria_id && normalizarBusca(item.nome).includes(normalizarBusca(pickerSearch))) && <p className="schedule-picker-empty">{pickerSearch ? 'Nenhum time encontrado. Tente outro nome ou limpe a busca.' : 'Nenhum time cadastrado nesta categoria. Escolha outra categoria ou cadastre os times primeiro.'}</p>}
+              {!visibleOpponents.length && <p className="schedule-picker-empty"><Icon name="search" size={22} />{pickerSearch ? 'Nenhum adversário encontrado. Tente outro nome ou limpe a busca.' : 'Nenhum adversário cadastrado nesta categoria. Cadastre um time em Times para continuar.'}</p>}
             </>}
           </div>
         </div>}

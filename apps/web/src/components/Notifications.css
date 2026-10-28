@@ -1,9 +1,13 @@
-.workspace-actions .notifications-trigger {
+.notifications-trigger.profile-link {
   position: relative;
-  border-color: transparent;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
   background: var(--fundo-card);
-  color: var(--texto-sec);
+  color: var(--texto);
 }
+.notifications-trigger .icon { width: 20px !important; height: 20px !important; }
 .notifications-trigger:hover {
   color: var(--texto);
   background: var(--fundo-card-sec);
@@ -15,7 +19,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--primaria);
+  background: #ed8293;
   box-shadow: 0 0 0 2px var(--fundo-card);
 }
 .modal.notifications-drawer {

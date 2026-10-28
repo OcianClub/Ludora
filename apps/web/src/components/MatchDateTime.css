@@ -1,5 +1,21 @@
 .date-time-trigger { display:flex; align-items:center; gap:10px; text-align:left; min-height:46px; }
 .date-time-trigger .icon { color:var(--primaria); }
+.time-input-wrap {
+  position: relative;
+  min-width: 0;
+}
+.time-input-wrap > .icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--texto-sec);
+}
+.time-input-wrap > .field-input {
+  width: 100%;
+  padding-left: 42px;
+}
 .calendar-navigation { display:flex; align-items:end; gap:8px; margin-bottom:18px; }
 .calendar-navigation>.choice { flex:1; min-width:0; }
 .calendar-navigation>.choice:nth-of-type(2) { flex:.75; }
