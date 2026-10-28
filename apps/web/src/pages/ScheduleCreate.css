@@ -386,9 +386,9 @@
   color: var(--texto-sec);
 }
 .schedule-venue-choice button[aria-pressed="true"] {
-  border-color: var(--primaria);
-  background: var(--fundo-botao);
-  color: var(--primaria);
+  border-color: transparent;
+  background: var(--primaria);
+  color: #fff;
 }
 .schedule-picker-intro {
   margin: 0;

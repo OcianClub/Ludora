@@ -1,13 +1,15 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from './Icon';
+import './FilterSelect.css';
 
-export function FilterSelect({ label, value, emptyLabel, options, onChange, inlineOptions = false }: {
+export function FilterSelect({ label, value, emptyLabel, options, onChange, inlineOptions = false, compactLabel }: {
   label: string;
   value: string;
   emptyLabel: string;
   options: { value: string | number; label: string }[];
   onChange: (value: string) => void;
   inlineOptions?: boolean;
+  compactLabel?: string;
 }) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -63,7 +65,8 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
             if (index >= 0) { event.preventDefault(); setActive(index); setOpen(true); }
           }
         }}>
-        <span>{items[selected].label}</span>
+        <span className={compactLabel ? 'schedule-select-full-label' : undefined}>{items[selected].label}</span>
+        {compactLabel && <span className="schedule-select-compact-label" aria-hidden="true">{compactLabel}</span>}
         <span className="schedule-select-chevron"><Icon name="chevronRight" size={16} /></span>
       </button>
       {open && <div id={`${id}-options`} role="listbox" aria-labelledby={`${id}-label`} className={`schedule-select-options${inlineOptions ? ' schedule-select-options-inline' : ''}`}>

@@ -6,6 +6,12 @@ export const SCOUT_ORDERS = [
   { value: 'assists', label: 'Assistências' }, { value: 'saves', label: 'Defesas' },
   { value: 'games', label: 'Escalações' }, { value: 'name', label: 'Nome A–Z' }, { value: 'shirt', label: 'Camisa' },
 ];
+export function nextScoutOrder(current: string | null, next: string, ascending: boolean) {
+  const initiallyAscending = ['name', 'shirt'].includes(next);
+  if (current !== next) return { ordem: next, direcao: initiallyAscending ? 'asc' : 'desc' };
+  if (ascending !== initiallyAscending) return { ordem: '', direcao: '' };
+  return { ordem: next, direcao: initiallyAscending ? 'desc' : 'asc' };
+}
 export const profileDescription: Record<string, string> = {
   Artilheiro: 'Perfil associado à finalização e à participação ofensiva.',
   Armador: 'Perfil associado à visão de jogo e à criação de jogadas.',

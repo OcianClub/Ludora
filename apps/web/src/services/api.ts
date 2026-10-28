@@ -60,7 +60,7 @@ export interface Clube {
 export interface Usuario { id: number; nome: string; email: string; criadoEm?: string; }
 export interface PerfilUsuario extends Usuario { clubes: Clube[]; notificacoes_ativas?: boolean; }
 export interface Categoria { id: number; nome: string; tipo: string; clube_id: number; }
-export interface Time { id: number; nome: string; escudo?: string; categoria_id?: number; clube_representado_id?: number | null; clubeRepresentado?: Clube | null; }
+export interface Time { id: number; nome: string; escudo?: string; arquivado?: boolean; categoria_id?: number; clube_representado_id?: number | null; clubeRepresentado?: Clube | null; }
 export interface Jogador { id: number; nome: string; cpf: string; dtNasc: string; posicao: string; numCamisa?: number; ativo: boolean; perfil_ml?: string; nota_geral?: number; categoria_id: number; }
 export interface Partida { somente_leitura?: boolean; clube_origem_id?: number; id: number; mandante_id: number; visitante_id: number; gols_mandante: number; gols_visitante: number; data: string; horario?: string; local?: string; status: string; emCasa: boolean; categoria_id: number; competicao_id?: number; rodada?: number; grupo?: string | null; mandante?: Time; visitante?: Time; categoria?: Categoria; }
 export interface Competicao { id: number; nome: string; ano: number; tipo: string; clube_id: number; }
@@ -128,8 +128,8 @@ export async function fetchCategorias(signal?: AbortSignal): Promise<Categoria[]
 }
 
 // ── TIMES ──
-export async function fetchTimes(): Promise<Time[]> {
-  const res = await apiFetch('/times');
+export async function fetchTimes(incluirArquivados = false): Promise<Time[]> {
+  const res = await apiFetch(`/times${incluirArquivados ? '?incluir_arquivados=true' : ''}`);
   if (!res.ok) throw new Error('Erro ao buscar times');
   return res.json();
 }
@@ -142,7 +142,7 @@ export async function criarTime(dados: { nome: string; escudo?: string; categori
       categoria_id: dados.categorias_ids?.[0],
     }),
   });
-  if (!res.ok) throw new Error('Erro ao criar time');
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Erro ao criar time'); }
   return res.json();
 }
 export async function atualizarTime(id: number, dados: { nome: string; escudo?: string; categorias_ids?: number[] }) {
@@ -154,13 +154,71 @@ export async function atualizarTime(id: number, dados: { nome: string; escudo?: 
       categoria_id: dados.categorias_ids?.[0],
     }),
   });
-  if (!res.ok) throw new Error('Erro ao atualizar time');
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Erro ao atualizar time'); }
   return res.json();
 }
 export async function deletarTime(id: number) {
   const res = await apiFetch(`/times/${id}`, { method: 'DELETE' });
   if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Erro ao deletar time'); }
   return res.json();
+}
+
+export async function atualizarEscudoTime(id: number, escudo: string): Promise<{ ids: number[]; clubeId?: number | null; escudo: string | null }> {
+  const res = await apiFetch(`/times/${id}/escudo`, { method: 'PATCH', body: JSON.stringify({ escudo }) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Não foi possível salvar o escudo.');
+  return data;
+}
+
+export async function adicionarCategoriaTime(id: number, categoria_id: number): Promise<Time> {
+  const res = await apiFetch(`/times/${id}/categorias`, { method: 'POST', body: JSON.stringify({ categoria_id }) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Não foi possível adicionar a categoria.');
+  return data;
+}
+
+export async function fetchImpactoTime(id: number): Promise<{ partidas: number; competicoes: number }> {
+  const res = await apiFetch(`/times/${id}/impacto`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Não foi possível consultar os vínculos.');
+  return data;
+}
+
+export interface ResumoConfronto {
+  vitorias: number;
+  empates: number;
+  derrotas: number;
+  golsPro: number;
+  golsContra: number;
+  proxima: { data: string; categoria_id: number } | null;
+}
+export interface ResumoAdversario extends ResumoConfronto {
+  key: string;
+  categorias: (ResumoConfronto & { categoria_id: number })[];
+}
+export interface ConfrontoTime {
+  id: number;
+  data: string;
+  horario?: string | null;
+  status: string;
+  local?: string | null;
+  gols_mandante: number;
+  gols_visitante: number;
+  mandante: Time;
+  visitante: Time;
+  categoria: { id: number; nome: string };
+}
+export function fetchResumoAdversarios(): Promise<ResumoAdversario[]> {
+  return requestJson('/times/contexto');
+}
+export function fetchConfrontosTime(id: number, categoriaId?: number): Promise<{ ultimas: ConfrontoTime[]; proximas: ConfrontoTime[] }> {
+  return requestJson(`/times/${id}/contexto${categoriaId ? `?categoria_id=${categoriaId}` : ''}`);
+}
+export function arquivarTime(id: number, arquivado: boolean): Promise<{ ids: number[]; arquivado: boolean }> {
+  return requestJson(`/times/${id}/arquivo`, { method: 'PATCH', body: JSON.stringify({ arquivado }) });
+}
+export function renomearTime(id: number, nome: string): Promise<{ items: Time[]; clubeId: number | null; nome: string }> {
+  return requestJson(`/times/${id}/nome`, { method: 'PATCH', body: JSON.stringify({ nome }) });
 }
 
 // ── JOGADORES ──

@@ -12,8 +12,247 @@ import {
   podeAcessarCategoria,
 } from '../../middlewares/permissoes.middleware';
 import { idPositivo } from '../../utils/id';
+import { nomeBaseTime } from './time-identity';
+import { chaveTime, resumirConfrontos } from './time-context';
 
 const router = Router();
+
+function timeError(message: string, status = 409) {
+  return Object.assign(new Error(message), { status });
+}
+
+async function timesDoContexto(usuarioId: number, clubeId: number) {
+  const escopo = await obterEscopoCategoriasLeitura(usuarioId, clubeId);
+  return prisma.time.findMany({ where: { categoria: { clube_id: clubeId,
+    ...(escopo.acessoTotal ? {} : { id: { in: escopo.categoriaIds } }) } }, include: { categoria: { select: { nome: true } } } });
+}
+
+async function timesCompartilhados(locais: Awaited<ReturnType<typeof timesDoContexto>>, clubeId: number) {
+  const clubes = [...new Set(locais.map(time => time.clube_representado_id).filter((id): id is number => !!id))];
+  if (!clubes.includes(clubeId)) return locais;
+  const categorias = locais.flatMap(time => time.categoria ? [time.categoria.nome] : []);
+  const externos = await prisma.time.findMany({
+    where: {
+      clube_representado_id: { in: clubes },
+      categoria: { clube_id: { not: clubeId }, nome: { in: categorias, mode: 'insensitive' } },
+      OR: [
+        { partidas_mandante: { some: { visitante: { clube_representado_id: clubeId } } } },
+        { partidas_visitante: { some: { mandante: { clube_representado_id: clubeId } } } },
+        { clube_representado_id: clubeId },
+      ],
+    },
+    include: { categoria: { select: { nome: true } } },
+  });
+  return [...locais, ...externos.map(time => ({ ...time,
+    categoria_id: locais.find(local => local.categoria?.nome.toLocaleLowerCase('pt-BR') === time.categoria?.nome.toLocaleLowerCase('pt-BR'))?.categoria_id || time.categoria_id,
+  }))];
+}
+
+function hoje() {
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+  return new Date(`${date}T00:00:00Z`);
+}
+
+router.get('/times/contexto', exigirClubePublico, async (req, res) => {
+  try {
+    const clubeId = (req as any).clubeId as number;
+    const locais = await timesDoContexto((req as any).usuarioId, clubeId);
+    const times = await timesCompartilhados(locais, clubeId);
+    const ids = times.map(time => time.id);
+    const own = times.filter(time => time.clube_representado_id === clubeId).map(time => time.id);
+    const where = { mandante_id: { in: ids }, visitante_id: { in: ids }, OR: [
+      { mandante_id: { in: own } }, { visitante_id: { in: own } },
+    ] };
+    const [resultados, proximas] = await Promise.all([
+      prisma.partida.groupBy({ by: ['mandante_id', 'visitante_id', 'gols_mandante', 'gols_visitante'],
+        where: { ...where, status: 'FINALIZADA' }, _count: { _all: true } }),
+      prisma.partida.groupBy({ by: ['mandante_id', 'visitante_id', 'categoria_id'],
+        where: { ...where, status: { in: ['AGENDADA', 'PREPARADA'] }, data: { gte: hoje() } }, _min: { data: true } }),
+    ]);
+    const locaisKeys = new Set(locais.map(chaveTime));
+    res.json(resumirConfrontos(times, resultados, proximas, clubeId).filter(item => locaisKeys.has(item.key)));
+  } catch {
+    res.status(500).json({ error: 'Não foi possível carregar o retrospecto dos adversários.' });
+  }
+});
+
+router.get('/times/:id/contexto', exigirClubePublico, async (req, res) => {
+  try {
+    const clubeId = (req as any).clubeId as number;
+    const locais = await timesDoContexto((req as any).usuarioId, clubeId);
+    const source = locais.find(time => time.id === Number(req.params.id));
+    if (!source) return res.status(404).json({ error: 'Time não encontrado no clube ativo.' });
+    const categoriaId = req.query.categoria_id ? idPositivo(req.query.categoria_id) : null;
+    if (req.query.categoria_id && !categoriaId) return res.status(400).json({ error: 'Categoria inválida.' });
+    if (categoriaId && !locais.some(time => time.categoria_id === categoriaId)) return res.status(403).json({ error: 'Categoria indisponível para seu acesso.' });
+    const allTimes = await timesCompartilhados(locais, clubeId);
+    const times = categoriaId ? allTimes.filter(time => time.categoria_id === categoriaId) : allTimes;
+    const ids = times.filter(time => chaveTime(time) === chaveTime(source)).map(time => time.id);
+    const own = times.filter(time => time.clube_representado_id === clubeId).map(time => time.id);
+    const where = { OR: [
+      { mandante_id: { in: own }, visitante_id: { in: ids } },
+      { mandante_id: { in: ids }, visitante_id: { in: own } },
+    ] };
+    const teamSelect = { id: true, nome: true, escudo: true, clube_representado_id: true,
+      clubeRepresentado: { select: { id: true, nome: true, escudo: true } } } as const;
+    const select = { id: true, data: true, horario: true, status: true, local: true, gols_mandante: true, gols_visitante: true,
+      categoria: { select: { id: true, nome: true } }, mandante: { select: teamSelect }, visitante: { select: teamSelect } } as const;
+    const [ultimas, proximas] = await Promise.all([
+      prisma.partida.findMany({ where: { ...where, status: 'FINALIZADA' }, orderBy: [{ data: 'desc' }, { horario: 'desc' }, { id: 'desc' }], take: 5, select }),
+      prisma.partida.findMany({ where: { ...where, status: { in: ['AGENDADA', 'PREPARADA'] }, data: { gte: hoje() } }, orderBy: [{ data: 'asc' }, { horario: 'asc' }, { id: 'asc' }], take: 3, select }),
+    ]);
+    res.json({ ultimas, proximas });
+  } catch {
+    res.status(500).json({ error: 'Não foi possível carregar os confrontos. Tente novamente.' });
+  }
+});
+
+router.patch('/times/:id/nome', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
+  const nome = req.body?.nome;
+  if (typeof nome !== 'string' || nome.trim().length < 2 || nome.length > 120) return res.status(400).json({ error: 'Informe um nome entre 2 e 120 caracteres.' });
+  try {
+    const resultado = await prisma.$transaction(async tx => {
+      const times = await tx.time.findMany({ where: { categoria: { clube_id: (req as any).clubeId } }, include: { categoria: true } });
+      const source = times.find(time => time.id === Number(req.params.id));
+      if (!source) throw timeError('Time não encontrado.', 404);
+      if (source.clube_representado_id && (source.clube_representado_id !== (req as any).clubeId || (req as any).papelUsuario !== 'ADMIN')) {
+        throw timeError('Somente o administrador do próprio clube pode alterar o nome oficial.', 403);
+      }
+      const group = times.filter(time => chaveTime(time) === chaveTime(source));
+      if (times.some(time => chaveTime(time) !== chaveTime(source) && nomeBaseTime(time.nome) === nomeBaseTime(nome))) {
+        throw timeError('Já existe um time com este nome. Escolha outro nome para evitar duplicação.');
+      }
+      for (const time of group) {
+        if (!time.categoria_id || !await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, time.categoria_id)) {
+          throw timeError('É necessário administrar todas as categorias deste time.', 403);
+        }
+      }
+      if (source.clube_representado_id) await tx.clube.update({ where: { id: (req as any).clubeId }, data: { nome: nome.trim() } });
+      const items = [];
+      for (const time of group) {
+        items.push(await tx.time.update({ where: { id: time.id }, data: { nome: `${nome.trim()} ${time.categoria?.nome || ''}`.trim() },
+          include: { clubeRepresentado: { select: { id: true, nome: true, escudo: true } } } }));
+      }
+      return { items, clubeId: source.clube_representado_id, nome: nome.trim() };
+    }, { isolationLevel: 'Serializable' });
+    res.json(resultado);
+  } catch (error: any) {
+    res.status(error.status || 409).json({ error: error.status ? error.message : 'Não foi possível alterar o nome. Atualize os dados e tente novamente.' });
+  }
+});
+
+router.patch('/times/:id/arquivo', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
+  if (typeof req.body?.arquivado !== 'boolean') return res.status(400).json({ error: 'Informe se o time deve ser arquivado.' });
+  try {
+    const ids = await prisma.$transaction(async tx => {
+      const times = await tx.time.findMany({ where: { categoria: { clube_id: (req as any).clubeId } } });
+      const source = times.find(time => time.id === Number(req.params.id));
+      if (!source) throw timeError('Time não encontrado.', 404);
+      if (source.clube_representado_id === (req as any).clubeId) throw timeError('O time do clube ativo não pode ser arquivado.', 403);
+      const group = times.filter(time => chaveTime(time) === chaveTime(source));
+      for (const time of group) {
+        if (!time.categoria_id || !await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, time.categoria_id)) {
+          throw timeError('É necessário administrar todas as categorias deste time.', 403);
+        }
+      }
+      const ids = group.map(time => time.id);
+      await tx.time.updateMany({ where: { id: { in: ids } }, data: { arquivado: req.body.arquivado } });
+      return ids;
+    }, { isolationLevel: 'Serializable' });
+    res.json({ ids, arquivado: req.body.arquivado });
+  } catch (error: any) {
+    res.status(error.status || 409).json({ error: error.status ? error.message : 'Não foi possível alterar o arquivamento. Tente novamente.' });
+  }
+});
+
+router.patch('/times/:id/escudo', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
+  const escudo = req.body?.escudo;
+  if (typeof escudo !== 'string' || escudo.length > 2048) {
+    return res.status(400).json({ error: 'Informe uma URL de escudo válida.' });
+  }
+  if (escudo.trim()) {
+    try {
+      if (!['https:', 'http:'].includes(new URL(escudo.trim()).protocol)) throw new Error();
+    } catch {
+      return res.status(400).json({ error: 'Use um endereço iniciado por https:// ou http://.' });
+    }
+  }
+  try {
+    const resultado = await prisma.$transaction(async tx => {
+      const todos = await tx.time.findMany({ where: { categoria: { clube_id: (req as any).clubeId } } });
+      const origem = todos.find(time => time.id === Number(req.params.id));
+      if (!origem) throw timeError('Time não encontrado.', 404);
+      if (origem.clube_representado_id && origem.clube_representado_id !== (req as any).clubeId) {
+        throw timeError('O escudo oficial deve ser alterado pelo clube vinculado.', 403);
+      }
+      if (origem.clube_representado_id && (req as any).papelUsuario !== 'ADMIN') {
+        throw timeError('Somente o administrador pode alterar o escudo oficial do clube.', 403);
+      }
+      const grupo = todos.filter(time => origem.clube_representado_id
+        ? time.clube_representado_id === origem.clube_representado_id
+        : !time.clube_representado_id && nomeBaseTime(time.nome) === nomeBaseTime(origem.nome));
+      for (const time of grupo) {
+        if (!time.categoria_id || !await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, time.categoria_id)) {
+          throw timeError('É necessário administrar todas as categorias deste time para alterar seu escudo.', 403);
+        }
+      }
+      const result = await tx.time.updateMany({
+        where: { id: { in: grupo.map(time => time.id) }, clube_representado_id: origem.clube_representado_id, categoria: { clube_id: (req as any).clubeId } },
+        data: { escudo: escudo.trim() || null },
+      });
+      if (result.count !== grupo.length) throw timeError('O cadastro mudou. Atualize a página e tente novamente.');
+      if (origem.clube_representado_id) {
+        await tx.clube.update({ where: { id: (req as any).clubeId }, data: { escudo: escudo.trim() || null } });
+      }
+      return { ids: grupo.map(time => time.id), clubeId: origem.clube_representado_id, escudo: escudo.trim() || null };
+    }, { isolationLevel: 'Serializable' });
+    res.json(resultado);
+  } catch (error: any) {
+    res.status(error.status || 409).json({ error: error.status ? error.message : 'Não foi possível atualizar o escudo. Atualize os dados e tente novamente.' });
+  }
+});
+
+router.post('/times/:id/categorias', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
+  const categoriaId = idPositivo(req.body?.categoria_id);
+  if (!categoriaId) return res.status(400).json({ error: 'Selecione uma categoria.' });
+  try {
+    const categoria = await prisma.categoria.findFirst({ where: { id: categoriaId, clube_id: (req as any).clubeId } });
+    if (!categoria || !await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, categoriaId)) {
+      return res.status(403).json({ error: 'Você não administra esta categoria.' });
+    }
+    const result = await prisma.$transaction(async tx => {
+      const todos = await tx.time.findMany({ where: { categoria: { clube_id: (req as any).clubeId } } });
+      const origem = todos.find(time => time.id === Number(req.params.id));
+      if (!origem) throw timeError('Time não encontrado.', 404);
+      if (origem.arquivado) throw timeError('Restaure o time antes de adicionar uma categoria.');
+      const grupo = todos.filter(time => origem.clube_representado_id
+        ? time.clube_representado_id === origem.clube_representado_id
+        : !time.clube_representado_id && nomeBaseTime(time.nome) === nomeBaseTime(origem.nome));
+      if (grupo.some(time => time.categoria_id === categoriaId)) throw timeError('O time já possui esta categoria.');
+      return tx.time.create({
+        data: { nome: origem.nome.replace(/\s*[-–—·(]?\s*sub[\s-]*\d{1,2}\)?\s*$/i, '').trim() + ' ' + categoria.nome,
+          escudo: origem.escudo, categoria_id: categoriaId, clube_representado_id: origem.clube_representado_id },
+        include: { categoria: true, clubeRepresentado: { select: { id: true, nome: true, escudo: true } } },
+      });
+    }, { isolationLevel: 'Serializable' });
+    res.status(201).json(result);
+  } catch (error: any) {
+    res.status(error.status || 409).json({ error: error.status ? error.message : 'Não foi possível adicionar. Atualize os dados e confira se a categoria já existe.' });
+  }
+});
+
+router.get('/times/:id/impacto', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
+  const id = Number(req.params.id);
+  try {
+    const [partidas, competicoes] = await Promise.all([
+      prisma.partida.count({ where: { OR: [{ mandante_id: id }, { visitante_id: id }] } }),
+      prisma.competicaoTime.count({ where: { time_id: id } }),
+    ]);
+    res.json({ partidas, competicoes });
+  } catch {
+    res.status(500).json({ error: 'Não foi possível consultar os vínculos desta categoria.' });
+  }
+});
 
 // ==========================================
 // 2. CADASTROS E BUSCAS
@@ -66,6 +305,7 @@ router.get('/times', exigirClubePublico, async (req, res) => {
     const escopo = await obterEscopoCategoriasLeitura((req as any).usuarioId, clube_id);
     const times = await prisma.time.findMany({
       where: {
+        ...(req.query.incluir_arquivados === 'true' ? {} : { arquivado: false }),
         categoria: {
           clube_id,
           ...(escopo.acessoTotal ? {} : { id: { in: escopo.categoriaIds } }),

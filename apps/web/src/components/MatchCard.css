@@ -60,3 +60,242 @@
 .match-info .icon {
   flex-shrink: 0;
 }
+
+.match-schedule .match-card .match-card-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+}
+.match-calendar-highlight {
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+  text-align: left;
+  color: var(--texto);
+}
+.match-calendar-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+}
+.match-calendar-heading .match-category {
+  color: var(--texto-sec);
+  font-family: var(--font-corpo);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .3px;
+}
+.match-calendar-heading > time {
+  display: block;
+  font-family: var(--font-titulo);
+  font-size: 27px;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.match-calendar-highlight > span {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 7px;
+  color: color-mix(in srgb, var(--texto) 75%, var(--texto-sec));
+  font-size: 13px;
+}
+.match-calendar-highlight > span > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.match-calendar-highlight > span > span:last-child {
+  color: var(--texto);
+  font-weight: 500;
+}
+.match-weekday {
+  text-transform: capitalize;
+}
+.match-schedule .match-card .match-card-badges {
+  grid-column: 2;
+  grid-row: 1;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.match-card .match-card-badges > span {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+.match-schedule .match-card-static .status-agendada {
+  --preparation-accent: #C3A9FF;
+}
+.match-schedule .match-card-static .status-preparada {
+  --preparation-accent: #70DFC7;
+}
+[data-theme="light"] .match-schedule .match-card-static .status-agendada {
+  --preparation-accent: #654095;
+}
+[data-theme="light"] .match-schedule .match-card-static .status-preparada {
+  --preparation-accent: #096653;
+}
+.match-schedule .match-card-static .status-badge:is(.status-agendada, .status-preparada) {
+  color: var(--preparation-accent);
+  background: color-mix(in srgb, var(--preparation-accent) 13%, var(--fundo-card));
+}
+.match-schedule .match-card-static .status-cancelada {
+  gap: 5px;
+  background: var(--fundo-card-sec);
+  color: color-mix(in srgb, var(--texto) 85%, var(--texto-sec));
+}
+.match-card .match-venue {
+  color: var(--texto);
+  background: var(--fundo-card-sec);
+}
+.match-card-static .match-result.result-V {
+  background: var(--primaria);
+  color: #fff;
+}
+.match-card-static .match-result.result-D {
+  background: #E5485D;
+  color: #fff;
+}
+.match-card-static .match-result.result-E {
+  background: var(--resultado-empate);
+  color: #30220B;
+}
+.match-card .match-team-current .club-badge {
+  box-sizing: border-box;
+  border: 2px solid var(--primaria);
+  border-radius: 10px;
+}
+.match-card .match-team-current strong {
+  color: var(--texto);
+}
+.match-schedule .match-card .match-teams {
+  padding: 18px 0;
+}
+.match-schedule .match-card .match-team {
+  gap: 7px;
+}
+.match-schedule .match-card .match-team .club-badge {
+  width: 60px !important;
+  height: 60px !important;
+  flex-shrink: 0;
+}
+.match-schedule .match-card .match-info {
+  padding-block: 12px;
+}
+.match-schedule .match-card .match-location {
+  color: color-mix(in srgb, var(--texto) 80%, var(--texto-sec));
+  font-size: 13px;
+  line-height: 1.5;
+}
+.match-schedule .match-card .match-location > .icon {
+  color: var(--texto-sec);
+}
+.match-card-static .match-card-actions > a {
+  color: var(--primaria);
+}
+@media (hover: hover) {
+  .match-card-static:hover {
+    background: color-mix(in srgb, var(--fundo-card) 85%, var(--fundo-card-sec));
+    border-color: var(--borda-botao);
+    box-shadow: 0 5px 18px #00000018;
+    transform: translateY(-2px);
+  }
+  .match-card-static:hover .match-card-actions > a {
+    border-color: var(--borda-botao);
+    color: var(--primaria);
+  }
+}
+@media (max-width: 760px) {
+  .match-calendar-heading > time {
+    font-size: 24px;
+  }
+  .match-calendar-highlight > span {
+    font-size: 12px;
+    gap: 6px;
+  }
+  .match-schedule .match-card .match-card-header {
+    gap: 10px;
+  }
+  .match-calendar-heading .match-category {
+    font-size: 11px;
+  }
+  .match-schedule .match-card .match-team .club-badge {
+    width: 48px !important;
+    height: 48px !important;
+  }
+  .match-schedule .match-card .match-teams {
+    padding-block: 16px;
+  }
+  .match-schedule .match-card .match-location {
+    font-size: 12px;
+  }
+  .match-card .match-card-badges > span {
+    min-height: 24px;
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .match-card-static {
+    transition: none;
+  }
+  .match-card-static:hover {
+    transform: none;
+  }
+}
+
+.match-card .match-card-badges > .match-live-radar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ao-vivo-indicador);
+  flex-shrink: 0;
+}
+.match-live-radar > .icon {
+  animation: match-radar-pulse 1.8s ease-in-out infinite;
+}
+.match-live-radar::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  animation: match-radar-wave 1.8s ease-out infinite;
+}
+@keyframes match-radar-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .65; transform: scale(.92); }
+}
+@keyframes match-radar-wave {
+  0% { opacity: .45; transform: scale(.85); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .match-live-radar > .icon,
+  .match-live-radar::after {
+    animation: none;
+  }
+}
+.match-schedule .match-card-live .match-team strong {
+  font-family: var(--font-corpo);
+  font-size: 14px;
+}

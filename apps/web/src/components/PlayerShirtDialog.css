@@ -1,0 +1,89 @@
+.player-shirt-dialog {
+  width: min(440px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px);
+}
+.player-shirt-dialog .modal-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.player-shirt-dialog .modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--linha);
+}
+.player-shirt-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.player-shirt-identity > span {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--fundo-card-sec);
+  color: var(--primaria);
+}
+.player-shirt-identity strong {
+  display: block;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.player-shirt-identity small {
+  display: block;
+  margin-top: 5px;
+  color: var(--texto-sec);
+  font-size: 12px;
+}
+.player-shirt-help,
+.player-shirt-conflict p {
+  margin-top: 12px;
+  color: var(--texto-sec);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.player-shirt-conflict h3 {
+  font-size: 16px;
+}
+.player-shirt-conflict dl {
+  margin-top: 16px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: var(--fundo);
+}
+.player-shirt-conflict dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 12px;
+  font-size: 13px;
+}
+.player-shirt-conflict dl > div + div {
+  border-top: 1px solid var(--linha);
+}
+.player-shirt-conflict dt {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.player-shirt-conflict dd {
+  margin: 0;
+  color: var(--texto);
+  font-weight: 600;
+  text-align: right;
+}
+.player-shirt-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 480px) {
+  .player-shirt-actions > .btn {
+    flex: 1;
+    min-height: 44px;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+}

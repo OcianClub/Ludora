@@ -156,6 +156,7 @@ model Time {
   id                 Int              @id @default(autoincrement())
   nome               String
   escudo             String?
+    arquivado          Boolean          @default(false)
   clube_representado_id Int?
   clubeRepresentado Clube? @relation("ClubeRepresentado", fields: [clube_representado_id], references: [id], onDelete: SetNull)
   categoria_id       Int?

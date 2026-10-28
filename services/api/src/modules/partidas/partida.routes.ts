@@ -162,13 +162,13 @@ export function criarPartidaRoutes(io: Server) {
           .json({ error: 'Você não administra a categoria selecionada' });
       }
       const timesValidos = await prisma.time.findMany({
-        where: { id: { in: [mandanteId, visitanteId] }, categoria_id: catId },
+        where: { id: { in: [mandanteId, visitanteId] }, categoria_id: catId, arquivado: false },
         select:{id:true,clube_representado_id:true},
       });
       if (timesValidos.length !== 2)
         return res
           .status(403)
-          .json({ error: 'Times não pertencem à categoria selecionada' });
+          .json({ error: 'Os times devem estar ativos e pertencer à categoria selecionada' });
       let mando: boolean;
       try { mando = mandoDoClube(timesValidos,mandanteId,visitanteId,(req as any).clubeId); }
       catch(e) { return res.status(400).json({error:(e as Error).message}); }

@@ -1,0 +1,1 @@
+ALTER TABLE "Time" ADD COLUMN "arquivado" BOOLEAN NOT NULL DEFAULT false;

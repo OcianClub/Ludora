@@ -33,10 +33,6 @@
 .layout .home-category-picker {
   background: transparent;
 }
-.layout .home-sub-strip button {
-  min-height: 38px;
-  font-size: 13px;
-}
 .layout .home-sub-strip button[aria-selected="true"] {
   background: var(--primaria);
   color: #fff;
@@ -114,70 +110,7 @@
 .schedule-match-grid.is-list {
   grid-template-columns: 1fr;
 }
-.match-schedule .schedule-list .match-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(200px, .65fr) auto;
-  gap: 14px 24px;
-  padding: 16px 20px;
-}
-.match-schedule .schedule-list .match-card-header {
-  grid-column: 1 / -1;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--linha);
-}
-.match-schedule .schedule-list .match-teams {
-  gap: 18px;
-  padding: 0;
-}
-.match-schedule .schedule-list .match-team {
-  flex-direction: row;
-  gap: 12px;
-  text-align: left;
-  min-width: 0;
-}
-.match-schedule .schedule-list .match-team:last-child {
-  flex-direction: row-reverse;
-  text-align: right;
-}
-.match-schedule .schedule-list .match-team .club-badge {
-  width: 40px !important;
-  height: 40px !important;
-  flex-shrink: 0;
-}
-.match-schedule .schedule-list .match-team strong {
-  font-family: var(--font-corpo);
-  font-size: 14px;
-  line-height: 1.4;
-}
-.match-schedule .schedule-list .match-score {
-  font-size: 28px;
-  gap: 8px;
-}
-.match-schedule .schedule-list .match-info {
-  gap: 8px;
-  padding: 0 0 0 24px;
-  border: 0;
-  border-left: 1px solid var(--linha);
-}
-.match-schedule .schedule-list .match-card-actions {
-  margin: 0;
-}
-.match-schedule .schedule-list .match-card-actions > a {
-  min-height: 40px;
-  font-size: 12px;
-}
-@media (min-width: 761px) and (max-width: 1100px) {
-  .match-schedule .schedule-list .match-card {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .match-schedule .schedule-list .match-teams {
-    grid-column: 1 / -1;
-  }
-  .match-schedule .schedule-list .match-info {
-    padding: 0;
-    border: 0;
-  }
-}
+
 .schedule-results {
   display: grid;
   gap: 24px;
@@ -601,20 +534,10 @@
   }
   .layout .home-phase {
     width: 100%;
-    padding: 4px;
   }
   .layout .home-category-picker {
     padding: 0;
     border: 0;
-  }
-  .layout .home-phase button {
-    min-height: 36px;
-    padding: 7px 12px;
-    font-size: 12px;
-  }
-  .layout .home-sub-strip button {
-    min-height: 36px;
-    font-size: 12px;
   }
   .match-schedule .schedule-status-summary {
     display: flex;
@@ -665,35 +588,7 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 14px;
   }
-  .match-schedule .schedule-list .match-card {
-    display: block;
-    padding: 14px;
-  }
-  .match-schedule .schedule-list .match-card-header {
-    margin-bottom: 14px;
-  }
-  .match-schedule .schedule-list .match-teams {
-    gap: 10px;
-  }
-  .match-schedule .schedule-list .match-team {
-    flex-direction: column;
-    text-align: center;
-    gap: 7px;
-  }
-  .match-schedule .schedule-list .match-team:last-child {
-    flex-direction: column;
-    text-align: center;
-  }
-  .match-schedule .schedule-list .match-team strong {
-    min-height: 0;
-    font-size: 12px;
-  }
-  .match-schedule .schedule-list .match-info {
-    margin-top: 14px;
-    padding: 12px 0;
-    border-left: 0;
-    border-top: 1px solid var(--linha);
-  }
+
   .schedule-date-group h2 {
     font-size: 12px;
     margin-bottom: 10px;
@@ -759,12 +654,6 @@
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
-  }
-  .alunos-page .alunos-sub-toggle {
-    display: none;
-  }
-  .alunos-page .alunos-sub-group {
-    border: 0;
   }
   .alunos-page .alunos-list li {
     min-height: 64px;

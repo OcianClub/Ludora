@@ -5,6 +5,7 @@ import { Btn, Modal, Input, Spinner } from '../components/UI';
 import { ClubBadge } from '../components/Brand';
 import { useAuth } from '../contexts/AuthContext';
 import { MatchCard, formatMatchDate } from '../components/MatchCard';
+import { MatchListRow } from '../components/MatchListRow';
 import { Icon, type IconName } from '../components/Icon';
 import { BlockColumns } from '../components/BlockColumns';
 import { FilterSelect } from '../components/FilterSelect';
@@ -73,15 +74,16 @@ function ScheduleResults({ matches, renderMatch, list, grouped }: {
   grouped: boolean;
 }) {
   const [limit, setLimit] = useState(48);
+  const showList = list && matches.some(match => match.status !== 'AO_VIVO');
   const groups = new Map<string, Partida[]>();
   matches.slice(0, limit).forEach(match => {
     const key = grouped ? match.data.slice(0, 7) : 'live';
     groups.set(key, [...(groups.get(key) || []), match]);
   });
-  return <div className={`schedule-results${list ? ' schedule-list' : ''}`}>
+  return <div className={`schedule-results${showList ? ' schedule-list' : ''}`}>
     {[...groups].map(([day, games]) => <section className="schedule-date-group" key={day}>
       {grouped && <h2>{new Date(`${day}-01T12:00:00Z`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>}
-      <div className={`schedule-match-grid${list ? ' is-list' : ''}`}>{games.map(renderMatch)}</div>
+      <div className={`schedule-match-grid${showList ? ' is-list' : ''}`}>{games.map(renderMatch)}</div>
     </section>)}
     {matches.length > limit && <Btn variant="ghost" className="schedule-show-more" onClick={() => setLimit(value => value + 48)}>Mostrar mais partidas ({matches.length - limit})</Btn>}
   </div>;
@@ -118,6 +120,14 @@ function ScheduleAccordion({ title, icon, matches, initialOpen = false, renderMa
 
 export default function PartidasPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [compactViewport, setCompactViewport] = useState(() => window.matchMedia('(max-width: 760px)').matches);
+  useEffect(() => {
+    const viewport = window.matchMedia('(max-width: 760px)');
+    const update = () => setCompactViewport(viewport.matches);
+    update();
+    viewport.addEventListener('change', update);
+    return () => viewport.removeEventListener('change', update);
+  }, []);
   const { podeGerenciar, clube } = useAuth();
   const [partidas, setPartidas] = useState<Partida[]>([]);
   const [times, setTimes] = useState<Time[]>([]);
@@ -147,6 +157,7 @@ export default function PartidasPage() {
   const [draftSort, setDraftSort] = useState('');
   const [filterError, setFilterError] = useState('');
   const loadVersion = useRef(0);
+  const handledOpponent = useRef('');
   const requestedStatus = STATUSES.some(item => item.value === searchParams.get('status')) ? searchParams.get('status')! : '';
   const { phase, selected: selectedCategory } = useClubCategory(categorias, searchParams.get('categoria_id'), searchParams.get('fase'));
   const phaseCategories = useMemo(() => categorias.filter(category => category.tipo === phase)
@@ -158,7 +169,7 @@ export default function PartidasPage() {
   const period = ['today', 'week', 'month', 'custom'].includes(searchParams.get('periodo') || '') ? searchParams.get('periodo') as PeriodoAgenda : 'all';
   const start = searchParams.get('de') || '';
   const end = searchParams.get('ate') || '';
-  const list = searchParams.get('visualizacao') === 'lista';
+  const list = !compactViewport && searchParams.get('visualizacao') === 'lista';
   const sortCategory = searchParams.get('ordem') === 'categoria';
   const range = intervaloAgenda(period, start, end);
 
@@ -329,6 +340,26 @@ export default function PartidasPage() {
     setPicker(null);
     setModal(true);
   }
+  useEffect(() => {
+    const opponentId = searchParams.get('adversario_id');
+    if (searchParams.get('organizar') !== '1' || !opponentId || loading || !podeGerenciar) return;
+    const key = `${clube?.id}:${opponentId}`;
+    if (handledOpponent.current === key) return;
+    handledOpponent.current = key;
+    const target = times.find(time => String(time.id) === opponentId && time.clube_representado_id !== clube?.id && !time.arquivado);
+    const own = target ? ownTeam(String(target.categoria_id)) : undefined;
+    if (target && own) {
+      setForm({ ...FORM_VAZIO, categoria_id: String(target.categoria_id), mandante_id: String(own.id), visitante_id: String(target.id) });
+      setErro('');
+    } else {
+      setForm({ ...FORM_VAZIO, categoria_id: filtroCategoria, mandante_id: ownTeam(filtroCategoria) ? String(ownTeam(filtroCategoria)!.id) : '' });
+      setErro('O adversário não está mais disponível nesta categoria. Confira os times e selecione outro adversário.');
+    }
+    setReviewOpen(false);
+    setPicker(null);
+    setModal(true);
+    changeFilters({ organizar: '', adversario_id: '' });
+  }, [searchParams, loading, times, clube?.id, podeGerenciar, filtroCategoria]);
   function chooseCategory() {
     const category = categorias.find(c => String(c.id) === draftCategoryId);
     if (category && String(category.id) !== form.categoria_id) {
@@ -417,7 +448,8 @@ export default function PartidasPage() {
     { id: 'mando', label: mando === 'casa' ? 'Em casa' : mando === 'fora' ? 'Fora de casa' : '', clear: () => changeFilters({ mando: '' }) },
   ].filter(chip => chip.label);
   function renderMatch(match: Partida) {
-    return <MatchCard key={match.id} partida={match} featured={match.status === 'AO_VIVO'} compactLive />;
+    if (list && match.status !== 'AO_VIVO') return <MatchListRow key={match.id} partida={match} />;
+    return <MatchCard key={match.id} partida={match} featured={match.status === 'AO_VIVO'} />;
   }
 
   function clearFilters() {
@@ -504,8 +536,8 @@ export default function PartidasPage() {
           {chips.map(chip => <button type="button" key={chip.id} onClick={chip.clear} title={chip.label} aria-label={`Remover filtro ${chip.label}`}><span>{chip.label}</span><Icon name="minus" size={14} /></button>)}
           <button type="button" className="schedule-clear" onClick={clearFilters}>Limpar tudo</button>
         </div>
-        <CollectionViewToggle className="schedule-view-toggle" label="Visualização das partidas" value={list ? 'lista' : 'cards'} onChange={value => changeFilters({ visualizacao: value === 'lista' ? 'lista' : '' })}
-          options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />
+        {!compactViewport && <CollectionViewToggle className="schedule-view-toggle" label="Visualização das partidas" value={list ? 'lista' : 'cards'} onChange={value => changeFilters({ visualizacao: value === 'lista' ? 'lista' : '' })}
+          options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />}
       </div>
 
       {loadWarning && <div className="schedule-load-warning" role="status"><Icon name="filters" size={20} /><div><strong>Algumas opções não carregaram</strong><p>{loadWarning}</p></div><Btn variant="ghost" size="sm" onClick={carregar}>Atualizar</Btn></div>}

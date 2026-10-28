@@ -116,7 +116,10 @@ function lockPageScroll() {
 }
 
 // ── Modal ──
-export function Modal({ open, onClose, title, children, className = '', id, footer }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; className?: string; id?: string; footer?: React.ReactNode }) {
+export function Modal({ open, onClose, title, children, className = '', id, footer, heading, headerActions }: {
+  open: boolean; onClose: () => void; title: string; children: React.ReactNode;
+  className?: string; id?: string; footer?: React.ReactNode; heading?: React.ReactNode; headerActions?: React.ReactNode;
+}) {
   const dialogRef = React.useRef<HTMLDialogElement>(null);
   const titleId = React.useId();
   React.useLayoutEffect(() => {
@@ -157,8 +160,9 @@ export function Modal({ open, onClose, title, children, className = '', id, foot
         }}
         onCancel={e => { e.preventDefault(); onClose(); }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
         <div className="modal-header">
-          <h2 className="modal-title" id={titleId}>{title}</h2>
-          <button type="button" className="modal-close" aria-label="Fechar janela" onClick={onClose}>✕</button>
+          <h2 className="modal-title" id={titleId}>{heading || title}</h2>
+          {headerActions ? <div className="modal-header-tools">{headerActions}<button type="button" className="modal-close" aria-label="Fechar janela" onClick={onClose}>✕</button></div>
+            : <button type="button" className="modal-close" aria-label="Fechar janela" onClick={onClose}>✕</button>}
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}

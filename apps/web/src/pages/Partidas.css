@@ -641,13 +641,7 @@
   user-select: none;
   scroll-snap-type: none;
 }
-.match-live-indicator {
-  display: grid;
-  width: 26px;
-  height: 24px;
-  place-items: center;
-  color: var(--ao-vivo-indicador);
-}
+
 .match-schedule .match-card .status-badge {
   border-radius: 6px;
   background: var(--fundo-card-sec);
@@ -663,34 +657,7 @@
   font-weight: 500;
   text-transform: capitalize;
 }
-.schedule-list .match-card {
-  display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 1fr) auto;
-  align-items: center;
-  column-gap: 20px;
-  row-gap: 12px;
-  padding: 16px;
-}
-.schedule-list .match-card-header {
-  grid-column: 1 / -1;
-}
-.schedule-list .match-teams {
-  padding: 0;
-}
-.schedule-list .match-info {
-  border-top: 0;
-  padding: 0;
-}
-.schedule-list .match-card-actions {
-  margin: 0;
-}
-.schedule-list .match-score {
-  font-size: 28px;
-}
-.schedule-list .match-team strong {
-  font-family: var(--font-corpo);
-  font-size: 13px;
-}
+
 .schedule-period-dialog .modal-body {
   gap: 18px;
 }
@@ -860,12 +827,7 @@
   .schedule-live-carousel > .match-card {
     flex-basis: calc((100% - 22px) / 2);
   }
-  .schedule-list .match-card {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-  .schedule-list .match-card-actions {
-    grid-column: 1 / -1;
-  }
+
 }
 @media (max-width: 760px) {
   .match-schedule {
@@ -1018,9 +980,7 @@
   .schedule-live-carousel > .match-card:only-child {
     flex-basis: 100%;
   }
-  .schedule-list .match-card {
-    display: block;
-  }
+
   .schedule-period-dialog,
   .schedule-all-filters-dialog {
     position: fixed;

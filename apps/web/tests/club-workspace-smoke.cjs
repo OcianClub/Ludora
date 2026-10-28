@@ -106,10 +106,11 @@ const output = path.resolve(__dirname, '../../../test-results/club-workspace');
         await fit('matches-all');
 
         await navigate('/jogadores?camisa=missing');
-        await page.locator('.alunos-results-bar').getByText('1 jogador', { exact: true }).waitFor();
+        await page.locator('.alunos-results-bar').getByText(width <= 760 ? '8 jogadores' : '1 jogador', { exact: true }).waitFor();
         if (width <= 760) {
           await page.locator('.alunos-list li').first().waitFor();
-          assert.equal(await page.locator('.alunos-sub-toggle:visible').count(), 0);
+          assert.equal(await page.locator('.alunos-sub-toggle:visible').count(), 8);
+          assert.equal(await page.locator('.alunos-view-toggle').count(), 0);
           assert.equal(await page.locator('.alunos-add').evaluate(el => getComputedStyle(el).position), 'fixed');
         } else {
           assert.equal(await page.getByRole('columnheader', { name: /Categoria/ }).count(), 0);

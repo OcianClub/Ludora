@@ -2,6 +2,8 @@
   min-width: 0;
   max-width: 100%;
   --alunos-row-hover: color-mix(in srgb, var(--fundo-card) 95%, var(--texto) 5%);
+  --alunos-header: color-mix(in srgb, var(--fundo-card) 55%, var(--fundo-card-sec));
+  --alunos-separator: color-mix(in srgb, var(--borda) 70%, var(--linha));
 }
 
 .alunos-page .home-swipe-surface {
@@ -36,8 +38,8 @@
 
 .alunos-table th {
   padding: 0 16px;
-  background: var(--fundo-card-sec);
-  border-bottom: 1px solid var(--linha);
+  background: var(--alunos-header);
+  border-bottom: 1px solid var(--alunos-separator);
   color: var(--texto-sec);
   font-size: 12px;
   font-weight: 500;
@@ -78,14 +80,14 @@
   min-height: 56px;
   padding: 12px 14px;
   border: 0;
-  border-radius: 7px;
-  background: transparent;
+  border-radius: 7px 7px 0 0;
+  background: var(--alunos-header);
   color: var(--texto);
   text-align: left;
 }
 
 .alunos-sub-toggle:hover {
-  background: var(--alunos-row-hover);
+  background: color-mix(in srgb, var(--alunos-header) 90%, var(--texto) 10%);
 }
 
 .alunos-page .alunos-sub-toggle:focus-visible {
@@ -110,10 +112,14 @@
 
 .alunos-sub-toggle > .icon:last-child {
   color: var(--texto-sec);
+  transform: rotate(90deg);
 }
 
 .alunos-sub-toggle[aria-expanded="true"] > .icon:last-child {
-  transform: rotate(90deg);
+  transform: rotate(-90deg);
+}
+.alunos-sub-toggle[aria-expanded="true"] {
+  border-bottom: 1px solid var(--alunos-separator);
 }
 
 .alunos-sub-group [hidden] {
@@ -214,7 +220,7 @@
   gap: 12px;
   margin-block: 4px;
   padding: 14px 10px;
-  border-bottom: 1px solid var(--linha);
+  border-bottom: 1px solid var(--alunos-separator);
   border-radius: 8px;
 }
 
@@ -241,7 +247,7 @@
 }
 .alunos-table td {
   padding: 13px 16px;
-  border-bottom: 1px solid var(--linha);
+  border-bottom: 1px solid var(--alunos-separator);
   color: var(--texto-sec);
   font-size: 13px;
 }
@@ -492,6 +498,50 @@
 
 .alunos-shirt.is-empty {
   color: var(--texto-sec);
+}
+.alunos-shirt-action {
+  position: relative;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.alunos-shirt-action.is-empty {
+  border: 1px solid var(--borda);
+  background: var(--fundo-card-sec);
+  color: var(--texto-sec);
+}
+.alunos-shirt-action.is-empty:hover,
+.alunos-shirt-action.is-empty:focus-visible {
+  border-color: var(--texto-sec);
+  background: color-mix(in srgb, var(--fundo-card-sec) 90%, var(--texto) 10%);
+  color: var(--texto);
+}
+.alunos-shirt-action.is-empty .shirt-edit-hint {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  right: -3px;
+  bottom: -3px;
+  border: 1px solid var(--borda);
+  border-radius: 4px;
+  background: var(--fundo-card);
+  color: var(--texto);
+  opacity: 1;
+}
+.alunos-shirt-action:hover,
+.alunos-shirt-action:focus-visible {
+  border-color: var(--primaria);
+}
+.shirt-edit-hint {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  color: var(--primaria);
+  opacity: 0;
+}
+.alunos-shirt-action:hover .shirt-edit-hint,
+.alunos-shirt-action:focus-visible .shirt-edit-hint {
+  opacity: 1;
 }
 
 .student-open {
