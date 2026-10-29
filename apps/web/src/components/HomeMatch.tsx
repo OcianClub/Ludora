@@ -28,19 +28,19 @@ export function HomeMatch({ partida }: { partida: HomePartida }) {
           <Icon name="trophy" size={19} />
           <span>{partida.competicao?.nome || 'Competição não informada'}</span>
         </span>
-        <span className="home-match-venue"><Icon name={partida.emCasa ? 'home' : 'switchClub'} size={16} />{partida.emCasa ? 'Em casa' : 'Fora'}</span>
+        <span className="home-match-venue"><Icon name={partida.emCasa ? 'home' : 'bus'} size={16} />{partida.emCasa ? 'Em casa' : 'Fora'}</span>
       </div>
       <div className="home-scoreboard">
-        <div className="home-team">
+        <div className={`home-team${partida.emCasa ? ' is-club' : ''}`}>
           <ClubBadge src={partida.mandante?.escudo} name={teamName(partida.mandante?.nome || 'Mandante')} size={72} />
-          <strong>{teamName(partida.mandante?.nome || 'Mandante')}</strong>
+          <strong>{teamName(partida.mandante?.nome || 'Mandante')}{partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</strong>
         </div>
         <div className="home-score" aria-label={live ? `${partida.gols_mandante} a ${partida.gols_visitante}` : 'Contra'}>
           {live ? <><span>{partida.gols_mandante}</span><i aria-hidden="true">·</i><span>{partida.gols_visitante}</span></> : <span className="home-versus">VS</span>}
         </div>
-        <div className="home-team">
+        <div className={`home-team${!partida.emCasa ? ' is-club' : ''}`}>
           <ClubBadge src={partida.visitante?.escudo} name={teamName(partida.visitante?.nome || 'Visitante')} size={72} />
-          <strong>{teamName(partida.visitante?.nome || 'Visitante')}</strong>
+          <strong>{teamName(partida.visitante?.nome || 'Visitante')}{!partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</strong>
         </div>
       </div>
       {!live && <MatchCountdown date={partida.data} time={partida.horario} />}

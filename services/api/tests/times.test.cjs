@@ -63,6 +63,23 @@ async function call(method, path, id, body, role = 'ADMIN') {
   return response;
 }
 
+test('ações de gestão rejeitam times vinculados a outro clube e permitem times externos ou do próprio clube', async t => {
+  const originalFind = prisma.time.findFirst;
+  prisma.time.findFirst = async ({ where }) => initial.find(item => item.id === where.id) || null;
+  t.after(() => { prisma.time.findFirst = originalFind; });
+  for (const [method, path] of [['patch', '/times/:id/arquivo'], ['post', '/times/:id/categorias'], ['patch', '/times/:id'], ['delete', '/times/:id']]) {
+    const route = router.stack.find(layer => layer.route?.path === path && layer.route.methods[method]).route;
+    const guard = route.stack.at(-2).handle;
+    for (const [id, expected] of [[5, 403], [3, 200], [1, 200]]) {
+      let nextCalled = false;
+      const response = { statusCode: 200, status(code) { this.statusCode = code; return this; }, json() { return this; } };
+      await guard({ params: { id: String(id) }, clubeId: 2 }, response, () => { nextCalled = true; });
+      assert.equal(response.statusCode, expected, `${method} ${path}, time ${id}`);
+      assert.equal(nextCalled, expected === 200);
+    }
+  }
+});
+
 test('retrospecto usa a perspectiva do clube, agrega categorias, multiplica resultados repetidos e ignora terceiros', () => {
   const score = (home, away, h, a, n = 1) => ({ mandante_id: home, visitante_id: away, gols_mandante: h, gols_visitante: a, _count: { _all: n } });
   const summaries = resumirConfrontos(initial, [score(1, 3, 2, 0, 2), score(4, 2, 1, 1), score(3, 1, 3, 0), score(3, 5, 4, 0)], [

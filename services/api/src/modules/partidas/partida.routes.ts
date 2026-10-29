@@ -20,6 +20,7 @@ import { criarHomeRoutes } from './home.routes';
 import { criarAgendaRoutes } from './agenda.routes';
 import { consultarAgenda } from './agenda.service';
 import { perspectivaPartida } from './visibilidade';
+import { PreparacaoInvalida, validarPreparacao } from './preparacao.utils';
 import { mandoDoClube } from './mando';
 import {
   aplicarMudancaPlacar,
@@ -467,6 +468,21 @@ export function criarPartidaRoutes(io: Server) {
         if (!anterior)
           return res.status(404).json({ error: 'Partida não encontrada' });
         const partida = await prisma.$transaction(async (tx) => {
+          if (status === 'PREPARADA' || status === 'AO_VIVO') {
+            const atual = await tx.partida.findUniqueOrThrow({
+              where: { id: partidaId },
+              select: { status: true, data: true, horario: true, categoria_id: true },
+            });
+            if ((status === 'AO_VIVO' && atual.status !== 'PREPARADA') ||
+                (status === 'PREPARADA' && !['AGENDADA', 'PREPARADA'].includes(atual.status))) {
+              throw new PreparacaoInvalida('Confirme a preparação de uma partida agendada antes de iniciar.');
+            }
+            const convocados = await tx.escalacaoPartida.findMany({
+              where: { partida_id: partidaId },
+              select: { jogador_id: true, numCamisa: true, titular: true, jogador: { select: { categoria_id: true } } },
+            });
+            validarPreparacao(atual, convocados);
+          }
           const alteracao = await tx.partida.updateMany({
             where: {
               id: partidaId,
@@ -534,6 +550,8 @@ export function criarPartidaRoutes(io: Server) {
         }
         res.json(partida);
       } catch (error: any) {
+        if (error instanceof PreparacaoInvalida)
+          return res.status(400).json({ error: error.message });
         if (error instanceof ConflitoPartida)
           return res.status(409).json({ error: error.message });
         res.status(500).json({ error: 'Erro ao atualizar status' });

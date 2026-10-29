@@ -8,6 +8,11 @@ const { chromium } = require('playwright');
    await ctx.addInitScript(theme => {localStorage.setItem('ludora_token','test');localStorage.setItem('ludora_usuario',JSON.stringify({id:1,nome:'Alex'}));localStorage.setItem('ludora_clube_id','2');localStorage.setItem('ludora_clube',JSON.stringify({id:2,nome:'Ocian',meuPapel:'ADMIN'}));localStorage.setItem('ludora_tema',theme);},theme);
    const p=await ctx.newPage(); await p.route('**/*',r=>new URL(r.request().url()).origin==='http://127.0.0.1:5189'?r.continue():r.abort());
    await require('./visual-fixture.cjs').install(p);
+   let preferences = {clube_id:2,push_gols:true,push_resultados:true,push_agendamentos:true};
+   await p.route('**/notificacoes/preferencias**',r=>{
+    if(r.request().method()==='PATCH') preferences={...preferences,...r.request().postDataJSON()};
+    return r.fulfill({json:r.request().method()==='PATCH'?preferences:{preferencias:[preferences]}});
+   });
    await p.route('http://localhost:3000/usuarios/me',r=>r.fulfill({json:{id:1,nome:'Alex',email:'alex@example.test',notificacoes_ativas:true,clubes:[{id:4,nome:'Clube Base',meuPapel:'TECNICO'},{id:5,nome:'Clube Seguido',meuPapel:'TORCEDOR'},{id:2,nome:'Ocian',meuPapel:'ADMIN'}]}}));
    await p.goto('http://127.0.0.1:5189/perfil?secao=clubes');
    const groups=p.locator('.perfil-clubes-group');await groups.first().waitFor();
@@ -20,6 +25,12 @@ const { chromium } = require('playwright');
    await panel.getByRole('radio',{name:'Tema do sistema'}).click();assert.equal(await p.evaluate(()=>localStorage.getItem('ludora_tema')),'system');
    await panel.getByRole('radio',{name:'Tema escuro'}).click();assert.equal(await p.evaluate(()=>localStorage.getItem('ludora_tema')),'dark');
    assert.ok(await panel.getByRole('switch',{name:'Receber notificações'}).isVisible());
+   const goals=panel.getByRole('switch',{name:'Gols'}); await goals.waitFor();
+   await goals.click(); assert.equal(await goals.getAttribute('aria-checked'),'false');
+   assert.equal(preferences.push_gols,false);
+   await p.getByRole('tab',{name:'Conta',exact:true}).click();
+   assert.ok(await p.getByRole('button',{name:'Sair da conta'}).isVisible());
+   await p.getByRole('tab',{name:'Preferências'}).click();
    assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
    if(width===1366){await p.getByRole('button',{name:'Expandir navegação'}).click();await p.waitForTimeout(400);const brand=await p.locator('.sidebar-brand img').boundingBox(), crest=await p.locator('.sidebar-club .club-badge').boundingBox(), user=await p.locator('.sidebar .sidebar-usuario').boundingBox(), bell=await p.locator('.sidebar-footer .notifications-trigger').boundingBox();assert.ok(Math.abs(brand.x-crest.x)<=1);assert.ok(bell.x-user.x-user.width>=6);await p.locator('.sidebar .account-trigger').click();const popup=p.getByRole('dialog',{name:'Conta e aparência'});await popup.getByRole('radio',{name:'Tema claro'}).click();assert.equal(await panel.getByRole('radio',{name:'Tema claro'}).getAttribute('aria-checked'),'true');}
    await ctx.close();console.log(`${width}px ${theme}: clubes, tema e alinhamento OK`);

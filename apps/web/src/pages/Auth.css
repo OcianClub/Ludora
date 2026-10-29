@@ -15,11 +15,12 @@
 .auth-story-content {
   margin: auto 0;
   padding: 48px 0;
+  max-width: 560px;
 }
 .auth-story h2 {
   font-family: var(--font-titulo);
-  font-size: clamp(42px, 5vw, 76px);
-  line-height: 1.14;
+  font-size: clamp(42px, 4.5vw, 70px);
+  line-height: 1.12;
   text-transform: uppercase;
   font-weight: 600;
 }
@@ -28,9 +29,24 @@
 }
 .auth-story p {
   color: var(--texto-sec);
-  max-width: 310px;
-  margin-top: 22px;
-  line-height: 1.8;
+  max-width: 430px;
+  margin-top: 24px;
+  font-size: 16px;
+  line-height: 1.7;
+}
+.auth-story-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 0;
+  margin-top: 25px;
+  color: var(--texto-sec);
+  font-size: 13px;
+  font-weight: 500;
+}
+.auth-story-features span + span::before {
+  content: '·';
+  color: var(--primaria);
+  margin: 0 12px;
 }
 .auth-story-footer {
   color: var(--texto-sec);
@@ -39,7 +55,7 @@
 }
 .auth-pitch {
   height: 130px;
-  max-width: 370px;
+  max-width: 460px;
   border: 1px solid var(--borda);
   border-radius: 10px;
   position: relative;
@@ -107,14 +123,11 @@
   margin-bottom: 36px;
   flex-wrap: wrap;
 }
-.access-topbar .appearance-control {
+.access-topbar .theme-options-control {
   margin-left: auto;
 }
-.access-topbar .appearance-control > .field-label {
+.access-mobile-brand {
   display: none;
-}
-.access-brand {
-  margin-bottom: 32px;
 }
 .auth-heading {
   margin-bottom: 26px;
@@ -505,6 +518,10 @@
     align-items: flex-start;
     padding: 24px;
   }
+  .access-mobile-brand {
+    display: block;
+    margin-bottom: 24px;
+  }
   .auth-card {
     max-width: 460px;
   }
@@ -542,8 +559,5 @@
   }
   .access-topbar {
     margin-bottom: 20px;
-  }
-  .access-brand {
-    margin-bottom: 24px;
   }
 }

@@ -182,3 +182,9 @@
     animation: none;
   }
 }
+
+.account-menu-profile .usuario-avatar {
+  border-radius: 10px;
+  background: var(--fundo-card);
+  color: var(--texto);
+}

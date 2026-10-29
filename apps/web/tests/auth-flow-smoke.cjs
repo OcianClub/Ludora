@@ -186,10 +186,10 @@ const invite = {
         localStorage.setItem('ludora_clube_id', String(club.id));
       }, { user, club });
       await page.goto(base + '/dashboard');
-      await page.locator('.current-club strong').filter({ hasText: club.nome }).waitFor();
+      await page.locator('.current-club:visible strong').filter({ hasText: club.nome }).first().waitFor();
       assert.equal(new URL(page.url()).pathname, '/dashboard');
       await page.reload();
-      await page.locator('.current-club strong').filter({ hasText: club.nome }).waitFor();
+      await page.locator('.current-club:visible strong').filter({ hasText: club.nome }).first().waitFor();
       assert.equal(new URL(page.url()).pathname, '/dashboard');
     });
 
@@ -218,7 +218,8 @@ const invite = {
         for (const theme of ['Claro', 'Escuro']) {
           for (const route of ['/login', '/registrar', '/recuperar-senha', '/convite', '/convite/ABCD-2345']) {
             await page.goto(base + route);
-            await page.getByRole('switch', { name: 'Tema escuro' }).setChecked(theme === 'Escuro');
+            await page.getByRole('radio', { name: theme === 'Escuro' ? 'Tema escuro' : 'Tema claro' }).click();
+            assert.equal(await page.locator('.auth-page .brand:visible').count(), 1);
             if (route.includes('ABCD')) await page.getByRole('heading', { name: club.nome }).waitFor();
             await page.waitForFunction(expected => {
               const input = document.querySelector('.access-input-row');

@@ -153,14 +153,21 @@
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
-  color: var(--primaria);
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+  font-size: 12px;
   font-weight: 500;
 }
 .home-scoreboard {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 18px;
+  gap: clamp(12px, 2vw, 28px);
+  width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
   padding: 24px 0;
 }
 .home-team {
@@ -176,20 +183,23 @@
   overflow-wrap: anywhere;
 }
 .home-team .club-badge {
-  width: 64px !important;
-  height: 64px !important;
-  border: 0;
+  width: 60px !important;
+  height: 60px !important;
+  border: 1px solid transparent;
   background: var(--fundo-card-sec);
   border-radius: 12px;
   color: var(--texto);
   font-size: 26px;
   font-weight: 600;
 }
+.home-team.is-club .club-badge {
+  border-color: var(--primaria);
+}
 .home-score {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: clamp(34px, 3.2vw, 44px);
+  gap: 12px;
+  font-size: clamp(36px, 3.2vw, 46px);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -250,7 +260,7 @@
   font-size: 14px;
   padding: 12px;
 }
-.category-moment, .home-upcoming {
+.category-moment, .home-upcoming-card {
   background: var(--fundo-card);
   border-radius: 10px;
   padding: 24px;
@@ -343,9 +353,6 @@
   line-height: 1.7;
   padding: 14px 0;
 }
-.home-upcoming .home-section-heading {
-  margin-bottom: 12px;
-}
 .home-upcoming-list {
   display: grid;
 }
@@ -433,11 +440,13 @@
 }
 .history-table-teams {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 7px;
   min-width: 0;
 }
 .history-table-teams > span {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 9px;
   min-height: 28px;
@@ -494,6 +503,8 @@
 }
 .history-sr-only {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   padding: 0;
@@ -813,7 +824,7 @@
     gap: 8px;
     font-size: 13px;
   }
-  .category-moment, .home-upcoming {
+  .category-moment, .home-upcoming-card {
     padding: 17px;
   }
   .home-focus, .home-side {
@@ -890,7 +901,7 @@
   }
 }
 @media (max-width: 380px) {
-  .home-main-match, .category-moment, .home-upcoming {
+  .home-main-match, .category-moment, .home-upcoming-card {
     padding: 15px;
   }
   .home-upcoming {

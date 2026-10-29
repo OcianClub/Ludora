@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 
 import { prisma } from '../../lib/prisma';
 import {
@@ -16,6 +16,23 @@ import { nomeBaseTime } from './time-identity';
 import { chaveTime, resumirConfrontos } from './time-context';
 
 const router = Router();
+
+const exigirTimeEditavel: RequestHandler = async (req, res, next) => {
+  try {
+    const clubeId = (req as any).clubeId as number;
+    const time = await prisma.time.findFirst({
+      where: { id: Number(req.params.id), categoria: { clube_id: clubeId } },
+      select: { clube_representado_id: true },
+    });
+    if (!time) return res.status(404).json({ error: 'Time não encontrado.' });
+    if (time.clube_representado_id && time.clube_representado_id !== clubeId) {
+      return res.status(403).json({ error: 'Este time pertence a outro clube e só pode ser gerenciado pelo próprio clube.' });
+    }
+    next();
+  } catch {
+    res.status(500).json({ error: 'Não foi possível verificar o time.' });
+  }
+};
 
 function timeError(message: string, status = 409) {
   return Object.assign(new Error(message), { status });
@@ -142,7 +159,7 @@ router.patch('/times/:id/nome', exigirGestorDoClube, exigirTimeDoClube, async (r
   }
 });
 
-router.patch('/times/:id/arquivo', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
+router.patch('/times/:id/arquivo', exigirGestorDoClube, exigirTimeDoClube, exigirTimeEditavel, async (req, res) => {
   if (typeof req.body?.arquivado !== 'boolean') return res.status(400).json({ error: 'Informe se o time deve ser arquivado.' });
   try {
     const ids = await prisma.$transaction(async tx => {
@@ -213,7 +230,7 @@ router.patch('/times/:id/escudo', exigirGestorDoClube, exigirTimeDoClube, async 
   }
 });
 
-router.post('/times/:id/categorias', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
+router.post('/times/:id/categorias', exigirGestorDoClube, exigirTimeDoClube, exigirTimeEditavel, async (req, res) => {
   const categoriaId = idPositivo(req.body?.categoria_id);
   if (!categoriaId) return res.status(400).json({ error: 'Selecione uma categoria.' });
   try {
@@ -279,7 +296,7 @@ router.post('/times', exigirGestorDoClube, async (req, res) => {
   } catch (error: any) { res.status(500).json({ error: 'Erro ao criar time' }); }
 });
 
-router.patch('/times/:id', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
+router.patch('/times/:id', exigirGestorDoClube, exigirTimeDoClube, exigirTimeEditavel, async (req, res) => {
   const { nome, escudo, categoria_id } = req.body;
   try {
     const categoriaId = idPositivo(categoria_id);
@@ -319,7 +336,7 @@ router.get('/times', exigirClubePublico, async (req, res) => {
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar times' }); }
 });
 
-router.delete('/times/:id', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
+router.delete('/times/:id', exigirGestorDoClube, exigirTimeDoClube, exigirTimeEditavel, async (req, res) => {
   try {
     await prisma.time.delete({ where: { id: Number(req.params.id) } });
     res.json({ mensagem: 'Time excluído' });

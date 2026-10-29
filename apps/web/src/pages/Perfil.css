@@ -148,6 +148,23 @@
   gap: 10px;
   margin-top: 16px;
 }
+
+.perfil-push-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.perfil-push-grupo > span,
+.perfil-push-grupo > p {
+  color: var(--texto-sec);
+  font-size: 13px;
+}
+
+.perfil-dados-card .perfil-sessao {
+  margin-top: 24px;
+}
 .perfil-preferencia {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 52px;

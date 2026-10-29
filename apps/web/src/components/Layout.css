@@ -265,10 +265,9 @@
   left: 5px;
   top: 50%;
   transform: translateY(-50%);
-  border-radius: 50%;
-  background: var(--fundo-card-sec);
+  border-radius: 10px;
+  background: var(--fundo-card);
   color: var(--texto);
-  font-size: 13px;
 }
 .sidebar .usuario-info { position: absolute; left: 49px; right: 0; white-space: nowrap; }
 .sidebar .usuario-info strong { font-size: 13px; }
@@ -280,6 +279,7 @@
   transition: left var(--sidebar-motion) var(--sidebar-ease), bottom var(--sidebar-motion) var(--sidebar-ease), background-color 140ms ease;
 }
 .layout[data-sidebar-expanded="true"] .sidebar-footer .notifications-trigger.profile-link { left: calc(100% - 50px); bottom: 17px; }
+
 .mobile-more-account { padding-top: 16px; border-top: 1px solid var(--linha); }
 .mobile-more-account > .mobile-more-item { width: 100%; border: 1px solid var(--linha); border-radius: 12px; background: var(--fundo-card); }
 .mobile-more-account > .mobile-more-item > span:nth-child(2) { flex: 1; }

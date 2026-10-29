@@ -5,6 +5,7 @@ import { requestJson } from '../services/api';
 import { Btn, Modal } from './UI';
 import { Icon } from './Icon';
 import { NotificationItem } from './NotificationItem';
+import { FilterSelect } from './FilterSelect';
 import { groupNotices, NOTICE_LABELS, type Notice, type NoticeType } from '../utils/notifications';
 import './Notifications.css';
 
@@ -189,29 +190,32 @@ export function Notifications() {
         {data.totalNaoLidas > 0 && <span className="notification-dot" aria-hidden="true" />}
       </button>
       <Modal open={open} onClose={() => { setOpen(false); setConfirmation(null); }} title="Notificações"
-        id={dialogId} className="notifications-drawer">
+        id={dialogId} className="notifications-drawer" headerActions={clube?.meuPapel && <details className="notification-menu"
+          onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}
+          onKeyDown={event => { if (event.key === 'Escape' && event.currentTarget.open) { event.preventDefault(); event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
+          <summary aria-label="Ações das notificações">···</summary>
+          <div className="notification-menu-options" onClick={event => {
+            if ((event.target as HTMLElement).closest('button')) event.currentTarget.closest('details')?.removeAttribute('open');
+          }}>
+            <button type="button" disabled={busy || loading || !data.totalNaoLidas} onClick={() => void read()}><Icon name="checkAll" size={17} />Marcar todas como lidas</button>
+            <button type="button" disabled={busy || loading || (!readCount && !data.proximoCursor)} onClick={() => setConfirmation('read')}><Icon name="checkAll" size={17} />Excluir avisos lidos</button>
+            <button type="button" className="notification-menu-danger" disabled={busy || loading || !data.notificacoes.length} onClick={() => setConfirmation('all')}><Icon name="trash" size={17} />Excluir todas as notificações</button>
+          </div>
+        </details>}>
         <div className="notifications-summary">
-          <div><p>{clube?.nome || 'Seu clube'}</p><span>{loading ? 'Buscando avisos…' : error ? 'Não foi possível atualizar os avisos.' : data.totalNaoLidas ? `Você tem ${data.totalNaoLidas} ${data.totalNaoLidas === 1 ? 'aviso não lido' : 'avisos não lidos'}.` : 'Você está em dia com os avisos do clube.'}</span></div>
+          <div><p>{clube?.nome || 'Seu clube'}</p>{!loading && !error && !data.totalNaoLidas && <span>Você está em dia com os avisos do clube.</span>}</div>
         </div>
         {clube?.meuPapel && <>
           <div className="notification-filters">
             <div className="notification-tabs" role="group" aria-label="Filtrar leitura">
               <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Todas</button>
-              <button type="button" aria-pressed={filter === 'unread'} onClick={() => setFilter('unread')}>Não lidas</button>
+              <button type="button" aria-pressed={filter === 'unread'} onClick={() => setFilter('unread')}>Não lidas {data.totalNaoLidas > 0 && <span aria-hidden="true" className="notification-unread-count">{data.totalNaoLidas}</span>}</button>
             </div>
-            <label className="notification-type" data-filtered={Boolean(type)}>
-              <span className="sr-only">Tipo de aviso</span>
-              <select aria-label="Tipo de aviso" value={type} onChange={event => setType(event.target.value as NoticeType | '')}>
-                <option value="">Todos os tipos</option>
-                {Object.entries(NOTICE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-              <Icon name="chevronRight" size={17} />
-            </label>
-          </div>
-          <div className="notification-tools">
-            <button type="button" disabled={busy || loading || !data.totalNaoLidas} aria-label="Marcar todas como lidas" onClick={() => void read()}><Icon name="checkAll" size={18} />Ler todas</button>
-            <button type="button" disabled={busy || loading || (!readCount && !data.proximoCursor)} onClick={() => setConfirmation('read')}><Icon name="trash" size={18} />Limpar lidas</button>
-            <button type="button" disabled={busy || loading || !data.notificacoes.length} onClick={() => setConfirmation('all')}>Limpar tudo</button>
+            <div className="notification-type">
+              <FilterSelect label="Tipo de aviso" value={type} emptyLabel="Todos os tipos"
+                onChange={value => setType(value as NoticeType | '')}
+                options={Object.entries(NOTICE_LABELS).map(([value, label]) => ({ value, label }))}/>
+            </div>
           </div>
           {confirmation && <section className="notification-confirm" role="alert" aria-label="Confirmar limpeza">
             <h3>{confirmation === 'all' ? 'Excluir todos os avisos?' : 'Limpar os avisos lidos?'}</h3>
@@ -232,7 +236,6 @@ export function Notifications() {
             </div>
           )}
         {data.proximoCursor && <Btn variant="ghost" disabled={busy || fetching} onClick={() => void reload.current(true)}>{fetching ? 'Carregando…' : 'Carregar mais avisos'}</Btn>}
-        {!!data.notificacoes.length && <p className="notification-swipe-hint">Deslize um aviso para a esquerda para excluir. Se preferir, use a lixeira.</p>}
       </Modal>
     </>
   );

@@ -95,10 +95,6 @@ function lockPageScroll() {
     const previous = bodyStyles.map(property => body.style[property]);
     root.style.scrollbarGutter = 'stable';
     root.style.overflow = 'hidden';
-    body.style.position = 'fixed';
-    body.style.top = `-${y}px`;
-    body.style.left = `-${x}px`;
-    body.style.width = '100%';
     body.style.overflow = 'hidden';
     restorePageScroll = () => {
       root.style.overflow = rootOverflow;

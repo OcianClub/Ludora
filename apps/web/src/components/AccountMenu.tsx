@@ -7,7 +7,7 @@ import { Icon } from './Icon';
 import { LogoutDialog } from './LogoutButton';
 import './AccountMenu.css';
 
-export function AccountMenu({ header = false }: { header?: boolean }) {
+export function AccountMenu({ header = false, avatar = false }: { header?: boolean; avatar?: boolean }) {
   const { usuario, clube } = useAuth();
   const location = useLocation();
   const id = useId();
@@ -102,8 +102,8 @@ export function AccountMenu({ header = false }: { header?: boolean }) {
     <button ref={trigger} type="button" className={header ? 'profile-link header-profile-link account-trigger' : 'sidebar-usuario account-trigger'}
       aria-label="Menu da conta" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined}
       onClick={() => setOpen(value => !value)}>
-      {header ? <Icon name="user" size={24} /> : <>
-        <span className="usuario-avatar">{usuario?.nome?.trim().charAt(0).toUpperCase() || '?'}</span>
+      {header ? (avatar ? <span className="usuario-avatar">{usuario?.nome?.trim().charAt(0).toUpperCase() || '?'}</span> : <Icon name="user" size={24} />) : <>
+        <span className="usuario-avatar"><Icon name="user" size={20} /></span>
         <span className="usuario-info"><strong>{usuario?.nome || 'Minha conta'}</strong><small>Minha conta</small></span>
         <Icon name="chevronRight" size={16} />
       </>}
@@ -133,7 +133,7 @@ export function AccountMenu({ header = false }: { header?: boolean }) {
       </div>
       <nav className="account-popover-links" aria-label="Minha conta">
         <Link to="/perfil" className="account-menu-profile" aria-label="Meu perfil" onClick={() => close()}>
-          <span className="usuario-avatar">{usuario?.nome?.trim().charAt(0).toUpperCase() || '?'}</span>
+          <span className="usuario-avatar"><Icon name="user" size={20} /></span>
           <span><strong>Meu perfil</strong><small>Dados pessoais</small></span><Icon name="chevronRight" size={16} />
         </Link>
         <Link to="/perfil?secao=preferencias" onClick={() => close()}><Icon name="settings" size={18} /><span>Preferências</span></Link>

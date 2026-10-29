@@ -5,8 +5,16 @@
   margin: 0 auto;
   border: 0;
   border-radius: 10px;
-  background: var(--fundo-card);
+  background: transparent;
   color: var(--texto);
+}
+.sidebar-footer .notifications-trigger.profile-link:hover,
+.sidebar-footer .notifications-trigger.profile-link:active,
+.sidebar-footer .notifications-trigger.profile-link[aria-expanded="true"] {
+  background: var(--fundo-card-sec);
+}
+.sidebar-footer .notification-dot {
+  box-shadow: 0 0 0 2px var(--fundo);
 }
 .nav-pending-count {
   margin-left: auto;
@@ -257,11 +265,18 @@
   min-width: 540px;
 }
 
+.dashboard .home-section-heading {
+  min-height: 36px;
+  margin-bottom: 16px;
+}
 .dashboard .home-focus {
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   grid-template-areas: "feature pending" "upcoming moment";
   align-items: stretch;
   gap: 24px;
+}
+.dashboard .home-focus-with-extras {
+  grid-template-areas: "feature pending" "extras extras" "upcoming moment";
 }
 .dashboard .home-feature {
   grid-area: feature;
@@ -270,19 +285,64 @@
 }
 .dashboard .home-main-match {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 20px;
 }
 .dashboard .home-scoreboard {
+  flex: 1;
   padding-block: 20px;
 }
 .dashboard .home-focus-public {
   grid-template-areas: "feature moment" "upcoming upcoming";
 }
-.category-moment {
+.dashboard .home-focus-public.home-focus-with-extras {
+  grid-template-areas: "feature moment" "extras extras" "upcoming upcoming";
+}
+.home-feature-extras {
+  grid-area: extras;
+  min-width: 0;
+}
+.home-feature-extras .home-extra-live,
+.home-feature-extras .home-preparation {
+  margin-top: 0;
+}
+.home-moment {
   grid-area: moment;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.home-moment .category-moment {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.home-moment .home-section-copy {
+  margin: 0;
+}
+.home-moment .moment-results {
+  flex: 1;
+  align-items: center;
+  margin-block: 24px;
+}
+.home-moment .moment-footer {
+  margin-top: auto;
+}
+.dashboard .home-feature > .home-empty {
+  flex: 1;
 }
 .dashboard .home-upcoming {
   grid-area: upcoming;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: transparent;
+}
+.dashboard .home-upcoming-card {
+  flex: 1;
+  min-width: 0;
   padding: 22px;
   border-radius: 10px;
   background: var(--fundo-card);
@@ -320,6 +380,10 @@
 }
 .home-pending-symbol {
   background: var(--fundo-botao);
+}
+.home-pending-symbol.is-alert {
+  background: color-mix(in srgb, var(--fundo-card-sec) 65%, var(--fundo-card));
+  color: var(--texto);
 }
 .home-pending-intro h3 {
   margin: 0 0 5px;
@@ -677,6 +741,16 @@
   .dashboard .home-focus-public {
     grid-template-areas: "feature" "moment" "upcoming";
   }
+  .dashboard .home-focus-with-extras {
+    grid-template-areas: "feature" "extras" "pending" "upcoming" "moment";
+  }
+  .dashboard .home-focus-public.home-focus-with-extras {
+    grid-template-areas: "feature" "extras" "moment" "upcoming";
+  }
+  .home-moment .moment-results {
+    flex: none;
+    margin-block: 16px;
+  }
   .dashboard .page-header {
     margin-bottom: 6px;
   }
@@ -691,7 +765,7 @@
     gap: 16px;
   }
   .dashboard .home-main-match,
-  .dashboard .home-upcoming {
+  .dashboard .home-upcoming-card {
     padding: 16px;
   }
   .dashboard .home-scoreboard {

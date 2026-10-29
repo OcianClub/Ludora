@@ -246,7 +246,7 @@ export default function TimesPage() {
         {editable && <><button type="button" onClick={() => { setRenameTarget(item); setRenameValue(item.name); setError(''); }}><Icon name="edit" size={16}/>Editar nome</button>
           <button type="button" onClick={() => openCrest(item)}><Icon name="shield" size={16}/>Alterar escudo</button></>}
         {item.clubId && item.clubId !== clube?.id && <button type="button" onClick={() => { setVisiting(item); setError(''); }}><Icon name="switchClub" size={16}/>Visitar clube</button>}
-        {item.clubId !== clube?.id && <button type="button" disabled={busy} onClick={() => {
+        {!item.clubId && <button type="button" disabled={busy} onClick={() => {
           setError('');
           if (item.archived) void changeArchive(item, false); else setArchiveTarget(item);
         }}><Icon name="archive" size={16}/>{item.archived ? 'Restaurar time' : 'Arquivar time'}</button>}
@@ -437,7 +437,7 @@ export default function TimesPage() {
         </>
         {notice && <p role="status" className="teams-panel-notice">{notice}</p>}
         <details className="teams-management">
-          <summary><span><Icon name="team" size={17}/>Categorias <small>{group.items.length}</small></span><span>Gerenciar<Icon name="chevronRight" size={15}/></span></summary>
+          <summary><span><Icon name="team" size={17}/>Categorias <small>{group.items.length}</small></span><span>{podeGerenciar && (!group.clubId || group.clubId === clube?.id) ? 'Gerenciar' : 'Ver categorias'}<Icon name="chevronRight" size={15}/></span></summary>
         {(['INICIACAO', 'BASE'] as const).map(phase => {
           const rows = group.items.filter(time => categorias.find(cat => cat.id === time.categoria_id)?.tipo === phase)
             .sort((a, b) => numberOf(categorias.find(cat => cat.id === a.categoria_id)) - numberOf(categorias.find(cat => cat.id === b.categoria_id)));
@@ -452,7 +452,7 @@ export default function TimesPage() {
               <div className="teams-inline-actions"><Btn type="submit" size="sm" disabled={busy || !editName.trim() || !editCategory}>{busy ? 'Salvando…' : 'Salvar'}</Btn><Btn variant="ghost" size="sm" disabled={busy} onClick={() => setEditing(null)}>Cancelar</Btn></div>
             </form> : <div className="teams-category-row" key={time.id}>
               <strong>{categoryName(time.categoria_id)}</strong>
-              {podeGerenciar && !group.archived && <div className="teams-category-actions"><button type="button" className="teams-quick-edit" onClick={() => edit(time)}>Editar</button>
+              {podeGerenciar && (!group.clubId || group.clubId === clube?.id) && !group.archived && <div className="teams-category-actions"><button type="button" className="teams-quick-edit" onClick={() => edit(time)}>Editar</button>
                 <details className="teams-menu" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }} onKeyDown={event => {
                   if (event.key === 'Escape' && event.currentTarget.open) {
                     event.preventDefault(); event.stopPropagation(); event.currentTarget.open = false;
@@ -467,7 +467,7 @@ export default function TimesPage() {
         })}
         {group.items.filter(time => !categorias.some(cat => cat.id === time.categoria_id)).map(time => <p key={time.id} className="text-muted">{time.nome} · Categoria indisponível</p>)}
         {error && !deleting && <p role="alert" className="notice-error">{error}</p>}
-        {podeGerenciar && !group.archived && <div className="teams-panel-add">
+        {podeGerenciar && (!group.clubId || group.clubId === clube?.id) && !group.archived && <div className="teams-panel-add">
           {adding ? <form onSubmit={add} className="teams-add-category"><FilterSelect label="Adicionar categoria" emptyLabel="Escolher sub" value={addCategory} onChange={setAddCategory} inlineOptions
             options={missing.map(cat => ({ value: cat.id, label: cat.nome.toUpperCase() }))}/><div className="teams-inline-actions"><Btn size="sm" type="submit" disabled={busy || !addCategory}>Adicionar</Btn><Btn size="sm" variant="ghost" disabled={busy} onClick={() => setAdding(false)}>Cancelar</Btn></div></form>
             : <Btn variant="ghost" disabled={!missing.length || busy} onClick={() => { setAdding(true); setEditing(null); setAddCategory(''); setError(''); }}><Icon name="plus" size={16}/>{missing.length ? 'Adicionar categoria' : 'Todas as categorias cadastradas'}</Btn>}

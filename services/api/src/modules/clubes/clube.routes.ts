@@ -18,14 +18,42 @@ router.get('/clubes', async (req, res) => {
   const busca = String(req.query.busca || '').trim();
 
   try {
-    const clubes = await prisma.clube.findMany({
-      where: busca ? { nome: { contains: busca, mode: 'insensitive' } } : undefined,
-      orderBy: { nome: 'asc' },
-      include: {
-        usuarios: usuarioId ? { where: { usuario_id: usuarioId } } : false,
-        _count: { select: { usuarios: true } },
-      },
-    });
+    const [clubes, partidasAoVivo] = await Promise.all([
+      prisma.clube.findMany({
+        where: busca ? { nome: { contains: busca, mode: 'insensitive' } } : undefined,
+        orderBy: { nome: 'asc' },
+        include: {
+          usuarios: usuarioId ? {
+            where: { usuario_id: usuarioId },
+            select: {
+              papel: true,
+              acesso_todas_categorias: true,
+              categorias: { select: { categoria: { select: { id: true, nome: true } } } },
+            },
+          } : false,
+          _count: { select: { usuarios: true } },
+        },
+      }),
+      prisma.partida.findMany({
+        where: { status: 'AO_VIVO' },
+        select: {
+          categoria: { select: { clube_id: true } },
+          mandante: { select: { clube_representado_id: true } },
+          visitante: { select: { clube_representado_id: true } },
+        },
+      }),
+    ]);
+    const aoVivoPorClube = new Map<number, number>();
+    for (const partida of partidasAoVivo) {
+      const participantes = new Set([
+        partida.categoria.clube_id,
+        partida.mandante.clube_representado_id,
+        partida.visitante.clube_representado_id,
+      ]);
+      for (const id of participantes) {
+        if (id != null) aoVivoPorClube.set(id, (aoVivoPorClube.get(id) || 0) + 1);
+      }
+    }
 
     const formatados = clubes.map((c: any) => ({
       id: c.id,
@@ -35,9 +63,17 @@ router.get('/clubes', async (req, res) => {
       estado: c.estado,
       plano: c.plano,
       seguidores: c._count.usuarios,
+      partidasAoVivo: aoVivoPorClube.get(c.id) || 0,
       isSeguindo: usuarioId ? c.usuarios.length > 0 : false,
       papel: usuarioId && c.usuarios.length > 0 ? c.usuarios[0].papel : null,
       meuPapel: usuarioId && c.usuarios.length > 0 ? c.usuarios[0].papel : null,
+      acessoTodasCategorias: usuarioId && c.usuarios.length > 0
+        ? c.usuarios[0].papel === 'ADMIN' || c.usuarios[0].acesso_todas_categorias
+        : false,
+      categoriasAcesso: usuarioId && c.usuarios.length > 0
+        ? c.usuarios[0].categorias.map((item: any) => item.categoria)
+          .sort((a: any, b: any) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true }))
+        : [],
     }));
 
     res.json(formatados);
@@ -63,6 +99,7 @@ router.post('/clubes/:id/seguir', async (req, res) => {
       nome: vinculo.clube.nome,
       escudo: vinculo.clube.escudo,
       papel: vinculo.papel,
+      seguidores: await prisma.usuarioClube.count({ where: { clube_id } }),
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao seguir clube' });
@@ -85,7 +122,7 @@ router.delete('/clubes/:id/seguir', async (req, res) => {
       });
     }
     await prisma.usuarioClube.delete({ where: { id: vinculo.id } });
-    res.json({ ok: true });
+    res.json({ ok: true, seguidores: await prisma.usuarioClube.count({ where: { clube_id } }) });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao deixar de seguir clube' });
   }

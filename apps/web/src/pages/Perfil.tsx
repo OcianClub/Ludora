@@ -6,14 +6,13 @@ import { ThemeOptions } from '../components/ThemeOptions';
 import '../components/ThemeToggle.css';
 import { LogoutButton } from '../components/LogoutButton';
 import { useAuth } from '../contexts/AuthContext';
-import { atualizarPreferenciaNotificacoes, fetchMeuPerfil, PerfilUsuario } from '../services/api';
+import { atualizarPreferenciaNotificacoes, atualizarPreferenciasPush, buscarPreferenciasPush, fetchMeuPerfil, type PerfilUsuario, type PreferenciasPushClube } from '../services/api';
 import './Perfil.css';
 
 const SECOES = [
-  { id: 'dados', label: 'Dados pessoais', icon: 'user' },
+  { id: 'dados', label: 'Conta', icon: 'user' },
   { id: 'preferencias', label: 'Preferências', icon: 'settings' },
   { id: 'clubes', label: 'Meus clubes', icon: 'shield' },
-  { id: 'conta', label: 'Conta', icon: 'logout' },
 ] as const;
 
 export default function PerfilPage() {
@@ -34,6 +33,8 @@ export default function PerfilPage() {
   const [erroCarregamento, setErroCarregamento] = useState('');
   const [tentativa, setTentativa] = useState(0);
   const [avisoPreferencias, setAvisoPreferencias] = useState('');
+  const [push, setPush] = useState<PreferenciasPushClube | null>(null);
+  const [carregandoPush, setCarregandoPush] = useState(false);
   const dadosAlterados = !!perfil && (nome !== perfil.nome || email !== perfil.email || senha.length > 0);
 
   useEffect(() => {
@@ -53,6 +54,34 @@ export default function PerfilPage() {
       .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
     return () => controller.abort();
   }, [tentativa]);
+
+  useEffect(() => {
+    let ativo = true;
+    setPush(null);
+    if (!clube?.id) return;
+    setCarregandoPush(true);
+    buscarPreferenciasPush().then(res => {
+      if (ativo) setPush(res.preferencias.find(item => item.clube_id === clube.id) || null);
+    }).catch(() => { if (ativo) setErroPreferencias('Não foi possível carregar as preferências deste clube.'); })
+      .finally(() => { if (ativo) setCarregandoPush(false); });
+    return () => { ativo = false; };
+  }, [clube?.id, tentativa]);
+
+  async function alternarPush(campo: 'push_gols' | 'push_resultados' | 'push_agendamentos') {
+    if (!push || salvandoNotificacoes) return;
+    setSalvandoNotificacoes(true);
+    setErroPreferencias('');
+    setAvisoPreferencias('');
+    try {
+      const resposta = await atualizarPreferenciasPush(push.clube_id, { [campo]: !push[campo] });
+      setPush(atual => atual?.clube_id === resposta.clube_id ? resposta : atual);
+      setAvisoPreferencias('Preferência atualizada.');
+    } catch {
+      setErroPreferencias('Não foi possível salvar a preferência. Tente novamente.');
+    } finally {
+      setSalvandoNotificacoes(false);
+    }
+  }
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
@@ -162,6 +191,10 @@ export default function PerfilPage() {
             {confirmacao && <div className="perfil-alerta perfil-alerta--sucesso" role="status">{confirmacao}</div>}
             <Btn type="submit" disabled={salvando || salvandoNotificacoes || carregando || !dadosAlterados}>{salvando ? 'Salvando...' : 'Salvar alterações'}</Btn>
           </form>
+          <div className="perfil-sessao">
+            <div><Icon name="logout" size={20} /><span><strong>Sair da conta</strong><small>Encerra sua sessão neste dispositivo.</small></span></div>
+            <LogoutButton />
+          </div>
         </Card>
       </section>
       <section id="perfil-panel-clubes" role="tabpanel" aria-labelledby="perfil-tab-clubes" hidden={secao !== 'clubes'} tabIndex={0}>
@@ -217,7 +250,7 @@ export default function PerfilPage() {
           <div className="perfil-preferencia">
             <div>
               <strong>Notificações</strong>
-              <span>Notificações no aplicativo sobre partidas, gols e resultados. O histórico no sino permanece disponível.</span>
+              <span>Ative ou desative as notificações push. O histórico no sino permanece disponível.</span>
             </div>
             <button
               type="button"
@@ -231,24 +264,26 @@ export default function PerfilPage() {
               <span className="settings-switch-thumb" aria-hidden="true"><Icon name="bell" size={13}/></span>
             </button>
           </div>
+          {clube && <div className="perfil-push-grupo">
+            <strong>Notificações push · {clube.nome}</strong>
+            <span>Escolha os avisos enviados aos seus dispositivos para este clube.</span>
+            {carregandoPush ? <p role="status">Carregando preferências…</p> : push ? ([
+              ['push_gols', 'Gols', 'Avisos durante as partidas.'],
+              ['push_resultados', 'Resultados', 'Avisos quando uma partida termina.'],
+              ['push_agendamentos', 'Agenda', 'Avisos de novas partidas marcadas.'],
+            ] as const).map(([campo, titulo, descricao]) => <div className="perfil-preferencia" key={campo}>
+              <div><strong>{titulo}</strong><span>{descricao}</span></div>
+              <button type="button" className="perfil-switch settings-switch" role="switch" aria-label={titulo}
+                aria-checked={push[campo]} disabled={salvandoNotificacoes || !(perfil?.notificacoes_ativas ?? true)} onClick={() => void alternarPush(campo)}>
+                <span className="settings-switch-thumb" aria-hidden="true"><Icon name="bell" size={13}/></span>
+              </button>
+            </div>) : <p>As preferências estão disponíveis para clubes que você acompanha.</p>}
+          </div>}
         </div>
 
         {erroPreferencias && <div className="perfil-alerta perfil-alerta--erro" role="alert">{erroPreferencias}</div>}
         <p className="perfil-preferencias-status" role="status">{salvandoNotificacoes ? 'Salvando preferência…' : avisoPreferencias}</p>
 
-      </Card>
-      </section>
-      <section id="perfil-panel-conta" role="tabpanel" aria-labelledby="perfil-tab-conta" hidden={secao !== 'conta'} tabIndex={0}>
-      <Card>
-        <h2 className="perfil-section-title">Conta</h2>
-        <p className="perfil-section-description">Gerencie seu acesso ao Ludora neste dispositivo.</p>
-        <div className="perfil-sessao">
-          <div>
-            <Icon name="logout" size={20} />
-            <span><strong>Sair da conta</strong><small>Encerra sua sessão neste dispositivo.</small></span>
-          </div>
-          <LogoutButton />
-        </div>
       </Card>
       </section>
       </div>

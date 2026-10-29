@@ -56,6 +56,9 @@ export interface Clube {
   meuPapel?: string | null;
   isSeguindo?: boolean;
   seguidores?: number;
+  partidasAoVivo?: number;
+  acessoTodasCategorias?: boolean;
+  categoriasAcesso?: { id: number; nome: string }[];
 }
 export interface Usuario { id: number; nome: string; email: string; criadoEm?: string; }
 export interface PerfilUsuario extends Usuario { clubes: Clube[]; notificacoes_ativas?: boolean; }
@@ -108,6 +111,21 @@ export async function atualizarPreferenciaNotificacoes(ativa: boolean): Promise<
   });
 }
 
+export interface PreferenciasPushClube {
+  clube_id: number;
+  push_gols: boolean;
+  push_agendamentos: boolean;
+  push_resultados: boolean;
+}
+
+export function buscarPreferenciasPush(): Promise<{ preferencias: PreferenciasPushClube[] }> {
+  return requestJson('/notificacoes/preferencias');
+}
+
+export function atualizarPreferenciasPush(clubeId: number, preferencias: Partial<PreferenciasPushClube>): Promise<PreferenciasPushClube> {
+  return requestJson(`/notificacoes/preferencias/${clubeId}`, { method: 'PATCH', body: JSON.stringify(preferencias) });
+}
+
 // ── CLUBES ──
 export async function fetchClubes(): Promise<Clube[]> {
   const res = await apiFetch('/clubes');
@@ -118,6 +136,10 @@ export async function seguirClube(id: number) {
   const res = await apiFetch(`/clubes/${id}/seguir`, { method: 'POST' });
   if (!res.ok) throw new Error('Erro ao seguir clube');
   return res.json();
+}
+
+export function deixarDeSeguirClube(id: number): Promise<{ ok: boolean; seguidores: number }> {
+  return requestJson(`/clubes/${id}/seguir`, { method: 'DELETE' });
 }
 
 // ── CATEGORIAS ──
@@ -365,8 +387,8 @@ export async function atualizarPartida(id: number, dados: Partial<Partida>) {
   if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro ao atualizar partida'); }
   return res.json();
 }
-export async function atualizarStatusPartida(id: number, status: string) {
-  const res = await apiFetch(`/partidas/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+export async function atualizarStatusPartida(id: number, status: string, statusAnterior?: string) {
+  const res = await apiFetch(`/partidas/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, status_anterior: statusAnterior }) });
   if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro ao atualizar status'); }
   return res.json();
 }

@@ -40,7 +40,7 @@ function HomePending({ category }: { category: Categoria }) {
     <div className="home-section-heading"><h2 id="home-pending-title">Pendências</h2><span className="home-category-label">{category.nome.toUpperCase()}</span></div>
     <div className="home-pending-card">
       <div className="home-pending-intro">
-        <span className="home-pending-symbol"><Icon name={complete && !total ? 'checkAll' : 'alert'} size={24} /></span>
+        <span className={`home-pending-symbol${complete && !total ? '' : ' is-alert'}`}><Icon name={complete && !total ? 'checkAll' : 'alert'} size={24} /></span>
         <div><h3>{!data ? 'Consultando a categoria' : complete && !total ? 'Tudo em dia' : 'Atenção à categoria'}</h3><p>Confira os cadastros e as avaliações dos atletas.</p></div>
       </div>
       {!data ? <p className="home-inline-empty" role="status">Consultando pendências…</p> : <div className="home-pending-items">
@@ -74,9 +74,10 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
     [matches, current.nome],
   );
   const preparation = podeGerenciar && principal && !principal.somente_leitura && ['AGENDADA', 'PREPARADA'].includes(principal.status);
+  const hasExtras = aoVivo.length > 1 || preparation;
   return (
     <div className="home-swipe-content">
-      <div className={`home-focus${podeGerenciar ? '' : ' home-focus-public'}`}>
+      <div className={`home-focus${podeGerenciar ? '' : ' home-focus-public'}${hasExtras ? ' home-focus-with-extras' : ''}`}>
         <section className="home-feature">
           <div className="home-section-heading">
             <h2>{principal?.status === 'AO_VIVO' ? 'Agora em campo' : principal?.data.slice(0, 10) === hojeCalendario() ? 'É dia de jogo' : 'Próxima partida'}</h2>
@@ -87,6 +88,9 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
           {principal ? <HomeMatch partida={principal} /> : (
             <div className="home-empty"><Icon name="calendar" size={30} /><h3>Seu próximo jogo aparece aqui</h3><p>Ainda não há partidas agendadas para o {current.nome.toUpperCase()}.</p><Link className="btn btn-ghost btn-sm" to="/partidas">{podeGerenciar ? 'Abrir agenda e organizar partida' : 'Ver agenda do clube'}</Link></div>
           )}
+        </section>
+
+        {hasExtras && <div className="home-feature-extras">
           {aoVivo.length > 1 && <div className="home-extra-live">
             {aoVivo.slice(1, 3).map(match => <Link key={match.id} to={`/partidas/${match.id}`}>Também ao vivo: {teamName(match.mandante?.nome ?? '')} × {teamName(match.visitante?.nome ?? '')}<Icon name="chevronRight" size={16} /></Link>)}
           </div>}
@@ -97,11 +101,11 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
               <Link to={`/partidas/${principal.id}`}>{starters === 5 ? 'Revisar' : 'Preparar'}<Icon name="chevronRight" size={16} /></Link>
             </section>
           )}
-        </section>
+        </div>}
 
-
-          <section className="category-moment">
-            <div className="home-section-heading"><h2>Momento da categoria</h2></div>
+        <section className="home-moment" aria-labelledby="home-moment-title">
+          <div className="home-section-heading"><h2 id="home-moment-title">Momento da categoria</h2></div>
+          <div className="category-moment">
             <p className="home-section-copy">Últimas 5 partidas · selecione para ver detalhes</p>
             {historico.length ? <>
               <div className="moment-results">
@@ -119,10 +123,12 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
                 <small>Mais recente à direita</small>
               </div>
             </> : <p className="home-inline-empty">Os resultados aparecem após a primeira partida finalizada.</p>}
-          </section>
+          </div>
+        </section>
 
-          <section className="home-upcoming">
-            <div className="home-section-heading"><h2>Na sequência</h2><Link to={`/partidas?status=PROXIMAS&categoria_id=${current.id}`}>Ver agenda<Icon name="chevronRight" size={15} /></Link></div>
+        <section className="home-upcoming">
+          <div className="home-section-heading"><h2>Na sequência</h2><Link to={`/partidas?status=PROXIMAS&categoria_id=${current.id}`}>Ver agenda<Icon name="chevronRight" size={15} /></Link></div>
+          <div className="home-upcoming-card">
             <p className="home-section-copy">Próximos compromissos do {current.nome.toUpperCase()}</p>
             {seguintes.length ? <div className="home-upcoming-list">
               {[...new Map(seguintes.map(match => [match.data.slice(0, 10), seguintes.filter(item => item.data.slice(0, 10) === match.data.slice(0, 10))])).entries()].map(([day, games]) => <div className="home-upcoming-day" key={day}>
@@ -138,7 +144,8 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
                 })}
               </div>)}
             </div> : <p className="home-inline-empty">Sem outros compromissos marcados para esta categoria.</p>}
-          </section>
+          </div>
+        </section>
         {podeGerenciar && <HomePending category={current} />}
       </div>
 

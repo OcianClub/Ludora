@@ -70,6 +70,9 @@ export function NotificationItem({ notice, busy, onRead, onDelete }: {
         <button type="button" className={`notification-row${notice.lida ? '' : ' unread'}`} disabled={busy}
           aria-label={`${notice.lida ? 'Lida' : 'Não lida'}. ${notice.titulo}. ${notice.corpo}. ${notice.partida_id ? 'Ver partida' : 'Marcar como lida'}`}
           onClick={onRead}>
+          <span className="notification-kind-icon" aria-hidden="true">
+            <Icon name={notice.tipo === 'GOL_PARTIDA' ? 'ball' : notice.tipo === 'PARTIDA_AGENDADA' ? 'calendar' : notice.tipo === 'RESULTADO_PARTIDA' ? 'trophy' : 'bell'} size={20} />
+          </span>
           <span className="notification-copy">
             <span className="notification-meta">
               {!notice.lida && <i className="notice-unread-dot" aria-hidden="true" />}
@@ -78,7 +81,6 @@ export function NotificationItem({ notice, busy, onRead, onDelete }: {
             </span>
             <strong>{notice.titulo}</strong><span className="notification-body">{notice.corpo}</span>
           </span>
-          {notice.partida_id && <Icon name="chevronRight" size={19} />}
         </button>
         <button type="button" className="notification-delete" aria-label={`Excluir notificação: ${notice.titulo}`} title="Excluir notificação" disabled={busy} onClick={onDelete}><Icon name="trash" size={19} /></button>
       </div>

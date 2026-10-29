@@ -74,18 +74,16 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
         const notificationArea = width <= 760 ? '.workspace-actions' : '.sidebar-footer';
         assert.equal(await page.locator(`${notificationArea} .notifications-trigger`).count(), 1);
         assert.equal(await page.locator('.notifications-trigger').count(), 1, 'Apenas uma instância consulta os avisos');
-        const centers = await dialog.locator('.notification-row').first().evaluate(el => {
-          const card = el.getBoundingClientRect();
-          const chevron = el.querySelector(':scope > .icon').getBoundingClientRect();
-          return [card.y + card.height / 2, chevron.y + chevron.height / 2];
-        });
-        assert.ok(Math.abs(centers[0] - centers[1]) < 1, 'Chevron centralizado verticalmente');
-        assert.equal(await dialog.locator('.notification-row-icon').count(), 0);
+        const header = await dialog.locator('.modal-header-tools').evaluate(el => [...el.children].map(child => child.getBoundingClientRect().y));
+        assert.ok(Math.abs(header[0] - header[1]) < 1, 'Ações alinhadas no cabeçalho');
+        assert.equal(await dialog.locator('.notification-kind-icon').count(), 3);
         await dialog.getByRole('button', { name: 'Não lidas', exact: true }).click();
         assert.equal(await dialog.locator('.notification-row').count(), 2);
-        await dialog.getByRole('combobox', { name: 'Tipo de aviso' }).selectOption('GOL_PARTIDA');
+        await dialog.getByRole('combobox', { name: 'Tipo de aviso' }).click();
+        await dialog.getByRole('option', { name: 'Gol', exact: true }).click();
         assert.equal(await dialog.locator('.notification-row').count(), 1);
-        await dialog.getByRole('combobox', { name: 'Tipo de aviso' }).selectOption('');
+        await dialog.getByRole('combobox', { name: 'Tipo de aviso' }).click();
+        await dialog.getByRole('option', { name: 'Todos os tipos', exact: true }).click();
         await dialog.getByRole('button', { name: 'Todas', exact: true }).click();
         await dialog.getByRole('button', { name: 'Carregar mais avisos' }).click();
         await page.waitForFunction(() => document.querySelectorAll('.notification-row').length === 6);
@@ -94,6 +92,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
         await page.screenshot({ path: path.join(output, `notifications-${width}-dark.png`), animations: 'disabled' });
         const first = state.rows[0];
         state.fail = true;
+        await dialog.locator('.notification-card').first().hover();
         await dialog.getByRole('button', { name: `Excluir notificação: ${first.titulo}`, exact: true }).click();
         await dialog.getByRole('alert').waitFor();
         assert.equal(await dialog.locator('.notification-row').count(), 6, 'Falha não remove o aviso');
@@ -125,19 +124,23 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
           assert.ok(!state.rows.some(item => item.id === removedId), 'Swipe de toque exclui o aviso');
           await touch.detach();
         }
-        await dialog.getByRole('button', { name: 'Limpar lidas', exact: true }).click();
+        await dialog.getByLabel('Ações das notificações').click();
+        await dialog.getByRole('button', { name: 'Excluir avisos lidos', exact: true }).click();
         await dialog.getByRole('button', { name: 'Confirmar exclusão', exact: true }).click();
         await dialog.getByRole('alert', { name: 'Confirmar limpeza' }).waitFor({ state: 'detached' });
         assert.ok(state.rows.every(item => !item.lida));
+        await dialog.getByLabel('Ações das notificações').click();
         await dialog.getByRole('button', { name: 'Marcar todas como lidas' }).click();
         await page.waitForFunction(() => document.querySelector('.notifications-trigger').getAttribute('aria-label') === 'Notificações, 0 não lidas');
         assert.ok(state.rows.every(item => item.lida));
-        await dialog.getByRole('button', { name: 'Limpar tudo', exact: true }).click();
+        await dialog.getByLabel('Ações das notificações').click();
+        await dialog.getByRole('button', { name: 'Excluir todas as notificações', exact: true }).click();
         await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
         assert.ok(state.rows.length > 0, 'Cancelar preserva o histórico');
         await page.evaluate(() => { localStorage.setItem('ludora_tema', 'light'); window.dispatchEvent(new Event('ludora:theme-change')); });
         await page.screenshot({ path: path.join(output, `notifications-${width}-light.png`), animations: 'disabled' });
-        await dialog.getByRole('button', { name: 'Limpar tudo', exact: true }).click();
+        await dialog.getByLabel('Ações das notificações').click();
+        await dialog.getByRole('button', { name: 'Excluir todas as notificações', exact: true }).click();
         await dialog.getByRole('button', { name: 'Confirmar exclusão', exact: true }).click();
         await dialog.getByRole('heading', { name: 'Nenhuma notificação por enquanto' }).waitFor();
         assert.equal(state.rows.length, 0);
@@ -153,6 +156,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
       const paused = new Promise(resolve => { race.state.onPaused = resolve; });
       await race.page.getByRole('button', { name: /^Notificações,/ }).click();
       await paused;
+      await race.dialog.locator('.notification-card').first().hover();
       await race.dialog.getByRole('button', { name: `Excluir notificação: ${race.state.rows[0].titulo}`, exact: true }).click();
       await race.page.waitForFunction(() => document.querySelectorAll('.notification-row').length === 2);
       const resumed = race.page.waitForResponse(response => new URL(response.url()).pathname === '/notificacoes' && response.request().method() === 'GET');

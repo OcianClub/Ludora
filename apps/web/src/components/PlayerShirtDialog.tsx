@@ -16,7 +16,7 @@ export function PlayerShirtButton({ player, editable, onClick }: { player: Jogad
 }
 
 export function PlayerShirtDialog({ player, category, onClose, onSaved }: {
-  player: Jogador; category?: string; onClose: () => void; onSaved: (updated: Jogador, swapped?: ConflitoCamisa) => void;
+  player: Pick<Jogador, 'id' | 'nome' | 'numCamisa'>; category?: string; onClose: () => void; onSaved: (updated: Jogador, swapped?: ConflitoCamisa) => void;
 }) {
   const [value, setValue] = useState(player.numCamisa?.toString() || '');
   const [error, setError] = useState('');
