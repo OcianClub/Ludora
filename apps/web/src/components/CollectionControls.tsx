@@ -10,8 +10,8 @@ export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (va
   return <CollectionViewToggle className="collection-view" value={value} onChange={next => onChange(next === 'list' ? 'list' : 'grid')}
     options={[{ value: 'grid', label: 'Blocos', icon: 'grid' }, { value: 'list', label: 'Lista', icon: 'list' }]} />;
 }
-export function Choice({ label, value, options, onChange, disabled = false, placeholder = 'Selecionar' }: {
-  label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void; disabled?: boolean; placeholder?: string;
+export function Choice({ label, value, options, onChange, disabled = false, placeholder = 'Selecionar', inlineOptions = false }: {
+  label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void; disabled?: boolean; placeholder?: string; inlineOptions?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -23,7 +23,7 @@ export function Choice({ label, value, options, onChange, disabled = false, plac
     document.addEventListener('pointerdown', close);
     return () => document.removeEventListener('pointerdown', close);
   }, [open]);
-  return <div className="choice field" ref={root} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
+  return <div className={`choice field${inlineOptions ? ' choice-inline' : ''}`} ref={root} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
     <span className="field-label" id={`${id}-label`}>{label}</span>
     <button ref={trigger} type="button" className="field-input choice-trigger" aria-labelledby={`${id}-label ${id}-value`} aria-expanded={open && !disabled} aria-controls={`${id}-options`} disabled={disabled}
       onClick={() => setOpen(!open)} onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('[data-choice-option]')?.focus()); } }}>

@@ -14,7 +14,7 @@ export function resumirConfrontos(times: TeamIdentity[], resultados: FinalGroup[
   const groups = new Map<string, ReturnType<typeof emptySummary> & { key: string; categorias: (ReturnType<typeof emptySummary> & { categoria_id: number })[] }>();
   for (const time of times) {
     const key = chaveTime(time);
-    if (time.clube_representado_id !== clubeId && !groups.has(key)) {
+    if (!groups.has(key)) {
       groups.set(key, { key, ...emptySummary(), categorias: [] });
     }
   }
@@ -40,8 +40,10 @@ export function resumirConfrontos(times: TeamIdentity[], resultados: FinalGroup[
     const pro = match.emCasa ? row.gols_mandante : row.gols_visitante;
     const contra = match.emCasa ? row.gols_visitante : row.gols_mandante;
     const count = row._count._all;
+    const own = groups.get(`club:${clubeId}`);
     const category = categorySummary(match.group, match.categoriaId);
-    for (const summary of [match.group, category]) {
+    const ownCategory = categorySummary(own, match.categoriaId);
+    for (const summary of [match.group, category, own, ownCategory]) {
       if (!summary) continue;
       summary[pro > contra ? 'vitorias' : pro < contra ? 'derrotas' : 'empates'] += count;
       summary.golsPro += pro * count;
@@ -54,7 +56,9 @@ export function resumirConfrontos(times: TeamIdentity[], resultados: FinalGroup[
     const data = row._min.data;
     const categoryId = match?.categoriaId || row.categoria_id;
     const category = categorySummary(group, categoryId);
-    for (const summary of [group, category]) {
+    const own = match ? groups.get(`club:${clubeId}`) : undefined;
+    const ownCategory = categorySummary(own, categoryId);
+    for (const summary of [group, category, own, ownCategory]) {
       if (summary && data && (!summary.proxima || data < summary.proxima.data)) summary.proxima = { data, categoria_id: categoryId };
     }
   }

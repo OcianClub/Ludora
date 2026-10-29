@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Btn, Card, Input, PapelBadge } from '../components/UI';
 import { Icon } from '../components/Icon';
-import { ThemeToggle } from '../components/ThemeToggle';
+import { ThemeOptions } from '../components/ThemeOptions';
+import '../components/ThemeToggle.css';
 import { LogoutButton } from '../components/LogoutButton';
 import { useAuth } from '../contexts/AuthContext';
 import { atualizarPreferenciaNotificacoes, fetchMeuPerfil, PerfilUsuario } from '../services/api';
-import { getThemePreference, setThemePreference } from '../styles/theme';
 import './Perfil.css';
 
 const SECOES = [
@@ -34,18 +34,7 @@ export default function PerfilPage() {
   const [erroCarregamento, setErroCarregamento] = useState('');
   const [tentativa, setTentativa] = useState(0);
   const [avisoPreferencias, setAvisoPreferencias] = useState('');
-  const [temaSistema, setTemaSistema] = useState(() => getThemePreference() === 'system');
   const dadosAlterados = !!perfil && (nome !== perfil.nome || email !== perfil.email || senha.length > 0);
-
-  useEffect(() => {
-    const sync = () => setTemaSistema(getThemePreference() === 'system');
-    window.addEventListener('ludora:theme-change', sync);
-    window.addEventListener('storage', sync);
-    return () => {
-      window.removeEventListener('ludora:theme-change', sync);
-      window.removeEventListener('storage', sync);
-    };
-  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -184,35 +173,26 @@ export default function PerfilPage() {
             </div>
           </div>
 
-          <div className="perfil-clubes">
-            {carregando && <p role="status">Carregando seus clubes…</p>}
-            {[...(perfil?.clubes || [])].sort((a, b) => Number(b.id === clube?.id) - Number(a.id === clube?.id)).map(item => (
-              <button
-                type="button"
-                key={item.id}
-                className={`perfil-clube${clube?.id === item.id ? ' ativo' : ''}`}
-                onClick={() => {
-                  definirClube(item);
-                  navigate('/dashboard');
-                }}
-              >
-                <span className="perfil-clube-escudo">
-                  {item.escudo ? <img src={item.escudo} alt="" /> : item.nome[0]}
-                </span>
-                <span className="perfil-clube-info">
-                  <strong>{item.nome}</strong>
-                  <small>{clube?.id === item.id ? 'Clube atual' : [item.cidade, item.estado].filter(Boolean).join(', ') || 'Acessar clube'}</small>
-                </span>
-                <PapelBadge papel={item.meuPapel || 'TORCEDOR'} />
-              </button>
-            ))}
-            {perfil && perfil.clubes.length === 0 && (
-              <div className="perfil-sem-clube">
-                Você ainda não acompanha nenhum clube.
-                <Btn size="sm" onClick={() => navigate('/selecionar-clube')}>Encontrar clube</Btn>
-              </div>
-            )}
-          </div>
+          {carregando && <p className="perfil-clubes-loading" role="status">Carregando seus clubes…</p>}
+          {perfil && (() => {
+            const groups = [
+              { label: 'Seus cargos', items: perfil.clubes.filter(item => item.meuPapel && item.meuPapel !== 'TORCEDOR') },
+              { label: 'Clubes que você segue', items: perfil.clubes.filter(item => !item.meuPapel || item.meuPapel === 'TORCEDOR') },
+            ];
+            return groups.map(group => group.items.length > 0 && <section className="perfil-clubes-group" key={group.label}>
+              <h3>{group.label} <span>{group.items.length}</span></h3>
+              <div className="perfil-clubes">{[...group.items].sort((a, b) => Number(b.id === clube?.id) - Number(a.id === clube?.id)).map(item => <button
+                type="button" key={item.id} className={`perfil-clube${clube?.id === item.id ? ' ativo' : ''}`}
+                onClick={() => { definirClube(item); navigate('/dashboard'); }}>
+                <span className="perfil-clube-escudo">{item.escudo ? <img src={item.escudo} alt="" /> : item.nome[0]}</span>
+                <span className="perfil-clube-info"><strong>{item.nome}</strong><small>{clube?.id === item.id ? 'Clube atual' : [item.cidade, item.estado].filter(Boolean).join(', ') || 'Acessar clube'}</small></span>
+                {item.meuPapel && item.meuPapel !== 'TORCEDOR' ? <PapelBadge papel={item.meuPapel} /> : <span className="perfil-seguindo">Seguindo</span>}
+                <Icon name="chevronRight" size={16}/>
+              </button>)}</div>
+            </section>);
+          })()}
+          {perfil && perfil.clubes.length === 0 && <div className="perfil-sem-clube">Você ainda não acompanha nenhum clube.<Btn size="sm" onClick={() => navigate('/selecionar-clube')}>Encontrar clube</Btn></div>}
+
           <Link to="/selecionar-clube" className="perfil-explorar">Explorar clubes<Icon name="chevronRight" size={18} /></Link>
         </Card>
       </section>
@@ -229,17 +209,9 @@ export default function PerfilPage() {
           <div className="perfil-preferencia">
             <div>
               <strong>Aparência</strong>
-              <span>Alterne entre os temas claro e escuro.</span>
+              <span>Escolha entre o tema do dispositivo, claro ou escuro.</span>
             </div>
-            <ThemeToggle />
-              <button type="button" aria-pressed={temaSistema} className="perfil-tema-sistema" onClick={() => {
-                try {
-                  setThemePreference('system');
-                  setErroPreferencias('');
-                } catch {
-                  setErroPreferencias('Não foi possível salvar a aparência. Tente novamente.');
-                }
-              }}>{temaSistema ? 'Seguindo o dispositivo' : 'Usar tema do dispositivo'}</button>
+            <ThemeOptions />
           </div>
 
           <div className="perfil-preferencia">
@@ -256,7 +228,7 @@ export default function PerfilPage() {
               disabled={!perfil || carregando || salvando || salvandoNotificacoes}
               onClick={alternarNotificacoes}
             >
-              <span className="settings-switch-thumb" aria-hidden="true" />
+              <span className="settings-switch-thumb" aria-hidden="true"><Icon name="bell" size={13}/></span>
             </button>
           </div>
         </div>

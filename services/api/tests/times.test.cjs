@@ -73,7 +73,9 @@ test('retrospecto usa a perspectiva do clube, agrega categorias, multiplica resu
   assert.deepEqual([aurora.vitorias, aurora.empates, aurora.derrotas, aurora.golsPro, aurora.golsContra], [2, 1, 1, 5, 4]);
   assert.equal(aurora.proxima.categoria_id, 8);
   assert.deepEqual(aurora.categorias.map(item => [item.categoria_id, item.vitorias, item.empates, item.derrotas]), [[7, 2, 0, 1], [8, 0, 1, 0]]);
-  assert.equal(summaries.some(item => item.key === 'club:2'), false);
+  const own = summaries.find(item => item.key === 'club:2');
+  assert.deepEqual([own.vitorias, own.empates, own.derrotas, own.golsPro, own.golsContra], [2, 1, 1, 5, 4]);
+  assert.deepEqual(own.categorias.map(item => [item.categoria_id, item.vitorias, item.empates, item.derrotas]), [[7, 2, 0, 1], [8, 0, 1, 0]]);
 });
 
 test('escudo atualiza todas as categorias do adversário em uma transação, sem alcançar outro clube', async t => {

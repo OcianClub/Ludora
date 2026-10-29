@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { fetchJogadoresPerfis, fetchCategorias, type PerfilJogador, type Categoria } from '../services/api';
-import { Btn, Spinner, Empty } from '../components/UI';
+import { Btn, Modal, Spinner, Empty } from '../components/UI';
+import { ScoutIndexHelp } from '../components/ScoutIndexHelp';
 import { POSITIONS, normalizePosition } from '../components/CollectionControls';
 import { PositionIcon } from '../components/PositionIcon';
 import { ScoutPlayerDetail } from '../components/ScoutPlayerDetail';
@@ -30,6 +31,7 @@ export default function ElencoPage() {
   const { clube } = useAuth();
   const [params, setParams] = useSearchParams();
   const [players, setPlayers] = useState<PerfilJogador[]>([]);
+  const [tiedLeaders, setTiedLeaders] = useState<{ title: string; players: PerfilJogador[] } | null>(null);
   const [categories, setCategories] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,6 +42,7 @@ export default function ElencoPage() {
   const [draftAssessment, setDraftAssessment] = useState('');
   const [draftOrder, setDraftOrder] = useState('');
   const [limit, setLimit] = useState(24);
+  const [smallScreen, setSmallScreen] = useState(() => window.matchMedia('(max-width: 760px)').matches);
   const profileTrack = useRef<HTMLDivElement>(null);
   const requestedCategory = params.get('categoria_id') || '';
   const { phase, selected: category } = useClubCategory(categories, requestedCategory, params.get('fase'));
@@ -53,7 +56,7 @@ export default function ElencoPage() {
   const order = explicitOrder || 'rating';
   const ascending = explicitOrder && ['asc', 'desc'].includes(params.get('direcao') || '')
     ? params.get('direcao') === 'asc' : ['name', 'shirt'].includes(order);
-  const list = params.get('visualizacao') === 'lista';
+  const list = smallScreen || params.get('visualizacao') === 'lista';
   const selected = players.find(player => String(player.id) === params.get('atleta')) || null;
 
   function change(values: Record<string, string>, replace = true) {
@@ -64,6 +67,14 @@ export default function ElencoPage() {
     }, { replace, preventScrollReset: true });
   }
   function openPlayer(player: PerfilJogador) { change({ atleta: String(player.id) }, false); }
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 760px)');
+    const update = () => setSmallScreen(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -106,7 +117,7 @@ export default function ElencoPage() {
     const candidates = item.field === 'nota_geral' ? categoryPlayers.filter(hasAssessment) : categoryPlayers;
     const max = Math.max(0, ...candidates.map(player => Number(player[item.field as keyof PerfilJogador]) || 0));
     const tied = candidates.filter(player => Number(player[item.field as keyof PerfilJogador]) === max);
-    return { ...item, value: max, player: max > 0 || item.field === 'nota_geral' ? tied[0] || null : null, tied: tied.length };
+    return { ...item, value: max, player: max > 0 || item.field === 'nota_geral' ? tied[0] || null : null, tied: tied.length, tiedPlayers: tied };
     });
   }
   const chips = [
@@ -128,8 +139,11 @@ export default function ElencoPage() {
     const overviewTitle = `scout-overview-title-${item.id}`;
     return <div className="scout-category-content">
       <section className="scout-overview" aria-labelledby={overviewTitle}><h2 className="sr-only" id={overviewTitle}>Destaques da categoria</h2>
-        <div className="scout-leaders">{leaders.map(leader => <button key={leader.field} type="button" disabled={!leader.player} onClick={() => leader.player && openPlayer(leader.player)} aria-label={leader.player ? `${leader.title}: ${leader.player.nome}, ${leader.value}${leader.tied > 1 ? `, ${leader.tied} atletas empatados` : ''}` : `${leader.title}: sem registros`}>
-          <span className="scout-leader-icon"><Icon name={leader.icon as IconName} size={19} /></span><span className="scout-leader-title">{leader.title}</span><strong>{leader.player ? leader.value.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—'}</strong><span className="scout-leader-name">{leader.player?.nome || 'Sem registros'}{leader.player && leader.tied > 1 && <small>+{leader.tied - 1} empatados</small>}</span>
+        <div className="scout-leaders">{leaders.map(leader => <button key={leader.field} type="button" disabled={!leader.player} onClick={() => {
+          if (leader.tied > 1) setTiedLeaders({ title: leader.title, players: leader.tiedPlayers });
+          else if (leader.player) openPlayer(leader.player);
+        }} aria-label={leader.player ? `${leader.title}: ${leader.player.nome}, ${leader.value}${leader.tied > 1 ? `, ver ${leader.tied} atletas empatados` : ''}` : `${leader.title}: sem registros`}>
+          <span className="scout-leader-icon"><Icon name={leader.icon as IconName} size={19} /></span><span className="scout-leader-title">{leader.title}</span><strong>{leader.player ? leader.value.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—'}</strong><span className="scout-leader-name">{leader.player?.nome || 'Sem registros'}{leader.player && leader.tied > 1 && <small>+{leader.tied - 1} {leader.tied === 2 ? 'atleta empatado' : 'atletas empatados'} · ver todos</small>}</span>
         </button>)}</div>
       </section>
       <div className="scout-controls">
@@ -141,10 +155,11 @@ export default function ElencoPage() {
         return <button key={value || 'all'} type="button" aria-pressed={profile === value} onClick={() => change({ perfil: value })} className={`scout-profile-filter profile-${value === 'Armador' ? 'playmaker' : value === 'Paredão' ? 'keeper' : 'scorer'}`}>{value === 'pending' ? 'Não avaliados' : value || 'Todos'}<span>{count}</span></button>;
       })}</div>
       {!!chips.length && <div className="scout-active-filters" aria-label="Filtros ativos">{chips.map(chip => <button type="button" key={chip.key} onClick={() => change({ [chip.key]: '' })} aria-label={`Remover filtro ${chip.text}`} title={chip.text}>{chip.text}<Icon name="minus" size={14} /></button>)}<button type="button" onClick={clear}>Limpar tudo</button></div>}
+      <ScoutIndexHelp />
       <div className="scout-section-heading scout-athletes-heading">
         <div className="scout-athlete-count"><h2>Atletas</h2><p role="status">{filtered.length} de {categoryPlayers.length} · {category?.nome.toUpperCase()}</p></div>
-        <CollectionViewToggle className="schedule-view-toggle" label="Visualização do elenco" value={list ? 'lista' : 'cards'} onChange={value => change({ visualizacao: value === 'lista' ? 'lista' : '' })}
-          options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />
+        {!smallScreen && <CollectionViewToggle className="schedule-view-toggle" label="Visualização do elenco" value={list ? 'lista' : 'cards'} onChange={value => change({ visualizacao: value === 'lista' ? 'lista' : '' })}
+          options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />}
       </div>
       <div data-swipe-ignore className="scout-order-tabs" role="group" aria-label="Ordenar atletas">
         <span className="scout-order-label">↕ Ordenar por</span>
@@ -165,7 +180,9 @@ export default function ElencoPage() {
         <div className={`scout-players${list ? ' scout-players-list' : ''}`}>{filtered.slice(0, offset === 0 ? limit : 24).map(player => {
           const assessed = hasAssessment(player);
           const keeper = normalizePosition(player.posicao) === 'Goleiro';
-          return <article key={player.id} className={`scout-player scout-tone-${profileClass(player)}`}>
+          return <article key={player.id} className={`scout-player scout-tone-${profileClass(player)}`} onClick={event => {
+            if (!(event.target as Element).closest('button, a')) openPlayer(player);
+          }}>
             <button className="scout-player-main" type="button" onClick={() => openPlayer(player)} aria-label={`Ver ficha de ${player.nome}`}>
               <span className="scout-shirt">{player.numCamisa != null ? `#${player.numCamisa}` : '—'}</span><span className="scout-player-identity"><strong>{player.nome}</strong><span className="position-inline"><PositionIcon position={player.posicao}/>{normalizePosition(player.posicao) || 'Posição não informada'}{player.idade != null ? ` · ${player.idade} anos` : ''}</span></span>
               <span className="scout-rating"><span>{order === 'name' ? 'Índice' : SCOUT_ORDERS.find(item => item.value === order)?.label || 'Índice'}</span><strong>{metricValue(player, order)}</strong></span><Icon name="chevronRight" size={18} />
@@ -205,6 +222,10 @@ export default function ElencoPage() {
       <fieldset className="scout-filter-options"><legend>Avaliação</legend>{[{ value: '', label: 'Todos' }, { value: 'with', label: 'Com avaliação' }, { value: 'without', label: 'Não avaliados' }].map(item => <button type="button" key={item.value} aria-pressed={draftAssessment === item.value} onClick={() => setDraftAssessment(item.value)}>{item.label}</button>)}</fieldset>
       <FilterSelect label="Ordenar por" emptyLabel="Padrão (índice)" options={SCOUT_ORDERS} value={draftOrder} onChange={setDraftOrder} inlineOptions />
     </CollectionFilterDialog>
+    <Modal open={!!tiedLeaders} title={tiedLeaders ? `${tiedLeaders.title} · atletas empatados` : 'Atletas empatados'} onClose={() => setTiedLeaders(null)}>
+      <p className="scout-help">Atletas com o mesmo resultado nesta categoria. Selecione um para ver sua ficha.</p>
+      <div className="scout-tied-list">{tiedLeaders?.players.map(player => <button key={player.id} type="button" onClick={() => { setTiedLeaders(null); openPlayer(player); }}><span>{player.nome}</span><Icon name="chevronRight" size={17}/></button>)}</div>
+    </Modal>
     {selected && !loading && <ScoutPlayerDetail key={`${clube?.id}-${selected.id}`} player={selected} category={categories.find(item => item.id === selected.categoria_id)?.nome.toUpperCase() || 'Sem categoria'} onClose={() => change({ atleta: '' })} />}
   </div>;
 }

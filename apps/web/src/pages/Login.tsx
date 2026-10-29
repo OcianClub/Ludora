@@ -10,7 +10,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as { email?: string; message?: string; convite?: string } | null;
+  const state = location.state as { email?: string; message?: string; convite?: string; conviteAberto?: boolean } | null;
   const [email, setEmail] = useState(state?.email ?? '');
   const [senha, setSenha] = useState('');
   const access = useAccessForm();
@@ -28,7 +28,7 @@ export default function LoginPage() {
     <AuthShell title="Bem-vindo de volta" subtitle="Entre para acompanhar seus clubes, partidas e estatísticas.">
       <AccessFeedback message={access.error} />
       {!access.error && <AccessFeedback message={state?.message ?? ''} success />}
-      {state?.convite && <p className="access-note">Entre com o e-mail que recebeu o convite para continuar.</p>}
+      {state?.convite && <p className="access-note">{state.conviteAberto ? 'Entre na sua conta para continuar com o código de convite.' : 'Entre com o e-mail que recebeu o convite para continuar.'}</p>}
       <form ref={access.formRef} onSubmit={submit} className="auth-form" noValidate>
         <fieldset disabled={access.busy} className="access-fields">
           <AuthField label="E-mail" name="email" type="email" autoComplete="email" maxLength={254}
@@ -43,7 +43,7 @@ export default function LoginPage() {
           </button>
         </fieldset>
       </form>
-      <p className="auth-link">Não tem conta? <Link to="/registrar">Criar conta</Link></p>
+      <p className="auth-link">Não tem conta? <Link to="/registrar" state={{ convite: state?.convite, conviteAberto: state?.conviteAberto }}>Criar conta</Link></p>
       <InviteCard />
     </AuthShell>
   );

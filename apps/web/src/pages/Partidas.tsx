@@ -342,8 +342,8 @@ export default function PartidasPage() {
   }
   useEffect(() => {
     const opponentId = searchParams.get('adversario_id');
-    if (searchParams.get('organizar') !== '1' || !opponentId || loading || !podeGerenciar) return;
-    const key = `${clube?.id}:${opponentId}`;
+    if (searchParams.get('organizar') !== '1' || loading || !podeGerenciar || !filtroCategoria) return;
+    const key = `${clube?.id}:${opponentId || 'own'}:${filtroCategoria}`;
     if (handledOpponent.current === key) return;
     handledOpponent.current = key;
     const target = times.find(time => String(time.id) === opponentId && time.clube_representado_id !== clube?.id && !time.arquivado);
@@ -353,7 +353,7 @@ export default function PartidasPage() {
       setErro('');
     } else {
       setForm({ ...FORM_VAZIO, categoria_id: filtroCategoria, mandante_id: ownTeam(filtroCategoria) ? String(ownTeam(filtroCategoria)!.id) : '' });
-      setErro('O adversário não está mais disponível nesta categoria. Confira os times e selecione outro adversário.');
+      setErro(opponentId ? 'O adversário não está mais disponível nesta categoria. Confira os times e selecione outro adversário.' : '');
     }
     setReviewOpen(false);
     setPicker(null);

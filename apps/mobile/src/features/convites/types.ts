@@ -1,4 +1,4 @@
-export type PapelConvite = 'ADMIN' | 'TECNICO' | 'MESARIO';
+export type PapelConvite = 'ADMIN' | 'TECNICO' | 'MESARIO' | 'OLHEIRO';
 
 export interface CategoriaConvite {
   id: number;

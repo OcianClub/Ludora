@@ -1,8 +1,9 @@
 .alunos-page {
   min-width: 0;
   max-width: 100%;
-  --alunos-row-hover: color-mix(in srgb, var(--fundo-card) 95%, var(--texto) 5%);
-  --alunos-header: color-mix(in srgb, var(--fundo-card) 55%, var(--fundo-card-sec));
+  --alunos-surface: color-mix(in srgb, var(--fundo-card) 86%, var(--fundo));
+  --alunos-row-hover: color-mix(in srgb, var(--alunos-surface) 94%, var(--texto) 6%);
+  --alunos-header: color-mix(in srgb, var(--fundo-card) 80%, var(--fundo-card-sec));
   --alunos-separator: color-mix(in srgb, var(--borda) 70%, var(--linha));
 }
 
@@ -15,7 +16,7 @@
   overflow: hidden;
   border: 1px solid var(--linha);
   border-radius: 10px;
-  background: var(--fundo-card);
+  background: var(--alunos-surface);
 }
 
 .alunos-directory--list {
@@ -68,7 +69,7 @@
   overflow: hidden;
   border: 1px solid var(--linha);
   border-radius: 8px;
-  background: var(--fundo-card);
+  background: var(--alunos-surface);
   scroll-margin-top: 100px;
 }
 
@@ -243,6 +244,25 @@
 
 .alunos-list li:hover,
 .alunos-list li:focus-within {
+  background: var(--alunos-row-hover);
+}
+.alunos-list--cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr));
+  gap: 10px;
+  padding: 14px;
+}
+.alunos-list--cards li,
+.alunos-list--cards li:last-child {
+  min-width: 0;
+  min-height: 88px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--alunos-separator);
+  background: var(--fundo-card);
+}
+.alunos-list--cards li:hover,
+.alunos-list--cards li:focus-within {
   background: var(--alunos-row-hover);
 }
 .alunos-table td {

@@ -171,28 +171,32 @@ router.post(
       .toLowerCase();
 
     const papel = String(req.body?.papel || '');
-    const acessoTotal = req.body?.acesso_todas_categorias === true;
+    const entrega = req.body?.entrega ?? 'email';
+    if (entrega !== 'email' && entrega !== 'codigo') {
+      return res.status(400).json({ error: 'Forma de entrega inválida' });
+    }
+    const acessoTotal = papel === 'ADMIN' || (papel !== 'OLHEIRO' && req.body?.acesso_todas_categorias === true);
     const categoriasInformadas = req.body?.categoria_ids;
 
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
+    if ((entrega === 'email' || email) && !/^\S+@\S+\.\S+$/.test(email)) {
       return res.status(400).json({
         error: 'E-mail inválido',
       });
     }
 
-    if (papel !== 'TECNICO' && papel !== 'MESARIO') {
+    if (papel !== 'ADMIN' && papel !== 'OLHEIRO' && papel !== 'TECNICO' && papel !== 'MESARIO') {
       return res.status(400).json({
         error: 'Papel inválido para o convite',
       });
     }
 
-    const categoriaIds = acessoTotal
+    const categoriaIds = acessoTotal || papel === 'OLHEIRO'
       ? []
       : Array.isArray(categoriasInformadas)
         ? [...new Set(categoriasInformadas.map(Number))]
         : [];
 
-    if (!acessoTotal && categoriaIds.length === 0) {
+    if (!acessoTotal && papel !== 'OLHEIRO' && categoriaIds.length === 0) {
       return res.status(400).json({
         error: 'Selecione pelo menos uma categoria',
       });
@@ -209,7 +213,7 @@ router.post(
     }
 
     try {
-      if (!acessoTotal) {
+      if (categoriaIds.length > 0) {
         const totalCategoriasValidas =
           await prisma.categoria.count({
             where: {
@@ -227,7 +231,8 @@ router.post(
         }
       }
 
-      const convitePendente =
+      // E-mail vazio representa código sem destinatário; seu aceite exige login.
+      const convitePendente = email ?
         await prisma.conviteClube.findFirst({
           where: {
             clube_id: clubeId,
@@ -237,7 +242,7 @@ router.post(
               gt: new Date(),
             },
           },
-        });
+        }) : null;
 
       if (convitePendente) {
         return res.status(409).json({
@@ -309,10 +314,10 @@ router.post(
         },
       });
 
-      let emailEnviado = true;
+      let emailEnviado = false;
       let aviso: string | undefined;
 
-      try {
+      if (entrega === 'email') try {
         await enviarEmailConvite({
           email: convite.email,
           nomeClube: convite.clube.nome,
@@ -321,6 +326,7 @@ router.post(
           token,
           codigo,
         });
+        emailEnviado = true;
       } catch (error) {
         emailEnviado = false;
         aviso = 'Convite criado, mas o e-mail não pôde ser enviado';
@@ -332,7 +338,8 @@ router.post(
         convite,
         email_enviado: emailEnviado,
         aviso,
-        ...(isProduction ? {} : { token, codigo }),
+        codigo,
+        ...(isProduction ? {} : { token }),
       });
     } catch (error) {
       console.error('Erro ao criar convite:', error);
@@ -485,6 +492,9 @@ router.post(
         return res.status(409).json({
           error: 'Um convite aceito não pode ser reenviado',
         });
+      }
+      if (!convite.email) {
+        return res.status(400).json({ error: 'Este convite não tem e-mail. Cancele-o e gere um novo código para compartilhar.' });
       }
 
       const tokenNovo = randomBytes(32).toString('base64url');

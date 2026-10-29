@@ -239,8 +239,8 @@
 }
 .sidebar-club-switch:hover, .mobile-club-switch:hover { background: var(--fundo-card-sec); color: var(--texto); }
 .layout[data-sidebar-expanded="true"] .sidebar-club { height: 67px; }
-.layout[data-sidebar-expanded="true"] .sidebar-club .current-club { left: 0; right: 40px; }
-.layout[data-sidebar-expanded="true"] .sidebar-club-switch { top: 16px; left: calc(100% - 30px); }
+.layout[data-sidebar-expanded="true"] .sidebar-club .current-club { left: 4px; right: 44px; }
+.layout[data-sidebar-expanded="true"] .sidebar-club-switch { top: 16px; left: calc(100% - 34px); }
 .sidebar .sidebar-usuario {
   position: absolute;
   left: 18px;
@@ -255,8 +255,9 @@
 .layout[data-sidebar-expanded="true"] .sidebar .sidebar-usuario {
   left: 12px;
   bottom: 12px;
-  width: calc(100% - 62px);
+  width: calc(100% - 70px);
   height: 48px;
+  border-radius: 6px;
 }
 .sidebar .sidebar-usuario > .icon { display: none; }
 .sidebar .usuario-avatar {

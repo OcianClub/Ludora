@@ -36,6 +36,9 @@ const output = path.resolve(__dirname, '../../../test-results/club-workspace');
           const request = route.request();
           const pathname = new URL(request.url()).pathname;
           if (pathname === '/times/contexto') return route.fulfill({ json: [
+            { key: 'club:2', vitorias: 3, empates: 2, derrotas: 1, golsPro: 9, golsContra: 5, proxima: null, categorias: [
+              { categoria_id: 1, vitorias: 3, empates: 2, derrotas: 1, golsPro: 9, golsContra: 5, proxima: null },
+            ] },
             { key: 'aurora fc', vitorias: 2, empates: 1, derrotas: 1, golsPro: 6, golsContra: 4, proxima: { data: '2027-10-29', categoria_id: 1 }, categorias: [
               { categoria_id: 1, vitorias: 2, empates: 1, derrotas: 1, golsPro: 6, golsContra: 4, proxima: { data: '2027-10-29', categoria_id: 1 } },
             ] },
@@ -122,12 +125,37 @@ const output = path.resolve(__dirname, '../../../test-results/club-workspace');
         await page.getByRole('searchbox', { name: 'Buscar time' }).fill('Aurora');
         assert.equal(await page.locator('.teams-card').count(), 1);
         await page.getByRole('searchbox', { name: 'Buscar time' }).fill('');
-        await page.getByRole('button', { name: 'Lista', exact: true }).click();
-        await page.locator('.teams-grid.is-list').first().waitFor();
+        if (width > 760) {
+          await page.getByRole('button', { name: 'Lista', exact: true }).click();
+          await page.locator('.teams-grid.is-list').first().waitFor();
+        } else {
+          assert.equal(await page.getByRole('group', { name: 'Modo de visualização' }).count(), 0);
+        }
         await fit();
         await page.screenshot({ path: path.join(output, `teams-list-${width}-${theme}.png`) });
-        await page.getByRole('button', { name: 'Cards', exact: true }).click();
+        if (width === 1366 && theme === 'dark') {
+          await page.setViewportSize({ width: 390, height: 900 });
+          await page.waitForFunction(() => !document.querySelector('.teams-grid.is-list'));
+          assert.equal(await page.getByRole('group', { name: 'Modo de visualização' }).count(), 0);
+          await page.setViewportSize({ width, height: 900 });
+          await page.locator('.teams-grid.is-list').first().waitFor();
+        }
+        if (width > 760) await page.getByRole('button', { name: 'Cards', exact: true }).click();
         await page.screenshot({ path: path.join(output, `teams-cards-${width}-${theme}.png`) });
+        const ownCard = page.locator('.teams-card.is-own');
+        await ownCard.locator('.teams-record-stat.is-win strong').filter({ hasText: '3' }).waitFor();
+        await ownCard.getByRole('button', { name: 'Ver time Ocian' }).click();
+        const ownPanel = page.locator('.teams-drawer');
+        await ownPanel.getByRole('heading', { name: /Retrospecto do clube/ }).waitFor();
+        assert.match(await ownPanel.locator('.team-insights-stats').innerText(), /3\s*Vitórias/);
+        await ownPanel.locator('.team-recent-match').first().waitFor();
+        await ownPanel.getByRole('link', { name: 'Organizar partida', exact: true }).click();
+        const ownCreation = page.getByRole('dialog', { name: 'Organizar partida', exact: true });
+        await ownCreation.waitFor();
+        assert.equal(await ownCreation.getByRole('button', { name: 'Selecionar adversário', exact: true }).count(), 1);
+        assert.equal(await ownCreation.locator('.schedule-create-error').count(), 0);
+        await page.goto(base + '/times');
+        await page.locator('.teams-card').first().waitFor();
         await page.getByRole('button', { name: 'Ver time Aurora FC' }).click();
         const drawer = page.locator('.teams-drawer');
         await drawer.waitFor();

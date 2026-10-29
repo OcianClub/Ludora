@@ -29,6 +29,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-profile');
           return route.continue();
         });
         await require('./visual-fixture.cjs').install(page);
+        await page.route('http://localhost:3000/times/contexto', route => route.fulfill({ status: 503, json: { error: 'Indisponível no teste' } }));
         await page.goto(base + '/perfil');
         await page.getByRole('textbox', { name: 'Nome', exact: true }).waitFor();
 
@@ -54,8 +55,8 @@ const output = path.resolve(__dirname, '../../../test-results/web-profile');
         await page.getByRole('button', { name: 'Mais opções de navegação' }).click();
         await page.getByRole('dialog').getByRole('link', { name: 'Times', exact: true }).click();
         await page.waitForURL('**/times');
-        await page.locator('.header-profile-link').click();
-        await page.getByRole('dialog', { name: 'Conta e aparência', exact: true }).getByRole('link', { name: 'Meu perfil', exact: true }).click();
+        await page.getByRole('button', { name: 'Mais opções de navegação' }).click();
+        await page.getByRole('dialog', { name: 'Mais opções' }).getByRole('link', { name: 'Conta e preferências' }).click();
         await page.waitForURL('**/perfil');
         await checkScroll();
         await page.getByRole('tab', { name: 'Conta', exact: true }).click();
@@ -66,7 +67,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-profile');
         for (const theme of ['dark', 'light']) {
           if (theme === 'light') {
             await page.getByRole('tab', { name: 'Preferências', exact: true }).click();
-            await page.getByRole('switch', { name: 'Tema escuro' }).click();
+            await page.getByRole('radio', { name: 'Tema claro', exact: true }).click();
             await page.getByRole('tab', { name: 'Dados pessoais' }).click();
           }
           await page.screenshot({ path: path.join(output, `profile-${width}-${theme}.png`), fullPage: true });

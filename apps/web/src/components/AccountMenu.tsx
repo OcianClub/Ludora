@@ -2,16 +2,10 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { applyTheme, getThemePreference, setThemePreference, type ThemePreference } from '../styles/theme';
+import { ThemeOptions } from './ThemeOptions';
 import { Icon } from './Icon';
 import { LogoutDialog } from './LogoutButton';
 import './AccountMenu.css';
-
-const THEMES: { value: ThemePreference; label: string; icon: 'desktop' | 'sun' | 'moon' }[] = [
-  { value: 'system', label: 'Tema do sistema', icon: 'desktop' },
-  { value: 'light', label: 'Tema claro', icon: 'sun' },
-  { value: 'dark', label: 'Tema escuro', icon: 'moon' },
-];
 
 export function AccountMenu({ header = false }: { header?: boolean }) {
   const { usuario, clube } = useAuth();
@@ -21,9 +15,6 @@ export function AccountMenu({ header = false }: { header?: boolean }) {
   const panel = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const [theme, setTheme] = useState(getThemePreference);
-  const [themeError, setThemeError] = useState('');
-  const [mobile, setMobile] = useState(() => matchMedia('(max-width: 760px)').matches);
 
   function close(restoreFocus = false) {
     setOpen(false);
@@ -31,15 +22,10 @@ export function AccountMenu({ header = false }: { header?: boolean }) {
   }
 
   useEffect(() => {
-    const sync = () => { applyTheme(); setTheme(getThemePreference()); };
     const media = matchMedia('(max-width: 760px)');
-    const resize = () => { setMobile(media.matches); setOpen(false); };
-    window.addEventListener('ludora:theme-change', sync);
-    window.addEventListener('storage', sync);
+    const resize = () => setOpen(false);
     media.addEventListener('change', resize);
     return () => {
-      window.removeEventListener('ludora:theme-change', sync);
-      window.removeEventListener('storage', sync);
       media.removeEventListener('change', resize);
     };
   }, []);
@@ -112,13 +98,6 @@ export function AccountMenu({ header = false }: { header?: boolean }) {
     };
   }, [open]);
 
-  function chooseTheme(value: ThemePreference) {
-    try {
-      setThemePreference(value);
-      setThemeError('');
-    } catch { setThemeError('Não foi possível salvar o tema. Tente novamente.'); }
-  }
-
   return <>
     <button ref={trigger} type="button" className={header ? 'profile-link header-profile-link account-trigger' : 'sidebar-usuario account-trigger'}
       aria-label="Menu da conta" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined}
@@ -150,21 +129,7 @@ export function AccountMenu({ header = false }: { header?: boolean }) {
       }}>
       <div className="account-popover-heading">
         <p title={usuario?.email}>{usuario?.email || usuario?.nome || 'Minha conta'}</p>
-        <div className="account-theme-options" role="radiogroup" aria-label="Aparência">
-          {THEMES.map((item, index) => <button key={item.value} type="button" role="radio" aria-label={item.label} title={item.label}
-            aria-checked={theme === item.value} tabIndex={theme === item.value ? 0 : -1}
-            onClick={() => chooseTheme(item.value)}
-            onKeyDown={event => {
-              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-              event.preventDefault();
-              const next = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (index + (event.key === 'ArrowLeft' ? 2 : 1)) % 3;
-              chooseTheme(THEMES[next].value);
-              event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus();
-            }}>
-            <Icon name={item.value === 'system' && mobile ? 'phone' : item.icon} size={17} />
-          </button>)}
-        </div>
-        {themeError && <small role="alert">{themeError}</small>}
+        <ThemeOptions />
       </div>
       <nav className="account-popover-links" aria-label="Minha conta">
         <Link to="/perfil" className="account-menu-profile" aria-label="Meu perfil" onClick={() => close()}>

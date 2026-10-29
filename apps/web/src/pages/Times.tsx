@@ -6,6 +6,7 @@ import { CategoryFilter } from '../components/CategoryFilter';
 import { useClubCategory } from '../hooks/useClubCategory';
 import { FilterSelect } from '../components/FilterSelect';
 import { Icon } from '../components/Icon';
+import { InfoNotice } from '../components/InfoNotice';
 import { TeamInsights, shortTeamDate } from '../components/TeamInsights';
 import { Btn, Input, Modal, Spinner } from '../components/UI';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,6 +38,15 @@ export default function TimesPage() {
   const [search, setSearch] = useState('');
   const [order, setOrder] = useState('');
   const [view, setView] = useState('cards');
+  const [mobile, setMobile] = useState(() => matchMedia('(max-width: 760px)').matches);
+  const listView = !mobile && view === 'list';
+  useEffect(() => {
+    const viewport = matchMedia('(max-width: 760px)');
+    const update = () => setMobile(viewport.matches);
+    update();
+    viewport.addEventListener('change', update);
+    return () => viewport.removeEventListener('change', update);
+  }, []);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -175,6 +185,8 @@ export default function TimesPage() {
   const categoryName = (id?: number) => categorias.find(cat => cat.id === id)?.nome.toUpperCase() || 'Sem categoria';
 
   function newMatchUrl(item: TeamGroup) {
+    if (item.clubId === clube?.id) return selectedCategory && item.items.some(time => time.categoria_id === selectedCategory.id && !time.arquivado)
+      ? `/partidas?organizar=1&categoria_id=${selectedCategory.id}` : null;
     const next = selectedCategory?.id || summaryFor(item.key)?.proxima?.categoria_id;
     const candidates = item.items.filter(time => !time.arquivado && (!selectedCategory || time.categoria_id === selectedCategory.id)
       && times.some(own => own.clube_representado_id === clube?.id && own.categoria_id === time.categoria_id && !own.arquivado));
@@ -353,7 +365,7 @@ export default function TimesPage() {
     const cats = [...item.items].sort((a, b) => numberOf(categorias.find(c => c.id === a.categoria_id)) - numberOf(categorias.find(c => c.id === b.categoria_id)));
     const summary = summaryFor(item.key);
     const isOwn = item.clubId === clube?.id;
-    const matchUrl = !isOwn && !item.archived ? newMatchUrl(item) : null;
+    const matchUrl = !item.archived ? newMatchUrl(item) : null;
     const expanded = expandedPreviews.includes(item.key);
     return <article key={item.key} className={`teams-card${item.clubId === clube?.id ? ' is-own' : ''}`}>
       <div className="teams-card-identity">
@@ -361,24 +373,25 @@ export default function TimesPage() {
           onClick={() => openCrest(item)}>
           <ClubBadge src={item.crest} name={item.name} size={48}/><span><Icon name="edit" size={12}/></span>
         </button> : <ClubBadge src={item.crest} name={item.name} size={48}/>}
-        <div className="teams-card-name"><h3>{item.name}</h3><p>{item.items.length} {item.items.length === 1 ? 'categoria' : 'categorias'}</p></div>
-        {(item.clubId || item.archived) && <span className={`teams-membership${!item.archived ? ' is-club' : ''}`}>{item.archived ? 'Arquivado' : isOwn ? 'Seu clube' : 'No Ludora'}</span>}
+        <div className="teams-card-name"><div className="teams-name-line"><h3>{item.name}</h3>
+          {(item.clubId || item.archived) && <span className={`teams-membership${!item.archived ? ' is-club' : ''}`}>{item.archived ? 'Arquivado' : isOwn ? 'Seu clube' : 'No Ludora'}</span>}
+        </div><p>{item.items.length} {item.items.length === 1 ? 'categoria' : 'categorias'}</p></div>
       </div>
       <div className="teams-preview" aria-label="Categorias do time">
         {(expanded ? cats : cats.slice(0, 3)).map(time => <span key={time.id}>{categoryName(time.categoria_id)}</span>)}
         {cats.length > 3 && <button type="button" aria-label={`${expanded ? 'Recolher' : 'Mostrar todas as'} categorias de ${item.name}`} aria-expanded={expanded}
           onClick={() => setExpandedPreviews(values => expanded ? values.filter(key => key !== item.key) : [...values, item.key])}>{expanded ? 'Menos' : `+${cats.length - 3}`}</button>}
       </div>
-      {!isOwn && <div className="teams-card-context">
-        <p className="teams-context-label">Contra {clube?.nome} <span>· {selectedCategory?.nome.toUpperCase() || 'Todas as categorias'}</span></p>
+      <div className="teams-card-context">
+        <p className="teams-context-label">{isOwn ? 'Retrospecto do clube' : `Contra ${clube?.nome}`} <span>· {selectedCategory?.nome.toUpperCase() || 'Todas as categorias'}</span></p>
         {summaryLoading ? <p className="teams-context-placeholder">Carregando retrospecto…</p> : summaryError ? <p className="teams-context-placeholder">Retrospecto indisponível</p> : <p className="teams-record">
           <span className="teams-record-stat is-win"><strong>{summary?.vitorias || 0}</strong><abbr title="Vitórias">V</abbr></span>
           <span className="teams-record-stat is-draw"><strong>{summary?.empates || 0}</strong><abbr title="Empates">E</abbr></span>
           <span className="teams-record-stat is-loss"><strong>{summary?.derrotas || 0}</strong><abbr title="Derrotas">D</abbr></span>
-          <small>{(summary?.vitorias || 0) + (summary?.empates || 0) + (summary?.derrotas || 0) ? 'Finalizadas' : 'Sem confrontos finalizados'}</small>
+          <small>{(summary?.vitorias || 0) + (summary?.empates || 0) + (summary?.derrotas || 0) ? `${(summary?.vitorias || 0) + (summary?.empates || 0) + (summary?.derrotas || 0)} jogos finalizados` : 'Sem confrontos finalizados'}</small>
         </p>}
         {summary?.proxima && <p className="teams-card-next"><Icon name="calendar" size={15}/><span>Próximo: <strong>{shortTeamDate(summary.proxima.data)}</strong> · {categoryName(summary.proxima.categoria_id)}</span></p>}
-      </div>}
+      </div>
       <div className="teams-card-actions">{podeGerenciar && matchUrl && <Link className="btn btn-ghost btn-sm teams-quick-match" to={matchUrl}><Icon name="plus" size={15}/>Nova partida</Link>}
         <button type="button" className="teams-open" onClick={() => openGroup(item.key)} aria-label={`Ver time ${item.name}`}>
         Ver time <Icon name="chevronRight" size={16}/>
@@ -402,12 +415,12 @@ export default function TimesPage() {
         options={[{ value: 'desc', label: 'Nome Z–A' }, { value: 'categories', label: 'Mais categorias' }]}/></div>
     </div>
     <div className="teams-results"><span role="status">{loading ? 'Carregando times…' : `${visible.length} ${visible.length === 1 ? 'time' : 'times'}`}</span>
-      <CollectionViewToggle value={view} onChange={setView} options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'list', label: 'Lista', icon: 'list' }]}/>
+      {!mobile && <CollectionViewToggle value={view} onChange={setView} options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'list', label: 'Lista', icon: 'list' }]}/>}
     </div>
     {notice && <p role="status" className="teams-notice">{notice}</p>}
     {loading ? <Spinner/> : loadError ? <div className="teams-empty" role="alert"><Icon name="alert" size={26}/><p>{loadError}</p><Btn variant="ghost" onClick={() => setVersion(v => v + 1)}>Tentar novamente</Btn></div> : <>
-      {!!own.length && <section className="teams-section"><h2>Seu clube</h2><div className={`teams-grid ${view === 'list' ? 'is-list' : ''}`}>{own.map(renderTeam)}</div></section>}
-      {!!others.length && <section className="teams-section"><h2>{own.length ? 'Outros times' : 'Times cadastrados'}</h2><div className={`teams-grid ${view === 'list' ? 'is-list' : ''}`}>{others.map(renderTeam)}</div></section>}
+      {!!own.length && <section className="teams-section"><h2>Seu clube</h2><div className={`teams-grid ${listView ? 'is-list' : ''}`}>{own.map(renderTeam)}</div></section>}
+      {!!others.length && <section className="teams-section"><h2>{own.length ? 'Outros times' : 'Times cadastrados'}</h2><div className={`teams-grid ${listView ? 'is-list' : ''}`}>{others.map(renderTeam)}</div></section>}
       {!visible.length && <div className="teams-empty"><Icon name="search" size={26}/><h2>Nenhum time encontrado</h2><p>{groups.length ? 'Tente outro nome ou remova os filtros.' : 'Os times cadastrados aparecerão aqui com suas categorias.'}</p>
         {!!groups.length && <Btn variant="ghost" onClick={() => { setSearch(''); setScope('all'); }}>Limpar busca</Btn>}</div>}
     </>}
@@ -416,14 +429,14 @@ export default function TimesPage() {
       heading={group && <span className="teams-drawer-identity"><ClubBadge src={group.crest} name={group.name} size={44}/><span><strong>{group.name}</strong><small>{group.items.length} categorias{group.clubId && <span className="teams-membership is-club">{group.clubId === clube?.id ? 'Seu clube' : 'No Ludora'}</span>}</small></span></span>}
       headerActions={podeGerenciar && group ? renderHeaderMenu(group) : undefined}>
       {group && <>
-        {group.clubId !== clube?.id && <>
-          {podeGerenciar && !group.archived && newMatchUrl(group) && <Link className="btn btn-primary teams-panel-create" to={newMatchUrl(group)!}><Icon name="plus" size={17}/>Nova partida contra {group.name}</Link>}
+        <>
+          {podeGerenciar && !group.archived && newMatchUrl(group) && <Link className="btn btn-primary teams-panel-create" to={newMatchUrl(group)!}><Icon name="plus" size={17}/>{group.clubId === clube?.id ? 'Organizar partida' : `Nova partida contra ${group.name}`}</Link>}
           {podeGerenciar && !group.archived && !newMatchUrl(group) && <p className="teams-notice">Os dois times precisam estar cadastrados no {selectedCategory?.nome.toUpperCase() || 'mesmo sub'} para organizar uma partida nesta categoria.</p>}
           <TeamInsights teamId={group.items[0].id} clubeId={clube!.id} clubeName={clube!.nome} summary={summaryFor(group.key)} summaryLoading={summaryLoading}
-            summaryError={summaryError} retrySummary={() => void loadSummaries()} categoria={selectedCategory} opponentName={group.name}/>
-        </>}
+            summaryError={summaryError} retrySummary={() => void loadSummaries()} categoria={selectedCategory} opponentName={group.name} ownClub={group.clubId === clube?.id}/>
+        </>
         {notice && <p role="status" className="teams-panel-notice">{notice}</p>}
-        <details className="teams-management" open={group.clubId === clube?.id ? true : undefined}>
+        <details className="teams-management">
           <summary><span><Icon name="team" size={17}/>Categorias <small>{group.items.length}</small></span><span>Gerenciar<Icon name="chevronRight" size={15}/></span></summary>
         {(['INICIACAO', 'BASE'] as const).map(phase => {
           const rows = group.items.filter(time => categorias.find(cat => cat.id === time.categoria_id)?.tipo === phase)
@@ -496,7 +509,7 @@ export default function TimesPage() {
     <Modal open={create} title="Adicionar time" onClose={() => { if (!busy) setCreate(false); }}>
       <form className="teams-form" onSubmit={saveNew} noValidate><Input label="Nome do time" placeholder="Ex.: Aurora FC" value={newName} onChange={event => setNewName(event.target.value)} maxLength={120}/>
         <FilterSelect label="Primeira categoria" emptyLabel="Selecionar sub" value={newCategory} onChange={setNewCategory} inlineOptions options={categorias.map(cat => ({ value: cat.id, label: cat.nome.toUpperCase() }))}/>
-        <p className="text-muted">Depois, adicione o escudo pelo card e as outras categorias pelo painel do time.</p>
+        <InfoNotice title="Depois, adicione o escudo pelo card e as outras categorias pelo painel do time." />
         {error && <p role="alert" className="notice-error">{error}</p>}<Btn type="submit" disabled={busy}>{busy ? 'Salvando…' : 'Adicionar time'}</Btn>
       </form>
     </Modal>

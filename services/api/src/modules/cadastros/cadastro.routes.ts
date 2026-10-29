@@ -87,7 +87,8 @@ router.get('/times/:id/contexto', exigirClubePublico, async (req, res) => {
     if (categoriaId && !locais.some(time => time.categoria_id === categoriaId)) return res.status(403).json({ error: 'Categoria indisponível para seu acesso.' });
     const allTimes = await timesCompartilhados(locais, clubeId);
     const times = categoriaId ? allTimes.filter(time => time.categoria_id === categoriaId) : allTimes;
-    const ids = times.filter(time => chaveTime(time) === chaveTime(source)).map(time => time.id);
+    const isOwn = source.clube_representado_id === clubeId;
+    const ids = times.filter(time => isOwn ? time.clube_representado_id !== clubeId : chaveTime(time) === chaveTime(source)).map(time => time.id);
     const own = times.filter(time => time.clube_representado_id === clubeId).map(time => time.id);
     const where = { OR: [
       { mandante_id: { in: own }, visitante_id: { in: ids } },

@@ -9,7 +9,7 @@ import { AuthError } from '../services/authHttp';
 import { codigoValido, erroConfirmacao, erroNome, erroSenha, formatarCodigo } from '../utils/authValidation';
 import './Auth.css';
 
-const ROLES: Record<string, string> = { ADMIN: 'Administrador', TECNICO: 'Técnico', MESARIO: 'Mesário' };
+const ROLES: Record<string, string> = { ADMIN: 'Administrador', TECNICO: 'Técnico', MESARIO: 'Mesário', OLHEIRO: 'Olheiro' };
 
 export default function ConvitePage() {
   const { codigo: credential } = useParams();
@@ -40,11 +40,17 @@ export default function ConvitePage() {
     if (!credential) { setLoading(false); return; }
     setLoading(true);
     consultarConvite(credential, byToken)
-      .then(result => { if (active) setConvite(result); })
+      .then(result => {
+        if (!active) return;
+        setConvite(result);
+        if (result.possui_conta && !token && new URLSearchParams(location.search).get('entrar') === '1') {
+          navigate('/login', { replace: true, state: { convite: location.pathname, conviteAberto: !result.email } });
+        }
+      })
       .catch(error => { if (active) setLoadError(error.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [credential, byToken, version]);
+  }, [credential, byToken, version, location.search]);
 
   function finish(result: ResultadoConvite) {
     // O convite é consumido no servidor antes de persistir a sessão local.
@@ -72,7 +78,7 @@ export default function ConvitePage() {
     if (!convite) return;
     if (convite.possui_conta) {
       if (!token) {
-        navigate('/login', { state: { convite: location.pathname } });
+        navigate('/login', { state: { convite: location.pathname, conviteAberto: !convite.email } });
         return;
       }
       void access.run(async () => finish(await aceitarConviteExistente(credential, byToken, token)));
@@ -132,14 +138,14 @@ export default function ConvitePage() {
                 <div className="access-club"><ClubBadge src={convite.clube.escudo} size={52} /><div><h2>{convite.clube.nome}</h2><p>{[convite.clube.cidade, convite.clube.estado].filter(Boolean).join(' · ')}</p></div></div>
                 <dl>
                   <div><dt>Seu papel</dt><dd>{ROLES[convite.papel] || convite.papel}</dd></div>
-                  <div><dt>Categorias</dt><dd>{convite.acesso_todas_categorias ? 'Todas as categorias' : convite.categorias.map(c => c.nome).join(', ')}</dd></div>
-                  <div><dt>Enviado para</dt><dd>{convite.email}</dd></div>
+                  <div><dt>Categorias</dt><dd>{convite.papel === 'OLHEIRO' ? 'Consulta do conteúdo público' : convite.acesso_todas_categorias ? 'Todas as categorias' : convite.categorias.map(c => c.nome).join(', ')}</dd></div>
+                  <div><dt>Enviado para</dt><dd>{convite.email || 'Código de uso único, sem restrição de e-mail'}</dd></div>
                   <div><dt>Convidado por</dt><dd>{convite.convidado_por}</dd></div>
                   <div><dt>Válido até</dt><dd>{new Date(convite.expira_em).toLocaleString('pt-BR')}</dd></div>
                 </dl>
               </section>
               {convite.possui_conta ? <>
-                <p className="access-note">{token ? `Você está conectado como ${usuario?.email || 'usuário'}. O convite deve pertencer a esse e-mail.` : 'Você já tem uma conta. Entre com o e-mail que recebeu o convite para aceitar.'}</p>
+                <p className="access-note">{!convite.email ? token ? `Você está conectado como ${usuario?.email || 'usuário'}. Ao aceitar, este código será utilizado e não poderá ser compartilhado novamente.` : 'Entre na sua conta para aceitar este código de uso único. Se ainda não tem conta, cadastre-se primeiro e volte a este link.' : token ? `Você está conectado como ${usuario?.email || 'usuário'}. O convite deve pertencer a esse e-mail.` : 'Você já tem uma conta. Entre com o e-mail que recebeu o convite para aceitar.'}</p>
                 {token && <Link className="access-text-link" to="/login" state={{ convite: location.pathname }}>Entrar com outra conta</Link>}
               </> : <>
                 <p className="access-note">Crie sua conta usando o e-mail deste convite. Não é necessário solicitar outro código.</p>

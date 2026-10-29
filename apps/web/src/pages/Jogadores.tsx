@@ -45,8 +45,9 @@ export default function JogadoresPage() {
   const categoryRequests = useRef(new Map<number, AbortController>());
   const refreshExpanded = useRef<number[] | null>(null);
   const [shirtPlayer, setShirtPlayer] = useState<Jogador | null>(null);
-  const view = smallScreen ? 'lista' : params.get('visualizacao') || 'tabela';
-  const listView = view === 'lista';
+  const view = params.get('visualizacao');
+  const cardView = !smallScreen && (view === 'cards' || view === 'lista');
+  const listView = smallScreen || cardView;
   useEffect(() => {
     const media = window.matchMedia('(max-width: 760px)');
     const update = () => setSmallScreen(media.matches);
@@ -412,7 +413,7 @@ export default function JogadoresPage() {
               <Icon name="team" size={18}/><strong>{category.nome.toUpperCase()}</strong><span>{count} {count === 1 ? 'jogador' : 'jogadores'}</span><Icon name="chevronRight" size={18}/>
             </button>
             <div id={`alunos-sub-panel-${selectedCategory.id}-${category.id}`} hidden={!expanded}>
-              {expanded && !!rows?.items.length && <ul className="alunos-list" aria-label={`Jogadores do ${category.nome.toUpperCase()}`}>
+              {expanded && !!rows?.items.length && <ul className={`alunos-list${cardView ? ' alunos-list--cards' : ''}`} aria-label={`Jogadores do ${category.nome.toUpperCase()}`}>
                 {rows.items.map(aluno => {
                   const age = playerAge(aluno.dtNasc);
                   return <li key={aluno.id}>
@@ -498,8 +499,8 @@ export default function JogadoresPage() {
     <div className="alunos-results-bar">
       <p role="status">{loading ? 'Carregando jogadores…' : erroLista ? 'Consulta indisponível' : <><strong>{total} {total === 1 ? 'jogador' : 'jogadores'}</strong><span>{listView ? `${allCategories.length} categorias` : selectedCategory?.nome.toUpperCase()}</span></>}</p>
       {filtered && <button type="button" className="alunos-clear" onClick={clearFilters}>Limpar filtros</button>}
-      {!smallScreen && <CollectionViewToggle className="alunos-view-toggle" value={listView ? 'lista' : 'tabela'} onChange={value => setView(value === 'lista' ? 'lista' : 'tabela')}
-        options={[{ value: 'tabela', label: 'Tabela', icon: 'table' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />}
+      {!smallScreen && <CollectionViewToggle className="alunos-view-toggle" value={cardView ? 'cards' : 'tabela'} onChange={setView}
+        options={[{ value: 'tabela', label: 'Tabela', icon: 'table' }, { value: 'cards', label: 'Cards', icon: 'grid' }]} />}
     </div>
     {(position || shirtFilter) && <div className="alunos-active-filters" aria-label="Filtros ativos">
       {position && <button type="button" onClick={() => setPosition('')} aria-label={`Remover filtro de posição: ${position}`}>{position}<span aria-hidden="true">×</span></button>}

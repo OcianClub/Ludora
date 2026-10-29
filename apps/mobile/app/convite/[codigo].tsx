@@ -186,7 +186,7 @@ export default function ConfirmarConvite() {
             />
 
             <Text style={[styles.subtitle, { marginTop: 18 }]}>
-              Este convite foi enviado para <Text style={styles.emailHint}>{convite.email}</Text>.
+              {convite.email ? <>Este convite foi enviado para <Text style={styles.emailHint}>{convite.email}</Text>.</> : 'Código de uso único. Ao aceitar com sua conta, ele não poderá ser usado novamente.'}
             </Text>
           </ScrollView>
 

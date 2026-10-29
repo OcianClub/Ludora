@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthShell } from '../components/AuthShell';
 import { AccessFeedback, AccessSteps, AuthField, BackArrow, InviteCard, useAccessForm, useResendCountdown } from '../components/auth';
 import { cadastrar, solicitarCodigoCadastro } from '../services/auth';
@@ -10,6 +10,8 @@ const STEPS = ['Seus dados', 'Segurança', 'Confirmar e-mail'];
 
 export default function RegistrarPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const invitation = location.state as { convite?: string; conviteAberto?: boolean } | null;
   const [step, setStep] = useState(1);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -54,7 +56,7 @@ export default function RegistrarPage() {
       await cadastrar({ nome, email, senha, codigo, cadastro_id: challenge.id });
       setSenha('');
       setConfirmacao('');
-      navigate('/login', { replace: true, state: { email: normalizarEmail(email), message: 'Conta criada e e-mail confirmado. Entre para continuar.' } });
+      navigate('/login', { replace: true, state: { convite: invitation?.convite, conviteAberto: invitation?.conviteAberto, email: normalizarEmail(email), message: 'Conta criada e e-mail confirmado. Entre para continuar.' } });
     });
   }
 

@@ -19,6 +19,7 @@ const ROTULOS_PAPEL: Record<PapelConvite, string> = {
   ADMIN: 'ADMINISTRADOR',
   TECNICO: 'TÉCNICO',
   MESARIO: 'MESÁRIO',
+  OLHEIRO: 'OLHEIRO',
 };
 
 export function ConviteClubeCard({
@@ -64,7 +65,9 @@ export function ConviteClubeCard({
         <View style={[styles.cardDetailBlock, styles.categoriesBlock]}>
           <Text style={styles.cardDetailLabel}>CATEGORIAS</Text>
           <View style={styles.categoryList}>
-            {acessoTodasCategorias ? (
+            {papel === 'OLHEIRO' ? (
+              <Text style={styles.emptyCategories}>Conteúdo público</Text>
+            ) : acessoTodasCategorias ? (
               <View style={styles.categoryBadge}>
                 <Text style={styles.categoryBadgeText}>TODAS</Text>
               </View>

@@ -92,14 +92,13 @@ router.get([
 
     const [parteLocal, dominio] = convite.email.split('@');
 
-    const emailMascarado =
-      `${parteLocal.slice(0, 2)}***@${dominio}`;
+    const emailMascarado = convite.email ? `${parteLocal.slice(0, 2)}***@${dominio}` : '';
 
-      const possuiConta = await prisma.usuario.count({
+      const possuiConta = convite.email ? await prisma.usuario.count({
         where: {
           email: convite.email,
         },
-      });
+      }) : 1;
 
     return res.json({
       convite: {
@@ -203,6 +202,9 @@ router.post(
         });
       }
 
+      if (!convite.email) {
+        return res.status(409).json({ error: 'Entre na sua conta para aceitar este código de uso único.', codigo: 'CONTA_EXISTENTE' });
+      }
       const usuarioExistente = await prisma.usuario.findUnique({
         where: {
           email: convite.email,
@@ -451,7 +453,7 @@ router.post(
       }
 
       if (
-        usuario.email.trim().toLowerCase() !==
+        convite.email && usuario.email.trim().toLowerCase() !==
         convite.email.trim().toLowerCase()
       ) {
         return res.status(403).json({
@@ -460,6 +462,7 @@ router.post(
       }
 
       if (
+        (convite.papel === 'TECNICO' || convite.papel === 'MESARIO') &&
         !convite.acesso_todas_categorias &&
         convite.categorias.length === 0
       ) {

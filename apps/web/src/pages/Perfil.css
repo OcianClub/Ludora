@@ -242,3 +242,105 @@
     width: 100%;
   }
 }
+.perfil-preferencia {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.perfil-preferencia .theme-options-control {
+  display: grid;
+  gap: 5px;
+  justify-items: end;
+}
+.perfil-preferencia .account-theme-options .icon {
+  color: inherit;
+}
+.perfil-preferencia .settings-switch::before,
+.perfil-preferencia .settings-switch[aria-checked="true"]::before {
+  border: 0;
+  background: var(--fundo);
+}
+.perfil-preferencia .settings-switch .settings-switch-thumb {
+  background: var(--fundo-card-sec);
+  color: var(--texto-sec);
+}
+.perfil-preferencia .settings-switch[aria-checked="true"] .settings-switch-thumb {
+  background: var(--fundo-card-sec);
+  color: var(--primaria);
+}
+.perfil-preferencia .settings-switch .settings-switch-thumb .icon {
+  color: inherit;
+}
+.perfil-clubes-group {
+  margin-top: 22px;
+}
+.perfil-clubes-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--texto);
+  font-size: 13px;
+  font-weight: 600;
+}
+.perfil-clubes-group h3 span {
+  color: var(--texto-sec);
+  font-size: 11px;
+  font-weight: 400;
+}
+.perfil-clubes-group .perfil-clubes {
+  margin-top: 10px;
+}
+.perfil-clube {
+  min-width: 0;
+  min-height: 64px;
+  border-color: var(--linha);
+  background: var(--fundo-card);
+}
+.perfil-clube:hover {
+  border-color: var(--borda);
+  background: var(--fundo-card-claro);
+}
+.perfil-clube.ativo {
+  border-color: var(--primaria);
+}
+.perfil-clube-escudo {
+  border-radius: 9px;
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+}
+.perfil-clube-escudo img {
+  object-fit: contain;
+  padding: 4px;
+}
+.perfil-clube > .icon {
+  flex-shrink: 0;
+  color: var(--texto-sec);
+}
+.perfil-seguindo {
+  color: var(--texto-sec);
+  font-size: 11px;
+}
+.perfil-explorar {
+  width: 100%;
+  padding: 0 11px;
+  border-radius: 8px;
+}
+.perfil-explorar:hover {
+  background: var(--fundo-card-sec);
+}
+.perfil-clubes-loading {
+  margin-top: 16px;
+  color: var(--texto-sec);
+  font-size: 13px;
+}
+@media (max-width: 400px) {
+  .perfil-preferencia {
+    column-gap: 8px;
+    padding: 12px;
+  }
+  .perfil-clube {
+    gap: 8px;
+    padding: 10px;
+  }
+  .perfil-clube .papel-badge {
+    font-size: 10px;
+  }
+}
