@@ -263,12 +263,18 @@ async function main(): Promise<void> {
           competicao_id: competicao.id,
         },
       });
+      await prisma.participantePartida.create({ data: {
+        partida_id: partida.id, clube_id: categoria.clube_id, categoria_id: categoria.id, time_id: nossoTime.id,
+        pronta: ['PREPARADA', 'AO_VIVO', 'FINALIZADA'].includes(cenario.status),
+        publicada_em: ['PREPARADA', 'AO_VIVO', 'FINALIZADA'].includes(cenario.status) ? new Date() : null,
+      } });
+      await prisma.partida.update({ where: { id: partida.id }, data: { organizador_id: categoria.clube_id, sumula_clube_id: categoria.clube_id } });
       totalPartidas++;
 
       if (cenario.status !== StatusPartida.CANCELADA) {
         await prisma.escalacaoPartida.createMany({
           data: jogadores.slice(0, 10).map((jogador, indice) => ({
-            partida_id: partida.id, jogador_id: jogador.id,
+            partida_id: partida.id, time_id: nossoTime.id, ordem: indice, jogador_id: jogador.id,
             numCamisa: jogador.numCamisa ?? indice + 1, titular: indice < 5,
           })),
         });

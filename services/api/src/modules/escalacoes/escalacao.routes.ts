@@ -51,7 +51,7 @@ router.put<{ id: string }>(
     try {
       const partida = await prisma.partida.findUnique({
         where: { id: partidaId },
-        select: { categoria_id: true },
+        select: { categoria_id: true, mandante_id: true, visitante_id: true, emCasa: true },
       });
       if (!partida) return res.status(404).json({ error: 'Partida não encontrada' });
       const normalizados = jogadores.map((j) => ({
@@ -76,6 +76,7 @@ router.put<{ id: string }>(
         prisma.escalacaoPartida.createMany({
           data: normalizados.map(j => ({
           partida_id: partidaId,
+          time_id: partida.emCasa ? partida.mandante_id : partida.visitante_id,
             ...j,
           })),
         }),

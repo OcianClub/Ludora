@@ -14,6 +14,7 @@ import { PainelOrganizarPartida } from './PainelOrganizarPartida';
 
 type Props = {
   revisao: RevisaoPartida;
+  proposta?: boolean;
   salvando: boolean;
   erro: string;
   onConfirmar: () => void;
@@ -22,6 +23,7 @@ type Props = {
 
 export function RevisaoOrganizarPartida({
   revisao,
+  proposta = false,
   salvando,
   erro,
   onConfirmar,
@@ -52,6 +54,7 @@ export function RevisaoOrganizarPartida({
         contentContainerStyle={styles.reviewContent}
         showsVerticalScrollIndicator={false}
       >
+        {proposta && <Text style={styles.reviewLabel}>O confronto será criado após o aceite do outro clube no Ludora.</Text>}
         <View style={styles.reviewCategory}>
           <Text style={styles.reviewCategoryLabel}>Categoria da partida</Text>
           <Text style={styles.reviewCategoryName}>{revisao.categoria.nome}</Text>
@@ -85,7 +88,7 @@ export function RevisaoOrganizarPartida({
             <Icon name="check" size={19} color={colors.textoSobrePrimaria} />
           )}
           <Text style={styles.saveText}>
-            {salvando ? 'Criando partida…' : 'Confirmar e criar'}
+            {salvando ? 'Salvando…' : proposta ? 'Enviar proposta' : 'Confirmar e criar'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity

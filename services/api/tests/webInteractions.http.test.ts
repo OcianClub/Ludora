@@ -37,11 +37,17 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
   replace(prisma.clube,'update',async(args:any)=>({id:2,...args.data}));
   replace(prisma.usuarioClube,'findUnique',async()=>({id:1,papel:role,acesso_todas_categorias:role==='ADMIN',categorias:[{categoria_id:9}]}));
   replace(prisma.usuarioClube,'findMany',async()=>[]); // no notification or push is sent
-  replace(prisma.categoria,'findUnique',async()=>({id:9,clube_id:2,tipo:'BASE'}));
+  replace(prisma.categoria,'findUnique',async()=>({id:9,clube_id:2,tipo:'BASE',nome:'sub-12',faixaIdade:12}));
   replace(prisma.categoria,'count',async()=>1);
-  replace(prisma.time,'findMany',async(args:any)=>[{id:1,clube_representado_id:external?4:2},{id:2,clube_representado_id:3}].filter(team=>args.where.id.in.includes(team.id)));
+  replace(prisma.time,'findMany',async(args:any)=>[{id:1,clube_representado_id:external?4:2},{id:2,clube_representado_id:null}].filter(team=>args.where.id.in.includes(team.id)));
   replace(prisma.partida,'findFirst',async()=>null);
-  replace(prisma.partida,'findUnique',async()=>({id:99,mandante_id:1,visitante_id:2,categoria_id:9,categoria:{clube_id:2}}));
+  const match = {id:99,status:'AGENDADA',versao:0,data:new Date('2027-03-20'),horario:'19:30',mandante_id:1,visitante_id:2,categoria_id:9,categoria:{id:9,clube_id:2,nome:'sub-12',faixaIdade:12},mandante:{nome:'Harbor',clube_representado_id:2},visitante:{nome:'Wolves',clube_representado_id:null},participantes:[{id:1,clube_id:2,time_id:1,categoria_id:9,categoria:{nome:'sub-12',faixaIdade:12}}]};
+  replace(prisma.partida,'findUnique',async()=>match);
+  replace(prisma.partida,'findUniqueOrThrow',async()=>match);
+  replace(prisma.partida,'updateMany',async()=>({count:1}));
+  replace(prisma.participantePartida,'updateMany',async()=>({count:1}));
+  replace(prisma.auditoriaPartida,'create',async()=>({id:1}));
+  replace(prisma.propostaPartida,'findFirst',async()=>null);
   replace(prisma.partida,'create',async(args:any)=>{writes.push(args.data);return {id:99,...args.data,mandante:{nome:'Harbor'},visitante:{nome:'Wolves'}};});
   replace(prisma.partida,'update',async(args:any)=>{writes.push(args.data);return {id:99,...args.data};});
   replace(prisma.partida,'findMany',async(args:any)=>{reads.push(args);return args.select.id?[{id:99,data:new Date(),mandante:{nome:'Harbor'},visitante:{nome:'Wolves'},status:'FINALIZADA'}]:[{local:'Harbor Court'}];});
@@ -50,7 +56,7 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
   replace(prisma.competicao,'findMany',async()=>[{id:1,nome:'Harbor Cup',ano:2026,tipo:'BASE'}]);
   replace(prisma.jogador,'findFirst',async(args:any)=>args.where.id===404?null:{id:7,nome:'James Walker',foto:null,dtNasc:new Date('2014-10-28'),posicao:'Fixo',categoria_id:9,categoria:{id:9,nome:'sub-12',tipo:'BASE'}});
   replace(prisma.jogador,'findUnique',async()=>({cpf:'12345678901'}));
-  replace(prisma,'$transaction',async(args:any)=>Promise.all(args));
+  replace(prisma,'$transaction',async(args:any)=>typeof args==='function'?args(prisma):Promise.all(args));
   replace(prisma,'$queryRaw',async()=>[{jogador_id:7,total:5n}]);
   replace(prisma.jogador,'findMany',async(args:any)=>{reads.push(args);return [{id:7,nome:'James Walker',categoria_id:9}];});
   replace(prisma.jogador,'groupBy',async(args:any)=>{reads.push(args);return [{categoria_id:9,_count:{_all:12,numCamisa:10}}];});
@@ -64,12 +70,12 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
   const send=(method:string,path:string,body?:unknown)=>fetch(base+path,{method,headers,...(body?{body:JSON.stringify(body)}:{})});
   await t.test('POST e PATCH calculam mando mesmo com emCasa adulterado',async()=>{
     let response=await send('POST','/partidas',game);assert.equal(response.status,201,await response.text());assert.equal(writes.at(-1).emCasa,true);
-    response=await send('PATCH','/partidas/99',{mandante_id:2,visitante_id:1,emCasa:true});assert.equal(response.status,200,await response.text());assert.equal(writes.at(-1).emCasa,false);
+    response=await send('PATCH','/partidas/99',{mandante_id:2,visitante_id:1,emCasa:true});assert.equal(response.status,400,await response.text()); // Trocar participantes exige outro confronto.
   });
   await t.test('dois adversários, mesmo time e visitante não gravam',async()=>{
     const count=writes.length;external=true;
     assert.equal((await send('POST','/partidas',game)).status,400);
-    assert.equal((await send('PATCH','/partidas/99',game)).status,400);external=false;
+    assert.equal((await send('PATCH','/partidas/99',{...game,mandante_id:3})).status,400);external=false;
     assert.equal((await send('POST','/partidas',{...game,visitante_id:1})).status,400);
     assert.equal((await send('POST','/partidas',{...game,horario:'24:00'})).status,400);
     assert.equal((await send('PATCH','/partidas/99',{horario:'19:60'})).status,400);

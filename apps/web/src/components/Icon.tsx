@@ -1,3 +1,4 @@
+import email from '../../../../packages/icons/src/svg/email.svg';
 import home from '../../../../packages/icons/src/svg/home.svg';
 import ball from '../../../../packages/icons/src/svg/bola.svg';
 import team from '../../../../packages/icons/src/svg/grupo.svg';
@@ -33,7 +34,7 @@ import radar from '../../../../packages/icons/src/svg/mdi-radar.svg';
 import broadcast from '../../../../packages/icons/src/svg/broadcast.svg';
 import handshake from '../../../../packages/icons/src/svg/mdi-handshake.svg';
 
-const icons = { home, ball, team, player, shirt, alert, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus, bell, checkAll, settings, clock, radar, broadcast, handshake };
+const icons = { email, home, ball, team, player, shirt, alert, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus, bell, checkAll, settings, clock, radar, broadcast, handshake };
 export type IconName = keyof typeof icons | 'grid' | 'list' | 'filters' | 'table' | 'desktop' | 'phone' | 'sun' | 'moon' | 'sidebarExpand' | 'sidebarCollapse' | 'info' | 'cancel' | 'archive';
 
 // Usa os mesmos desenhos do mobile, sem depender de componentes React Native.

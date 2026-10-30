@@ -44,7 +44,7 @@ export function MatchActionsMenu({ disabled, onEdit, onDelete }: {
       }
     }}>
       <button type="button" role="menuitem" onClick={() => { close(true); onEdit(); }}><Icon name="edit" size={17}/>Editar partida</button>
-      <button type="button" role="menuitem" className="match-actions-delete" onClick={() => { close(true); onDelete(); }}><Icon name="trash" size={17}/>Excluir partida</button>
+      <button type="button" role="menuitem" className="match-actions-delete" onClick={() => { close(true); onDelete(); }}><Icon name="trash" size={17}/>Cancelar partida</button>
     </div>}
   </div>;
 }

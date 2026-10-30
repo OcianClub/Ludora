@@ -1,3 +1,5 @@
+import { io } from 'socket.io-client';
+import { BASE_URL } from '../services/config';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,7 +15,7 @@ type NoticeResponse = { notificacoes: Notice[]; totalNaoLidas: number; proximoCu
 const emptyData: NoticeResponse = { notificacoes: [], totalNaoLidas: 0, proximoCursor: null };
 
 export function Notifications() {
-  const { clube } = useAuth();
+  const { clube, token } = useAuth();
   const navigate = useNavigate();
   const { key: navigationKey } = useLocation();
   const dialogId = useId();
@@ -45,6 +47,7 @@ export function Notifications() {
   useEffect(() => {
     let active = true;
     let pending = false;
+    let refreshQueued = false;
     const currentScope = ++scope.current;
     busyRef.current = false;
     loadedMore.current = false;
@@ -60,7 +63,8 @@ export function Notifications() {
     setLoading(Boolean(clube?.meuPapel));
 
     async function refresh(append = false) {
-      if (!active || !clube?.meuPapel || pending || busyRef.current) return;
+      if (!active || !clube?.meuPapel || busyRef.current) return;
+      if (pending) { refreshQueued = true; return; }
       const cursor = append ? dataRef.current.proximoCursor : null;
       if (append && !cursor) return;
       pending = true;
@@ -86,19 +90,26 @@ export function Notifications() {
         if (active && requestRevision === revision.current) setError('Não foi possível carregar os avisos. Verifique sua conexão e tente novamente.');
       } finally {
         pending = false;
-        if (active) { setLoading(false); setFetching(false); }
+        if (active) {
+          setLoading(false); setFetching(false);
+          if (refreshQueued) { refreshQueued = false; void refresh(); }
+        }
       }
     }
 
     reload.current = refresh;
     void refresh();
+    const socket = token && clube?.meuPapel ? io(BASE_URL, { auth: { token, clubeId: clube.id } }) : null;
+    socket?.on('notificacao_criada', () => { void refresh(); });
+    socket?.on('connect', () => { void refresh(); });
     const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 30_000);
     return () => {
       active = false;
       if (scope.current === currentScope) scope.current++;
       window.clearInterval(timer);
+      socket?.disconnect();
     };
-  }, [clube?.id, clube?.meuPapel]);
+  }, [clube?.id, clube?.meuPapel, token]);
 
   useEffect(() => {
     setOpen(false);
@@ -133,8 +144,9 @@ export function Notifications() {
   }
 
   async function read(notice?: Notice) {
+    const target = notice?.dados?.solicitacaoId ? `/partidas/solicitacoes?id=${encodeURIComponent(notice.dados.solicitacaoId)}` : notice?.partida_id ? `/partidas/${notice.partida_id}` : null;
     if (notice?.lida) {
-      if (notice.partida_id) { setOpen(false); navigate(`/partidas/${notice.partida_id}`); }
+      if (target) { setOpen(false); navigate(target); }
       return;
     }
     const ok = await mutate(notice ? `/notificacoes/${notice.id}/lida` : '/notificacoes/lidas', 'PATCH', () => {
@@ -144,7 +156,7 @@ export function Notifications() {
         totalNaoLidas: notice ? Math.max(0, previous.totalNaoLidas - (previous.notificacoes.find(item => item.id === notice.id)?.lida ? 0 : 1)) : 0,
       }));
     }, notice ? 'Aviso marcado como lido.' : 'Todos os avisos foram marcados como lidos.');
-    if (ok && notice?.partida_id) { setOpen(false); navigate(`/partidas/${notice.partida_id}`); }
+    if (ok && target) { setOpen(false); navigate(target); }
   }
 
   async function remove(kind: 'all' | 'read' | Notice) {

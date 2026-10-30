@@ -20,12 +20,13 @@ model Clube {
   plano     String   @default("FREE")
   criado_em DateTime @default(now())
 
-  usuarios     UsuarioClube[]
-  categorias   Categoria[]
-  competicoes  Competicao[]
-  convites     ConviteClube[]
-  notificacoes Notificacao[]
-  timesRepresentados Time[] @relation("ClubeRepresentado")
+  usuarios           UsuarioClube[]
+  categorias         Categoria[]
+  competicoes        Competicao[]
+  convites           ConviteClube[]
+  notificacoes       Notificacao[]
+  equipesPartida     ParticipantePartida[]
+  timesRepresentados Time[]                @relation("ClubeRepresentado")
 }
 
 model UsuarioClube {
@@ -109,12 +110,13 @@ model Categoria {
   tipo               TipoCategoria
   usuariosPermitidos UsuarioClubeCategoria[]
 
-  clube       Clube              @relation(fields: [clube_id], references: [id], onDelete: Cascade)
-  jogadores   Jogador[]
-  partidas    Partida[]
-  times       Time[]             @relation("TimeCategorias")
-  competicoes Competicao[]       @relation("CompeticaoCategorias")
-  convites    ConviteCategoria[]
+  clube          Clube                 @relation(fields: [clube_id], references: [id], onDelete: Cascade)
+  jogadores      Jogador[]
+  partidas       Partida[]
+  times          Time[]                @relation("TimeCategorias")
+  competicoes    Competicao[]          @relation("CompeticaoCategorias")
+  convites       ConviteCategoria[]
+  equipesPartida ParticipantePartida[]
 
   // Agora permite categorias com nomes iguais, desde que em clubes diferentes
   @@unique([nome, clube_id])
@@ -128,24 +130,31 @@ model Competicao {
   ano      Int
   tipo     TipoCompeticao
 
-  clube               Clube               @relation(fields: [clube_id], references: [id], onDelete: Cascade)
-  jogadores_inscritos CompeticaoJogador[]
-  times_inscritos     CompeticaoTime[]
-  partidas            Partida[]
-  categorias          Categoria[]         @relation("CompeticaoCategorias")
+  clube                 Clube               @relation(fields: [clube_id], references: [id], onDelete: Cascade)
+  titulares_necessarios Int                 @default(5)
+  exigir_inscricao      Boolean             @default(false)
+  arquivada             Boolean             @default(false)
+  jogadores_inscritos   CompeticaoJogador[]
+  times_inscritos       CompeticaoTime[]
+  partidas              Partida[]
+  categorias            Categoria[]         @relation("CompeticaoCategorias")
 
   @@index([clube_id])
 }
 
 model Evento {
-  id         Int        @id @default(autoincrement())
-  partida_id Int
-  tipo       TipoEvento
-  periodo    Int
-  minuto     Int?
-  jogador_id Int?
-  jogador    Jogador?   @relation(fields: [jogador_id], references: [id])
-  partida    Partida    @relation(fields: [partida_id], references: [id], onDelete: Cascade)
+  id            Int        @id @default(autoincrement())
+  partida_id    Int
+  tipo          TipoEvento
+  periodo       Int
+  minuto        Int?
+  jogador_id    Int?
+  time_id       Int?
+  gol_contra    Boolean    @default(false)
+  criado_por_id Int?
+  criado_em     DateTime   @default(now())
+  jogador       Jogador?   @relation(fields: [jogador_id], references: [id])
+  partida       Partida    @relation(fields: [partida_id], references: [id], onDelete: Cascade)
 
   @@index([partida_id])
 }
@@ -153,17 +162,18 @@ model Evento {
 // ── MODELOS INALTERADOS ESTRUTURALMENTE ──
 
 model Time {
-  id                 Int              @id @default(autoincrement())
-  nome               String
-  escudo             String?
-    arquivado          Boolean          @default(false)
+  id                    Int                   @id @default(autoincrement())
+  nome                  String
+  escudo                String?
+  arquivado             Boolean               @default(false)
   clube_representado_id Int?
-  clubeRepresentado Clube? @relation("ClubeRepresentado", fields: [clube_representado_id], references: [id], onDelete: SetNull)
-  categoria_id       Int?
-  competicoes        CompeticaoTime[]
-  partidas_mandante  Partida[]        @relation("Mandante")
-  partidas_visitante Partida[]        @relation("Visitante")
-  categoria          Categoria?       @relation("TimeCategorias", fields: [categoria_id], references: [id])
+  clubeRepresentado     Clube?                @relation("ClubeRepresentado", fields: [clube_representado_id], references: [id], onDelete: SetNull)
+  categoria_id          Int?
+  competicoes           CompeticaoTime[]
+  partidas_mandante     Partida[]             @relation("Mandante")
+  partidas_visitante    Partida[]             @relation("Visitante")
+  categoria             Categoria?            @relation("TimeCategorias", fields: [categoria_id], references: [id])
+  equipesPartida        ParticipantePartida[]
 
   @@unique([nome, categoria_id])
   @@index([categoria_id])
@@ -172,13 +182,14 @@ model Time {
 
 // Histórico imutável de decisões de vínculo. Os IDs dos times/partidas não mudam.
 model AuditoriaVinculoTime {
-  id Int @id @default(autoincrement())
-  time_id Int
+  id                Int      @id @default(autoincrement())
+  time_id           Int
   clube_anterior_id Int?
-  clube_novo_id Int?
-  usuario_id Int?
-  motivo String
-  criado_em DateTime @default(now())
+  clube_novo_id     Int?
+  usuario_id        Int?
+  motivo            String
+  criado_em         DateTime @default(now())
+
   @@index([time_id])
 }
 
@@ -204,26 +215,34 @@ model Jogador {
 }
 
 model Partida {
-  id                    Int                @id @default(autoincrement())
+  id                    Int                   @id @default(autoincrement())
   mandante_id           Int
   visitante_id          Int
-  gols_mandante         Int                @default(0)
-  gols_visitante        Int                @default(0)
+  gols_mandante         Int                   @default(0)
+  gols_visitante        Int                   @default(0)
   horario               String?
-  data                  DateTime           @db.Date
+  data                  DateTime              @db.Date
   local                 String?
   rodada                Int?
   grupo                 String?
-  emCasa                Boolean            @default(true)
-  status                StatusPartida      @default(AGENDADA)
+  emCasa                Boolean               @default(true)
+  status                StatusPartida         @default(AGENDADA)
   categoria_id          Int
   competicao_id         Int?
+  organizador_id        Int?
+  sumula_clube_id       Int?
+  versao                Int                   @default(0)
+  titulares_necessarios Int                   @default(5)
+  periodo_atual         Int                   @default(1)
+  participantes         ParticipantePartida[]
+  propostas             PropostaPartida[]
+  auditoria             AuditoriaPartida[]
   jogadores_escalonados EscalacaoPartida[]
   eventos               Evento[]
-  categoria             Categoria          @relation(fields: [categoria_id], references: [id])
-  competicao            Competicao?        @relation(fields: [competicao_id], references: [id])
-  mandante              Time               @relation("Mandante", fields: [mandante_id], references: [id])
-  visitante             Time               @relation("Visitante", fields: [visitante_id], references: [id])
+  categoria             Categoria             @relation(fields: [categoria_id], references: [id])
+  competicao            Competicao?           @relation(fields: [competicao_id], references: [id])
+  mandante              Time                  @relation("Mandante", fields: [mandante_id], references: [id])
+  visitante             Time                  @relation("Visitante", fields: [visitante_id], references: [id])
   notificacoes          Notificacao[]
 
   @@index([data])
@@ -254,16 +273,74 @@ model CompeticaoJogador {
 }
 
 model EscalacaoPartida {
-  id         Int     @id @default(autoincrement())
-  partida_id Int
-  jogador_id Int
-  numCamisa  Int
-  titular    Boolean @default(false)
-  jogador    Jogador @relation(fields: [jogador_id], references: [id], onDelete: Cascade)
-  partida    Partida @relation(fields: [partida_id], references: [id], onDelete: Cascade)
+  id              Int      @id @default(autoincrement())
+  partida_id      Int
+  jogador_id      Int
+  numCamisa       Int
+  titular         Boolean  @default(false)
+  time_id         Int
+  ordem           Int      @default(0)
+  titular_inicial Boolean?
+  jogador         Jogador  @relation(fields: [jogador_id], references: [id], onDelete: Cascade)
+  partida         Partida  @relation(fields: [partida_id], references: [id], onDelete: Cascade)
 
   @@unique([partida_id, jogador_id])
-  @@unique([partida_id, numCamisa])
+  @@unique([partida_id, time_id, numCamisa])
+}
+
+model ParticipantePartida {
+  id           Int       @id @default(autoincrement())
+  partida_id   Int
+  clube_id     Int
+  categoria_id Int
+  time_id      Int
+  pronta       Boolean   @default(false)
+  publicada_em DateTime?
+  versao       Int       @default(0)
+  partida      Partida   @relation(fields: [partida_id], references: [id], onDelete: Cascade)
+  clube        Clube     @relation(fields: [clube_id], references: [id])
+  categoria    Categoria @relation(fields: [categoria_id], references: [id])
+  time         Time      @relation(fields: [time_id], references: [id])
+
+  @@unique([partida_id, clube_id])
+  @@unique([partida_id, time_id])
+  @@index([categoria_id])
+}
+
+model PropostaPartida {
+  id                   String    @id @default(cuid())
+  tipo                 String    @default("CRIACAO")
+  origem_id            Int
+  respondente_id       Int
+  destino_id           Int
+  categoria_origem_id  Int
+  categoria_destino_id Int
+  status               String    @default("PENDENTE")
+  chave                String?   @unique
+  dados                Json
+  motivo               String?
+  versao               Int       @default(0)
+  partida_id           Int?
+  criado_por_id        Int
+  criado_em            DateTime  @default(now())
+  respondido_em        DateTime?
+  partida              Partida?  @relation(fields: [partida_id], references: [id])
+
+  @@index([destino_id, status])
+  @@index([origem_id, status])
+}
+
+model AuditoriaPartida {
+  id         Int      @id @default(autoincrement())
+  partida_id Int
+  usuario_id Int
+  clube_id   Int
+  acao       String
+  dados      Json?
+  criado_em  DateTime @default(now())
+  partida    Partida  @relation(fields: [partida_id], references: [id])
+
+  @@index([partida_id, criado_em])
 }
 
 model Notificacao {

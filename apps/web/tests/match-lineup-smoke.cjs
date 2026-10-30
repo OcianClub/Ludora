@@ -34,6 +34,7 @@ fs.mkdirSync(output, { recursive: true });
         }
         return route.fulfill({ json: lineup });
       });
+      await require('./shared-match-fixture.cjs').install(page, { players, lineup: () => lineup, match: () => ({status:'PREPARADA'}) });
       await page.goto(base + '/partidas/106');
       await page.getByRole('button', { name: 'Montar escalação', exact: true }).click();
       await page.locator('.lineup-row').first().waitFor();

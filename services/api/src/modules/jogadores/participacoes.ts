@@ -10,7 +10,9 @@ export async function contarParticipacoes(db: PrismaClient, ids: number[], clube
     ) x
     JOIN "Partida" p ON p.id = x.partida_id
     JOIN "Categoria" c ON c.id = p.categoria_id
-    WHERE c.clube_id = ${clubeId}
+    WHERE (c.clube_id = ${clubeId} OR EXISTS (
+      SELECT 1 FROM "ParticipantePartida" pp WHERE pp.partida_id = p.id AND pp.clube_id = ${clubeId}
+    )) AND p.status IN ('AO_VIVO', 'FINALIZADA')
     GROUP BY x.jogador_id
   `);
   return new Map(rows.map(row => [row.jogador_id, Number(row.total)]));

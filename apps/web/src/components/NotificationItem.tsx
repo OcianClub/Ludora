@@ -68,15 +68,15 @@ export function NotificationItem({ notice, busy, onRead, onDelete }: {
         onLostPointerCapture={event => { if (event.target === event.currentTarget && drag.current) { suppressed.current = drag.current.horizontal; drag.current = null; reset(); } }}
         onClickCapture={event => { if (suppressed.current) { event.preventDefault(); event.stopPropagation(); suppressed.current = false; } }}>
         <button type="button" className={`notification-row${notice.lida ? '' : ' unread'}`} disabled={busy}
-          aria-label={`${notice.lida ? 'Lida' : 'Não lida'}. ${notice.titulo}. ${notice.corpo}. ${notice.partida_id ? 'Ver partida' : 'Marcar como lida'}`}
+          aria-label={`${notice.lida ? 'Lida' : 'Não lida'}. ${notice.titulo}. ${notice.corpo}. ${notice.dados?.solicitacaoId ? 'Ver solicitação' : notice.partida_id ? 'Ver partida' : 'Marcar como lida'}`}
           onClick={onRead}>
           <span className="notification-kind-icon" aria-hidden="true">
-            <Icon name={notice.tipo === 'GOL_PARTIDA' ? 'ball' : notice.tipo === 'PARTIDA_AGENDADA' ? 'calendar' : notice.tipo === 'RESULTADO_PARTIDA' ? 'trophy' : 'bell'} size={20} />
+            <Icon name={notice.dados?.solicitacaoId ? 'email' : notice.tipo === 'GOL_PARTIDA' ? 'ball' : notice.tipo === 'PARTIDA_AGENDADA' ? 'calendar' : notice.tipo === 'RESULTADO_PARTIDA' ? 'trophy' : 'bell'} size={20} />
           </span>
           <span className="notification-copy">
             <span className="notification-meta">
               {!notice.lida && <i className="notice-unread-dot" aria-hidden="true" />}
-              <span>{notice.tipo ? NOTICE_LABELS[notice.tipo] || 'Atualização' : 'Atualização'}</span>
+              <span>{notice.dados?.solicitacaoId ? 'Solicitação' : notice.tipo ? NOTICE_LABELS[notice.tipo] || 'Atualização' : 'Atualização'}</span>
               <time dateTime={notice.criada_em}>{new Date(notice.criada_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time>
             </span>
             <strong>{notice.titulo}</strong><span className="notification-body">{notice.corpo}</span>

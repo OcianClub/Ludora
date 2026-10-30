@@ -14,7 +14,7 @@ export async function processarMachineLearning(clubeId?: number) {
       ativo: true,
       ...(clubeId ? { categoria: { clube_id: clubeId } } : {}),
     },
-    include: { eventos: true, escalacoes: true }
+    include: { eventos: { where: { gol_contra: false, partida: { status: { in: ['AO_VIVO', 'FINALIZADA'] } } } }, escalacoes: { where: { partida: { status: { in: ['AO_VIVO', 'FINALIZADA'] } } } } }
   });
 
   const payload = jogadores

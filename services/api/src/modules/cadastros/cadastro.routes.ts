@@ -4,6 +4,7 @@ import { prisma } from '../../lib/prisma';
 import {
   exigirAcessoTotalCategorias,
   exigirCompeticaoDoClube,
+  exigirCompeticaoParticipante,
   exigirClubePublico,
   exigirGestorDoClube,
   exigirTimeDoClube,
@@ -348,22 +349,26 @@ router.delete('/times/:id', exigirGestorDoClube, exigirTimeDoClube, exigirTimeEd
 router.post('/competicoes', exigirGestorDoClube, exigirAcessoTotalCategorias, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
 
-  const { nome, ano, tipo } = req.body;
+  const { nome, ano, tipo, titulares_necessarios, exigir_inscricao } = req.body;
   try {
-    // RESOLVIDO: Passando o clube_id para a criação
+    if (typeof nome !== 'string' || !nome.trim() || !['BASE', 'INICIACAO'].includes(tipo) || !Number.isInteger(Number(ano)) || Number(ano) < 2000 || Number(ano) > 2200 || (titulares_necessarios != null && (!Number.isInteger(Number(titulares_necessarios)) || Number(titulares_necessarios) < 1 || Number(titulares_necessarios) > 15))) return res.status(400).json({ error: 'Confira nome, ano, categoria e quantidade de titulares (1 a 15).' });
     const competicao = await prisma.competicao.create({ 
-      data: { nome, ano: Number(ano), tipo, clube_id } 
+      data: { nome, ano: Number(ano), tipo, clube_id, titulares_necessarios: titulares_necessarios == null ? 5 : Number(titulares_necessarios), exigir_inscricao: exigir_inscricao === true }
     });
     res.status(201).json(competicao);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao criar competição' }); }
 });
 
 router.patch('/competicoes/:id', exigirGestorDoClube, exigirAcessoTotalCategorias, exigirCompeticaoDoClube, async (req, res) => {
-  const { nome, ano, tipo } = req.body;
+  const { nome, ano, tipo, titulares_necessarios, exigir_inscricao } = req.body;
   try {
+    if (titulares_necessarios != null && (!Number.isInteger(Number(titulares_necessarios)) || Number(titulares_necessarios) < 1 || Number(titulares_necessarios) > 15)) return res.status(400).json({ error: 'Informe de 1 a 15 titulares.' });
+    const emAndamento = await prisma.partida.count({ where: { competicao_id: Number(req.params.id), status: { not: 'CANCELADA' } } });
+    const anterior = await prisma.competicao.findUniqueOrThrow({ where: { id: Number(req.params.id) } });
+    if (emAndamento && ((titulares_necessarios != null && Number(titulares_necessarios) !== anterior.titulares_necessarios) || (exigir_inscricao != null && exigir_inscricao !== anterior.exigir_inscricao) || (tipo && tipo !== anterior.tipo))) return res.status(409).json({ error: 'O regulamento não pode mudar depois de organizar partidas. Crie outra competição para aplicar novas regras.' });
     const competicao = await prisma.competicao.update({
       where: { id: Number(req.params.id) },
-      data: { nome, ano: Number(ano), tipo },
+      data: { nome, ano: Number(ano), tipo, titulares_necessarios: titulares_necessarios == null ? undefined : Number(titulares_necessarios), exigir_inscricao },
     });
     res.json(competicao);
   } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar competição' }); }
@@ -375,18 +380,21 @@ router.get('/competicoes', exigirClubePublico, async (req, res) => {
     const escopo = await obterEscopoCategoriasLeitura((req as any).usuarioId, clube_id);
     const competicoes = await prisma.competicao.findMany({ 
       where: {
-        clube_id,
+        arquivada: false,
+        OR: [{ clube_id }, { partidas: { some: { participantes: { some: { clube_id } } } } }],
         ...(escopo.acessoTotal ? {} : {
-          OR: [
+          AND: [{ OR: [
             { categorias: { some: { id: { in: escopo.categoriaIds } } } },
             { partidas: { some: { categoria_id: { in: escopo.categoriaIds } } } },
             { jogadores_inscritos: { some: { jogador: { categoria_id: { in: escopo.categoriaIds } } } } },
-          ],
+            { partidas: { some: { participantes: { some: { clube_id, categoria_id: { in: escopo.categoriaIds } } } } } },
+          ] }],
         }),
       },
       orderBy: { nome: 'asc' } 
     });
-    res.json(competicoes);
+    const clubes = await prisma.clube.findMany({ where: { id: { in: [...new Set(competicoes.map(c => c.clube_id))] } }, select: { id: true, nome: true } });
+    res.json(competicoes.map(c => ({ ...c, organizador: clubes.find(clube => clube.id === c.clube_id), somente_leitura: c.clube_id !== clube_id })));
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar competições' }); }
 });
 
@@ -395,9 +403,8 @@ router.delete('/competicoes/:id', exigirGestorDoClube, exigirAcessoTotalCategori
   try {
     const totalPartidas = await prisma.partida.count({ where: { competicao_id: id } });
     if (totalPartidas > 0) {
-      return res.status(409).json({
-        error: `Não é possível excluir: este campeonato possui ${totalPartidas} partida(s) vinculada(s). Exclua as partidas primeiro.`
-      });
+      await prisma.competicao.update({ where: { id }, data: { arquivada: true } });
+      return res.json({ mensagem: 'Competição arquivada. Partidas e histórico preservados.' });
     }
     await prisma.competicaoJogador.deleteMany({ where: { competicao_id: id } });
     await prisma.competicaoTime.deleteMany({ where: { competicao_id: id } });
@@ -406,7 +413,7 @@ router.delete('/competicoes/:id', exigirGestorDoClube, exigirAcessoTotalCategori
   } catch (error: any) { res.status(500).json({ error: 'Erro ao excluir campeonato.' }); }
 });
 
-router.get('/competicoes/:id/jogadores', exigirClubePublico, exigirCompeticaoDoClube, async (req, res) => {
+router.get('/competicoes/:id/jogadores', exigirClubePublico, exigirCompeticaoParticipante, async (req, res) => {
   const competicao_id = Number(req.params.id);
   const categoria_id  = req.query.categoria_id ? Number(req.query.categoria_id) : undefined;
   try {
@@ -420,6 +427,7 @@ router.get('/competicoes/:id/jogadores', exigirClubePublico, exigirCompeticaoDoC
       : escopo.acessoTotal
         ? { categoria: { clube_id: (req as any).clubeId } }
         : { categoria_id: { in: escopo.categoriaIds } };
+    where.jogador = { ...where.jogador, categoria: { clube_id: (req as any).clubeId } };
     const inscricoes = await prisma.competicaoJogador.findMany({
       where,
       include: {
@@ -438,7 +446,7 @@ router.get('/competicoes/:id/jogadores', exigirClubePublico, exigirCompeticaoDoC
   }
 });
 
-router.put('/competicoes/:id/jogadores', exigirGestorDoClube, exigirCompeticaoDoClube, async (req, res) => {
+router.put('/competicoes/:id/jogadores', exigirGestorDoClube, exigirCompeticaoParticipante, async (req, res) => {
   const competicao_id = Number(req.params.id);
   const { jogador_ids }: { jogador_ids: number[] } = req.body;
   if (!Array.isArray(jogador_ids)) return res.status(400).json({ error: 'jogador_ids deve ser um array' });
@@ -463,8 +471,9 @@ router.put('/competicoes/:id/jogadores', exigirGestorDoClube, exigirCompeticaoDo
       prisma.competicaoJogador.deleteMany({
         where: {
           competicao_id,
+          jogador: { categoria: { clube_id: (req as any).clubeId } },
           ...(escopo.acessoTotal ? {} : {
-            jogador: { categoria_id: { in: escopo.categoriaIds } },
+            jogador: { categoria: { clube_id: (req as any).clubeId }, categoria_id: { in: escopo.categoriaIds } },
           }),
         },
       }),
@@ -518,3 +527,23 @@ router.get('/categorias', exigirClubePublico, async (req, res) => {
 
 
 export default router;
+
+router.get('/competicoes/:id/classificacao', exigirClubePublico, exigirCompeticaoParticipante, async (req, res) => {
+  try {
+    const partidas = await prisma.partida.findMany({ where: { competicao_id: Number(req.params.id), status: 'FINALIZADA' }, include: { mandante: { include: { clubeRepresentado: true } }, visitante: { include: { clubeRepresentado: true } }, categoria: true } });
+    const grupos = new Map<string, Map<string, any>>();
+    for (const p of partidas) {
+      const chave = `${p.categoria.nome} · ${p.grupo || 'Geral'}`;
+      if (!grupos.has(chave)) grupos.set(chave, new Map());
+      const tabela = grupos.get(chave)!;
+      for (const [time, pro, contra] of [[p.mandante, p.gols_mandante, p.gols_visitante], [p.visitante, p.gols_visitante, p.gols_mandante]] as const) {
+        const key = time.clube_representado_id ? `clube:${time.clube_representado_id}` : `time:${time.id}`;
+        const row = tabela.get(key) || { key, nome: time.clubeRepresentado?.nome || time.nome, pontos: 0, jogos: 0, vitorias: 0, empates: 0, derrotas: 0, golsPro: 0, golsContra: 0, saldo: 0 };
+        row.jogos++; row.golsPro += pro; row.golsContra += contra; row.saldo = row.golsPro - row.golsContra;
+        if (pro > contra) { row.vitorias++; row.pontos += 3; } else if (pro === contra) { row.empates++; row.pontos++; } else row.derrotas++;
+        tabela.set(key, row);
+      }
+    }
+    res.json([...grupos].map(([grupo, tabela]) => ({ grupo, times: [...tabela.values()].sort((a, b) => b.pontos - a.pontos || b.vitorias - a.vitorias || b.saldo - a.saldo || b.golsPro - a.golsPro || a.nome.localeCompare(b.nome)) })));
+  } catch { res.status(500).json({ error: 'Não foi possível consultar a classificação.' }); }
+});

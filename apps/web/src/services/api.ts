@@ -66,14 +66,16 @@ export interface Categoria { id: number; nome: string; tipo: string; clube_id: n
 export interface Time { id: number; nome: string; escudo?: string; arquivado?: boolean; categoria_id?: number; clube_representado_id?: number | null; clubeRepresentado?: Clube | null; }
 export interface Jogador { id: number; nome: string; cpf: string; dtNasc: string; posicao: string; numCamisa?: number; ativo: boolean; perfil_ml?: string; nota_geral?: number; categoria_id: number; }
 export interface Partida { somente_leitura?: boolean; clube_origem_id?: number; id: number; mandante_id: number; visitante_id: number; gols_mandante: number; gols_visitante: number; data: string; horario?: string; local?: string; status: string; emCasa: boolean; categoria_id: number; competicao_id?: number; rodada?: number; grupo?: string | null; mandante?: Time; visitante?: Time; categoria?: Categoria; }
-export interface Competicao { id: number; nome: string; ano: number; tipo: string; clube_id: number; }
+export interface Competicao { id: number; nome: string; ano: number; tipo: string; clube_id: number; titulares_necessarios?: number; exigir_inscricao?: boolean; somente_leitura?: boolean; organizador?: { nome: string }; }
 export type HomePartida = Omit<Partida, 'mandante_id' | 'visitante_id' | 'categoria_id' | 'categoria'> & {
   categoria: Categoria;
   competicao?: Competicao | null;
 };
 export interface Evento { id: number; partida_id: number; tipo: string; periodo: number; minuto?: number; jogador_id?: number; jogador?: {id:number;nome:string} | null; }
 export interface EscalacaoItem { jogador_id: number; numCamisa: number; titular: boolean; jogador?: Jogador; }
-export interface PerfilJogador extends Jogador { totalGols: number; totalAssistencias: number; totalCartoes: number; totalDefesas: number; totalFaltas: number; totalPartidas: number; idade?: number; scores_ml?: Record<string, number> | null; }
+export interface PerfilJogador extends Jogador {
+  categoria_nome?: string;
+  categoria_tipo?: string; totalGols: number; totalAssistencias: number; totalCartoes: number; totalDefesas: number; totalFaltas: number; totalPartidas: number; idade?: number; scores_ml?: Record<string, number> | null; }
 export interface Estatisticas { gols: number; assistencias: number; defesas: number; cartaoAmarelo: number; cartaoVermelho: number; faltas: number; }
 
 // ── AUTH ──
@@ -266,6 +268,8 @@ export async function fetchJogadoresPerfis(categoria_id?: number, signal?: Abort
     nota_geral: j.nota_geral,
     categoria_id: j.categoria_id,
     idade: j.idade,
+    categoria_nome: j.categoria,
+    categoria_tipo: j.categoria_tipo,
     scores_ml: j.scores_ml ?? null,
     totalGols: j.totalGols ?? j.gols ?? 0,
     totalAssistencias: j.totalAssistencias ?? j.assistencias ?? 0,
@@ -332,12 +336,12 @@ export async function fetchCompeticoes(): Promise<Competicao[]> {
 }
 export async function criarCompeticao(dados: { nome: string; ano: number; tipo: string }) {
   const res = await apiFetch('/competicoes', { method: 'POST', body: JSON.stringify(dados) });
-  if (!res.ok) throw new Error('Erro ao criar competição');
+  if (!res.ok) throw new Error((await res.json()).error || 'Erro ao criar competição');
   return res.json();
 }
 export async function atualizarCompeticao(id: number, dados: { nome: string; ano: number }) {
   const res = await apiFetch(`/competicoes/${id}`, { method: 'PATCH', body: JSON.stringify(dados) });
-  if (!res.ok) throw new Error('Erro ao atualizar competição');
+  if (!res.ok) throw new Error((await res.json()).error || 'Erro ao atualizar competição');
   return res.json();
 }
 export async function deletarCompeticao(id: number) {

@@ -383,3 +383,7 @@ export const exigirJogadorDoClube = exigirRecursoDoClube(
     );
   }
 );
+
+export const exigirCompeticaoParticipante = exigirRecursoDoClube(async (id, clubeId) => {
+  return !!await prisma.competicao.findFirst({ where: { id, OR: [{ clube_id: clubeId }, { partidas: { some: { participantes: { some: { clube_id: clubeId } } } } }] }, select: { id: true } });
+});

@@ -169,7 +169,15 @@ router.patch('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async 
 
 router.delete('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async (req, res) => {
   try {
-    await prisma.jogador.delete({ where: { id: Number(req.params.id) } });
+    const id = Number(req.params.id);
+    const aoVivo = await prisma.escalacaoPartida.count({ where: { jogador_id: id, partida: { status: 'AO_VIVO' } } });
+    if (aoVivo) return res.status(409).json({ error: 'Este atleta está em uma partida ao vivo. Finalize a partida antes de desativá-lo.' });
+    const historico = await prisma.escalacaoPartida.count({ where: { jogador_id: id } }) + await prisma.evento.count({ where: { jogador_id: id } });
+    if (historico) {
+      await prisma.jogador.update({ where: { id }, data: { ativo: false } });
+      return res.json({ mensagem: 'Atleta desativado. Escalações, eventos e histórico foram preservados.' });
+    }
+    await prisma.jogador.delete({ where: { id } });
     res.json({ mensagem: 'Excluído com sucesso' });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });

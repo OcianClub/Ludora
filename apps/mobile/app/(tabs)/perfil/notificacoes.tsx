@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -104,7 +105,7 @@ function CartaoNotificacao({
           <TouchableOpacity
             style={styles.cardMain}
             onPress={onLer}
-            disabled={ocupado || item.lida}
+            disabled={ocupado || (item.lida && !item.dados?.solicitacaoId && !item.partida_id)}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel={`${item.lida ? 'Lida' : 'Não lida'}. ${item.titulo}. ${item.corpo}`}
@@ -154,6 +155,7 @@ function CartaoNotificacao({
 }
 
 export default function Notificacoes() {
+  const router = useRouter();
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const { clubeAtivo } = useClubeAtivo();
@@ -232,7 +234,10 @@ export default function Notificacoes() {
   };
 
   const ler = async (item: Notificacao) => {
-    if (item.lida || ocupado || pendentes.current.has(item.id)) return;
+    if (ocupado || pendentes.current.has(item.id)) return;
+    if (item.dados?.solicitacaoId) router.push('/solicitacoes-partidas' as never);
+    else if (item.partida_id) router.push(`/partida-compartilhada/${item.partida_id}` as never);
+    if (item.lida) return;
     const operacao = escopo.iniciar();
     if (!operacao) return;
     if (operacao.clubeId !== clubeAtivo?.id) {

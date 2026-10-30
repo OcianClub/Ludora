@@ -10,6 +10,7 @@ import JogadoresPage from './pages/Jogadores';
 import JogadorPerfil from './pages/JogadorPerfil';
 import ClubePerfil from './pages/ClubePerfil';
 import TimesPage from './pages/Times';
+import SolicitacoesPartidas from './pages/SolicitacoesPartidas';
 import PartidasPage from './pages/Partidas';
 import PartidaDetalhePage from './pages/PartidaDetalhe';
 import CompeticoesPage from './pages/Competicoes';
@@ -72,6 +73,7 @@ export default function App() {
             <Route path="/elenco" element={<ElencoPage />} />
             <Route path="/times" element={<TimesPage />} />
             <Route path="/partidas" element={<PartidasPage />} />
+            <Route path="/partidas/solicitacoes" element={<SolicitacoesPartidas />} />
             <Route path="/partidas/:id" element={<PartidaDetalhePage />} />
             <Route path="/competicoes" element={<CompeticoesPage />} />
             <Route path="/perfil" element={<PerfilPage />} />

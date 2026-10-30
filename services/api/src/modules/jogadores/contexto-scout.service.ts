@@ -21,10 +21,7 @@ export async function consultarContextoScout(
 
   const where: Prisma.PartidaWhereInput = {
     status: 'FINALIZADA',
-    categoria: { clube_id: clubeId },
-    ...(categoriasPermitidas
-      ? { categoria_id: { in: categoriasPermitidas } }
-      : {}),
+    AND: [{ OR: [{ categoria: { clube_id: clubeId }, ...(categoriasPermitidas ? { categoria_id: { in: categoriasPermitidas } } : {}) }, { participantes: { some: { clube_id: clubeId, ...(categoriasPermitidas ? { categoria_id: { in: categoriasPermitidas } } : {}) } } }] }],
     OR: [
       { jogadores_escalonados: { some: { jogador_id: jogadorId } } },
       { eventos: { some: { jogador_id: jogadorId } } },
@@ -39,10 +36,12 @@ export async function consultarContextoScout(
       id: true,
       data: true,
       emCasa: true,
+      mandante_id: true,
+      participantes: { where: { clube_id: clubeId }, select: { time_id: true } },
       mandante: { select: { nome: true } },
       visitante: { select: { nome: true } },
       eventos: {
-        where: { jogador_id: jogadorId },
+        where: { jogador_id: jogadorId, gol_contra: false },
         select: { tipo: true },
       },
     },
@@ -54,7 +53,7 @@ export async function consultarContextoScout(
     partidas: partidas.map((partida) => ({
       id: partida.id,
       data: partida.data.toISOString().slice(0, 10),
-      adversario: partida.emCasa
+      adversario: (partida.participantes[0] ? partida.participantes[0].time_id === partida.mandante_id : partida.emCasa)
         ? partida.visitante.nome
         : partida.mandante.nome,
       gols: partida.eventos.filter((evento) => evento.tipo === 'GOL').length,

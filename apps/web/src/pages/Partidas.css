@@ -1205,3 +1205,29 @@
     outline-offset: 2px;
   }
 }
+
+.schedule-header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.schedule-mobile-requests { flex-shrink: 0; width: 36px; min-height: 36px; padding: 8px; }
+@media (max-width: 760px) { .match-schedule .schedule-header-actions { display: none; } }
+
+.schedule-header-actions > .btn {
+  justify-content: center;
+  width: 148px;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+@media (max-width: 760px) {
+  .schedule-mobile-actions .schedule-mobile-new,
+  .schedule-mobile-actions .schedule-mobile-requests {
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 8px;
+  }
+  .schedule-mobile-new > span {
+    display: none;
+  }
+}

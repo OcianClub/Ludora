@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchPartidas, criarPartida, fetchTimes, fetchCategorias, fetchCompeticoes, type Partida, type Time, type Categoria, type Competicao } from '../services/api';
 import { Btn, Modal, Input, Spinner } from '../components/UI';
 import { ClubBadge } from '../components/Brand';
@@ -119,6 +119,7 @@ function ScheduleAccordion({ title, icon, matches, initialOpen = false, renderMa
 }
 
 export default function PartidasPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [compactViewport, setCompactViewport] = useState(() => window.matchMedia('(max-width: 760px)').matches);
   useEffect(() => {
@@ -309,7 +310,7 @@ export default function PartidasPage() {
     savingRef.current = true;
     setErro(''); setSalvando(true);
     try {
-      await criarPartida({
+      const criada = await criarPartida({
         mandante_id: Number(form.mandante_id), visitante_id: Number(form.visitante_id),
         data: form.data, horario: form.horario, local: form.local.trim() || undefined,
         categoria_id: Number(form.categoria_id),
@@ -317,7 +318,8 @@ export default function PartidasPage() {
         rodada: form.competicao_id && form.competicao_id !== 'amistoso' && form.rodada ? Number(form.rodada) : undefined,
         emCasa: form.emCasa === 'true',
       });
-      setReviewOpen(false); setModal(false); carregar();
+      setReviewOpen(false); setModal(false);
+      navigate(criada.solicitacao ? `/partidas/solicitacoes?id=${criada.solicitacao.id}` : `/partidas/${criada.id}`);
     } catch (error) {
       setErro(error instanceof Error ? error.message : 'Não foi possível criar a partida.');
     } finally { savingRef.current = false; setSalvando(false); }
@@ -486,7 +488,7 @@ export default function PartidasPage() {
     <div className="match-schedule">
       <div className="page-header">
         <div><span className="eyebrow">DENTRO DA QUADRA</span><h1 className="page-title">Partidas</h1><p className="page-sub">{podeGerenciar ? 'Gerencie, acompanhe e consulte os resultados das partidas do clube.' : 'Acompanhe a agenda, os placares e os resultados do clube.'}</p></div>
-        {podeGerenciar && <Btn className="schedule-desktop-new" aria-label="Nova partida" title="Nova partida" onClick={openCreate}><Icon name="plus" size={18} />Nova partida</Btn>}
+        {podeGerenciar && <div className="schedule-header-actions"><Link className="btn btn-ghost btn-md" to="/partidas/solicitacoes"><Icon name="email" size={18}/>Solicitações</Link><Btn className="schedule-desktop-new" aria-label="Nova partida" title="Nova partida" onClick={openCreate}><Icon name="plus" size={18} />Nova partida</Btn></div>}
       </div>
 
       <HomeCategories categories={phaseCategories} phase={phase} selected={selectedCategory}
@@ -515,11 +517,12 @@ export default function PartidasPage() {
 
       <div className="schedule-filters">
         <div className="schedule-mobile-actions">
+          {podeGerenciar && <Link className="btn btn-ghost schedule-mobile-requests" aria-label="Solicitações de partidas" to="/partidas/solicitacoes"><Icon name="email" size={18}/></Link>}
           <CollectionSearch className="schedule-mobile-search" label="Buscar partidas" placeholder="Time ou adversário" value={opponent} onChange={value => changeFilters({ busca: value })} />
           <CollectionFilterButton className="schedule-mobile-filter-button" count={chips.length} onClick={() => openFilters(true)} />
           <CollectionViewToggle className="schedule-view-toggle" label="Visualização das partidas" value={list ? 'lista' : 'cards'} onChange={value => changeFilters({ visualizacao: value === 'lista' ? 'lista' : '' })}
             options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />
-          {podeGerenciar && <Btn className="schedule-mobile-new" aria-label="Nova partida" title="Nova partida" onClick={openCreate}><Icon name="plus" size={16} />Nova partida</Btn>}
+          {podeGerenciar && <Btn className="schedule-mobile-new" aria-label="Nova partida" title="Nova partida" onClick={openCreate}><Icon name="plus" size={18}/><span>Nova partida</span></Btn>}
         </div>
         <div className="schedule-filter-primary">
           <CollectionSearch className="schedule-search" id="match-search" label="Buscar time, adversário ou local" placeholder="Buscar time, adversário ou local…" value={opponent} onChange={value => changeFilters({ busca: value })} />
@@ -674,9 +677,9 @@ export default function PartidasPage() {
         </div>}
       </Modal>
       <Modal open={reviewOpen} onClose={() => { if (!salvando) setReviewOpen(false); }} title="Revisar partida" className="schedule-review-dialog">
-        <div className="schedule-review"><p>Confira principalmente a categoria antes de confirmar.</p><section className="schedule-review-category"><span>Categoria da partida</span><strong>{formCategory?.nome || 'Não informada'}</strong><small>{formCategory?.tipo === 'BASE' ? 'Base' : 'Iniciação'}</small></section><dl>
+        <div className="schedule-review">{selectedOpponent?.clube_representado_id && selectedOpponent.clube_representado_id !== clube?.id && <p role="note">O adversário está no Ludora. O confronto será criado após o aceite do outro clube.</p>}<p>Confira principalmente a categoria antes de confirmar.</p><section className="schedule-review-category"><span>Categoria da partida</span><strong>{formCategory?.nome || 'Não informada'}</strong><small>{formCategory?.tipo === 'BASE' ? 'Base' : 'Iniciação'}</small></section><dl>
           <div><dt>Clube</dt><dd>{clube?.nome || 'Seu clube'}</dd></div><div><dt>Competição</dt><dd>{formCompetition?.nome || 'Amistoso'}</dd></div><div><dt>Mandante</dt><dd>{teamName(formHome?.nome || '')}</dd></div><div><dt>Visitante</dt><dd>{teamName(formAway?.nome || '')}</dd></div><div><dt>Data</dt><dd>{formatMatchDate(form.data)}</dd></div><div><dt>Horário</dt><dd>{form.horario}</dd></div><div><dt>Mando</dt><dd>{form.emCasa === 'true' ? 'Em casa' : 'Fora'}</dd></div><div><dt>Local</dt><dd>{form.local || 'Local não definido'}</dd></div>
-        </dl>{erro && <p className="schedule-create-error" role="alert">{erro}</p>}<div className="schedule-review-actions"><Btn onClick={salvar} disabled={salvando}><Icon name="checkAll" size={17} />{salvando ? 'Criando...' : 'Confirmar e criar'}</Btn><Btn variant="ghost" type="button" disabled={salvando} onClick={() => setReviewOpen(false)}>Voltar e editar</Btn></div></div>
+        </dl>{erro && <p className="schedule-create-error" role="alert">{erro}</p>}<div className="schedule-review-actions"><Btn onClick={salvar} disabled={salvando}><Icon name="checkAll" size={17} />{salvando ? 'Salvando…' : selectedOpponent?.clube_representado_id && selectedOpponent.clube_representado_id !== clube?.id ? 'Enviar proposta' : 'Confirmar e criar'}</Btn><Btn variant="ghost" type="button" disabled={salvando} onClick={() => setReviewOpen(false)}>Voltar e editar</Btn></div></div>
       </Modal>
     </div>
   );

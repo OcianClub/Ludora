@@ -34,6 +34,8 @@ export async function consultarListaPartidas(
       where,
       orderBy: { data: 'asc' },
       select: {
+        participantes: { include: { categoria: true } },
+        organizador_id: true,
         id: true,
         data: true,
         horario: true,
@@ -71,6 +73,7 @@ export async function consultarListaPartidas(
     where,
     orderBy: { data: 'asc' },
     include: {
+      participantes: { include: { categoria: true } },
       mandante: {
         include: {
           clubeRepresentado: { select: { nome: true, escudo: true } },

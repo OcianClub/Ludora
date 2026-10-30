@@ -310,11 +310,12 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
       setSalvando(true);
       setErroSalvar('');
       try {
-        await criarPartida(revisao.dados, clubeId);
+        const criada = await criarPartida(revisao.dados, clubeId);
         if (!controle.atual(pedido) || clubeAtual.current !== clubeId) return;
         setRevisao(null);
         if (onCriada) onCriada(dataISO);
         else fecharDireto();
+        router.push((criada.solicitacao ? '/solicitacoes-partidas' : `/partida-compartilhada/${criada.id}`) as never);
       } catch (erro) {
         if (controle.atual(pedido)) {
           setErroSalvar(
@@ -793,6 +794,7 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
           {!!revisao && (
             <RevisaoOrganizarPartida
               revisao={revisao}
+          proposta={!!(revisao.dados.emCasa ? visitante : mandante)?.clubeRepresentado}
               salvando={salvando}
               erro={erroSalvar}
               onConfirmar={() => void salvar()}

@@ -23,7 +23,7 @@ test('histórico limita a dez finalizadas, mantém clube/categorias e conta só 
           {
             id: 5,
             data: new Date('2026-10-19T00:00:00Z'),
-            emCasa: true,
+            emCasa: true, participantes: [],
             mandante: { nome: 'Ludora' },
             visitante: { nome: 'Visitante' },
             eventos: [
@@ -36,7 +36,7 @@ test('histórico limita a dez finalizadas, mantém clube/categorias e conta só 
           {
             id: 4,
             data: new Date('2026-10-18T00:00:00Z'),
-            emCasa: false,
+            emCasa: false, participantes: [],
             mandante: { nome: 'Mandante' },
             visitante: { nome: 'Ludora' },
             eventos: [],
@@ -54,15 +54,16 @@ test('histórico limita a dez finalizadas, mantém clube/categorias e conta só 
   });
   assert.deepEqual(chamadas[1].where, chamadas[2].where);
   assert.equal(chamadas[2].where.status, 'FINALIZADA');
-  assert.deepEqual(chamadas[2].where.categoria, { clube_id: 3 });
-  assert.deepEqual(chamadas[2].where.categoria_id, { in: [7] });
+  assert.deepEqual(chamadas[2].where.AND[0].OR[0].categoria, { clube_id: 3 });
+  assert.deepEqual(chamadas[2].where.AND[0].OR[0].categoria_id, { in: [7] });
   assert.deepEqual(chamadas[2].where.OR, [
     { jogadores_escalonados: { some: { jogador_id: 12 } } },
     { eventos: { some: { jogador_id: 12 } } },
   ]);
+  assert.deepEqual(chamadas[2].where.AND[0].OR[1], { participantes: { some: { clube_id: 3, categoria_id: { in: [7] } } } });
   assert.equal(chamadas[2].take, 10);
   assert.deepEqual(chamadas[2].select.eventos, {
-    where: { jogador_id: 12 },
+    where: { jogador_id: 12, gol_contra: false },
     select: { tipo: true },
   });
   assert.equal(chamadas[0].select.cpf, undefined);

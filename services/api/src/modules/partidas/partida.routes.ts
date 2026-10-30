@@ -1,3 +1,4 @@
+import { criarCompartilhadasRoutes } from './compartilhadas.routes';
 import { Router } from 'express';
 import type { Server } from 'socket.io';
 
@@ -42,6 +43,7 @@ function formatarDataPartida(data: Date, horario: string | null) {
 
 export function criarPartidaRoutes(io: Server) {
   const router = Router();
+  router.use(criarCompartilhadasRoutes(io));
   router.use(criarHomeRoutes(exigirClubePublico, (clubeId, hoje) => consultarHome(prisma, clubeId, hoje)));
   router.use(criarAgendaRoutes(exigirClubePublico, (clubeId, filtros) => consultarAgenda(prisma, clubeId, filtros)));
 
@@ -87,6 +89,7 @@ export function criarPartidaRoutes(io: Server) {
           tx.partida.findUnique({
             where: { id: Number(req.params.id) },
             include: {
+              participantes: { include: { categoria: true } },
               mandante: {include:{clubeRepresentado:{select:{nome:true,escudo:true}}}},
               visitante: {include:{clubeRepresentado:{select:{nome:true,escudo:true}}}},
               categoria: true,

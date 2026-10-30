@@ -19,12 +19,16 @@ import { ConfirmDelete } from '../components/CollectionControls';
 import { CollectionSearch } from '../components/CollectionToolbar';
 import { MatchActionsMenu } from '../components/MatchActionsMenu';
 import { PlayerShirtDialog } from '../components/PlayerShirtDialog';
+import { carregarGestao, comandoPartida, type GestaoPartida } from '../services/sharedMatches';
+import { MatchOperations, PublishedLineups, MatchPreparationStatus } from '../components/MatchOperations';
+import './SharedMatches.css';
 import { validTimeInput } from '../utils/timeInput';
+import { preparationStorageKey, readPreparationStep, rememberPreparationStep } from '../utils/matchPreparation';
 
 const STATUS_NEXT: Record<string, string> = { AGENDADA: 'PREPARADA', PREPARADA: 'AO_VIVO', AO_VIVO: 'FINALIZADA' };
 const ETAPAS = [
   { titulo: 'Dados da partida', descricao: 'Confira o confronto, a data e o local antes de montar sua equipe.' },
-  { titulo: 'Monte sua equipe', descricao: 'Escolha cinco titulares e convoque os reservas para a partida.' },
+  { titulo: 'Monte sua equipe', descricao: 'Defina os titulares e convoque os reservas da sua equipe.' },
   { titulo: 'Tudo certo para jogar?', descricao: 'Revise os dados e a escalação. A partida começa somente quando você confirmar.' },
 ];
 
@@ -40,10 +44,12 @@ const STATUS_BTN: Record<string, string> = { AGENDADA: 'Iniciar preparação', P
 export default function PartidaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { podeGerenciar: gestorDoClube, token, clube } = useAuth();
+  const { podeGerenciar: gestorDoClube, token, clube, usuario } = useAuth();
+  const preparationKey = preparationStorageKey(usuario?.id, clube?.id, id);
 
   const [partida, setPartida] = useState<Partida | null>(null);
-  const podeGerenciar = gestorDoClube && !partida?.somente_leitura;
+  const [gestao, setGestao] = useState<GestaoPartida | null>(null);
+  const podeGerenciar = gestao ? gestao.podePreparar : gestorDoClube && !partida?.somente_leitura;
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [escalacao, setEscalacao] = useState<EscalacaoItem[]>([]);
   const [jogadores, setJogadores] = useState<Pick<PerfilJogador, 'id' | 'nome' | 'numCamisa' | 'posicao'>[]>([]);
@@ -59,6 +65,9 @@ export default function PartidaDetalhePage() {
   const [savingStatus, setSavingStatus] = useState(false);
   const [savingLineup, setSavingLineup] = useState(false);
   const [lineupDirty, setLineupDirty] = useState(false);
+  const dirtyRef = useRef(false);
+  dirtyRef.current = lineupDirty;
+  const [motivoCancelamento, setMotivoCancelamento] = useState('');
   const [etapa, setEtapa] = useState(0);
   const [shirtPlayer, setShirtPlayer] = useState<Pick<Jogador, 'id' | 'nome' | 'numCamisa'> | null>(null);
   const [buscaJogador, setBuscaJogador] = useState('');
@@ -83,103 +92,70 @@ export default function PartidaDetalhePage() {
   const [salvandoEvento, setSalvandoEvento] = useState(false);
   const [eventError, setEventError] = useState('');
 
+  function aplicarGestao(data: GestaoPartida, manterRascunho = false) {
+    const mine = data.equipes.find(e => e.id === data.minhaEquipeId);
+    setGestao(data);
+    setPartida({ ...data.partida, categoria_id: mine?.categoria_id || data.partida.categoria_id, categoria: mine?.categoria || data.partida.categoria,
+      somente_leitura: !data.podePreparar, emCasa: mine ? mine.time_id === data.partida.mandante_id : data.partida.emCasa });
+    setEventos(data.eventos);
+    if (!manterRascunho) setEscalacao(mine?.escalacao || []);
+  }
+  async function atualizarDados(manterRascunho = false) {
+    const data = await carregarGestao(Number(id));
+    aplicarGestao(data, manterRascunho);
+  }
+  useEffect(() => {
+    function beforeUnload(event: BeforeUnloadEvent) {
+      if (dirtyRef.current) { event.preventDefault(); event.returnValue = ''; }
+    }
+    function leaveLink(event: MouseEvent) {
+      const link = (event.target as HTMLElement)?.closest<HTMLAnchorElement>('a[href]');
+      if (dirtyRef.current && link && link.origin === location.origin && link.pathname !== location.pathname && !event.ctrlKey && !event.metaKey && !confirm('Há alterações não salvas na escalação. Sair sem salvar?')) event.preventDefault();
+    }
+    window.addEventListener('beforeunload', beforeUnload);
+    document.addEventListener('click', leaveLink, true);
+    return () => { window.removeEventListener('beforeunload', beforeUnload); document.removeEventListener('click', leaveLink, true); };
+  }, []);
   useEffect(() => {
     let active = true;
     let unsubscribe = () => {};
-    const matchId = Number(id);
-    setLoading(true);
-    setLoadError('');
-    setSyncError('');
-    setRealtimeState('connecting');
-    setEtapa(0);
-    setShirtPlayer(null);
-    setLineupDirty(false);
-    setSwapSource(null);
-
-    async function refreshMatch() {
+    setLoading(true); setLoadError(''); setGestao(null); setEtapa(0); setLineupDirty(false); setSwapSource(null);
+    async function refresh() {
       const version = ++refreshVersion.current;
       try {
-        const [matches, events] = await Promise.all([
-          fetchPartidas(), fetchEventosPartida(matchId),
-        ]);
-        if (!active || version !== refreshVersion.current) return;
-        setPartida(matches.find(match => match.id === matchId) || null);
-        setEventos(events);
-        setSyncError('');
-        // Não substitui a escalação que o usuário pode estar editando.
-      } catch {
-        if (active && version === refreshVersion.current) {
-          setSyncError('Não foi possível atualizar os dados. Recarregue a página para tentar novamente.');
-        }
-      }
+        const data = await carregarGestao(Number(id));
+        if (active && version === refreshVersion.current) { aplicarGestao(data, dirtyRef.current); setSyncError(''); }
+      } catch { if (active) setSyncError('Não foi possível sincronizar. Confira sua conexão e tente recarregar.'); }
     }
-
-    async function loadMatch() {
+    void (async () => {
       try {
-        const [matches, events, lineup] = await Promise.all([
-          fetchPartidas(), fetchEventosPartida(matchId), fetchEscalacao(matchId),
-        ]);
+        const [data, teams] = await Promise.all([carregarGestao(Number(id)), fetchTimes()]);
+        const mine = data.equipes.find(e => e.id === data.minhaEquipeId);
+        const players = data.podePreparar && mine ? await fetchJogadoresPerfis(mine.categoria_id) : [];
         if (!active) return;
-        const match = matches.find(item => item.id === matchId);
-        setPartida(match || null);
-        setEventos(events);
-        setEscalacao(lineup);
-        if (!match) return;
-
-        const [players, teams] = await Promise.all([
-          match.somente_leitura
-            ? Promise.resolve(lineup.filter(item=>item.jogador).map(item=>({id:item.jogador_id,nome:item.jogador!.nome,posicao:item.jogador!.posicao,numCamisa:item.numCamisa})))
-            : fetchJogadoresPerfis(match.categoria_id), fetchTimes(),
-        ]);
-        if (!active) return;
-        setJogadores(players);
-        setTimes(teams);
-
-        if (token && clube) {
-          unsubscribe = subscribeToMatch({
-            baseUrl: BASE_URL,
-            token,
-            clubId: match.clube_origem_id || clube.id,
-            matchId,
-            onScore: score => {
-              setPartida(previous => previous ? {
-                ...previous,
-                gols_mandante: score.gols_mandante,
-                gols_visitante: score.gols_visitante,
-              } : previous);
-              // Invalida consultas anteriores ao novo placar recebido.
-              void refreshMatch();
-            },
-            onRefresh: () => { void refreshMatch(); },
-            onStateChange: setRealtimeState,
-          });
-        }
-      } catch {
-        if (active) setLoadError('Não foi possível carregar a partida. Recarregue a página para tentar novamente.');
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    void loadMatch();
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [id, token, clube?.id]);
+        aplicarGestao(data); setTimes(teams); setJogadores(players);
+        setEtapa(readPreparationStep(data, preparationKey));
+        if (!['AGENDADA', 'PREPARADA'].includes(data.partida.status)) rememberPreparationStep(preparationKey, null);
+        if (token && clube) unsubscribe = subscribeToMatch({ baseUrl: BASE_URL, token, clubId: clube.id, matchId: Number(id),
+          onScore: () => { void refresh(); }, onRefresh: () => { void refresh(); }, onStateChange: setRealtimeState });
+      } catch (e) { if (active) setLoadError((e as Error).message || 'Não foi possível carregar a partida.'); }
+      finally { if (active) setLoading(false); }
+    })();
+    return () => { active = false; unsubscribe(); };
+  }, [id, token, clube?.id, usuario?.id]);
 
   async function mudarStatus() {
     if (!partida || savingStatus || !podeGerenciar) return;
     const next = STATUS_NEXT[partida.status];
     if (!next) return;
-    if (next === 'AO_VIVO' && (lineupDirty || escalacao.filter(item => item.titular).length !== 5)) { setActionError('Defina e salve exatamente cinco titulares antes de iniciar.'); return; }
+    if (next === 'AO_VIVO' && (lineupDirty || escalacao.filter(item => item.titular).length !== (gestao?.partida.titulares_necessarios || 5))) { setActionError(`Defina e salve exatamente ${gestao?.partida.titulares_necessarios || 5} titulares antes de iniciar.`); return; }
     if (next === 'FINALIZADA' && !confirm('Finalizar esta partida? Confira o placar e os eventos antes de confirmar.')) return;
     setSavingStatus(true); setActionError(''); setNotice('');
     try {
       await atualizarStatusPartida(partida.id, next, partida.status);
       refreshVersion.current++;
-      setPartida(p => p ? { ...p, status: next } : p);
-      if (next === 'AO_VIVO') setAba('resumo');
+      await atualizarDados();
+      if (next === 'AO_VIVO') { setAba('resumo'); rememberPreparationStep(preparationKey, null); }
       setNotice('Situação da partida atualizada.');
     } catch (err) { setActionError(err instanceof Error ? err.message : 'Não foi possível atualizar a partida.'); }
     finally { setSavingStatus(false); }
@@ -218,12 +194,15 @@ export default function PartidaDetalhePage() {
 
   async function salvarEscalacaoAtual() {
     if (savingLineup || !podeGerenciar) return false;
+    if (!lineupDirty) return true;
     if (escalacao.some(item => !Number.isInteger(item.numCamisa) || item.numCamisa < 1)) { setActionError('Defina o número da camisa de todos os convocados antes de salvar.'); return false; }
     setSavingLineup(true); setActionError(''); setNotice('');
     try {
-      await salvarEscalacao(Number(id), escalacao.map(e => ({ jogador_id: e.jogador_id, numCamisa: e.numCamisa, titular: e.titular })));
+      await comandoPartida(Number(id), 'escalacao', { jogadores: escalacao.map(e => ({ jogador_id: e.jogador_id, numCamisa: e.numCamisa, titular: e.titular })), versao: gestao?.partida.versao }, 'PUT');
       setLineupDirty(false);
-      setNotice('Escalação salva.');
+      dirtyRef.current = false;
+      await atualizarDados(true);
+      setNotice('Escalação salva como rascunho. Confirme a equipe para publicar.');
       return true;
     } catch (err) { setActionError(err instanceof Error ? err.message : 'Não foi possível salvar a escalação.'); return false; }
     finally { setSavingLineup(false); }
@@ -243,7 +222,7 @@ export default function PartidaDetalhePage() {
       const remaining = exists ? previous.filter(item => item.jogador_id !== jogadorId) : [...previous, {
         jogador_id: jogadorId, numCamisa: jogador!.numCamisa!, titular: false,
       }];
-      return remaining.map((item, index) => ({ ...item, titular: index < 5 }));
+      return remaining.map((item, index) => ({ ...item, titular: index < (gestao?.partida.titulares_necessarios || 5) }));
     });
   }
 
@@ -255,18 +234,20 @@ export default function PartidaDetalhePage() {
   const visitante = partida.visitante || times.find(t => t.id === partida.visitante_id);
   const jogOpts = jogadores.map(j => ({ value: j.id, label: `${j.nome} (#${j.numCamisa || '?'})` }));
   const escalacaoIds = new Set(escalacao.map(e => e.jogador_id));
-  const canRecord = podeGerenciar && ['AO_VIVO', 'FINALIZADA'].includes(partida.status);
+  const canRecord = (gestao?.podeSumula ?? podeGerenciar) && ['AO_VIVO', 'FINALIZADA'].includes(partida.status);
   const partidaEmAndamento = ['AO_VIVO', 'FINALIZADA'].includes(partida.status);
   const preparando = podeGerenciar && ['AGENDADA', 'PREPARADA'].includes(partida.status);
   const abaVisivel = partidaEmAndamento ? aba : 'escalacao';
   const disponiveis = jogadores.filter(j => !escalacaoIds.has(j.id));
   const normalizar = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
   const jogadoresEncontrados = disponiveis.filter(j => normalizar(`${j.nome} ${j.posicao} ${j.numCamisa ?? ''}`).includes(normalizar(buscaJogador.trim())));
+  const minhaEquipe = gestao?.equipes.find(e => e.id === gestao.minhaEquipeId);
+  const necessarios = gestao?.partida.titulares_necessarios || 5;
   const titulares = escalacao.filter(item => item.titular);
   const reservas = escalacao.filter(item => !item.titular);
 
   const busy = savingStatus || savingLineup;
-  const escalaValida = titulares.length === 5 && escalacao.every(item => Number.isInteger(item.numCamisa) && item.numCamisa >= 1 && item.numCamisa <= 99);
+  const escalaValida = titulares.length === necessarios && escalacao.every(item => Number.isInteger(item.numCamisa) && item.numCamisa >= 1 && item.numCamisa <= 99);
   const dadosValidos = Boolean(partida.data && partida.horario && validTimeInput(partida.horario));
 
   async function irParaEtapa(proxima: number) {
@@ -277,26 +258,27 @@ export default function PartidaDetalhePage() {
       return;
     }
     if (proxima === 2) {
-      if (!escalaValida) { setActionError('Escolha exatamente cinco titulares e informe a camisa de todos os convocados para revisar.'); return; }
+      if (!escalaValida) { setActionError(`Escolha exatamente ${necessarios} titulares e informe a camisa de todos os convocados para revisar.`); return; }
       if (lineupDirty && !await salvarEscalacaoAtual()) return;
     }
     setSwapSource(null);
     setEtapa(proxima);
+    rememberPreparationStep(preparationKey, proxima);
   }
 
   async function confirmarPreparacao() {
     if (busy || !preparando) return;
     setActionError('');
     if (!dadosValidos || !escalaValida || lineupDirty) {
-      setActionError('Revise os dados e salve uma escalação com cinco titulares antes de confirmar.');
+      setActionError(`Revise os dados e salve uma escalação com ${necessarios} titulares antes de confirmar.`);
       return;
     }
     setSavingStatus(true);
     try {
-      const updated = await atualizarStatusPartida(partida!.id, 'PREPARADA', partida!.status);
-      refreshVersion.current++;
-      setPartida(previous => previous ? { ...previous, ...updated, status: 'PREPARADA' } : previous);
-      setNotice('Preparação confirmada. Você já pode iniciar a partida.');
+      await comandoPartida(partida!.id, 'preparacao', { versao: gestao?.partida.versao });
+      await atualizarDados();
+      setNotice('Equipe confirmada. A escalação já está disponível para os dois clubes.');
+      rememberPreparationStep(preparationKey, 2);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Não foi possível confirmar a preparação. Tente novamente.');
     } finally { setSavingStatus(false); }
@@ -397,6 +379,7 @@ export default function PartidaDetalhePage() {
     refreshVersion.current++;
     setPartida(previous => previous ? { ...previous, ...updated } : updated);
     if (editor === 'match' && preparando) setEtapa(0);
+    void atualizarDados();
     setNotice('Alterações salvas.');
   }
 
@@ -411,15 +394,15 @@ export default function PartidaDetalhePage() {
   return (
     <div className="partida-detalhe">
       <header className="match-detail-header">
-        <button type="button" className="match-detail-close" aria-label="Voltar para partidas" onClick={() => navigate('/partidas')}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
+        <button type="button" className="match-detail-close" aria-label="Voltar para partidas" onClick={() => { if (!lineupDirty || confirm('Sair sem salvar as alterações da escalação?')) navigate('/partidas'); }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
         <h1>{partidaEmAndamento ? 'Detalhes da partida' : 'Preparação da partida'}</h1>
-        {podeGerenciar && <MatchActionsMenu disabled={busy || salvandoEvento || deletingEvent !== null || deleteBusy}
+        {preparando && <MatchActionsMenu disabled={busy || salvandoEvento || deletingEvent !== null || deleteBusy}
           onEdit={() => setEditor('match')}
-          onDelete={() => { setDeleteError(''); setConfirmDelete(true); }}/>}
+          onDelete={() => { setMotivoCancelamento(''); setDeleteError(''); setConfirmDelete(true); }}/>}
       </header>
       {!preparando && actionError && <p className="notice-error" role="alert">{actionError}</p>}
-      {!preparando && notice && <p className="match-notice" role="status">{notice}</p>}
-      {partida.somente_leitura && <p className="collection-notice">Histórico compartilhado: esta partida é administrada pelo clube que a registrou. Aqui você pode acompanhar o placar, a escalação publicada e os eventos.</p>}
+      {notice && <p className="match-notice match-feedback" role="status"><Icon name="info" size={18}/><span>{notice}</span></p>}
+      {gestao && <MatchPreparationStatus data={gestao}/>}
 
       {partidaEmAndamento && <p role="status" className="realtime-status">
         {realtimeState === 'connected'
@@ -469,7 +452,7 @@ export default function PartidaDetalhePage() {
           <div><Icon name="clock" size={22}/><dt>Horário</dt><dd>{partida.horario || 'A definir'}</dd></div>
           <div><Icon name={partida.emCasa ? 'home' : 'bus'} size={22}/><dt>Mando</dt><dd>{partida.emCasa ? 'Casa' : 'Fora'}</dd></div>
         </dl>
-        {podeGerenciar && partidaEmAndamento && <div className="match-detail-score-edit"><Btn variant="ghost" size="sm" onClick={() => setEditor('score')}><Icon name="edit" size={14}/>Editar placar</Btn></div>}
+        {!gestao && podeGerenciar && partidaEmAndamento && <div className="match-detail-score-edit"><Btn variant="ghost" size="sm" onClick={() => setEditor('score')}><Icon name="edit" size={14}/>Editar placar</Btn></div>}
       </section>}
       {preparando && etapa === 2 && <section className="preparation-review" aria-label="Escalação para revisão">
         <div className="preparation-review-heading"><div><h3>Equipe convocada</h3><p>{titulares.length} titulares · {reservas.length} reservas</p></div><Btn variant="ghost" size="sm" onClick={() => void irParaEtapa(1)}><Icon name="edit" size={15}/>Alterar</Btn></div>
@@ -489,14 +472,14 @@ export default function PartidaDetalhePage() {
       </>}
 
       {/* Controles de status */}
-      {podeGerenciar && partidaEmAndamento && STATUS_NEXT[partida.status] && (
+      {canRecord && partidaEmAndamento && STATUS_NEXT[partida.status] && (
         <div className="partida-acoes">
           <Btn onClick={mudarStatus} disabled={savingStatus}>{savingStatus ? 'Salvando...' : STATUS_BTN[partida.status]}</Btn>
         </div>
       )}
 
       {/* Abas */}
-      {!preparando && partidaEmAndamento && <div className="partida-abas">
+      {!gestao && !preparando && partidaEmAndamento && <div className="partida-abas">
         {(partidaEmAndamento ? (['resumo', 'eventos', 'escalacao'] as const) : (['escalacao'] as const)).map(a => (
           <button key={a} className={`aba${abaVisivel === a ? ' aba-ativa' : ''}`} onClick={() => setAba(a)}>
             {a === 'resumo' ? 'Resumo' : a === 'eventos' ? `Eventos (${eventos.length})` : `Escalação (${escalacao.length})`}
@@ -504,7 +487,7 @@ export default function PartidaDetalhePage() {
         ))}
       </div>}
 
-      {abaVisivel === 'resumo' && (
+      {!gestao && abaVisivel === 'resumo' && (
         <div className="aba-content">
           {eventButtons}
           <div className="resumo-stats">
@@ -518,7 +501,7 @@ export default function PartidaDetalhePage() {
         </div>
       )}
 
-      {abaVisivel === 'eventos' && (
+      {!gestao && abaVisivel === 'eventos' && (
         <div className="aba-content">
           {eventButtons}
           <h2 className="section-title">Acontecimentos da partida</h2>
@@ -544,13 +527,13 @@ export default function PartidaDetalhePage() {
         </div>
       )}
 
-      {abaVisivel === 'escalacao' && (!preparando || etapa === 1) && (
+      {abaVisivel === 'escalacao' && preparando && etapa === 1 && (
         <div className="aba-content">
           <div className="lineup-groups">
             {podeGerenciar && <p className="lineup-swap-help" role="status"><Icon name="info" size={18}/><span>{swapSource == null ? 'Use o botão de troca para arrastar um jogador sobre outro ou selecione os dois botões para trocar.' : 'Selecione o botão de troca do outro jogador. Para cancelar, selecione novamente o primeiro.'}</span></p>}
             <div className="lineup-columns"><section>
-              <h2>Titulares · {titulares.length}/5</h2>
-              {titulares.length ? renderConvocados(titulares, 0) : <p className="lineup-empty">Selecione jogadores para preencher as cinco vagas.</p>}
+              <h2>Titulares · {titulares.length}/{necessarios}</h2>
+              {titulares.length ? renderConvocados(titulares, 0) : <p className="lineup-empty">Selecione jogadores para preencher as {necessarios} vagas.</p>}
             </section>
             <section>
               <h2>Reservas · {reservas.length}</h2>
@@ -558,10 +541,10 @@ export default function PartidaDetalhePage() {
             </section>
             </div>
             {podeGerenciar && <details className="lineup-available">
-              <summary><span>Adicionar jogadores <small>{disponiveis.length}</small></span><Icon name="chevronRight" size={18} /></summary>
+              <summary><span className="lineup-summary-label"><Icon name="team" size={19}/>Adicionar jogadores <small>{disponiveis.length}</small></span><Icon name="chevronRight" size={18} /></summary>
               <div className="lineup-available-content">
                 <CollectionSearch label="Buscar jogador disponível" placeholder="Buscar nome, camisa ou posição" value={buscaJogador} onChange={setBuscaJogador}/>
-                <p className="editor-description">Os primeiros cinco convocados são titulares. Os demais entram como reservas.</p>
+                <p className="editor-description">Os primeiros {necessarios} convocados são titulares. Os demais entram como reservas.</p>
                 <div className="escalacao-grid">
                   {jogadoresEncontrados.map(j => (
                     <article key={j.id} className="available-player">
@@ -591,31 +574,33 @@ export default function PartidaDetalhePage() {
       {preparando && <div className="preparation-footer">
         {actionError && <p role="alert" className="notice-error">{actionError}</p>}
         <div className="preparation-footer-content">
-          <div className="preparation-save-state" role="status">{lineupDirty ? 'Alterações não salvas' : etapa === 2 && partida.status === 'PREPARADA' ? 'Preparação confirmada' : etapa === 0 ? 'Confira os dados para continuar' : 'Escalação salva'}<small>{etapa === 1 ? `${titulares.length}/5 titulares · ${reservas.length} reservas` : etapa === 2 ? 'A partida só começa com sua confirmação.' : 'Você pode voltar às etapas anteriores.'}</small></div>
+          <div className="preparation-save-state" role="status">
+            <span>{etapa === 2 && minhaEquipe?.pronta && !(gestao?.podeSumula && partida.status === 'PREPARADA')
+              ? 'Aguardando a outra equipe ou o responsável iniciar.'
+              : etapa === 2 && minhaEquipe?.pronta ? 'Tudo pronto para iniciar' : lineupDirty ? 'Alterações na escalação' : etapa === 0 ? 'Confira os dados da partida' : etapa === 1 ? 'Monte sua equipe' : 'Confirme sua equipe'}</span>
+            <small>{etapa === 1 ? `${titulares.length}/${necessarios} titulares · ${reservas.length} reservas. A revisão salva sua escalação.`
+              : etapa === 2 && minhaEquipe?.pronta ? 'Sua equipe está pronta e a escalação foi publicada.'
+              : etapa === 2 ? 'A confirmação publica sua escalação para o outro clube.' : 'Sua etapa será retomada ao voltar.'}</small>
+          </div>
           <div className="preparation-footer-buttons">
-            {etapa > 0 && <Btn variant="ghost" disabled={busy} onClick={() => void irParaEtapa(etapa - 1)}><Icon name="chevronLeft" size={16}/>Voltar</Btn>}
-            {etapa === 1 && <Btn variant="ghost" disabled={busy} onClick={() => void salvarEscalacaoAtual()}>{savingLineup ? 'Salvando…' : 'Salvar escalação'}</Btn>}
+            {etapa === 2 && <Btn variant="ghost" disabled={busy} onClick={() => void irParaEtapa(1)}><Icon name="chevronLeft" size={16}/>Voltar</Btn>}
+            {etapa === 1 && <Btn variant="ghost" disabled={busy} onClick={async () => { if (await salvarEscalacaoAtual()) { rememberPreparationStep(preparationKey, 1); navigate('/partidas'); } }}>{savingLineup ? 'Salvando…' : 'Salvar e sair'}</Btn>}
             {etapa < 2 ? <Btn disabled={busy} onClick={() => void irParaEtapa(etapa + 1)}>{savingLineup ? 'Salvando…' : etapa === 0 ? 'Montar escalação' : 'Revisar partida'}<Icon name="chevronRight" size={16}/></Btn>
-              : partida.status === 'AGENDADA' ? <Btn disabled={busy} onClick={() => void confirmarPreparacao()}>{savingStatus ? 'Confirmando…' : 'Confirmar preparação'}<Icon name="checkAll" size={17}/></Btn>
-              : <Btn disabled={busy} onClick={() => void mudarStatus()}>{savingStatus ? 'Iniciando…' : 'Iniciar partida'}<Icon name="chevronRight" size={17}/></Btn>}
+              : !minhaEquipe?.pronta ? <Btn disabled={busy} onClick={() => void confirmarPreparacao()}>{savingStatus ? 'Confirmando…' : 'Confirmar preparação'}<Icon name="checkAll" size={17}/></Btn>
+              : gestao?.podeSumula && partida.status === 'PREPARADA' && <Btn disabled={busy} onClick={() => void mudarStatus()}>{savingStatus ? 'Iniciando…' : 'Iniciar partida'}<Icon name="chevronRight" size={17}/></Btn>}
           </div>
         </div>
       </div>}
 
-      <ConfirmDelete name={confirmDelete ? `${mandante?.nome || partida.mandante?.nome || 'Mandante'} × ${visitante?.nome || partida.visitante?.nome || 'Visitante'}` : null}
-        busy={deleteBusy} error={deleteError} onClose={() => setConfirmDelete(false)} onConfirm={async () => {
-          if (deleteBusy || !podeGerenciar) return;
-          setDeleteBusy(true);
-          setDeleteError('');
-          try {
-            await deletarPartida(partida.id);
-            navigate('/partidas', { replace: true });
-          } catch (error) {
-            setDeleteError(error instanceof Error ? error.message : 'Não foi possível excluir a partida. Tente novamente.');
-          } finally {
-            setDeleteBusy(false);
-          }
-        }} />
+      {gestao && partidaEmAndamento && <MatchOperations data={gestao} refresh={() => atualizarDados()}/>}
+      {gestao && !podeGerenciar && !partidaEmAndamento && <PublishedLineups data={gestao}/>}
+      {gestao && preparando && gestao.equipes.some(e => e.publicada_em) && <details className="lineup-available shared-published-preview"><summary><span className="lineup-summary-label"><Icon name="team" size={19}/>Escalações publicadas<small>{gestao.equipes.length} equipes</small></span><Icon name="chevronRight" size={18}/></summary><div className="lineup-available-content"><PublishedLineups data={gestao}/></div></details>}
+      {gestao?.podeSumula && preparando && gestao.equipes.length > 1 && <Btn variant="ghost" onClick={async () => { try { await comandoPartida(partida.id, 'sumula', {}); setNotice('Solicitação de transferência enviada. Consulte Solicitações de partidas.'); } catch (e) { setActionError((e as Error).message); } }}>Transferir responsabilidade pela súmula</Btn>}
+      <Modal open={confirmDelete} title="Cancelar partida" onClose={() => { if (!deleteBusy) setConfirmDelete(false); }} footer={<div className="editor-actions"><Btn disabled={deleteBusy} variant="ghost" onClick={() => setConfirmDelete(false)}>Voltar</Btn><Btn disabled={deleteBusy || !motivoCancelamento.trim()} variant="danger" onClick={async () => {
+        setDeleteBusy(true); setDeleteError('');
+        try { await comandoPartida(partida.id, 'status', { status: 'CANCELADA', motivo: motivoCancelamento, versao: gestao?.partida.versao }, 'PATCH'); setConfirmDelete(false); await atualizarDados(); }
+        catch (e) { setDeleteError((e as Error).message); } finally { setDeleteBusy(false); }
+      }}>Confirmar cancelamento</Btn></div>}><p className="editor-description">O histórico será preservado e os clubes serão avisados.</p><Input label="Motivo do cancelamento" value={motivoCancelamento} onChange={e => setMotivoCancelamento(e.target.value)}/>{deleteError && <p className="notice-error" role="alert">{deleteError}</p>}</Modal>
 
       {shirtPlayer && <PlayerShirtDialog player={shirtPlayer} category={partida.categoria?.nome}
         onClose={() => setShirtPlayer(null)} onSaved={onShirtSaved}/>}

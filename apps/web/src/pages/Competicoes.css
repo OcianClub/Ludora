@@ -8,3 +8,13 @@
 .competition-row { display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .competition-row .competition-actions { margin:0; padding:0; border:0; }
 @media(max-width:600px) { .competition-row { display:block; }.competition-row .competition-actions { margin-top:16px; } }
+
+.competition-panel { width: min(860px, calc(100vw - 32px)); }
+.competition-table-scroll { overflow-x: auto; margin-block: 12px 24px; }
+.competition-ranking { width: 100%; border-collapse: collapse; min-width: 450px; }
+.competition-ranking th, .competition-ranking td { padding: 12px; border-bottom: 1px solid var(--borda); text-align: left; font-size: 13px; }
+.competition-ranking thead { background: var(--fundo-card); color: var(--texto-sec); }
+.competition-registration-list { display: grid; gap: 8px; margin-block: 16px; max-height: 45vh; overflow-y: auto; }
+.competition-registration-list label { display: flex; align-items: center; gap: 12px; background: var(--fundo-card); padding: 12px; border-radius: 7px; }
+.competition-registration-list small { display: block; color: var(--texto-sec); margin-top: 4px; }
+.competition-registration-list input { accent-color: var(--primaria); width: 18px; height: 18px; }

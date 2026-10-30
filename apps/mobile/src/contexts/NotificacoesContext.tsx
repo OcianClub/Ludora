@@ -1,5 +1,6 @@
+import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { AppState, Platform } from 'react-native';
+import { Alert, AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
@@ -9,6 +10,7 @@ import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 import {
   BASE_URL,
   fetchNotificacoes,
+  fetchClubes,
   fetchPreferenciaNotificacoes,
   registrarDispositivoPush,
   atualizarPreferenciaNotificacoes,
@@ -64,7 +66,9 @@ async function registrarTokenPush(solicitarPermissao = true) {
 }
 
 export function NotificacoesProvider({ children }: { children: React.ReactNode }) {
-  const { clubeAtivo, carregandoClubeAtivo } = useClubeAtivo();
+  const router = useRouter();
+  const pushAberto = useRef<string | null>(null);
+  const { clubeAtivo, carregandoClubeAtivo, definirClubeAtivo } = useClubeAtivo();
   const [contagem, setContagem] = useState<{ clubeId: number | null; total: number }>({ clubeId: null, total: 0 });
   const totalNaoLidas = contagem.clubeId === clubeAtivo?.id ? contagem.total : 0;
   const [notificacoesAtivas, setNotificacoesAtivas] = useState(true);
@@ -76,6 +80,37 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
   const clubeAtualId = useRef(clubeAtivo?.id);
   clubeAtualId.current = clubeAtivo?.id;
   const contadorPedido = useRef(0);
+
+  useEffect(() => {
+    if (carregandoClubeAtivo) return;
+    let active = true;
+    async function abrir(response: Notifications.NotificationResponse | null) {
+      if (!response || !active) return;
+      const request = response.notification.request;
+      const data = request.content.data;
+      const clubeId = Number(data.clubeId);
+      const partidaId = Number(data.partidaId);
+      if (!Number.isSafeInteger(clubeId) || clubeId <= 0 || pushAberto.current === request.identifier) return;
+      if (!await SecureStore.getItemAsync('userToken') || !active) return;
+      pushAberto.current = request.identifier;
+      try {
+        if (clubeAtualId.current !== clubeId) {
+          const clube = (await fetchClubes()).find(c => c.id === clubeId);
+          if (!clube || !active) return;
+          await definirClubeAtivo({ id: clube.id, nome: clube.nome, escudo: clube.escudo, papel: clube.papel });
+        }
+        if (typeof data.solicitacaoId === 'string') router.push('/solicitacoes-partidas' as never);
+        else if (Number.isSafeInteger(partidaId) && partidaId > 0) router.push(`/partida-compartilhada/${partidaId}` as never);
+        await Notifications.clearLastNotificationResponseAsync();
+      } catch {
+        pushAberto.current = null;
+        if (active) Alert.alert('Não foi possível abrir o aviso', 'Confira sua conexão. O aviso também está disponível na tela de notificações.');
+      }
+    }
+    const listener = Notifications.addNotificationResponseReceivedListener(response => { void abrir(response); });
+    void Notifications.getLastNotificationResponseAsync().then(abrir).catch(() => undefined);
+    return () => { active = false; listener.remove(); };
+  }, [carregandoClubeAtivo, clubeAtivo?.id, definirClubeAtivo, router]);
 
   const atualizarNaoLidas = useCallback(async () => {
     const pedido = ++contadorPedido.current;

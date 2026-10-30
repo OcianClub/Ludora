@@ -6,6 +6,7 @@ export type Notice = {
   corpo: string;
   lida: boolean;
   partida_id: number | null;
+  dados?: { solicitacaoId?: string; clubeId?: number };
   criada_em: string;
 };
 

@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { Icon } from '@ludora/icons';
 import React, {
   useState,
@@ -58,6 +59,7 @@ type Partida = PartidaJogo;
 export default function Jogos() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const router = useRouter();
   const { clubeAtivo, podeGerenciar } = useClubeAtivo();
   const pagerRef = useRef<CategoryPagerHandle>(null);
   const organizarRef = useRef<OrganizarPartidasRef>(null);
@@ -229,6 +231,7 @@ export default function Jogos() {
   return (
     <View style={styles.container}>
       <HeaderClube />
+      {podeGerenciar && <TouchableOpacity accessibilityRole="button" onPress={() => router.push('/solicitacoes-partidas' as never)} style={{ paddingHorizontal: 20, paddingVertical: 10 }}><Text style={{ color: colors.primaria }}>Solicitações de partidas</Text></TouchableOpacity>}
 
       <CarrosselSubs
         tipoFiltro={tipoFiltro}

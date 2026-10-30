@@ -1,0 +1,133 @@
+import 'dotenv/config';
+import assert from 'node:assert/strict';
+import { prisma } from '../src/lib/prisma';
+
+async function main() {
+  process.env.PYTHON_AI_URL = '';
+  const { criarCompartilhadasRoutes } = await import('../src/modules/partidas/compartilhadas.routes.js');
+  const emissions: string[] = [];
+  const router = criarCompartilhadasRoutes({ to: (room: string) => ({ emit: () => emissions.push(room) }) } as any);
+  const clubs: number[] = [], users: number[] = [];
+  let checks = 0;
+  async function call(method: string, path: string, ctx: object, body = {}, id: number | string = '', expected: number | number[] = 200) {
+    const layer = router.stack.find((l: any) => l.route?.path === path && l.route.methods[method]);
+    assert(layer, path);
+    let status = 200, result: any;
+    const res = { status(n: number) { status = n; return res; }, json(data: unknown) { result = data; return res; } };
+    await (layer.route!.stack.at(-1)!.handle as any)({ ...ctx, body, params: { id: String(id) }, query: {} }, res);
+    if (Array.isArray(expected)) { assert(expected.includes(status), `${path}: ${JSON.stringify(result)}`); result.__http = status; } else assert.equal(status, expected, `${path}: ${JSON.stringify(result)}`); checks++; return result;
+  }
+  try {
+    async function fixture(suffix: string) {
+      const key = `__shared_test_${Date.now()}_${suffix}`;
+      const club = await prisma.clube.create({ data: { nome: key } }); clubs.push(club.id);
+      const user = await prisma.usuario.create({ data: { nome: key, email: `${key}@example.invalid`, senha: 'not-a-login-hash', notificacoes_ativas: false } }); users.push(user.id);
+      await prisma.usuarioClube.create({ data: { usuario_id: user.id, clube_id: club.id, papel: 'ADMIN', acesso_todas_categorias: true } });
+      const cat = await prisma.categoria.create({ data: { nome: 'sub-7', tipo: 'INICIACAO', faixaIdade: suffix === 'A' ? 0 : 7, clube_id: club.id } });
+      const team = await prisma.time.create({ data: { nome: key, categoria_id: cat.id, clube_representado_id: club.id } });
+      const players = [];
+      for (let n = 1; n <= 6; n++) players.push(await prisma.jogador.create({ data: { nome: `Teste ${n}`, cpf: `${club.id}${String(n).padStart(8, '0')}`, categoria_id: cat.id, posicao: 'Fixo', numCamisa: n, dtNasc: new Date('2020-01-01') } }));
+      return { club, cat, team, players, ctx: { clubeId: club.id, usuarioId: user.id } };
+    }
+    const a = await fixture('A'), b = await fixture('B'), c = await fixture('C');
+    const shadowB = await prisma.time.create({ data: { nome: b.club.nome, categoria_id: a.cat.id, clube_representado_id: b.club.id } });
+    const shadowA = await prisma.time.create({ data: { nome: a.club.nome, categoria_id: b.cat.id, clube_representado_id: a.club.id } });
+    const external = await prisma.time.create({ data: { nome: 'Externo teste', categoria_id: a.cat.id } });
+    const initial = { categoria_id: a.cat.id, mandante_id: a.team.id, visitante_id: shadowB.id, data: '2099-08-17', horario: '19:30', local: 'Teste' };
+    await call('post', '/partidas', a.ctx, { ...initial, data: '2099-20-21' }, '', 400);
+    await call('post', '/partidas', a.ctx, { ...initial, horario: '25:61' }, '', 400);
+    const concurrentProposals = await Promise.all([0,1].map(() => call('post', '/partidas', a.ctx, initial, '', [201,409])));
+    assert.deepEqual(concurrentProposals.map(r => r.__http).sort(), [201,409]);
+    const proposal = concurrentProposals.find(r => r.__http === 201).solicitacao;
+    assert(proposal);
+    await call('post', '/partidas', b.ctx, { ...initial, categoria_id: b.cat.id, mandante_id: shadowA.id, visitante_id: b.team.id }, '', 409);
+    await call('post', '/partidas/solicitacoes/:id/responder', c.ctx, { acao: 'ACEITAR', versao: 0 }, proposal.id, 404);
+    await call('post', '/partidas/solicitacoes/:id/responder', b.ctx, { acao: 'SUGERIR', versao: 0, data: initial.data, horario: '20:00', motivo: 'Horário disponível na quadra' }, proposal.id);
+    const suggestions = await call('get', '/partidas/solicitacoes', a.ctx);
+    const suggested = suggestions.find((p: any) => p.id === proposal.id);
+    assert.equal(suggested.respondente_id, a.club.id);
+    assert.equal(suggested.dados.sugestao.clube_id, b.club.id);
+    assert.equal(suggested.dados.sugestao.motivo, 'Horário disponível na quadra');
+    for (const f of [a, b]) {
+      const notices = await prisma.notificacao.findMany({ where: { clube_id: f.club.id, usuario_id: f.ctx.usuarioId } });
+      assert(notices.some(n => (n.dados as any)?.solicitacaoId === proposal.id && (n.dados as any)?.acao === 'SUGERIR' && n.titulo.includes('sugeriu uma alteração')));
+    }
+    const acceptances = await Promise.all([0,1].map(() => call('post', '/partidas/solicitacoes/:id/responder', a.ctx, { acao: 'ACEITAR', versao: 1 }, proposal.id, [200,409])));
+    assert.deepEqual(acceptances.map(r => r.__http).sort(),[200,409]);
+    const accepted = acceptances.find(r => r.__http === 200);
+    const id = accepted.partidaId;
+    assert.equal(await prisma.partida.count({where:{organizador_id:a.club.id}}),1);
+    const meta = (ctx = a.ctx) => call('get', '/partidas/:id/gestao', ctx, {}, id);
+    const version = async () => (await prisma.partida.findUniqueOrThrow({ where: { id } })).versao;
+    const line = (f: typeof a) => f.players.map((j, i) => ({ jogador_id: j.id, numCamisa: i + 1, titular: i < 5 }));
+    await call('post', '/partidas/solicitacoes/:id/responder', a.ctx, { acao: 'ACEITAR', versao: 1 }, proposal.id, 409);
+    await call('put', '/partidas/:id/escalacao', a.ctx, { jogadores: line(b) }, id, 400);
+    await call('put', '/partidas/:id/escalacao', a.ctx, { jogadores: line(a), versao: await version() }, id);
+    assert.equal((await meta(b.ctx)).equipes.find((e: any) => e.clube_id === a.club.id).escalacao.length, 0);
+    await call('put', '/partidas/:id/escalacao', b.ctx, { jogadores: line(b), versao: await version() }, id);
+    assert.equal(await prisma.escalacaoPartida.count({ where: { partida_id: id, numCamisa: 1 } }), 2);
+    const { consultarPerfis } = await import('../src/modules/jogadores/perfis.service.js');
+    assert((await consultarPerfis(prisma, { categoria_id:a.cat.id })).every(j => j.jogos_disputados === 0));
+    await call('patch', '/partidas/:id/status', a.ctx, { status: 'PREPARADA' }, id, 400);
+    await call('post', '/partidas/:id/preparacao', a.ctx, { versao: await version() }, id);
+    assert.equal((await meta()).partida.status, 'AGENDADA');
+    await call('patch', '/partidas/:id/status', a.ctx, { status: 'AO_VIVO' }, id, 400);
+    await call('post', '/partidas/:id/preparacao', b.ctx, { versao: await version() }, id);
+    assert.equal((await meta()).partida.status, 'PREPARADA');
+    const edit = await call('patch', '/partidas/:id', a.ctx, { horario: '20:15' }, id);
+    await call('post', '/partidas/solicitacoes/:id/responder', b.ctx, { acao: 'ACEITAR', versao: 0 }, edit.solicitacao.id);
+    assert.equal((await meta()).partida.status, 'AGENDADA');
+    for (const f of [a, b]) await call('post', '/partidas/:id/preparacao', f.ctx, { versao: await version() }, id);
+    const transfer = await call('post', '/partidas/:id/sumula', a.ctx, {}, id);
+    await call('post', '/partidas/solicitacoes/:id/responder', b.ctx, {acao:'ACEITAR',versao:0}, transfer.id);
+    assert.equal((await meta()).podeSumula, false);
+    const returnTransfer = await call('post', '/partidas/:id/sumula', b.ctx, {}, id);
+    await call('post', '/partidas/solicitacoes/:id/responder', a.ctx, {acao:'ACEITAR',versao:0}, returnTransfer.id);
+    await call('patch', '/partidas/:id/status', b.ctx, { status: 'AO_VIVO' }, id, 403);
+    await call('patch', '/partidas/:id/status', a.ctx, { status: 'AO_VIVO', versao: await version() }, id);
+    await call('put', '/partidas/:id/escalacao', a.ctx, { jogadores: line(a) }, id, 400);
+    await call('post', '/partidas/:id/substituicoes', b.ctx, { sai: b.players[0].id, entra: b.players[5].id, versao: await version() }, id);
+    const original = await prisma.escalacaoPartida.findUniqueOrThrow({ where: { partida_id_jogador_id: { partida_id: id, jogador_id: b.players[0].id } } });
+    assert.equal(original.titular_inicial, true); assert.equal(original.titular, false);
+    await call('post', '/partidas/:id/eventos', b.ctx, { tipo: 'GOL', time_id: shadowB.id, jogador_id: b.players[5].id }, id, 403);
+    await call('post', '/partidas/:id/eventos', a.ctx, { tipo: 'GOL', time_id: shadowB.id }, id, 400);
+    const goal = await call('post', '/partidas/:id/eventos', a.ctx, { tipo: 'GOL', time_id: shadowB.id, jogador_id: b.players[5].id, versao: await version() }, id, 201);
+    assert.equal((await meta()).partida.gols_visitante, 1);
+    const stale = await version();
+    await call('post', '/partidas/:id/eventos', a.ctx, { tipo: 'GOL', time_id: a.team.id, jogador_id: a.players[0].id, versao: stale }, id, 201);
+    await call('post', '/partidas/:id/eventos', a.ctx, { tipo: 'GOL', time_id: a.team.id, jogador_id: a.players[0].id, versao: stale }, id, 409);
+    const sameVersion = await version();
+    const concurrentGoals = await Promise.all([0,1].map(() => call('post','/partidas/:id/eventos',a.ctx,{tipo:'GOL',time_id:a.team.id,jogador_id:a.players[0].id,versao:sameVersion},id,[201,409])));
+    assert.deepEqual(concurrentGoals.map(r => r.__http).sort(),[201,409]);
+    await call('delete', '/eventos/:id', a.ctx, { motivo: 'Correção de teste', versao: await version() }, goal.id);
+    assert.equal((await meta()).partida.gols_visitante, 0);
+    await call('patch', '/partidas/:id/status', a.ctx, { status: 'FINALIZADA', versao: await version() }, id);
+    await call('post', '/partidas/:id/eventos', a.ctx, { tipo: 'GOL', time_id: a.team.id, jogador_id: a.players[0].id }, id, 400);
+    await call('post', '/partidas/:id/eventos', a.ctx, { tipo: 'GOL', time_id: a.team.id, jogador_id: a.players[0].id, motivo: 'Revisão', versao: await version() }, id, 201);
+    const { consultarContextoScout } = await import('../src/modules/jogadores/contexto-scout.service.js');
+    assert.equal((await consultarContextoScout(prisma,b.players[5].id,b.club.id,null))?.total_partidas,1);
+    const results = await prisma.notificacao.findMany({where:{partida_id:id,tipo:'RESULTADO_PARTIDA'}});
+    assert(results.some(n=>n.clube_id===a.club.id&&n.titulo==='Vitória!'));
+    assert(results.some(n=>n.clube_id===b.club.id&&n.titulo==='Derrota'));
+    assert((await meta()).auditoria.some((e: any) => e.acao === 'EVENTO_REMOVIDO'));
+    const ext = await call('post', '/partidas', a.ctx, { ...initial, visitante_id: external.id, data: '2099-08-18' }, '', 201);
+    assert.equal(ext.status, 'AGENDADA');
+    await call('delete', '/partidas/:id', a.ctx, {}, ext.id, 409);
+    await call('patch', '/partidas/:id/status', a.ctx, { status: 'CANCELADA', motivo: 'Teste', versao: ext.versao }, ext.id);
+    assert(await prisma.partida.findUnique({ where: { id: ext.id } }));
+    for (const f of [a,b]) assert(emissions.includes(`clube:${f.club.id}`));
+    console.log(`PASS: ${checks} chamadas verificadas: propostas, duplicidade, permissões, escalações, publicação, eventos, correções e cancelamento.`);
+  } finally {
+    await prisma.notificacao.deleteMany({ where: { clube_id: { in: clubs } } });
+    await prisma.propostaPartida.deleteMany({ where: { origem_id: { in: clubs } } });
+    await prisma.auditoriaPartida.deleteMany({ where: { partida: { organizador_id: { in: clubs } } } });
+    await prisma.partida.deleteMany({ where: { organizador_id: { in: clubs } } });
+    await prisma.time.deleteMany({ where: { categoria: { clube_id: { in: clubs } } } });
+    await prisma.jogador.deleteMany({ where: { categoria: { clube_id: { in: clubs } } } });
+    await prisma.categoria.deleteMany({ where: { clube_id: { in: clubs } } });
+    await prisma.usuario.deleteMany({ where: { id: { in: users } } });
+    await prisma.clube.deleteMany({ where: { id: { in: clubs } } });
+    await prisma.$disconnect();
+  }
+}
+main().catch(e => { console.error(e); process.exitCode = 1; });

@@ -44,13 +44,13 @@ test('perfis usam agregação e contagem com o mesmo escopo de clube e categoria
   };
   const resultado = await consultarPerfis(tx, where);
   assert.deepEqual(consultas[0].where, where);
-  assert.deepEqual(consultas[1].where, { jogador: { is: where } });
+  assert.deepEqual(consultas[1].where, { jogador: { is: where }, gol_contra: false, partida: { status: { in: ['AO_VIVO', 'FINALIZADA'] } } });
   assert.deepEqual(consultas[1].by, ['jogador_id', 'tipo']);
   assert.equal(consultas[0].select.eventos, undefined);
   assert.equal(consultas[0].select.escalacoes, undefined);
   assert.equal(consultas[0].select.cpf, undefined);
   assert.deepEqual(consultas[0].select._count, {
-    select: { escalacoes: true },
+    select: { escalacoes: { where: { partida: { status: { in: ['AO_VIVO', 'FINALIZADA'] } } } } },
   });
   assert.deepEqual(resultado[0], {
     id_jogador: 12,

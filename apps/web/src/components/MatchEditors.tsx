@@ -2,52 +2,37 @@ import { useState } from 'react';
 import { atualizarPartida, atualizarPlacarPartida, Partida, Time } from '../services/api';
 import { Btn, Input, Modal, Select } from './UI';
 import { Icon } from './Icon';
-import { useAuth } from '../contexts/AuthContext';
-import { selectMatchTeam, matchHasOwnTeam } from '../utils/matchTeams';
 import { MatchDateField, MatchTimeField } from './MatchDateTime';
 import { LocationInput } from './LocationInput';
-import { Choice } from './CollectionControls';
 import { validTimeInput } from '../utils/timeInput';
 
 type EditorProps = { partida: Partida; onClose: () => void; onSaved: (partida: Partida) => void };
 
-export function MatchEditor({ partida, times, onClose, onSaved }: EditorProps & { times: Time[] }) {
-  const { clube } = useAuth();
+export function MatchEditor({ partida, onClose, onSaved }: EditorProps & { times: Time[] }) {
   const [form, setForm] = useState({ mandante_id: String(partida.mandante_id), visitante_id: String(partida.visitante_id), data: partida.data.slice(0, 10), horario: partida.horario || '', local: partida.local || '', emCasa: String(partida.emCasa) });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const options = times.filter(t => t.categoria_id === partida.categoria_id).map(t => ({ value: String(t.id), label: t.nome }));
-  const home = times.find(t => String(t.id) === form.mandante_id);
-  const away = times.find(t => String(t.id) === form.visitante_id);
-  function choose(side: 'mandante' | 'visitante', value: string) {
-    if (!clube) return;
-    try { const selection = selectMatchTeam(times, clube.id, partida.categoria_id, side, Number(value), form); setForm(current => ({ ...current, ...selection })); setError(''); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Confronto inválido.'); }
-  }
-
   async function save(event: React.FormEvent) {
     event.preventDefault();
     if (saving) return;
     if (form.horario && !validTimeInput(form.horario)) { setError('Use um horário de 00:00 a 23:59.'); return; }
-    if (!clube || !matchHasOwnTeam(home, away, clube.id)) { setError('Selecione um time vinculado ao seu clube e um adversário.'); return; }
     if (form.mandante_id === form.visitante_id) { setError('Escolha times diferentes para mandante e visitante.'); return; }
     setSaving(true); setError('');
     try {
-      const updated = await atualizarPartida(partida.id, { ...form, mandante_id: Number(form.mandante_id), visitante_id: Number(form.visitante_id), emCasa: form.emCasa === 'true', grupo: partida.grupo ?? null });
+      const updated = await atualizarPartida(partida.id, { data: form.data, horario: form.horario, local: form.local });
+      if (updated.solicitacao) { window.location.assign('/partidas/solicitacoes'); return; }
       onSaved(updated); onClose();
     } catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível salvar a partida.'); }
     finally { setSaving(false); }
   }
 
   return <Modal open onClose={() => { if (!saving) onClose(); }} title="Editar partida">
-    <p className="editor-description">Atualize o confronto, a data e o local. Categoria: {partida.categoria?.nome || 'categoria da partida'}.</p>
+    <p className="editor-description">Atualize a data, o horário e o local. Em partidas compartilhadas, o outro clube precisa aceitar a alteração. Categoria: {partida.categoria?.nome || 'categoria da partida'}.</p>
     <form onSubmit={save} className="form-grid">
-      <Choice label="Mandante" options={options} value={form.mandante_id} onChange={value => choose('mandante', value)} disabled={saving}/>
-      <Choice label="Visitante" options={options} value={form.visitante_id} onChange={value => choose('visitante', value)} disabled={saving}/>
       <MatchDateField value={form.data} onChange={data => setForm(f => ({ ...f, data }))} disabled={saving}/>
       <MatchTimeField value={form.horario} onChange={horario => setForm(f => ({ ...f, horario }))} disabled={saving}/>
       <div className="full"><LocationInput value={form.local} onChange={local => setForm(f => ({ ...f, local }))} disabled={saving}/></div>
-      <p className="full" role="status">Mando automático: {home?.clube_representado_id === clube?.id ? 'Em casa (mandante)' : 'Fora (visitante)'}</p>
+      <p className="full" role="status">Mando automático: {partida.emCasa ? 'Em casa (mandante)' : 'Fora (visitante)'}</p>
       {error && <p className="notice-error full" role="alert">{error}</p>}
       <div className="editor-actions full"><Btn type="button" variant="ghost" disabled={saving} onClick={onClose}>Cancelar</Btn><Btn disabled={saving} type="submit">{saving ? 'Salvando...' : 'Salvar alterações'}</Btn></div>
     </form>

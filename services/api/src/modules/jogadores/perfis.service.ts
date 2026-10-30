@@ -17,7 +17,7 @@ export async function consultarPerfis(
       nota_geral: true,
       categoria_id: true,
       categoria: { select: { nome: true, tipo: true } },
-      _count: { select: { escalacoes: true } },
+      _count: { select: { escalacoes: { where: { partida: { status: { in: ['AO_VIVO', 'FINALIZADA'] } } } } } },
     },
     orderBy: { nota_geral: 'desc' },
   });
@@ -25,7 +25,7 @@ export async function consultarPerfis(
 
   const contagens = await tx.evento.groupBy({
     by: ['jogador_id', 'tipo'],
-    where: { jogador: { is: where } },
+    where: { jogador: { is: where }, gol_contra: false, partida: { status: { in: ['AO_VIVO', 'FINALIZADA'] } } },
     _count: { _all: true },
   });
   const estatisticas = new Map<number, Partial<Record<TipoEvento, number>>>();

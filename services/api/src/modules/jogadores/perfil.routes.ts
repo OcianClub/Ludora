@@ -5,7 +5,7 @@ import { exigirClubePublico, obterEscopoCategoriasLeitura, podeAcessarCategoria 
 import { idPositivo } from '../../utils/id';
 
 export function participacaoAtleta(id: number, clubeId: number, categories: number[] | null): Prisma.PartidaWhereInput {
-  return { categoria: { clube_id: clubeId }, ...(categories ? { categoria_id: { in: categories } } : {}),
+  return { status: { in: ['AO_VIVO', 'FINALIZADA'] }, AND: [{ OR: [{ categoria: { clube_id: clubeId }, ...(categories ? { categoria_id: { in: categories } } : {}) }, { participantes: { some: { clube_id: clubeId, ...(categories ? { categoria_id: { in: categories } } : {}) } } }] }],
     OR: [{ jogadores_escalonados: { some: { jogador_id: id } } }, { eventos: { some: { jogador_id: id } } }] };
 }
 const matchSelect = { id: true, data: true, horario: true, local: true, status: true, gols_mandante: true, gols_visitante: true,
@@ -26,7 +26,7 @@ router.get(['/jogadores/:id', '/jogadores/:id/partidas', '/jogadores/:id/campeon
     const categoryIds = scope.acessoTotal ? null : scope.categoriaIds;
     const matches = participacaoAtleta(id, clubeId, categoryIds);
     // Championships include explicit enrollment or actual participation, never the whole club calendar.
-    const competitions: Prisma.CompeticaoWhereInput = { clube_id: clubeId, OR: [
+    const competitions: Prisma.CompeticaoWhereInput = { OR: [
       { jogadores_inscritos: { some: { jogador_id: id } } }, { partidas: { some: matches } },
     ] };
     if (req.path.endsWith('/partidas')) {

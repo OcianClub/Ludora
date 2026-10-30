@@ -305,6 +305,8 @@ ou comportamento do aparelho sem internet.
 
 ## Documentação complementar
 
+- [Fluxo de partidas compartilhadas e validação](docs/partidas-compartilhadas.md)
+
 - [Referência técnica e contratos da API](docs/referencia-tecnica.md)
 - [Arquitetura do sistema](docs/arquitetura-ludora.md)
 - [Painel Super Admin do desktop](docs/desktop-super-admin.md)

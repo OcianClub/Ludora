@@ -1,3 +1,4 @@
+import PartidaCompartilhada from './PartidaCompartilhada';
 import { PositionLabel } from '@/src/components/PositionIcon';
 import { Icon } from '@ludora/icons';
 import React, { useState, useRef } from 'react';
@@ -333,7 +334,7 @@ function MiniStats({
 }
 
 // ── Componente Principal ──────────────────────────────────────────────────────
-export default function DetalhesPartida({
+function DetalhesPartidaLocal({
   partida: partidaInicial,
   isAdmin: permissaoGestao,
   onBack,
@@ -2394,4 +2395,10 @@ export default function DetalhesPartida({
       </Modal>
     </SafeAreaView>
   );
+}
+
+export default function DetalhesPartida(props: Props) {
+  return props.consultaLocal
+    ? <DetalhesPartidaLocal {...props}/>
+    : <PartidaCompartilhada id={props.partida.id} onBack={props.onBack}/>;
 }
