@@ -106,6 +106,24 @@ As demais opções do backend estão comentadas no [.env.example](services/api/.
 No celular físico, use o IPv4 do computador conectado à mesma rede (`ipconfig`
 no Windows). Reinicie o Metro após alterar o ambiente.
 
+### Iniciar os quatro serviços com um comando
+
+Depois de preparar a API (seção 3) e o ambiente Python do Scout IA (seção 7),
+execute na raiz:
+
+```powershell
+pnpm dev
+```
+
+Inicia **API, Scout IA, mobile e web** no mesmo terminal, com os logs identificados
+por serviço. Use `Ctrl+C` para encerrar todos. Se um serviço encerrar, os demais
+iniciados pelo comando também serão encerrados, evitando processos esquecidos.
+Pare as instâncias anteriores antes de executar, para não disputar as mesmas portas.
+
+Os comandos individuais continuam disponíveis: `pnpm dev:api`, `pnpm dev:ml`,
+`pnpm dev:mobile` e `pnpm dev:web`. A API usa a build existente; após alterar seu
+código, compile novamente conforme a seção abaixo.
+
 ## 3. Preparar e iniciar a API
 
 Com o banco configurado, execute **na raiz**:
@@ -139,7 +157,7 @@ o script antes de aplicá-lo.
 Com a API rodando, abra **outro terminal na raiz**:
 
 ```powershell
-pnpm --filter @ludora/web dev
+pnpm dev:web
 ```
 
 Abra a URL exibida pelo Vite, normalmente `http://localhost:5173`.

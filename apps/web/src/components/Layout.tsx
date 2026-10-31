@@ -47,8 +47,10 @@ function LayoutContent() {
   const location = useLocation();
   const role = clube?.meuPapel ? ROLE_LABELS[clube.meuPapel] || clube.meuPapel : 'Visualização pública';
   const gerenciaClube = ['ADMIN', 'TECNICO', 'MESARIO'].includes(clube?.meuPapel || '');
-  const extraLinks = NAV.slice(4);
-  const moreActive = extraLinks.some(item => location.pathname.startsWith(item.to)) || location.pathname === '/membros';
+  const extraLinks: typeof NAV = [...NAV.slice(4), ...(clube?.meuPapel === 'ADMIN'
+    ? [{ to: '/membros', label: 'Pessoas e acessos', icon: 'user' as IconName },
+      { to: '/clube', label: 'Configurações do clube', icon: 'settings' as IconName }] : [])];
+  const moreActive = extraLinks.some(item => location.pathname.startsWith(item.to));
   function toggleSidebar() {
     if (compactSidebar) setTabletExpanded(value => !value);
     else setSidebarExpanded(value => {
@@ -86,24 +88,30 @@ function LayoutContent() {
     const layout = layoutRef.current;
     if (!navigation || !layout) return;
     const viewport = window.visualViewport;
+    let frame: number | null = null;
     const measure = () => {
-      layout.style.setProperty('--mobile-navigation-height', `${navigation.getBoundingClientRect().height}px`);
+      frame = null;
+      const height = `${navigation.getBoundingClientRect().height}px`;
+      if (layout.style.getPropertyValue('--mobile-navigation-height') !== height) layout.style.setProperty('--mobile-navigation-height', height);
       const offset = viewport && viewport.scale === 1
         ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
         : 0;
-      navigation.style.setProperty('--mobile-navigation-offset', `${offset}px`);
+      const value = `${offset}px`;
+      if (navigation.style.getPropertyValue('--mobile-navigation-offset') !== value) navigation.style.setProperty('--mobile-navigation-offset', value);
     };
-    const observer = new ResizeObserver(measure);
+    const scheduleMeasure = () => { if (frame === null) frame = requestAnimationFrame(measure); };
+    const observer = new ResizeObserver(scheduleMeasure);
     observer.observe(navigation);
-    viewport?.addEventListener('resize', measure);
-    viewport?.addEventListener('scroll', measure);
-    window.addEventListener('resize', measure);
+    viewport?.addEventListener('resize', scheduleMeasure);
+    viewport?.addEventListener('scroll', scheduleMeasure);
+    window.addEventListener('resize', scheduleMeasure);
     measure();
     return () => {
       observer.disconnect();
-      viewport?.removeEventListener('resize', measure);
-      viewport?.removeEventListener('scroll', measure);
-      window.removeEventListener('resize', measure);
+      if (frame !== null) cancelAnimationFrame(frame);
+      viewport?.removeEventListener('resize', scheduleMeasure);
+      viewport?.removeEventListener('scroll', scheduleMeasure);
+      window.removeEventListener('resize', scheduleMeasure);
     };
   }, []);
   return (
@@ -143,7 +151,7 @@ function LayoutContent() {
             </NavLink>
           ))}
           <span className="sidebar-group-label">{gerenciaClube ? 'GESTÃO' : 'CLUBE'}</span>
-          {NAV.slice(4).map(item => (
+          {extraLinks.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -151,10 +159,9 @@ function LayoutContent() {
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
             >
               <span className="nav-icon"><Icon name={item.icon} /></span>
-              <span className="nav-label">{item.label}</span>
+              <span className="nav-label">{item.to === '/clube' ? 'Configurações' : item.label}</span>
             </NavLink>
           ))}
-          {clube?.meuPapel === 'ADMIN' && <NavLink to="/membros" aria-label="Pessoas e acessos" className={({isActive})=>`nav-item${isActive?' active':''}`}><span className="nav-icon"><Icon name="user"/></span><span className="nav-label">Pessoas e acessos</span></NavLink>}
         </nav>
 
         <div className="sidebar-footer">
@@ -182,7 +189,7 @@ function LayoutContent() {
         </header>
 
         <main className="content" id="main-content" tabIndex={-1}>
-          <Outlet />
+          <Outlet key={clube?.id || 'account'} />
         </main>
       </div>
       {createPortal(<div className="mobile-navigation">
@@ -219,13 +226,6 @@ function LayoutContent() {
                 <Icon name="chevronRight" size={18} />
               </NavLink>
             ))}
-            {clube?.meuPapel === 'ADMIN' && (
-              <NavLink to="/membros" className="mobile-more-item" aria-label="Pessoas e acessos" onClick={() => setMoreOpen(false)}>
-                <span className="mobile-more-item-icon"><Icon name="user" /></span>
-                <span>Pessoas e acessos</span>
-                <Icon name="chevronRight" size={18} />
-              </NavLink>
-            )}
             </nav>
           </section>
 

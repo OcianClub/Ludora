@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { fetchJogadoresPerfis, fetchCategorias, type PerfilJogador, type Categoria } from '../services/api';
+import { cachedJson, cachedClubProfiles, fetchJogadoresPerfis, fetchCategorias, type PerfilJogador, type Categoria } from '../services/api';
 import { Btn, Modal, Spinner, Empty } from '../components/UI';
 import { ScoutIndexHelp } from '../components/ScoutIndexHelp';
 import { POSITIONS, normalizePosition } from '../components/CollectionControls';
@@ -30,10 +30,10 @@ function metricValue(player: PerfilJogador, order: string) {
 export default function ElencoPage() {
   const { clube } = useAuth();
   const [params, setParams] = useSearchParams();
-  const [players, setPlayers] = useState<PerfilJogador[]>([]);
+  const [players, setPlayers] = useState<PerfilJogador[]>(() => cachedClubProfiles() || []);
   const [tiedLeaders, setTiedLeaders] = useState<{ title: string; players: PerfilJogador[] } | null>(null);
-  const [categories, setCategories] = useState<Categoria[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Categoria[]>(() => cachedJson<Categoria[]>('/categorias') || []);
+  const [loading, setLoading] = useState(() => !cachedClubProfiles() || !cachedJson('/categorias'));
   const [error, setError] = useState('');
   const [version, setVersion] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -78,15 +78,15 @@ export default function ElencoPage() {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    const controller = new AbortController();
+    setLoading(!cachedClubProfiles() || !cachedJson('/categorias'));
     setError('');
-    setPlayers([]);
-    Promise.all([loadClubProfiles(version > 0), fetchCategorias()]).then(([data, cats]) => {
+    Promise.all([loadClubProfiles(version > 0, controller.signal), fetchCategorias(controller.signal)]).then(([data, cats]) => {
       if (active) { setPlayers(data); setCategories(cats); }
     }).catch(() => {
       if (active) setError('Não foi possível carregar o elenco. Verifique sua conexão e tente novamente.');
     }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [clube?.id, version]);
 
   const categoryData = useMemo(() => new Map(phaseCategories.map(item => {
@@ -132,7 +132,7 @@ export default function ElencoPage() {
   function renderCategory(offset: number) {
     const item = phaseCategories[categoryIndex + offset];
     const data = item && categoryData.get(item.id);
-    if (!data || loading || error) return null;
+    if (!data || loading) return null;
     const { categoryPlayers, matching, filtered } = data;
     const leaders = getLeaders(categoryPlayers);
     const category = item;
@@ -206,7 +206,7 @@ export default function ElencoPage() {
           if (next) change({ categoria_id: String(next.id), atleta: '' });
         }} />
       {loading ? <div className="scout-loading" role="status" aria-label="Carregando elenco">{[1, 2, 3, 4, 5, 6].map(id => <div className="scout-skeleton" key={id} />)}</div> : error ? <div role="alert" className="notice-error"><p>{error}</p><Btn variant="ghost" onClick={() => setVersion(value => value + 1)}>Tentar novamente</Btn></div> : null}
-      {!loading && !error && renderCategory(0)}
+      {!loading && renderCategory(0)}
     <CollectionFilterDialog open={filtersOpen} title="Filtrar elenco" className="scout-filter-dialog" onClose={() => setFiltersOpen(false)}
       onClear={() => { setDraftPosition(''); setDraftRecords(''); setDraftAssessment(''); setDraftOrder(''); }}
       onApply={() => {

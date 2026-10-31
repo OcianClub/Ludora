@@ -4,7 +4,7 @@ export const EVENT_TYPES = [
   { value: 'GOL', label: 'Gol' },
   { value: 'CARTAO_AMARELO', label: 'Amarelo' },
   { value: 'CARTAO_VERMELHO', label: 'Vermelho' },
-  { value: 'CARTAO_AZUL', label: 'Azul', unavailable: true },
+  { value: 'CARTAO_AZUL', label: 'Azul', unavailable: false },
   { value: 'FALTA', label: 'Falta' },
   { value: 'DEFESA', label: 'Defesa' },
   { value: 'ASSISTENCIA', label: 'Assistência' },

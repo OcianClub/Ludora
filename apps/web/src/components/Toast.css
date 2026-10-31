@@ -1,0 +1,49 @@
+.ludora-toast {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 1600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border: 1px solid var(--borda);
+  border-radius: 9px;
+  background: var(--fundo-card);
+  color: var(--texto);
+  box-shadow: 0 8px 28px #0003;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ludora-toast > .icon {
+  color: var(--primaria);
+  flex-shrink: 0;
+}
+.ludora-toast button {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--texto-sec);
+  font-size: 21px;
+}
+.ludora-toast button:hover {
+  background: var(--fundo-card-sec);
+}
+.ludora-toast .ludora-toast-action {
+  width: auto;
+  padding: 0 8px;
+  color: var(--primaria);
+  font-size: 12px;
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  .ludora-toast {
+    left: 16px;
+    bottom: calc(85px + env(safe-area-inset-bottom));
+    font-size: 12px;
+  }
+}

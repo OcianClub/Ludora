@@ -1,3 +1,4 @@
+import { cachedRead, invalidateReadCache, peekRead, readLifetime } from './readCache';
 import { BASE_URL } from './config';
 import { authRequest } from './authHttp';
 import { contextoScoutValido, type ContextoScout } from '../../../mobile/src/utils/contextoScout';
@@ -15,8 +16,8 @@ export function getToken(): string | null {
   try { return localStorage.getItem('ludora_token'); }
   catch { return null; }
 }
-export function setToken(t: string) { localStorage.setItem('ludora_token', t); }
-export function removeToken() { localStorage.removeItem('ludora_token'); }
+export function setToken(t: string) { invalidateReadCache(); localStorage.setItem('ludora_token', t); }
+export function removeToken() { invalidateReadCache(); localStorage.removeItem('ludora_token'); }
 
 export function getClubeId(): number | null {
   const v = localStorage.getItem('ludora_clube_id');
@@ -24,6 +25,10 @@ export function getClubeId(): number | null {
 }
 export function setClubeId(id: number) { localStorage.setItem('ludora_clube_id', String(id)); }
 export function removeClubeId() { localStorage.removeItem('ludora_clube_id'); }
+
+function readScope() { return `${BASE_URL}:${getToken() || ''}:${getClubeId() || ''}\n`; }
+export function cachedJson<T>(endpoint: string): T | undefined { return peekRead<T>(readScope() + endpoint, true); }
+export function invalidateApiReads(endpoint = '') { invalidateReadCache(readScope() + endpoint); }
 
 // ── Fetch central ──
 async function apiFetch(endpoint: string, options: RequestInit = {}) {
@@ -36,8 +41,18 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const clubeId = getClubeId();
   if (clubeId) headers.set('x-clube-id', String(clubeId));
 
-  const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
-  if (res.status === 401 && token && !endpoint.startsWith('/auth/')) {
+  const method = (options.method || 'GET').toUpperCase();
+  const lifetime = readLifetime(endpoint);
+  const res = method === 'GET' && lifetime > 0 && !options.headers && options.cache !== 'no-store'
+    ? await cachedRead(
+      readScope() + endpoint,
+      signal => fetch(`${BASE_URL}${endpoint}`, { ...options, headers, signal }),
+      lifetime,
+      options.signal,
+    )
+    : await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
+  if (res.ok && method !== 'GET' && !endpoint.startsWith('/notificacoes') && endpoint !== '/usuarios/me/notificacoes') invalidateReadCache();
+  if (res.status === 401 && token && getToken() === token && !endpoint.startsWith('/auth/')) {
     removeToken();
     removeClubeId();
     window.location.href = '/login';
@@ -65,11 +80,16 @@ export interface PerfilUsuario extends Usuario { clubes: Clube[]; notificacoes_a
 export interface Categoria { id: number; nome: string; tipo: string; clube_id: number; }
 export interface Time { id: number; nome: string; escudo?: string; arquivado?: boolean; categoria_id?: number; clube_representado_id?: number | null; clubeRepresentado?: Clube | null; }
 export interface Jogador { id: number; nome: string; cpf: string; dtNasc: string; posicao: string; numCamisa?: number; ativo: boolean; perfil_ml?: string; nota_geral?: number; categoria_id: number; }
-export interface Partida { somente_leitura?: boolean; clube_origem_id?: number; id: number; mandante_id: number; visitante_id: number; gols_mandante: number; gols_visitante: number; data: string; horario?: string; local?: string; status: string; emCasa: boolean; categoria_id: number; competicao_id?: number; rodada?: number; grupo?: string | null; mandante?: Time; visitante?: Time; categoria?: Categoria; }
+export interface Partida { organizador_id?: number; somente_leitura?: boolean; clube_origem_id?: number; id: number; mandante_id: number; visitante_id: number; gols_mandante: number; gols_visitante: number; data: string; horario?: string; local?: string; status: string; emCasa: boolean; categoria_id: number; competicao_id?: number; rodada?: number; grupo?: string | null; mandante?: Time; visitante?: Time; categoria?: Categoria; competicao?: Competicao | null; }
 export interface Competicao { id: number; nome: string; ano: number; tipo: string; clube_id: number; titulares_necessarios?: number; exigir_inscricao?: boolean; somente_leitura?: boolean; organizador?: { nome: string }; }
 export type HomePartida = Omit<Partida, 'mandante_id' | 'visitante_id' | 'categoria_id' | 'categoria'> & {
   categoria: Categoria;
   competicao?: Competicao | null;
+  sumula_clube_id?: number | null;
+  minha_equipe_pronta?: boolean | null;
+  titulares_definidos?: number;
+  titulares_necessarios?: number;
+  gols_sem_autor?: number;
 };
 export interface Evento { id: number; partida_id: number; tipo: string; periodo: number; minuto?: number; jogador_id?: number; jogador?: {id:number;nome:string} | null; }
 export interface EscalacaoItem { jogador_id: number; numCamisa: number; titular: boolean; jogador?: Jogador; }
@@ -255,7 +275,13 @@ export async function fetchJogadoresPerfis(categoria_id?: number, signal?: Abort
   const q = categoria_id ? `?categoria_id=${categoria_id}` : '';
   const res = await apiFetch(`/jogadores/perfis${q}`, { signal });
   if (!res.ok) throw new Error('Erro ao buscar perfis');
-  const dados = await res.json();
+  return normalizeProfiles(await res.json());
+}
+export function cachedClubProfiles(): PerfilJogador[] | undefined {
+  const rows = cachedJson<unknown[]>('/jogadores/perfis');
+  return rows ? normalizeProfiles(rows) : undefined;
+}
+function normalizeProfiles(dados: unknown[]): PerfilJogador[] {
   return dados.map((j: any) => ({
     id: j.id ?? j.id_jogador,
     nome: j.nome,

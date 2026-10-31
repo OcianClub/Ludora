@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { deixarDeSeguirClube, fetchClubes, seguirClube, type Clube } from '../services/api';
+import { cachedJson, deixarDeSeguirClube, fetchClubes, seguirClube, type Clube } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Btn, Modal, Spinner } from '../components/UI';
 import { Brand, ClubBadge } from '../components/Brand';
@@ -23,8 +23,8 @@ const papeis: Record<string, { label: string; icon: IconName }> = {
 export default function SelecionarClubePage() {
   const { definirClube, clube: clubeAtual } = useAuth();
   const navigate = useNavigate();
-  const [clubes, setClubes] = useState<Clube[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [clubes, setClubes] = useState<Clube[]>(() => cachedJson<Clube[]>('/clubes') || []);
+  const [loading, setLoading] = useState(() => !cachedJson('/clubes'));
   const [erro, setErro] = useState('');
   const [seguindoId, setSeguindoId] = useState<number | null>(null);
   const [busca, setBusca] = useState('');
@@ -33,7 +33,7 @@ export default function SelecionarClubePage() {
 
   useEffect(() => {
     let ativo = true;
-    setLoading(true);
+    setLoading(!cachedJson('/clubes'));
     setErro('');
     fetchClubes().then(result => { if (ativo) setClubes(result); })
       .catch(() => { if (ativo) setErro('Não foi possível carregar os clubes. Verifique sua conexão e tente novamente.'); })

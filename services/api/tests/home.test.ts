@@ -61,7 +61,12 @@ test('Home faz uma única consulta parametrizada, limita por categoria e conside
   assert.match(sql.text, /m\.clube_representado_id/);
   assert.match(sql.text, /v\.clube_representado_id/);
   assert.match(sql.text, /somente_leitura/);
-  assert.doesNotMatch(sql.text, /"Evento"|"Jogador"|senha|cpf|email/);
+  assert.doesNotMatch(sql.text, /"Jogador"|senha|cpf|email/);
+  assert.match(sql.text, /equipe\.clube_id = \$/);
+  assert.match(sql.text, /e\.partida_id = p\.id AND e\.titular/);
+  assert.match(sql.text, /ev\.partida_id = p\.id/);
+  assert.match(sql.text, /ev\.jogador_id IS NULL AND NOT ev\.gol_contra/);
+  assert.match(sql.text, /et\.clube_representado_id IS NOT NULL/);
 });
 
 test('rota da Home mantém autenticação, validação e erros sem interceptar detalhes por ID', async () => {

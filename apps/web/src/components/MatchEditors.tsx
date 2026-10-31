@@ -5,6 +5,7 @@ import { Icon } from './Icon';
 import { MatchDateField, MatchTimeField } from './MatchDateTime';
 import { LocationInput } from './LocationInput';
 import { validTimeInput } from '../utils/timeInput';
+import { Toast } from './Toast';
 
 type EditorProps = { partida: Partida; onClose: () => void; onSaved: (partida: Partida) => void };
 
@@ -33,7 +34,7 @@ export function MatchEditor({ partida, onClose, onSaved }: EditorProps & { times
       <MatchTimeField value={form.horario} onChange={horario => setForm(f => ({ ...f, horario }))} disabled={saving}/>
       <div className="full"><LocationInput value={form.local} onChange={local => setForm(f => ({ ...f, local }))} disabled={saving}/></div>
       <p className="full" role="status">Mando automático: {partida.emCasa ? 'Em casa (mandante)' : 'Fora (visitante)'}</p>
-      {error && <p className="notice-error full" role="alert">{error}</p>}
+      <Toast message={error} onClose={() => setError('')} />
       <div className="editor-actions full"><Btn type="button" variant="ghost" disabled={saving} onClick={onClose}>Cancelar</Btn><Btn disabled={saving} type="submit">{saving ? 'Salvando...' : 'Salvar alterações'}</Btn></div>
     </form>
   </Modal>;

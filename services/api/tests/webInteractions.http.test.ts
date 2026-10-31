@@ -141,6 +141,12 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
     role='TECNICO';assert.equal((await send('PATCH','/clube/perfil',body)).status,403);role='ADMIN';
     assert.equal((await send('PATCH','/clube/perfil',{...body,endereco:{...body.endereco,cep:'abc'}})).status,400);
     assert.equal((await send('PATCH','/clube/perfil',body)).status,200);
+    assert.equal((await send('PATCH','/clube/perfil',{...body,endereco:{...body.endereco,estado:'ZZ'}})).status,400);
+    const escudo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
+    const uploaded = await send('PATCH','/clube/perfil',{...body,escudo,endereco:null});
+    assert.equal(uploaded.status,200);
+    assert.equal((await uploaded.json()).escudo,escudo);
+    assert.equal((await send('PATCH','/clube/perfil',{...body,escudo:'data:image/svg+xml;base64,abcd'})).status,400);
     assert.equal(fotoValida('data:image/svg+xml;base64,abcd'),false);assert.equal(fotoValida('javascript:alert(1)'),false);
   });
 });

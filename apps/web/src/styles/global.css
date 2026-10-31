@@ -3,6 +3,10 @@
   color-scheme: dark;
   /* As cores são carregadas de packages/design-tokens por theme.ts. */
   --primaria-hover: #1a85ff;
+  --table-surface: color-mix(in srgb, var(--fundo-card) 86%, var(--fundo));
+  --table-row-hover: color-mix(in srgb, var(--table-surface) 94%, var(--texto) 6%);
+  --table-header: color-mix(in srgb, var(--fundo-card) 80%, var(--fundo-card-sec));
+  --table-separator: color-mix(in srgb, var(--borda) 70%, var(--linha));
 
   --font-titulo: 'Oswald', sans-serif;
   --font-corpo: 'Inter', sans-serif;
@@ -54,3 +58,6 @@ button:disabled { cursor: not-allowed; }
 .text-amarelo { color: var(--amarelo); }
 .text-vermelho { color: var(--vermelho); }
 .font-titulo { font-family: var(--font-titulo); }
+
+.route-loading { display: grid; place-items: center; min-height: 240px; }
+.route-load-error { display: grid; gap: 16px; justify-items: start; padding: 24px; color: var(--texto-sec); }

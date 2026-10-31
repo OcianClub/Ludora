@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   atualizarMeuPerfil,
   fetchMeuPerfil,
+  invalidateApiReads,
   getToken,
   setToken,
   removeToken,
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (clubeSalvo) {
             const vinculoAtual = perfil.clubes.find(item => item.id === clubeSalvo.id);
+            if (JSON.stringify([clubeSalvo.meuPapel, clubeSalvo.acessoTodasCategorias, clubeSalvo.categoriasAcesso]) !== JSON.stringify([vinculoAtual?.meuPapel, vinculoAtual?.acessoTodasCategorias, vinculoAtual?.categoriasAcesso])) invalidateApiReads();
             if (vinculoAtual) {
               setClube(vinculoAtual);
               localStorage.setItem('ludora_clube', JSON.stringify(vinculoAtual));
@@ -155,8 +157,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const podeGerenciar = !!clube?.meuPapel && PAPEIS_GESTORES.includes(clube.meuPapel);
 
+  const value = useMemo(() => ({ usuario, clube, token, podeGerenciar, fazendoLogin, login, iniciarSessao, logout, definirClube, atualizarPerfil, recarregarPerfil }),
+    [usuario, clube, token, podeGerenciar, fazendoLogin, login, iniciarSessao, logout, definirClube, atualizarPerfil, recarregarPerfil]);
   return (
-    <AuthContext.Provider value={{ usuario, clube, token, podeGerenciar, fazendoLogin, login, iniciarSessao, logout, definirClube, atualizarPerfil, recarregarPerfil }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

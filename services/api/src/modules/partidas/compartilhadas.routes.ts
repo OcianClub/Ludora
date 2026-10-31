@@ -274,6 +274,22 @@ export function criarCompartilhadasRoutes(io: Server) {
   router.delete('/partidas/:id', exigirGestorDoClube, tratar(async (_req, res) => {
     res.status(409).json({ error: 'Preserve o histórico: cancele a partida informando um motivo.' });
   }));
+  router.patch('/partidas/:id/local', exigirGestorDoClube, tratar(async (req, res) => {
+    const ctx = contexto(req), id = inteiro(req.params.id);
+    await transacao(async tx => {
+      const { p } = await partida(tx, id, ctx, true);
+      exigir(p.sumula_clube_id === ctx.clubeId, 'Somente o responsável pela súmula pode definir o local.', 403);
+      exigir(p.status === 'AO_VIVO', 'Defina o local durante a preparação ou com a partida ao vivo.');
+      exigir(typeof req.body.local === 'string' && req.body.local.trim().length > 0 && req.body.local.trim().length <= 300, 'Informe o local com até 300 caracteres.');
+      await tocar(tx, p, req.body.versao);
+      const local = req.body.local.trim();
+      await tx.partida.update({ where: { id }, data: { local } });
+      await auditar(tx, ctx, id, 'LOCAL_DEFINIDO', { anterior: p.local || null, local });
+    });
+    await transmitir(id);
+    res.json({ ok: true });
+  }));
+
   router.post('/partidas/:id/substituicoes', exigirGestorDoClube, tratar(async (req, res) => {
     const ctx = contexto(req), id = inteiro(req.params.id);
     await transacao(async tx => {
@@ -306,6 +322,21 @@ export function criarCompartilhadasRoutes(io: Server) {
     const evento = await transacao(async tx => {
       const { p } = await partida(tx, id, ctx, true);
       exigir(p.sumula_clube_id === ctx.clubeId, 'Somente o responsável pela súmula pode registrar eventos.', 403);
+      const requestId = req.body.request_id;
+      exigir(requestId == null || (typeof requestId === 'string' && /^[a-zA-Z0-9-]{16,80}$/.test(requestId)), 'Identificador de envio inválido.');
+      const assinatura = JSON.stringify([req.body.tipo, req.body.time_id, req.body.jogador_id || null, req.body.gol_contra === true,
+        req.body.periodo || null, req.body.minuto || null, req.body.autor_pendente === true, req.body.assistencia_jogador_id || null, req.body.motivo || '']);
+      if (requestId) {
+        const anterior = await tx.auditoriaPartida.findFirst({ where: { partida_id: id, usuario_id: ctx.usuarioId, clube_id: ctx.clubeId,
+          acao: 'EVENTO_REGISTRADO', dados: { path: ['request_id'], equals: requestId } } });
+        if (anterior) {
+          const dados = anterior.dados as { evento_id: number; assinatura: string };
+          exigir(dados.assinatura === assinatura, 'Este envio já foi usado para outro evento.', 409);
+          const salvo = await tx.evento.findUnique({ where: { id: dados.evento_id }, include: { jogador: { select: { nome: true } } } });
+          exigir(salvo, 'Este evento já foi removido. Confira a súmula.', 409);
+          return { evento: salvo, repetido: true };
+        }
+      }
       exigir(['AO_VIVO', 'FINALIZADA'].includes(p.status), 'Inicie a partida antes de registrar eventos.');
       if (p.status === 'FINALIZADA') exigir(String(req.body.motivo || '').trim(), 'Informe o motivo da correção após o encerramento.');
       const tipo = req.body.tipo;
@@ -326,26 +357,84 @@ export function criarCompartilhadasRoutes(io: Server) {
       if (jogadorId) {
         exigir(await tx.escalacaoPartida.count({ where: { partida_id: id, time_id: autorTimeId, jogador_id: jogadorId, ...(p.status === 'AO_VIVO' ? { titular: true } : {}) } }), 'O jogador deve estar convocado pela equipe selecionada e em campo durante o jogo.');
       }
-      if (equipe && tipo === 'GOL' && !contra) exigir(jogadorId, 'Selecione o autor do gol ou registre um gol contra.');
+      if (equipe && tipo === 'GOL' && !contra) exigir(jogadorId || req.body.autor_pendente === true, 'Selecione o autor ou escolha identificar depois.');
       if (equipe && tipo !== 'GOL') exigir(jogadorId, 'Selecione o jogador responsável pelo evento.');
+      const assistente = req.body.assistencia_jogador_id ? inteiro(req.body.assistencia_jogador_id) : null;
+      if (assistente) {
+        exigir(tipo === 'GOL' && !contra && jogadorId && assistente !== jogadorId, 'A assistência deve ser de outro jogador da equipe que marcou.');
+        exigir(await tx.escalacaoPartida.count({ where: { partida_id: id, time_id: timeId, jogador_id: assistente, ...(p.status === 'AO_VIVO' ? { titular: true } : {}) } }), 'O autor da assistência deve estar na escalação e em campo.');
+      }
       await tocar(tx, p, req.body.versao);
       const e = await tx.evento.create({ data: { partida_id: id, tipo, time_id: timeId, jogador_id: jogadorId, gol_contra: contra,
         criado_por_id: ctx.usuarioId, periodo: req.body.periodo ? inteiro(req.body.periodo, 1, 10) : p.periodo_atual, minuto: req.body.minuto == null || req.body.minuto === '' ? null : inteiro(req.body.minuto, 0, 200) }, include: { jogador: { select: { nome: true } } } });
       if (tipo === 'GOL') await tx.partida.update({ where: { id }, data: timeId === p.mandante_id ? { gols_mandante: { increment: 1 } } : { gols_visitante: { increment: 1 } } });
-      await auditar(tx, ctx, id, 'EVENTO_REGISTRADO', { evento_id: e.id, motivo: String(req.body.motivo || '').slice(0, 500) });
-      return e;
+      const assistencia = assistente ? await tx.evento.create({ data: { partida_id: id, tipo: 'ASSISTENCIA', time_id: timeId, jogador_id: assistente,
+        criado_por_id: ctx.usuarioId, periodo: e.periodo, minuto: e.minuto } }) : null;
+      await auditar(tx, ctx, id, 'EVENTO_REGISTRADO', { evento_id: e.id, assistencia_evento_id: assistencia?.id || null,
+        request_id: requestId || null, assinatura, motivo: String(req.body.motivo || '').slice(0, 500) });
+      return { evento: e, repetido: false };
     });
-    await transmitir(id, false, evento.tipo === 'GOL' ? evento.time_id! : undefined);
-    if (String(req.body.motivo || '').trim()) {
+    if (!evento.repetido) await transmitir(id, false, evento.evento.tipo === 'GOL' ? evento.evento.time_id! : undefined);
+    if (!evento.repetido && String(req.body.motivo || '').trim()) {
       await agendamento(id, 'Súmula corrigida');
       const equipes = await prisma.participantePartida.findMany({ where: { partida_id: id } });
       for (const e of equipes) void processarMachineLearning(e.clube_id).catch(() => undefined);
     }
-    res.status(201).json(evento);
+    res.status(evento.repetido ? 200 : 201).json(evento.evento);
+  }));
+  router.patch('/partidas/:id/eventos/:eventoId', exigirGestorDoClube, tratar(async (req, res) => {
+    const ctx = contexto(req), id = inteiro(req.params.id);
+    const atualizado = await transacao(async tx => {
+      const { p } = await partida(tx, id, ctx, true);
+      exigir(['AO_VIVO', 'FINALIZADA'].includes(p.status), 'A partida precisa estar em andamento ou encerrada.');
+      const evento = await tx.evento.findFirst({ where: { id: inteiro(req.params.eventoId), partida_id: id } });
+      exigir(evento && evento.time_id, 'Evento não encontrado.', 404);
+      const autorTime = evento.gol_contra ? evento.time_id === p.mandante_id ? p.visitante_id : p.mandante_id : evento.time_id;
+      const equipe = p.participantes.find(item => item.time_id === autorTime);
+      const operador = p.sumula_clube_id === ctx.clubeId;
+      exigir(operador || (evento.tipo === 'GOL' && !evento.jogador_id && equipe?.clube_id === ctx.clubeId), 'Você pode identificar apenas os gols pendentes da própria equipe.', 403);
+      const jogadorId = inteiro(req.body.jogador_id);
+      exigir(await tx.escalacaoPartida.count({ where: { partida_id: id, time_id: autorTime, jogador_id: jogadorId } }), 'Escolha um jogador convocado pela equipe autora do evento.');
+      if (evento.tipo === 'GOL' && !evento.gol_contra) {
+        const origem = await tx.auditoriaPartida.findFirst({ where: { partida_id: id, acao: 'EVENTO_REGISTRADO', dados: { path: ['evento_id'], equals: evento.id } } });
+        const assistenciaId = (origem?.dados as { assistencia_evento_id?: number } | null)?.assistencia_evento_id;
+        const assistencia = assistenciaId ? await tx.evento.findFirst({ where: { id: assistenciaId, partida_id: id } }) : null;
+        exigir(assistencia?.jogador_id !== jogadorId, 'O autor do gol não pode ser o mesmo da assistência. Corrija a assistência antes.');
+      }
+      if (evento.tipo === 'ASSISTENCIA') {
+        const origem = await tx.auditoriaPartida.findFirst({ where: { partida_id: id, acao: 'EVENTO_REGISTRADO', dados: { path: ['assistencia_evento_id'], equals: evento.id } } });
+        const golId = (origem?.dados as { evento_id?: number } | null)?.evento_id;
+        const gol = golId ? await tx.evento.findFirst({ where: { id: golId, partida_id: id } }) : null;
+        exigir(gol?.jogador_id !== jogadorId, 'A assistência deve ser de outro jogador da equipe que marcou.');
+      }
+      const motivo = String(req.body.motivo || '').trim().slice(0, 500);
+      if (evento.jogador_id && evento.jogador_id !== jogadorId) exigir(motivo, 'Informe o motivo da alteração de autoria.');
+      await tocar(tx, p, req.body.versao);
+      const novo = await tx.evento.update({ where: { id: evento.id }, data: { jogador_id: jogadorId }, include: { jogador: { select: { nome: true } } } });
+      await auditar(tx, ctx, id, 'AUTORIA_IDENTIFICADA', { evento_id: evento.id, jogador_anterior: evento.jogador_id, jogador_id: jogadorId, motivo });
+      return novo;
+    });
+    await transmitir(id);
+    const equipes = await prisma.participantePartida.findMany({ where: { partida_id: id } });
+    for (const equipe of equipes) void processarMachineLearning(equipe.clube_id).catch(() => undefined);
+    res.json(atualizado);
   }));
   router.delete('/eventos/:id', exigirGestorDoClube, tratar(async (req, res) => {
     const ctx = contexto(req);
-    const id = await transacao(async tx => {
+    const result = await transacao(async tx => {
+      const requestId = req.body.request_id;
+      exigir(requestId == null || (typeof requestId === 'string' && /^[a-zA-Z0-9-]{16,80}$/.test(requestId)), 'Identificador de envio inválido.');
+      if (requestId) {
+        const anterior = await tx.auditoriaPartida.findFirst({ where: { partida_id: inteiro(req.body.partida_id), usuario_id: ctx.usuarioId, clube_id: ctx.clubeId,
+          acao: 'EVENTO_REMOVIDO', dados: { path: ['request_id'], equals: requestId } } });
+        if (anterior) {
+          const dados = anterior.dados as { evento: { id: number }; motivo: string };
+          exigir(dados.evento.id === inteiro(req.params.id) && dados.motivo === String(req.body.motivo).slice(0, 500), 'Este envio já foi usado para outra remoção.', 409);
+          const { p } = await partida(tx, anterior.partida_id, ctx, true);
+          exigir(p.sumula_clube_id === ctx.clubeId, 'Esta ação é do responsável pela súmula.', 403);
+          return { id: p.id, repetido: true };
+        }
+      }
       const e = await tx.evento.findUnique({ where: { id: inteiro(req.params.id) } });
       exigir(e, 'Evento não encontrado.', 404);
       const { p } = await partida(tx, e.partida_id, ctx, true);
@@ -358,13 +447,18 @@ export function criarCompartilhadasRoutes(io: Server) {
         exigir((mandante ? p.gols_mandante : p.gols_visitante) > 0, 'O placar já está zerado. Confira a súmula.');
         await tx.partida.update({ where: { id: p.id }, data: mandante ? { gols_mandante: { decrement: 1 } } : { gols_visitante: { decrement: 1 } } });
       }
+      const origem = e.tipo === 'GOL' ? await tx.auditoriaPartida.findFirst({ where: { partida_id: p.id, acao: 'EVENTO_REGISTRADO', dados: { path: ['evento_id'], equals: e.id } } }) : null;
+      const assistenciaId = (origem?.dados as { assistencia_evento_id?: number } | null)?.assistencia_evento_id;
+      if (assistenciaId) await tx.evento.deleteMany({ where: { id: assistenciaId, partida_id: p.id, tipo: 'ASSISTENCIA' } });
       await tx.evento.delete({ where: { id: e.id } });
-      await auditar(tx, ctx, p.id, 'EVENTO_REMOVIDO', { evento: json(e), motivo: String(req.body.motivo).slice(0, 500) });
-      return p.id;
+      await auditar(tx, ctx, p.id, 'EVENTO_REMOVIDO', { evento: json(e), motivo: String(req.body.motivo).slice(0, 500), request_id: requestId || null });
+      return { id: p.id, repetido: false };
     });
-    await transmitir(id); await agendamento(id, 'Súmula corrigida');
-    const equipes = await prisma.participantePartida.findMany({ where: { partida_id: id } });
-    for (const e of equipes) void processarMachineLearning(e.clube_id).catch(() => undefined);
+    if (!result.repetido) {
+      await transmitir(result.id); await agendamento(result.id, 'Súmula corrigida');
+      const equipes = await prisma.participantePartida.findMany({ where: { partida_id: result.id } });
+      for (const e of equipes) void processarMachineLearning(e.clube_id).catch(() => undefined);
+    }
     res.json({ ok: true });
   }));
   router.patch('/partidas/:id/placar', exigirGestorDoClube, tratar(async (req, res) => {

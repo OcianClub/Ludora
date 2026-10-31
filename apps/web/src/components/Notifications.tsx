@@ -8,7 +8,7 @@ import { Btn, Modal } from './UI';
 import { Icon } from './Icon';
 import { NotificationItem } from './NotificationItem';
 import { FilterSelect } from './FilterSelect';
-import { groupNotices, NOTICE_LABELS, type Notice, type NoticeType } from '../utils/notifications';
+import { bundleCorrections, groupNotices, NOTICE_LABELS, type Notice, type NoticeType } from '../utils/notifications';
 import './Notifications.css';
 
 type NoticeResponse = { notificacoes: Notice[]; totalNaoLidas: number; proximoCursor?: number | null };
@@ -37,6 +37,9 @@ export function Notifications() {
   const [type, setType] = useState<NoticeType | ''>('');
   const [confirmation, setConfirmation] = useState<'all' | 'read' | null>(null);
   const [message, setMessage] = useState('');
+  const pendingDeletes = useRef(new Map<number, { timer: number; scope: number }>());
+  const [pendingIds, setPendingIds] = useState<number[]>([]);
+  const commitDelete = useRef<(notice: Notice) => Promise<void>>(async () => {});
 
   function updateData(update: (previous: NoticeResponse) => NoticeResponse) {
     const value = update(dataRef.current);
@@ -60,6 +63,7 @@ export function Notifications() {
     setFilter('all');
     setType('');
     setConfirmation(null);
+    setPendingIds([]);
     setLoading(Boolean(clube?.meuPapel));
 
     async function refresh(append = false) {
@@ -105,6 +109,8 @@ export function Notifications() {
     const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 30_000);
     return () => {
       active = false;
+      pendingDeletes.current.forEach(item => window.clearTimeout(item.timer));
+      pendingDeletes.current.clear();
       if (scope.current === currentScope) scope.current++;
       window.clearInterval(timer);
       socket?.disconnect();
@@ -181,9 +187,40 @@ export function Notifications() {
     }
   }
 
+  commitDelete.current = async notice => { await remove(notice); };
+
+  function queueDelete(notice: Notice) {
+    if (busyRef.current || pendingDeletes.current.has(notice.id)) return;
+    const currentScope = scope.current;
+    const commit = async () => {
+      const pending = pendingDeletes.current.get(notice.id);
+      if (!pending || pending.scope !== scope.current) return;
+      if (busyRef.current) {
+        pending.timer = window.setTimeout(() => void commit(), 250);
+        return;
+      }
+      await commitDelete.current(notice);
+      if (scope.current !== currentScope) return;
+      pendingDeletes.current.delete(notice.id);
+      setPendingIds(previous => previous.filter(id => id !== notice.id));
+    };
+    pendingDeletes.current.set(notice.id, { timer: window.setTimeout(() => void commit(), 6000), scope: currentScope });
+    setPendingIds(previous => [...previous, notice.id]);
+    setMessage('');
+  }
+
+  function undoDelete() {
+    if (busyRef.current) return;
+    pendingDeletes.current.forEach(item => window.clearTimeout(item.timer));
+    pendingDeletes.current.clear();
+    setPendingIds([]);
+    setMessage('Exclusão desfeita.');
+  }
+
   const groups = useMemo(() => groupNotices(data.notificacoes.filter(notice =>
-    (filter === 'all' || !notice.lida) && (!type || notice.tipo === type),
-  )), [data.notificacoes, filter, type]);
+    !pendingIds.includes(notice.id) && (filter === 'all' || !notice.lida) && (!type || notice.tipo === type),
+  )).map(group => ({ ...group, bundles: bundleCorrections(group.notices) })), [data.notificacoes, filter, type, pendingIds]);
+  const unreadCount = Math.max(0, data.totalNaoLidas - data.notificacoes.filter(notice => !notice.lida && pendingIds.includes(notice.id)).length);
   const readCount = data.notificacoes.filter(notice => notice.lida).length;
   const emptyTitle = data.proximoCursor ? 'Nenhum aviso encontrado nesta página'
     : filter === 'unread' ? 'Nenhum aviso não lido'
@@ -195,39 +232,48 @@ export function Notifications() {
   return (
     <>
       <button className="profile-link notifications-trigger" type="button"
-        aria-label={`Notificações, ${data.totalNaoLidas} não lidas`}
+        aria-label={`Notificações, ${unreadCount} não lidas`}
         aria-haspopup="dialog" aria-expanded={open} aria-controls={dialogId}
         onClick={() => { setOpen(true); void reload.current(); }}>
         <Icon name="bell" size={23} />
-        {data.totalNaoLidas > 0 && <span className="notification-dot" aria-hidden="true" />}
+        {unreadCount > 0 && <span className="notification-dot" aria-hidden="true" />}
       </button>
       <Modal open={open} onClose={() => { setOpen(false); setConfirmation(null); }} title="Notificações"
-        id={dialogId} className="notifications-drawer" headerActions={clube?.meuPapel && <details className="notification-menu"
+        id={dialogId} className="notifications-drawer" footer={pendingIds.length > 0 && <div className="notification-undo" role="status">
+          <Icon name="trash" size={18} />
+          <span>{pendingIds.length === 1 ? 'Notificação removida' : `${pendingIds.length} notificações removidas`}</span>
+          <button type="button" disabled={busy} onClick={undoDelete}><Icon name="undo" size={16} />Desfazer</button>
+        </div>} headerActions={clube?.meuPapel && <details className="notification-menu"
           onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}
           onKeyDown={event => { if (event.key === 'Escape' && event.currentTarget.open) { event.preventDefault(); event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
           <summary aria-label="Ações das notificações">···</summary>
           <div className="notification-menu-options" onClick={event => {
             if ((event.target as HTMLElement).closest('button')) event.currentTarget.closest('details')?.removeAttribute('open');
           }}>
-            <button type="button" disabled={busy || loading || !data.totalNaoLidas} onClick={() => void read()}><Icon name="checkAll" size={17} />Marcar todas como lidas</button>
-            <button type="button" disabled={busy || loading || (!readCount && !data.proximoCursor)} onClick={() => setConfirmation('read')}><Icon name="checkAll" size={17} />Excluir avisos lidos</button>
-            <button type="button" className="notification-menu-danger" disabled={busy || loading || !data.notificacoes.length} onClick={() => setConfirmation('all')}><Icon name="trash" size={17} />Excluir todas as notificações</button>
+            <button type="button" disabled={busy || loading || pendingIds.length > 0 || (!readCount && !data.proximoCursor)} onClick={() => setConfirmation('read')}><Icon name="archive" size={17} />Excluir avisos lidos</button>
+            <button type="button" className="notification-menu-danger" disabled={busy || loading || pendingIds.length > 0 || !data.notificacoes.length} onClick={() => setConfirmation('all')}><Icon name="trash" size={17} />Excluir todas as notificações</button>
           </div>
         </details>}>
         <div className="notifications-summary">
-          <div><p>{clube?.nome || 'Seu clube'}</p>{!loading && !error && !data.totalNaoLidas && <span>Você está em dia com os avisos do clube.</span>}</div>
+          <p>Avisos {clube?.nome ? `do ${clube.nome}` : 'do seu clube'}</p>
         </div>
         {clube?.meuPapel && <>
           <div className="notification-filters">
             <div className="notification-tabs" role="group" aria-label="Filtrar leitura">
               <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Todas</button>
-              <button type="button" aria-pressed={filter === 'unread'} onClick={() => setFilter('unread')}>Não lidas {data.totalNaoLidas > 0 && <span aria-hidden="true" className="notification-unread-count">{data.totalNaoLidas}</span>}</button>
+              <button type="button" aria-pressed={filter === 'unread'} onClick={() => setFilter('unread')}>Não lidas {unreadCount > 0 && <span aria-hidden="true" className="notification-unread-count">{unreadCount}</span>}</button>
             </div>
             <div className="notification-type">
               <FilterSelect label="Tipo de aviso" value={type} emptyLabel="Todos os tipos"
                 onChange={value => setType(value as NoticeType | '')}
                 options={Object.entries(NOTICE_LABELS).map(([value, label]) => ({ value, label }))}/>
             </div>
+          </div>
+          <div className="notification-read-actions">
+            <button type="button" disabled={busy || loading || !unreadCount} onClick={() => void read()}>
+              <Icon name="checkAll" size={18} />
+              <span>Ler todas</span>
+            </button>
           </div>
           {confirmation && <section className="notification-confirm" role="alert" aria-label="Confirmar limpeza">
             <h3>{confirmation === 'all' ? 'Excluir todos os avisos?' : 'Limpar os avisos lidos?'}</h3>
@@ -236,10 +282,21 @@ export function Notifications() {
           </section>}
         </>}
         {error && <div role="alert" className="notice-error"><p>{error}</p><button type="button" disabled={busy || fetching} onClick={() => void reload.current()}>Tentar novamente</button></div>}
-        <p className="notification-feedback" role="status" aria-live="polite">{busy ? 'Salvando alteração…' : message}</p>
+        <p className="sr-only" role="status" aria-live="polite">{busy ? 'Salvando alteração…' : message}</p>
         {loading ? <div className="notifications-empty" role="status">Carregando notificações…</div>
           : !clube?.meuPapel ? <div className="notifications-empty"><Icon name="bell" size={32} /><h3>Acompanhe este clube</h3><p>Siga o clube para receber seus avisos.</p></div>
-          : groups.length ? <div className="notification-groups">{groups.map(group => <section key={group.label} className="notification-group" aria-label={group.label}><h3>{group.label}</h3><ul className="notification-list">{group.notices.map(notice => <li key={notice.id}><NotificationItem notice={notice} busy={busy} onRead={() => void read(notice)} onDelete={() => void remove(notice)} /></li>)}</ul></section>)}</div>
+          : groups.length ? <div className="notification-groups">{groups.map(group => <section key={group.label} className="notification-group" aria-label={group.label}>
+            <h3>{group.label}</h3>
+            <ul className="notification-list">{group.bundles.map(([notice, ...earlier]) => <li key={notice.id}>
+              <NotificationItem notice={notice} busy={busy} onRead={() => void read(notice)} onDelete={() => queueDelete(notice)} />
+              {earlier.length > 0 && <details className="notification-bundle">
+                <summary>{earlier.length + 1} correções nesta partida<Icon name="chevronRight" size={15} /></summary>
+                <ul className="notification-list">{earlier.map(item => <li key={item.id}>
+                  <NotificationItem notice={item} busy={busy} onRead={() => void read(item)} onDelete={() => queueDelete(item)} />
+                </li>)}</ul>
+              </details>}
+            </li>)}</ul>
+          </section>)}</div>
           : !error && (
             <div className="notifications-empty">
               <Icon name="bell" size={32} />

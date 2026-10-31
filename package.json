@@ -4,6 +4,8 @@
   "version": "0.0.1",
   "packageManager": "pnpm@11.20.0",
   "scripts": {
+    "dev": "concurrently --kill-others --names API,ML,MOBILE,WEB --prefix-colors blue,magenta,green,cyan --handle-input --default-input-target MOBILE \"pnpm dev:api\" \"pnpm dev:ml\" \"pnpm dev:mobile\" \"pnpm dev:web\"",
+    "dev:web": "pnpm --filter @ludora/web run dev",
     "dev:api": "pnpm --filter @ludora/api run start",
     "dev:ml": "cd services/ml && .\\.venv\\Scripts\\python.exe -m uvicorn main:app --reload",
     "dev:desktop": "pnpm --filter @ludora/desktop run dev",
@@ -19,5 +21,8 @@
     "perf:scout": "pnpm --filter @ludora/api exec tsx ../../apps/mobile/tests/scout.bench.ts",
     "test:app": "pnpm --filter @ludora/api exec tsx --test tests/*.test.ts ../../apps/mobile/tests/*.test.ts",
     "test:app:completo": "pnpm --filter @ludora/api run build && pnpm --filter @ludora/api exec tsx --test tests/*.test.ts tests/*.test.cjs tests/*.test.mjs ../../apps/mobile/tests/*.test.ts ../../apps/web/tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

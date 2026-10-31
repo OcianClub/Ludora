@@ -9,6 +9,7 @@ import { Icon } from '../components/Icon';
 import { InfoNotice } from '../components/InfoNotice';
 import { MatchDateField, MatchTimeField } from '../components/MatchDateTime';
 import { formatMatchDate } from '../components/MatchCard';
+import { Toast } from '../components/Toast';
 import './SharedMatches.css';
 
 export default function SolicitacoesPartidas() {
@@ -62,7 +63,7 @@ export default function SolicitacoesPartidas() {
   return <div className="shared-matches-page">
     <header className="page-header"><div><h1 className="page-title">Solicitações de partidas</h1><p className="page-sub">Combine os confrontos e acompanhe as respostas dos clubes.</p></div><Link className="btn btn-ghost btn-md" to="/partidas"><Icon name="chevronLeft" size={18}/>Voltar às partidas</Link></header>
     <div className="shared-status-tabs" role="group" aria-label="Filtrar solicitações">{[['PENDENTE', 'Pendentes'], ['', 'Todas']].map(([v, l]) => <button key={l} aria-pressed={filtro === v} onClick={() => setFiltro(v)}>{l}</button>)}</div>
-    {notice && <p role="status" className="match-notice">{notice}</p>}
+    <Toast message={notice} onClose={() => setNotice('')}/>
     {!selected && error && <p role="alert" className="notice-error">{error}<button onClick={() => void refresh()}>Tentar novamente</button></p>}
     {loading ? <Spinner/> : <div className="shared-proposal-list">{items.filter(p => !filtro || p.status === filtro).map(p => {
       const recebida = p.respondente_id === clube?.id;

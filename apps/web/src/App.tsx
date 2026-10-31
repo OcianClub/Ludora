@@ -1,24 +1,8 @@
+import { Page, preloadPage, LoginPage, RegistrarPage, SelecionarClubePage, DashboardPage, JogadoresPage, JogadorPerfil, ClubePerfil, TimesPage, SolicitacoesPartidas, PartidasPage, PartidaDetalhePage, CompeticoesPage, ElencoPage, PerfilPage, MembrosPage, RecuperarSenhaPage, ConvitePage } from './routePages';
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
-import LoginPage from './pages/Login';
-import RegistrarPage from './pages/Registrar';
-import SelecionarClubePage from './pages/SelecionarClube';
-import DashboardPage from './pages/Dashboard';
-import JogadoresPage from './pages/Jogadores';
-import JogadorPerfil from './pages/JogadorPerfil';
-import ClubePerfil from './pages/ClubePerfil';
-import TimesPage from './pages/Times';
-import SolicitacoesPartidas from './pages/SolicitacoesPartidas';
-import PartidasPage from './pages/Partidas';
-import PartidaDetalhePage from './pages/PartidaDetalhe';
-import CompeticoesPage from './pages/Competicoes';
-import ElencoPage from './pages/Elenco';
-import PerfilPage from './pages/Perfil';
-import MembrosPage from './pages/Membros';
-import RecuperarSenhaPage from './pages/RecuperarSenha';
-import ConvitePage from './pages/Convite';
 import { TooltipLayer } from './components/Tooltip';
 
 function Protegida({ children }: { children: React.ReactNode }) {
@@ -31,6 +15,18 @@ function Protegida({ children }: { children: React.ReactNode }) {
 
 function RouteNavigation() {
   const { pathname } = useLocation();
+  useEffect(() => {
+    const preload = (event: Event) => {
+      const link = (event.target as Element)?.closest<HTMLAnchorElement>('a[href]');
+      if (link?.origin === window.location.origin) preloadPage(link.pathname);
+    };
+    document.addEventListener('pointerover', preload);
+    document.addEventListener('focusin', preload);
+    return () => {
+      document.removeEventListener('pointerover', preload);
+      document.removeEventListener('focusin', preload);
+    };
+  }, []);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -55,29 +51,29 @@ export default function App() {
         <RouteNavigation />
         <TooltipLayer />
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/registrar" element={<RegistrarPage />} />
-          <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
-          <Route path="/convite" element={<ConvitePage />} />
-          <Route path="/convite/token/:codigo" element={<ConvitePage />} />
-          <Route path="/convite/:codigo" element={<ConvitePage />} />
-          <Route path="/selecionar-clube" element={<SoToken><SelecionarClubePage /></SoToken>} />
+          <Route path="/login" element={<Page><LoginPage /></Page>} />
+          <Route path="/registrar" element={<Page><RegistrarPage /></Page>} />
+          <Route path="/recuperar-senha" element={<Page><RecuperarSenhaPage /></Page>} />
+          <Route path="/convite" element={<Page><ConvitePage /></Page>} />
+          <Route path="/convite/token/:codigo" element={<Page><ConvitePage /></Page>} />
+          <Route path="/convite/:codigo" element={<Page><ConvitePage /></Page>} />
+          <Route path="/selecionar-clube" element={<SoToken><Page><SelecionarClubePage /></Page></SoToken>} />
           <Route element={<Protegida><Layout /></Protegida>}>
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/jogadores" element={<JogadoresPage />} />
-            <Route path="/jogadores/:id" element={<JogadorPerfil />} />
-            <Route path="/jogadores/:id/partidas" element={<JogadorPerfil history="partidas" />} />
-            <Route path="/jogadores/:id/campeonatos" element={<JogadorPerfil history="campeonatos" />} />
-            <Route path="/clube" element={<ClubePerfil />} />
-            <Route path="/elenco" element={<ElencoPage />} />
-            <Route path="/times" element={<TimesPage />} />
-            <Route path="/partidas" element={<PartidasPage />} />
-            <Route path="/partidas/solicitacoes" element={<SolicitacoesPartidas />} />
-            <Route path="/partidas/:id" element={<PartidaDetalhePage />} />
-            <Route path="/competicoes" element={<CompeticoesPage />} />
-            <Route path="/perfil" element={<PerfilPage />} />
-            <Route path="/membros" element={<MembrosPage />} />
+            <Route path="/dashboard" element={<Page><DashboardPage /></Page>} />
+            <Route path="/jogadores" element={<Page><JogadoresPage /></Page>} />
+            <Route path="/jogadores/:id" element={<Page><JogadorPerfil /></Page>} />
+            <Route path="/jogadores/:id/partidas" element={<Page><JogadorPerfil history="partidas" /></Page>} />
+            <Route path="/jogadores/:id/campeonatos" element={<Page><JogadorPerfil history="campeonatos" /></Page>} />
+            <Route path="/clube" element={<Page><ClubePerfil /></Page>} />
+            <Route path="/elenco" element={<Page><ElencoPage /></Page>} />
+            <Route path="/times" element={<Page><TimesPage /></Page>} />
+            <Route path="/partidas" element={<Page><PartidasPage /></Page>} />
+            <Route path="/partidas/solicitacoes" element={<Page><SolicitacoesPartidas /></Page>} />
+            <Route path="/partidas/:id" element={<Page><PartidaDetalhePage /></Page>} />
+            <Route path="/competicoes" element={<Page><CompeticoesPage /></Page>} />
+            <Route path="/perfil" element={<Page><PerfilPage /></Page>} />
+            <Route path="/membros" element={<Page><MembrosPage /></Page>} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

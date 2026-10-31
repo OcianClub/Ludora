@@ -34,6 +34,7 @@ type CategoryRows = { items: Jogador[]; loading: boolean; error: string };
 export default function JogadoresPage() {
   const { podeGerenciar, clube } = useAuth();
   const [params, setParams] = useSearchParams();
+  const debouncedSearch = useRef('');
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,6 +207,8 @@ export default function JogadoresPage() {
     const controller = new AbortController();
     setLoading(true);
     setErroLista('');
+    const searchChanged = debouncedSearch.current !== busca;
+    debouncedSearch.current = busca;
     const timer = setTimeout(() => Promise.all([
       requestJson<typeof counts>(`/jogadores?resumo=true&${baseQuery}`, { signal: controller.signal }),
       listView || !categoryFilter ? Promise.resolve([] as Jogador[]) : requestJson<Jogador[]>(`/jogadores?${query}&limite=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`, { signal: controller.signal }),
@@ -220,7 +223,7 @@ export default function JogadoresPage() {
         if (!listView && categoryFilter) cacheTableRows(`${categoryFilter}:${page}`, players);
       } })
       .catch(err => { if (ativo) setErroLista(err instanceof Error ? err.message : 'Não foi possível carregar os jogadores.'); })
-      .finally(() => { if (ativo) setLoading(false); }), 200);
+      .finally(() => { if (ativo) setLoading(false); }), searchChanged ? 200 : 0);
     return () => { ativo = false; clearTimeout(timer); controller.abort(); };
   }, [clube?.id, versao, query, page, listView, baseQuery, tableScope]);
 

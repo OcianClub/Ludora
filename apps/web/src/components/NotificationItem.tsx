@@ -1,6 +1,6 @@
 import { useEffect, useRef, type PointerEvent } from 'react';
 import { Icon } from './Icon';
-import { NOTICE_LABELS, type Notice } from '../utils/notifications';
+import { formatNoticeBody, formatNoticeTime, noticePresentation, type Notice } from '../utils/notifications';
 
 export function NotificationItem({ notice, busy, onRead, onDelete }: {
   notice: Notice;
@@ -13,6 +13,8 @@ export function NotificationItem({ notice, busy, onRead, onDelete }: {
   const suppressed = useRef(false);
   const frame = useRef<number | null>(null);
   const distance = useRef(0);
+  const presentation = noticePresentation(notice);
+  const body = formatNoticeBody(notice.corpo);
 
   useEffect(() => () => { if (frame.current !== null) cancelAnimationFrame(frame.current); }, []);
 
@@ -68,18 +70,18 @@ export function NotificationItem({ notice, busy, onRead, onDelete }: {
         onLostPointerCapture={event => { if (event.target === event.currentTarget && drag.current) { suppressed.current = drag.current.horizontal; drag.current = null; reset(); } }}
         onClickCapture={event => { if (suppressed.current) { event.preventDefault(); event.stopPropagation(); suppressed.current = false; } }}>
         <button type="button" className={`notification-row${notice.lida ? '' : ' unread'}`} disabled={busy}
-          aria-label={`${notice.lida ? 'Lida' : 'Não lida'}. ${notice.titulo}. ${notice.corpo}. ${notice.dados?.solicitacaoId ? 'Ver solicitação' : notice.partida_id ? 'Ver partida' : 'Marcar como lida'}`}
+          aria-label={`${notice.lida ? 'Lida' : 'Não lida'}. ${notice.titulo}. ${body}. ${notice.dados?.solicitacaoId ? 'Ver solicitação' : notice.partida_id ? 'Ver partida' : 'Marcar como lida'}`}
           onClick={onRead}>
           <span className="notification-kind-icon" aria-hidden="true">
-            <Icon name={notice.dados?.solicitacaoId ? 'email' : notice.tipo === 'GOL_PARTIDA' ? 'ball' : notice.tipo === 'PARTIDA_AGENDADA' ? 'calendar' : notice.tipo === 'RESULTADO_PARTIDA' ? 'trophy' : 'bell'} size={20} />
+            <Icon name={presentation.icon} size={20} />
           </span>
           <span className="notification-copy">
             <span className="notification-meta">
               {!notice.lida && <i className="notice-unread-dot" aria-hidden="true" />}
-              <span>{notice.dados?.solicitacaoId ? 'Solicitação' : notice.tipo ? NOTICE_LABELS[notice.tipo] || 'Atualização' : 'Atualização'}</span>
-              <time dateTime={notice.criada_em}>{new Date(notice.criada_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time>
+              <span>{presentation.label}</span>
+              <time dateTime={notice.criada_em} title={new Date(notice.criada_em).toLocaleString('pt-BR')}>{formatNoticeTime(notice.criada_em)}</time>
             </span>
-            <strong>{notice.titulo}</strong><span className="notification-body">{notice.corpo}</span>
+            <strong>{notice.titulo}</strong><span className="notification-body">{body}</span>
           </span>
         </button>
         <button type="button" className="notification-delete" aria-label={`Excluir notificação: ${notice.titulo}`} title="Excluir notificação" disabled={busy} onClick={onDelete}><Icon name="trash" size={19} /></button>

@@ -1,10 +1,10 @@
 .alunos-page {
   min-width: 0;
   max-width: 100%;
-  --alunos-surface: color-mix(in srgb, var(--fundo-card) 86%, var(--fundo));
-  --alunos-row-hover: color-mix(in srgb, var(--alunos-surface) 94%, var(--texto) 6%);
-  --alunos-header: color-mix(in srgb, var(--fundo-card) 80%, var(--fundo-card-sec));
-  --alunos-separator: color-mix(in srgb, var(--borda) 70%, var(--linha));
+  --alunos-surface: var(--table-surface);
+  --alunos-row-hover: var(--table-row-hover);
+  --alunos-header: var(--table-header);
+  --alunos-separator: var(--table-separator);
 }
 
 .alunos-page .home-swipe-surface {

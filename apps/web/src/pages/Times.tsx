@@ -1,3 +1,4 @@
+import { cachedJson } from '../services/api';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ClubBadge } from '../components/Brand';
@@ -29,9 +30,9 @@ export default function TimesPage() {
   const [params, setParams] = useSearchParams();
   const epoch = useRef(0);
   const saving = useRef(false);
-  const [times, setTimes] = useState<Time[]>([]);
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [times, setTimes] = useState<Time[]>(() => cachedJson<Time[]>('/times?incluir_arquivados=true') || []);
+  const [categorias, setCategorias] = useState<Categoria[]>(() => cachedJson<Categoria[]>('/categorias') || []);
+  const [loading, setLoading] = useState(() => !cachedJson('/times?incluir_arquivados=true') || !cachedJson('/categorias'));
   const [loadError, setLoadError] = useState('');
   const [version, setVersion] = useState(0);
   const [scope, setScope] = useState<Scope>('all');
@@ -116,7 +117,7 @@ export default function TimesPage() {
 
   useEffect(() => {
     const current = ++epoch.current;
-    setLoading(true);
+    setLoading(!cachedJson('/times?incluir_arquivados=true') || !cachedJson('/categorias'));
     setLoadError('');
     setSelected(null);
     setCreate(false);

@@ -4,7 +4,8 @@ import type { HomePartida } from '../services/api';
 import { ClubBadge } from './Brand';
 import { Icon } from './Icon';
 import { teamName } from '../utils/teamIdentity';
-import { dataHome, resultadoPartida } from '../utils/homeDashboard';
+import { acaoHome, dataHome, hojeCalendario, resultadoPartida } from '../utils/homeDashboard';
+import { useAuth } from '../contexts/AuthContext';
 
 export const RESULTADOS = { V: 'Vitória', E: 'Empate', D: 'Derrota' };
 
@@ -19,8 +20,12 @@ function MatchCountdown({ date, time }: { date: string; time?: string | null }) 
   return <p className="home-countdown"><Icon name="clock" size={15} />{minutes >= 1440 ? `Em ${Math.floor(minutes / 1440)} dia(s)` : minutes >= 60 ? `Em ${Math.floor(minutes / 60)}h ${minutes % 60}min` : `Em ${minutes}min`}</p>;
 }
 
-export function HomeMatch({ partida }: { partida: HomePartida }) {
+export function HomeMatch({ partida, manager = false }: { partida: HomePartida; manager?: boolean }) {
+  const { clube } = useAuth();
   const live = partida.status === 'AO_VIVO';
+  const finished = partida.status === 'FINALIZADA';
+  const oldLive = live && partida.data.slice(0, 10) < hojeCalendario();
+  const action = acaoHome(partida, manager, clube?.id);
   return (
     <article className="home-main-match">
       <div className="home-match-top">
@@ -35,15 +40,19 @@ export function HomeMatch({ partida }: { partida: HomePartida }) {
           <ClubBadge src={partida.mandante?.escudo} name={teamName(partida.mandante?.nome || 'Mandante')} size={72} />
           <strong>{teamName(partida.mandante?.nome || 'Mandante')}{partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</strong>
         </div>
-        <div className="home-score" aria-label={live ? `${partida.gols_mandante} a ${partida.gols_visitante}` : 'Contra'}>
-          {live ? <><span>{partida.gols_mandante}</span><i aria-hidden="true">·</i><span>{partida.gols_visitante}</span></> : <span className="home-versus">VS</span>}
+        <div className="home-score" aria-label={live || finished ? `${partida.gols_mandante} a ${partida.gols_visitante}` : 'Contra'}>
+          {live || finished ? <><span>{partida.gols_mandante}</span><i aria-hidden="true">·</i><span>{partida.gols_visitante}</span></> : <span className="home-versus">VS</span>}
         </div>
         <div className={`home-team${!partida.emCasa ? ' is-club' : ''}`}>
           <ClubBadge src={partida.visitante?.escudo} name={teamName(partida.visitante?.nome || 'Visitante')} size={72} />
           <strong>{teamName(partida.visitante?.nome || 'Visitante')}{!partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</strong>
         </div>
       </div>
-      {!live && <MatchCountdown date={partida.data} time={partida.horario} />}
+      {!live && !finished && <MatchCountdown date={partida.data} time={partida.horario} />}
+      {finished && <p className={`home-last-result result-${resultadoPartida(partida)}`}>{RESULTADOS[resultadoPartida(partida)]} · Encerrada</p>}
+      {oldLive && <p className="home-stale-live"><Icon name="info" size={16} /><span>{manager
+        ? `Iniciada em ${dataHome(partida.data)}. Confira se já terminou.`
+        : `Partida de ${dataHome(partida.data)}. O encerramento ainda não foi informado.`}</span></p>}
       <div className="home-match-meta">
         <div><Icon name="calendar" size={20} /><span><small>Data</small><strong>{dataHome(partida.data)}</strong></span></div>
         <div>
@@ -53,7 +62,7 @@ export function HomeMatch({ partida }: { partida: HomePartida }) {
         <p className="home-match-location"><Icon name="location" size={18} />{partida.local || 'Local a definir'}</p>
       </div>
       <Link className="btn btn-primary home-match-cta" to={`/partidas/${partida.id}`}>
-        {live ? 'Acompanhar ao vivo' : 'Ver detalhes da partida'}
+        {action}
         <Icon name={live ? 'live' : 'chevronRight'} size={20} />
       </Link>
     </article>
@@ -68,7 +77,7 @@ export function HomeHistoryTable({ partidas }: { partidas: HomePartida[] }) {
           <tr>
             <th scope="col">Data</th>
             <th scope="col" className="history-competition">Competição</th>
-            <th scope="col">Confronto</th>
+            <th scope="col" className="history-confrontation">Confronto</th>
             <th scope="col" className="history-score-cell">Placar</th>
             <th scope="col">Resultado</th>
             <th scope="col" className="history-venue">Mando</th>
@@ -84,7 +93,7 @@ export function HomeHistoryTable({ partidas }: { partidas: HomePartida[] }) {
               <tr key={partida.id}>
                 <td><time dateTime={partida.data.slice(0, 10)}>{dataHome(partida.data)}</time></td>
                 <td className="history-competition">{partida.competicao?.nome || 'Sem competição informada'}</td>
-                <td>
+                <td className="history-confrontation">
                   <div className="history-table-teams">
                     <span className={partida.emCasa ? 'is-club' : ''}><ClubBadge src={partida.mandante?.escudo} name={home} size={28} /><span title={home}>{home}{partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</span></span>
                     <span className={!partida.emCasa ? 'is-club' : ''}><ClubBadge src={partida.visitante?.escudo} name={away} size={28} /><span title={away}>{away}{!partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</span></span>

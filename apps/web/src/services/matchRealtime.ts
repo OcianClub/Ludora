@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import type { Partida } from './api';
+import { invalidateReadCache } from './readCache';
 
 export type RealtimeState = 'connecting' | 'connected' | 'disconnected' | 'error';
 type ScoreUpdate = Pick<Partida, 'id' | 'gols_mandante' | 'gols_visitante'>;
@@ -17,6 +18,7 @@ interface MatchRealtimeOptions {
 // Os nomes dos eventos e o campo clubeId seguem o contrato da API existente.
 export function subscribeToMatch(options: MatchRealtimeOptions): () => void {
   const { baseUrl, token, clubId, matchId, onScore, onRefresh, onStateChange } = options;
+  const invalidateMatches = () => invalidateReadCache(`${baseUrl.replace(/\/$/, '')}:${token}:${clubId}\n/partidas`);
   const socket = io(baseUrl, {
     auth: { token, clubeId: clubId },
     autoConnect: false,
@@ -30,12 +32,15 @@ export function subscribeToMatch(options: MatchRealtimeOptions): () => void {
   socket.on('connect_error', () => onStateChange('error'));
 
   socket.on('placar_atualizado', (match: ScoreUpdate) => {
+    invalidateMatches();
     if (match.id === matchId) onScore(match);
   });
   socket.on('evento_partida', (event: { partida_id: number }) => {
+    invalidateMatches();
     if (event.partida_id === matchId) onRefresh();
   });
   socket.on('partida_atualizada', (match: {id:number}) => {
+    invalidateMatches();
     if (match.id === matchId) onRefresh();
   });
 

@@ -1,19 +1,26 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { fetchHomePartidas, fetchCategorias, fetchEscalacao, type HomePartida, type Categoria } from '../services/api';
+import { fetchHomePartidas, fetchCategorias, cachedJson, invalidateApiReads, type HomePartida, type Categoria } from '../services/api';
 import { Btn } from '../components/UI';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { useClubCategory } from '../hooks/useClubCategory';
-import { useClubPending } from '../contexts/ClubPendingContext';
+import { HomePending, HomeHighlights, useHomeHighlights } from '../components/HomeOverviewSupport';
 import { HomeHistoryTable, HomeMatch, RESULTADOS } from '../components/HomeMatch';
 import { ClubBadge } from '../components/Brand';
 import { Icon } from '../components/Icon';
 import { useAuth } from '../contexts/AuthContext';
 import { teamName } from '../utils/teamIdentity';
-import { dataHome, hojeCalendario, resumoCategoria, resultadoPartida } from '../utils/homeDashboard';
+import { acaoHome, dataHome, gerenciaCategoria, hojeCalendario, resumoCategoria, resultadoPartida } from '../utils/homeDashboard';
 import './Dashboard.css';
 
 type Snapshot = { clubId: number; matches: HomePartida[]; categories: Categoria[]; updatedAt: Date };
+
+function cachedSnapshot(clubId?: number): Snapshot | null {
+  if (!clubId) return null;
+  const matches = cachedJson<HomePartida[]>(`/partidas/home?hoje=${hojeCalendario()}`);
+  const categories = cachedJson<Categoria[]>('/categorias');
+  return matches && categories ? { clubId, matches, categories: [...categories].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true })), updatedAt: new Date() } : null;
+}
 
 function HomeSkeleton() {
   return (
@@ -28,64 +35,40 @@ function HomeSkeleton() {
   );
 }
 
-function HomePending({ category }: { category: Categoria }) {
-  const data = useClubPending();
-  const { podeGerenciar } = useAuth();
-  if (!podeGerenciar) return null;
-  const missing = data?.missing?.get(category.id) ?? 0;
-  const unassessed = data?.unassessed?.get(category.id) ?? 0;
-  const complete = Boolean(data?.missing && data.unassessed);
-  const total = missing + unassessed;
-  return <section className="home-pending" aria-labelledby="home-pending-title">
-    <div className="home-section-heading"><h2 id="home-pending-title">Pendências</h2><span className="home-category-label">{category.nome.toUpperCase()}</span></div>
-    <div className="home-pending-card">
-      <div className="home-pending-intro">
-        <span className={`home-pending-symbol${complete && !total ? '' : ' is-alert'}`}><Icon name={complete && !total ? 'checkAll' : 'alert'} size={24} /></span>
-        <div><h3>{!data ? 'Consultando a categoria' : complete && !total ? 'Tudo em dia' : 'Atenção à categoria'}</h3><p>Confira os cadastros e as avaliações dos atletas.</p></div>
-      </div>
-      {!data ? <p className="home-inline-empty" role="status">Consultando pendências…</p> : <div className="home-pending-items">
-        <Link to={`/jogadores?categoria=${category.id}&camisa=missing`}>
-          <span className="home-pending-item-icon"><Icon name="shirt" size={21} /></span>
-          <span className="home-pending-item-copy"><strong>Numeração do elenco</strong><small>{data.missing === null ? 'Consulta indisponível. Abrir jogadores.' : missing ? 'Jogadores com camisa ainda não definida' : 'Todos os jogadores com camisa definida'}</small></span>
-          {missing > 0 && <span className="home-pending-count" aria-label={`${missing} jogadores sem camisa`}>{missing}</span>}
-          <Icon name="chevronRight" size={17} />
-        </Link>
-        <Link to={`/elenco?categoria_id=${category.id}&perfil=pending`}>
-          <span className="home-pending-item-icon"><Icon name="radar" size={21} /></span>
-          <span className="home-pending-item-copy"><strong>Avaliações dos atletas</strong><small>{data.unassessed === null ? 'Consulta indisponível. Abrir scout.' : unassessed ? 'Atletas que ainda não têm avaliação' : 'Todos os atletas com avaliação disponível'}</small></span>
-          {unassessed > 0 && <span className="home-pending-count" aria-label={`${unassessed} atletas não avaliados`}>{unassessed}</span>}
-          <Icon name="chevronRight" size={17} />
-        </Link>
-      </div>}
-      <p className="home-pending-note"><Icon name="info" size={16} /><span>{complete && !total ? 'Nenhuma pendência identificada nesta categoria.' : 'Selecione um item para consultar e atualizar os registros.'}</span></p>
-    </div>
-  </section>;
-}
-
-const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, podeGerenciar, starters = null, lineupError = false }: {
+const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, podeGerenciar, refreshKey }: {
   current: Categoria;
   matches: HomePartida[];
   podeGerenciar: boolean;
-  starters?: number | null;
-  lineupError?: boolean | null;
+  refreshKey: number;
 }) {
-  const { principal, aoVivo, historico, totais, seguintes } = useMemo(
+  const { clube } = useAuth();
+  const { principal, aoVivo, historico, totais, seguintes, outrasCategoriasComAgenda } = useMemo(
     () => resumoCategoria(matches, current.nome, hojeCalendario()),
     [matches, current.nome],
   );
-  const preparation = podeGerenciar && principal && !principal.somente_leitura && ['AGENDADA', 'PREPARADA'].includes(principal.status);
-  const hasExtras = aoVivo.length > 1 || preparation;
+  const highlights = useHomeHighlights(current.id, !podeGerenciar, refreshKey);
+  const hasHighlights = !podeGerenciar && (highlights.loading || highlights.error || highlights.leaders.length > 0);
+  const hasExtras = aoVivo.length > 1;
+  const featuredUpcoming = principal && ['AGENDADA', 'PREPARADA'].includes(principal.status);
+  const upcomingDays = useMemo(() => {
+    const days = new Map<string, HomePartida[]>();
+    for (const match of seguintes) {
+      const day = match.data.slice(0, 10);
+      days.set(day, [...(days.get(day) || []), match]);
+    }
+    return [...days.entries()];
+  }, [seguintes]);
   return (
     <div className="home-swipe-content">
-      <div className={`home-focus${podeGerenciar ? '' : ' home-focus-public'}${hasExtras ? ' home-focus-with-extras' : ''}`}>
+      <div className={`home-focus${podeGerenciar ? '' : ' home-focus-public'}${hasExtras ? ' home-focus-with-extras' : ''}${hasHighlights ? ' home-has-highlights' : ''}`}>
         <section className="home-feature">
           <div className="home-section-heading">
-            <h2>{principal?.status === 'AO_VIVO' ? 'Agora em campo' : principal?.data.slice(0, 10) === hojeCalendario() ? 'É dia de jogo' : 'Próxima partida'}</h2>
+            <h2>{principal?.status === 'AO_VIVO' ? 'Agora em campo' : principal?.status === 'FINALIZADA' ? 'Última partida' : principal?.data.slice(0, 10) === hojeCalendario() ? 'É dia de jogo' : 'Próxima partida'}</h2>
             {principal?.status === 'AO_VIVO'
               ? <span className="home-live"><i aria-hidden="true" />Ao vivo</span>
               : <span className="home-category-label">{current.nome.toUpperCase()}</span>}
           </div>
-          {principal ? <HomeMatch partida={principal} /> : (
+          {principal ? <HomeMatch partida={principal} manager={podeGerenciar} /> : (
             <div className="home-empty"><Icon name="calendar" size={30} /><h3>Seu próximo jogo aparece aqui</h3><p>Ainda não há partidas agendadas para o {current.nome.toUpperCase()}.</p><Link className="btn btn-ghost btn-sm" to="/partidas">{podeGerenciar ? 'Abrir agenda e organizar partida' : 'Ver agenda do clube'}</Link></div>
           )}
         </section>
@@ -94,13 +77,6 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
           {aoVivo.length > 1 && <div className="home-extra-live">
             {aoVivo.slice(1, 3).map(match => <Link key={match.id} to={`/partidas/${match.id}`}>Também ao vivo: {teamName(match.mandante?.nome ?? '')} × {teamName(match.visitante?.nome ?? '')}<Icon name="chevronRight" size={16} /></Link>)}
           </div>}
-          {preparation && principal && (
-            <section className="home-preparation">
-              <Icon name="player" size={22} />
-              <div><h3>{starters === 5 ? 'Escalação pronta para revisar' : 'Prepare sua equipe'}</h3><p>{lineupError ? 'Não foi possível consultar a escalação.' : starters === null ? 'Consultando titulares…' : `${starters} de 5 titulares definidos`}</p></div>
-              <Link to={`/partidas/${principal.id}`}>{starters === 5 ? 'Revisar' : 'Preparar'}<Icon name="chevronRight" size={16} /></Link>
-            </section>
-          )}
         </div>}
 
         <section className="home-moment" aria-labelledby="home-moment-title">
@@ -111,9 +87,10 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
               <div className="moment-results">
                 {[...historico].reverse().map((match, index) => (
                   <Link key={match.id} className={`moment-result result-${resultadoPartida(match)}`}
-                    to={`/partidas/${match.id}`} title={`${RESULTADOS[resultadoPartida(match)]} · ${match.gols_mandante} a ${match.gols_visitante}`}
-                    aria-label={`${RESULTADOS[resultadoPartida(match)]} em ${dataHome(match.data, true)}, ver partida`}>
+                    to={`/partidas/${match.id}`} title={`${teamName(match.mandante?.nome || 'Mandante')} ${match.gols_mandante} × ${match.gols_visitante} ${teamName(match.visitante?.nome || 'Visitante')} · ${dataHome(match.data)}`}
+                    aria-label={`${RESULTADOS[resultadoPartida(match)]}: ${teamName(match.mandante?.nome || 'Mandante')} ${match.gols_mandante} a ${match.gols_visitante} ${teamName(match.visitante?.nome || 'Visitante')}, ${dataHome(match.data, true)}. Ver partida`}>
                     <strong>{resultadoPartida(match)}</strong>
+                    <span className="moment-result-detail" aria-hidden="true">{teamName(match.emCasa ? match.visitante?.nome || 'Adversário' : match.mandante?.nome || 'Adversário')}<b>{match.gols_mandante} × {match.gols_visitante}</b></span>
                     <small className={index === historico.length - 1 ? 'is-latest' : ''}>{dataHome(match.data)}</small>
                   </Link>
                 ))}
@@ -131,22 +108,32 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
           <div className="home-upcoming-card">
             <p className="home-section-copy">Próximos compromissos do {current.nome.toUpperCase()}</p>
             {seguintes.length ? <div className="home-upcoming-list">
-              {[...new Map(seguintes.map(match => [match.data.slice(0, 10), seguintes.filter(item => item.data.slice(0, 10) === match.data.slice(0, 10))])).entries()].map(([day, games]) => <div className="home-upcoming-day" key={day}>
-                <h3><Icon name="calendar" size={16} />{day === hojeCalendario() ? 'Hoje · ' : ''}{dataHome(day)}</h3>
+              {upcomingDays.map(([day, games]) => <div className="home-upcoming-day" key={day}>
+                <h3><Icon name="calendar" size={16} /><time dateTime={day}>{day === hojeCalendario() ? 'Hoje · ' : ''}{dataHome(day)}</time></h3>
                 {games.map(match => {
                   const opponent = match.emCasa ? match.visitante : match.mandante;
-                  return <Link key={match.id} to={`/partidas/${match.id}`}>
-                    <time><Icon name="clock" size={14} />{match.horario || 'A definir'}</time>
+                  return <Link key={match.id} className="home-upcoming-match" to={`/partidas/${match.id}`}
+                    aria-label={`${dataHome(day, true)}, ${match.horario || 'horário a definir'}: contra ${teamName(opponent?.nome || 'Adversário')}. ${acaoHome(match, podeGerenciar, clube?.id)}`}>
+                    <time className="home-upcoming-time" dateTime={match.horario ? `${day}T${match.horario}` : day}><Icon name="clock" size={14} />{match.horario || 'A definir'}</time>
                     <ClubBadge src={opponent?.escudo} name={teamName(opponent?.nome || 'Adversário')} size={34} />
-                    <span><strong>{teamName(opponent?.nome || 'Adversário')}</strong><small><Icon name={match.emCasa ? 'home' : 'bus'} size={13} />{match.emCasa ? 'Em casa' : 'Fora de casa'}</small></span>
-                    <Icon name="chevronRight" size={16} />
+                    <span className="home-upcoming-opponent"><strong title={teamName(opponent?.nome || 'Adversário')}>{teamName(opponent?.nome || 'Adversário')}</strong><small><Icon name={match.emCasa ? 'home' : 'bus'} size={13} />{match.emCasa ? 'Em casa' : 'Fora'}<i aria-hidden="true">·</i>{podeGerenciar ? match.minha_equipe_pronta ? 'Equipe confirmada' : match.status === 'PREPARADA' ? 'Preparada' : 'Agendada' : match.local || 'Local a definir'}</small></span>
+                    <span className="home-upcoming-action"><span>{podeGerenciar ? acaoHome(match, true, clube?.id).replace(' da partida', '') : 'Ver jogo'}</span><Icon name="chevronRight" size={16} /></span>
                   </Link>;
                 })}
               </div>)}
-            </div> : <p className="home-inline-empty">Sem outros compromissos marcados para esta categoria.</p>}
+            </div> : <div className="home-upcoming-empty">
+              <Icon name="calendar" size={25} />
+              <h3>{featuredUpcoming ? 'A próxima partida está em destaque acima' : `Nenhuma partida futura no ${current.nome.toUpperCase()}`}</h3>
+              <p>{featuredUpcoming
+                ? 'Depois dela, não há outros compromissos marcados nesta categoria.'
+                : outrasCategoriasComAgenda.length
+                  ? `Há jogos agendados em ${outrasCategoriasComAgenda.join(', ')}. Troque a categoria para consultar.`
+                  : 'Os próximos jogos desta categoria aparecerão aqui.'}</p>
+            </div>}
           </div>
         </section>
-        {podeGerenciar && <HomePending category={current} />}
+        {podeGerenciar && <HomePending category={current} matches={[...(principal ? [principal] : []), ...seguintes, ...historico].filter((match, index, rows) => rows.findIndex(row => row.id === match.id) === index)} refreshKey={refreshKey} />}
+        {hasHighlights && <HomeHighlights category={current} highlights={highlights} />}
       </div>
 
       <section className="home-history">
@@ -161,14 +148,13 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
 });
 
 export default function DashboardPage() {
-  const { clube, podeGerenciar } = useAuth();
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const { clube } = useAuth();
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(() => cachedSnapshot(clube?.id));
   const [params, setParams] = useSearchParams();
   const { phase, selected: current } = useClubCategory(snapshot && snapshot.clubId === clube?.id ? snapshot.categories : [], params.get('categoria_id'), params.get('fase'));
   const [pending, setPending] = useState(true);
   const [failure, setFailure] = useState<{ clubId: number; message: string } | null>(null);
   const [version, setVersion] = useState(0);
-  const [lineup, setLineup] = useState<{ matchId: number; count: number | null; error: boolean } | null>(null);
   const data = snapshot?.clubId === clube?.id ? snapshot : null;
   const error = failure && failure.clubId === clube?.id ? failure.message : '';
 
@@ -219,27 +205,10 @@ export default function DashboardPage() {
   }, [clube?.id, version]);
 
   const available = data?.categories.filter(item => item.tipo === phase) ?? [];
-  const summary = useMemo(
-    () => resumoCategoria(data?.matches ?? [], current?.nome ?? '', hojeCalendario()),
-    [data, current?.nome],
-  );
-  const { principal } = summary;
-  const preparation = podeGerenciar && principal && !principal.somente_leitura && ['AGENDADA', 'PREPARADA'].includes(principal.status);
-  const starters = lineup && lineup.matchId === principal?.id ? lineup.count : null;
-  const lineupError = lineup && lineup.matchId === principal?.id && lineup.error;
-
-  useEffect(() => {
-    let active = true;
-    setLineup(null);
-    if (!preparation || !principal) return;
-    const matchId = principal.id;
-    fetchEscalacao(matchId)
-      .then(rows => { if (active) setLineup({ matchId, count: rows.filter(row => row.titular).length, error: false }); })
-      .catch(() => { if (active) setLineup({ matchId, count: null, error: true }); });
-    return () => { active = false; };
-  }, [preparation, principal?.id, clube?.id, version]);
+  const podeGerenciar = Boolean(current && gerenciaCategoria(clube, current));
 
   function retry() {
+    invalidateApiReads();
     setVersion(previous => previous + 1);
   }
 
@@ -261,7 +230,7 @@ export default function DashboardPage() {
         <section className="home-empty"><Icon name="team" size={28} /><h2>Nenhuma categoria nesta fase</h2><p>Selecione outra fase para consultar as equipes do clube.</p></section>
       ) : null}
 
-      {data && current && <HomeCategoryPanel current={current} matches={data.matches} podeGerenciar={podeGerenciar} starters={starters} lineupError={Boolean(lineupError)} />}
+      {data && current && <HomeCategoryPanel current={current} matches={data.matches} podeGerenciar={podeGerenciar} refreshKey={data.updatedAt.getTime()} />}
     </div>
   );
 }

@@ -31,7 +31,7 @@ export function grupoSituacao(status: string) {
 export function ordenarAgenda(matches: Partida[], porCategoria = false, historico = false) {
   return [...matches].sort((a, b) => {
     const category = porCategoria ? (a.categoria?.nome || '').localeCompare(b.categoria?.nome || '', 'pt-BR', { numeric: true }) : 0;
-    const time = `${a.data.slice(0, 10)} ${a.horario || '23:59'}`.localeCompare(`${b.data.slice(0, 10)} ${b.horario || '23:59'}`);
+    const time = `${a.data.slice(0, 10)} ${(a.horario || '23:59').padStart(5, '0')}`.localeCompare(`${b.data.slice(0, 10)} ${(b.horario || '23:59').padStart(5, '0')}`);
     return category || (historico ? -time : time) || a.id - b.id;
   });
 }

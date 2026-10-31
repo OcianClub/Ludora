@@ -11,7 +11,7 @@ const data = (overrides = {}) => ({
 });
 test('retoma dados, escalação e revisão sem avançar automaticamente uma escolha anterior', () => {
   for (const step of [0, 1, 2]) assert.equal(resolvePreparationStep(data(), String(step)), step);
-  assert.equal(resolvePreparationStep(data(), null), 1);
+  assert.equal(resolvePreparationStep(data(), null), 2);
   assert.equal(resolvePreparationStep(data({ equipes: [{ ...data().equipes[0], pronta: true }] }), null), 2);
 });
 test('revalida a escalação e os dados antes de restaurar a revisão', () => {

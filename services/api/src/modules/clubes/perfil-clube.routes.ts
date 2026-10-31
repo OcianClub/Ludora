@@ -12,7 +12,8 @@ router.get('/clube/perfil', exigirClubePublico, async (req,res) => {
 router.patch('/clube/perfil', exigirGestorDoClube, async (req,res) => {
   if ((req as any).papelUsuario !== 'ADMIN') return res.status(403).json({ error:'Somente o administrador do clube pode editar a sede.' });
   const { nome, escudo, endereco } = req.body;
-  if (typeof nome !== 'string' || !nome.trim() || nome.length > 120 || /\p{Extended_Pictographic}/u.test(nome) || !fotoValida(escudo)) return res.status(400).json({ error:'Nome ou escudo inválido.' });
+  if (typeof nome !== 'string' || !nome.trim() || nome.length > 120 || /\p{Extended_Pictographic}/u.test(nome)) return res.status(400).json({ error:'Informe um nome de até 120 caracteres, sem emojis.' });
+  if (!fotoValida(escudo)) return res.status(400).json({ error:'Use um escudo PNG, JPG ou WebP válido ou um link HTTPS.' });
   let address;
   try { address = lerEndereco(endereco); } catch(error) { return res.status(400).json({ error:(error as Error).message }); }
   try {

@@ -15,14 +15,15 @@ export function ClubPendingProvider({ children }: { children: ReactNode }) {
     const clubId = clube.id;
     let active = true;
     let running = false;
+    let controller: AbortController | null = null;
     async function refresh(event?: Event) {
       if (running) return;
       running = true;
-      const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), 15_000);
+      controller = new AbortController();
+      const timer = window.setTimeout(() => controller?.abort(), 15_000);
       const [shirts, profiles] = await Promise.allSettled([
         requestJson<{ categoria_id: number; semCamisa: number }[]>('/jogadores?resumo=true', { signal: controller.signal }),
-        loadClubProfiles(Boolean(event)),
+        loadClubProfiles(Boolean(event), controller.signal),
       ]);
       clearTimeout(timer);
       if (active) {
@@ -36,7 +37,7 @@ export function ClubPendingProvider({ children }: { children: ReactNode }) {
     }
     void refresh();
     window.addEventListener('ludora:players-changed', refresh);
-    return () => { active = false; window.removeEventListener('ludora:players-changed', refresh); };
+    return () => { active = false; controller?.abort(); window.removeEventListener('ludora:players-changed', refresh); };
   }, [clube?.id, podeGerenciar]);
   return <Context.Provider value={data?.clubId === clube?.id ? data : null}>{children}</Context.Provider>;
 }

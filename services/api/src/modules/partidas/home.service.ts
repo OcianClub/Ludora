@@ -23,6 +23,12 @@ type PartidaDaHome = Pick<
 > & {
   clube_origem_id: number;
   somente_leitura: boolean;
+  organizador_id: number | null;
+  sumula_clube_id: number | null;
+  minha_equipe_pronta: boolean | null;
+  titulares_definidos: number;
+  titulares_necessarios: number;
+  gols_sem_autor: number;
   mandante: IdentidadeTime;
   visitante: IdentidadeTime;
   categoria: Pick<Categoria, 'id' | 'nome' | 'tipo' | 'clube_id'>;
@@ -78,6 +84,20 @@ export async function consultarHome(
     )
     SELECT p.id, p.data, p.horario, p.local, p.status,
       p.gols_mandante, p.gols_visitante, p.rodada, p.grupo, p.competicao_id,
+      p.organizador_id, p.sumula_clube_id, p.titulares_necessarios,
+      equipe.pronta AS minha_equipe_pronta,
+      (SELECT COUNT(*)::int FROM "EscalacaoPartida" e
+        WHERE e.partida_id = p.id AND e.titular
+          AND e.time_id = COALESCE(equipe.time_id,
+            CASE WHEN c.clube_id = ${clubeId} THEN
+              CASE WHEN p."emCasa" THEN p.mandante_id ELSE p.visitante_id END END)
+      ) AS titulares_definidos,
+      (SELECT COUNT(*)::int FROM "Evento" ev
+        JOIN "Time" et ON et.id = ev.time_id
+        WHERE ev.partida_id = p.id AND ev.tipo = 'GOL'
+          AND ev.jogador_id IS NULL AND NOT ev.gol_contra
+          AND et.clube_representado_id IS NOT NULL
+      ) AS gols_sem_autor,
       c.clube_id AS clube_origem_id, (c.clube_id <> ${clubeId}) AS somente_leitura,
       CASE WHEN c.clube_id = ${clubeId} THEN p."emCasa"
         ELSE COALESCE(m.clube_representado_id = ${clubeId}, false) END AS "emCasa",
@@ -98,6 +118,8 @@ export async function consultarHome(
     LEFT JOIN "Clube" cm ON cm.id = m.clube_representado_id
     LEFT JOIN "Clube" cv ON cv.id = v.clube_representado_id
     LEFT JOIN "Competicao" co ON co.id = p.competicao_id
+    LEFT JOIN "ParticipantePartida" equipe ON equipe.partida_id = p.id
+      AND equipe.clube_id = ${clubeId}
     ORDER BY p.data ASC, p.id ASC
   `);
 }

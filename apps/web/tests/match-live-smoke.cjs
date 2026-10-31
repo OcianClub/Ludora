@@ -1,0 +1,340 @@
+const assert = require('node:assert/strict');
+const { chromium } = require('playwright');
+const fs = require('node:fs');
+const path = require('node:path');
+const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5187';
+const output = path.resolve(__dirname, '../../../test-results/match-live');
+fs.mkdirSync(output, { recursive: true });
+(async () => {
+  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  try {
+    for (const width of [320, 360, 820, 1440]) for (const theme of ['dark', 'light']) {
+      const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: width === 1440 && theme === 'dark' ? 'no-preference' : 'reduce' });
+      await context.addInitScript(theme => {
+        localStorage.setItem('ludora_token', 'test'); localStorage.setItem('ludora_tema', theme);
+        localStorage.setItem('ludora_usuario', JSON.stringify({ id: 1, nome: 'Alex' }));
+        localStorage.setItem('ludora_clube', JSON.stringify({ id: 2, nome: 'Ocian', meuPapel: 'ADMIN' })); localStorage.setItem('ludora_clube_id', '2');
+      }, theme);
+      const page = await context.newPage(), errors = [];
+      page.on('pageerror', error => errors.push(error.message));
+      await page.route('**/*', route => new URL(route.request().url()).origin === new URL(base).origin ? route.continue() : route.abort());
+      await require('./visual-fixture.cjs').install(page);
+      const players = [101, 102, 103, 104, 105, 106].map((id, i) => ({ jogador_id: id, numCamisa: i + 1, titular: i < 5, time_id: 13, ordem: i, jogador: { nome: `Atleta Ocian ${i + 1}`, posicao: 'Fixo' } }));
+      const opponent = players.map((player, i) => ({ ...player, jogador_id: player.jogador_id + 100, time_id: 14, jogador: { nome: `Atleta Santos ${i + 1}`, posicao: 'Alas' } }));
+      opponent[1].jogador.nome = 'Atleta Santos com nome e sobrenome extremamente longos para validar truncamento';
+      let external = false, operator = true, readyPending = false, failReply = width === 1440 && theme === 'dark';
+      let events = [], nextId = 1, posts = 0;
+      const saved = new Map();
+      const p = { id: 106, status: 'AO_VIVO', data: '2026-10-30', horario: '19:30', local: 'Ginásio Ocian', categoria_id: 1, categoria: { id: 1, nome: 'sub-7' }, mandante_id: 13, visitante_id: 14, mandante: { id: 13, nome: 'Ocian' }, visitante: { id: 14, nome: 'Santos' }, gols_mandante: 0, gols_visitante: 0, periodo_atual: 1, versao: 1, sumula_clube_id: 2, titulares_necessarios: 5 };
+      const audit = [
+        { id: 1, acao: 'PARTIDA_CRIADA', criado_em: '2026-10-30T18:00:00Z' },
+        { id: 2, acao: 'EQUIPE_CONFIRMADA', criado_em: '2026-10-30T18:05:00Z' },
+      ];
+      const data = () => ({ partida: p, organizador: { id: 2, nome: 'Ocian' }, podePreparar: operator, podeSumula: operator, minhaEquipeId: 1, auditoria: audit, eventos: events, equipes: [{ id: 1, clube_id: 2, time_id: 13, categoria_id: 1, clube: { id: 2, nome: 'Ocian' }, publicada_em: '2026-10-30', escalacao: players }, ...(!external ? [{ id: 2, clube_id: 3, time_id: 14, categoria_id: 2, clube: { id: 3, nome: 'Santos' }, publicada_em: '2026-10-30', escalacao: opponent }] : [])] });
+      await page.route('**/partidas/106/gestao', route => route.fulfill({ json: data() }));
+      await page.route('**/partidas/106/eventos', async route => {
+        posts++;
+        const body = route.request().postDataJSON();
+        assert.match(body.request_id, /^[a-f0-9-]{36}$/);
+        if (saved.has(body.request_id)) return route.fulfill({ json: saved.get(body.request_id) });
+        const player = [...players, ...opponent].find(player => player.jogador_id === body.jogador_id);
+        const event = { ...body, id: nextId++, periodo: body.periodo || 1, jogador: player?.jogador || null };
+        events.unshift(event); saved.set(body.request_id, event);
+        if (event.tipo === 'GOL') p[event.time_id === 13 ? 'gols_mandante' : 'gols_visitante']++;
+        p.versao++;
+        if (failReply) { failReply = false; return route.abort(); }
+        return route.fulfill({ json: event });
+      });
+      await page.route('**/partidas/106/eventos/*', route => {
+        const event = events.find(event => event.id === Number(new URL(route.request().url()).pathname.split('/').pop()));
+        const body = route.request().postDataJSON();
+        const player = [...players, ...opponent].find(player => player.jogador_id === body.jogador_id);
+        Object.assign(event, { jogador_id: body.jogador_id, jogador: player.jogador }); p.versao++;
+        return route.fulfill({ json: event });
+      });
+      await page.route('**/eventos/*', route => {
+        if (route.request().method() !== 'DELETE') return route.fallback();
+        assert.match(route.request().headers()['content-type'], /application\/json/);
+        const event = events.find(event => event.id === Number(new URL(route.request().url()).pathname.split('/').pop()));
+        assert.ok(route.request().postDataJSON().motivo);
+        if (event.tipo === 'GOL') p[event.time_id === 13 ? 'gols_mandante' : 'gols_visitante']--;
+        events = events.filter(item => item !== event); p.versao++;
+        return route.fulfill({ json: { ok: true } });
+      });
+      await page.route('**/partidas/106/status', route => { p.status = route.request().postDataJSON().status; p.versao++; return route.fulfill({ json: p }); });
+      await page.route('**/partidas/106/local', route => { p.local = route.request().postDataJSON().local; p.versao++; return route.fulfill({ json: {} }); });
+      await page.route('**/partidas/106/periodo', route => { p.periodo_atual = route.request().postDataJSON().periodo; p.versao++; return route.fulfill({ json: {} }); });
+      await page.route('**/partidas/106/substituicoes', route => {
+        const { sai, entra } = route.request().postDataJSON(); players.find(player => player.jogador_id === sai).titular = false; players.find(player => player.jogador_id === entra).titular = true; p.versao++; return route.fulfill({ json: {} });
+      });
+      p.local = width === 320 ? '' : 'Ginásio Ocian com endereço longo para testar o alinhamento';
+      await page.goto(base + '/partidas/106');
+      await page.clock.install();
+      async function publish() {
+        await page.clock.fastForward(5200);
+        if (width === 1440 && theme === 'dark') {
+          await page.waitForFunction(() => !document.querySelector('.live-review-queue') || document.querySelector('.live-review-queue').textContent.includes('Conferir envio'));
+          const retry = page.locator('.live-review-queue').getByRole('button', { name: 'Conferir envio' });
+          if (await retry.count()) {
+            await retry.click();
+            await page.clock.fastForward(1000);
+          }
+        }
+        await page.locator('.live-review-queue').waitFor({ state: 'detached' });
+        await page.locator('.live-timeline-event').first().waitFor();
+      }
+      const add = name => page.getByRole('button', { name: `Registrar gol do ${name}`, exact: true });
+      await page.locator('.live-score-card').waitFor();
+      const badgeStyle = await page.locator('.live-team .club-badge').first().evaluate(node => {
+        const style = getComputedStyle(node);
+        return { border: style.borderWidth, color: style.color, text: getComputedStyle(node.parentElement.querySelector('strong')).color };
+      });
+      assert.equal(badgeStyle.border, '0px', 'Escudo não usa mais borda azul');
+      assert.equal(badgeStyle.color, badgeStyle.text, 'Inicial do clube usa a cor do texto');
+      const auditPanel = page.locator('.live-audit');
+      assert.equal(await auditPanel.getAttribute('open'), null, 'Histórico começa recolhido');
+      assert.match(await auditPanel.locator('summary').innerText(), /equipe confirmada/i);
+      const auditBounds = await auditPanel.locator('summary').boundingBox();
+      const auditChevron = await auditPanel.locator('summary > .icon').last().boundingBox();
+      assert.ok(auditBounds.x + auditBounds.width - auditChevron.x - auditChevron.width <= 2, 'Chevron do histórico alinhado à direita');
+      await auditPanel.locator('summary').focus();
+      await page.keyboard.press('Enter');
+      assert.match(await auditPanel.locator('li').first().innerText(), /equipe confirmada/i, 'Histórico exibe alterações recentes primeiro');
+      await page.keyboard.press('Enter');
+      assert.equal(await page.getByRole('button', { name: 'Definir', exact: true }).count(), 0);
+      const facts = page.locator('.live-score-facts > span');
+      assert.equal(await facts.count(), p.local ? 3 : 2, 'Local ausente não ocupa espaço');
+      if (p.local) {
+        const boxes = await facts.evaluateAll(items => items.map(item => item.getBoundingClientRect().y));
+        assert.ok(Math.max(...boxes) - Math.min(...boxes) <= 1, 'Local, horário e mando ficam na mesma linha');
+      } else {
+        const factsBounds = await page.locator('.live-score-facts').boundingBox();
+        const mandoBounds = await facts.last().boundingBox();
+        assert.ok(Math.abs(factsBounds.x + factsBounds.width - mandoBounds.x - mandoBounds.width) <= 1, 'Sem local, Casa/Fora permanece na extremidade direita');
+        assert.ok(Math.abs(mandoBounds.x - factsBounds.x - factsBounds.width / 2) <= 1, 'Sem local, divisória fica exatamente no centro');
+        const mandoTextRight = await facts.last().evaluate(node => {
+          const range = document.createRange();
+          range.selectNodeContents(node.lastChild);
+          return range.getBoundingClientRect().right;
+        });
+        assert.ok(Math.abs(mandoTextRight - factsBounds.x - factsBounds.width) <= 1, 'Texto de Casa/Fora alinhado à direita');
+      }
+      await add('Ocian').click();
+      await page.getByRole('dialog', { name: 'Quem marcou pelo Ocian?' }).waitFor();
+      assert.equal(p.gols_mandante, 0, 'Abrir modal não altera placar');
+      await page.screenshot({ path: path.join(output, `goal-dialog-${width}-${theme}.png`) });
+      if (width < 761) { const box = await page.getByRole('dialog').boundingBox(); assert.ok(Math.abs(box.x) <= 1 && Math.abs(box.width - width) <= 1 && Math.abs(box.y + box.height - 900) <= 1, `Bottom sheet ocupa toda largura e encosta na base: ${JSON.stringify(box)}`); }
+      await page.keyboard.press('Escape');
+      await page.getByRole('dialog').waitFor({ state: 'detached' });
+      assert.equal(posts, 0);
+      await add('Ocian').click();
+      let dialog = page.getByRole('dialog', { name: 'Quem marcou pelo Ocian?' });
+      await dialog.locator('.live-player-options button').first().click();
+      await dialog.getByRole('button', { name: 'Registrar gol', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' });
+      assert.equal(posts, 0, 'A janela de revisão não envia eventos ao servidor');
+      const progress = page.locator('.live-review-progress > i');
+      assert.match(await page.locator('.live-review-copy small').innerText(), /[0-5]s$/, 'Contador não mostra mais que os 5s de revisão');
+      const progressBounds = await progress.boundingBox();
+      const trackBounds = await page.locator('.live-review-progress').boundingBox();
+      assert.ok(progressBounds.height >= 3 && progressBounds.width > trackBounds.width / 2, 'Barra tem preenchimento visível durante a janela de cancelamento, inclusive com movimento reduzido');
+      assert.equal(await page.locator('.live-review-symbol .icon').count(), 1, 'Popup de gol exibe o ícone de bola');
+      await progress.evaluate(node => {
+        const animation = node.getAnimations()[0];
+        if (!animation) throw new Error('Barra de revisão sem animação');
+        const timing = animation.effect.getTiming();
+        if (timing.duration !== 5000) throw new Error('Contagem deve permanecer visível por 5s, inclusive com movimento reduzido');
+        animation.id = 'event-review';
+        if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          if (timing.duration !== 5000 || timing.easing !== 'linear') throw new Error('Contagem deve durar 5s e ser linear');
+          const originalTime = animation.currentTime;
+          animation.pause();
+          animation.currentTime = 250;
+          const firstScale = new DOMMatrix(getComputedStyle(node).transform).a;
+          animation.currentTime = 500;
+          const secondScale = new DOMMatrix(getComputedStyle(node).transform).a;
+          if (!(secondScale < firstScale && secondScale > 0)) throw new Error('Barra não interpola entre frações de segundo');
+          animation.currentTime = originalTime;
+          animation.play();
+        }
+      });
+      if (theme === 'dark') await page.locator('.live-review-queue').screenshot({ path: path.join(output, `event-review-${width}.png`) });
+      await page.clock.fastForward(2000);
+      assert.equal(await progress.evaluate(node => node.getAnimations()[0].id), 'event-review', 'Atualização do contador não reinicia a animação');
+      assert.equal(posts, 0, 'A contagem regressiva continua sem publicar o evento');
+      await page.getByRole('button', { name: 'Subtrair gol do Ocian', exact: true }).click();
+      assert.equal(await page.locator('.live-review-queue').count(), 0, 'Subtrair cancela gol ainda não publicado');
+      await page.clock.fastForward(6000);
+      assert.equal(posts, 0, 'Cancelar antes da publicação não altera placar nem gera notificações');
+      await add('Ocian').click();
+      dialog = page.getByRole('dialog', { name: 'Quem marcou pelo Ocian?' });
+      await dialog.locator('.live-player-options button').first().click();
+      await dialog.getByRole('button', { name: 'Registrar gol', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' });
+      await publish();
+      assert.equal(p.gols_mandante, 1); assert.equal(events.length, 1, 'Retry não duplica gol');
+      assert.match(await page.locator('.live-timeline-event').innerText(), /Atleta Ocian 1/);
+      await add('Santos').click(); dialog = page.getByRole('dialog', { name: 'Quem marcou pelo Santos?' });
+      await dialog.getByRole('button', { name: 'Registrar sem identificar agora' }).click();
+      await dialog.waitFor({ state: 'detached' });
+      await publish();
+      assert.equal(p.gols_visitante, 1);
+      await page.locator('.live-timeline-event.has-pending').getByRole('button', { name: 'Identificar jogador', exact: true }).click();
+      dialog = page.getByRole('dialog', { name: 'Identificar jogador' });
+      await dialog.locator('.live-player-options button').first().click(); await dialog.getByRole('button', { name: 'Salvar autoria' }).click();
+      await dialog.waitFor({ state: 'detached' }); assert.equal(p.gols_visitante, 1); assert.equal(events.length, 2);
+      await add('Ocian').click(); dialog = page.getByRole('dialog', { name: 'Quem marcou pelo Ocian?' });
+      await dialog.getByRole('button', { name: 'Gol contra do adversário' }).click();
+      assert.equal(await dialog.getByRole('button', { name: 'Registrar gol', exact: true }).isEnabled(), true, 'Gol contra pode ser confirmado sem autoria');
+      await dialog.getByRole('button', { name: 'Registrar gol', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' }); await publish(); assert.equal(events[0].gol_contra, true); assert.equal(events[0].jogador_id, undefined);
+      await page.locator('.live-timeline-event.has-pending').getByRole('button', { name: 'Identificar jogador', exact: true }).click();
+      dialog = page.getByRole('dialog', { name: 'Identificar jogador' });
+      await dialog.locator('.live-player-options button').first().click();
+      await dialog.getByRole('button', { name: 'Salvar autoria', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' });
+      assert.equal(events[0].jogador_id, 201);
+      await page.getByRole('group', { name: 'Escolher equipe', exact: true }).getByRole('button', { name: 'Santos', exact: true }).click();
+      await page.locator('.published-lineups').getByText('Atleta Santos 1', { exact: true }).waitFor();
+      const statsRow = page.locator('.published-lineups .lineup-row').first();
+      const longRow = page.locator('.published-lineups .lineup-row').nth(1);
+      assert.equal((await statsRow.boundingBox()).height, (await longRow.boundingBox()).height, 'Nome longo não aumenta o card');
+      const rowBounds = await statsRow.boundingBox();
+      const counters = await statsRow.locator('.live-player-statistics').boundingBox();
+      assert.ok(counters.width >= 80 && counters.x + counters.width <= rowBounds.x + rowBounds.width, 'Estatísticas visíveis dentro da linha');
+      const lineupSections = await page.locator('.live-lineups .lineup-columns > section').evaluateAll(items => items.map(item => {
+        const { x, y } = item.getBoundingClientRect();
+        return { x, y };
+      }));
+      if (width > 900) assert.ok(Math.abs(lineupSections[0].y - lineupSections[1].y) <= 1 && lineupSections[1].x > lineupSections[0].x, 'Titulares e reservas alinhados lado a lado no desktop');
+      else assert.ok(lineupSections[1].y > lineupSections[0].y, 'No celular e tablet as listas preservam a largura de leitura');
+      assert.match(await page.locator('.live-timeline-event').first().innerText(), /2 - 1/);
+      await page.getByRole('button', { name: 'Subtrair gol do Ocian', exact: true }).click();
+      dialog = page.getByRole('dialog', { name: 'Anular este gol?' }); await dialog.getByLabel('Motivo', { exact: true }).fill('Arbitragem anulou'); await dialog.getByRole('button', { name: 'Anular gol', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' });
+      assert.equal(p.gols_mandante, 2, 'Reversão aguarda a janela de revisão');
+      await page.locator('.live-review-queue').getByRole('button', { name: 'Cancelar', exact: true }).click();
+      await page.clock.fastForward(6000);
+      assert.equal(p.gols_mandante, 2, 'Cancelar a reversão mantém o gol');
+      await page.getByRole('button', { name: 'Subtrair gol do Ocian', exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Anular gol', exact: true }).click();
+      await publish();
+      assert.equal(p.gols_mandante, 1);
+      await page.getByRole('button', { name: 'Desfazer último', exact: true }).click();
+      await page.getByRole('dialog', { name: 'Anular este gol?', exact: true }).waitFor();
+      await page.keyboard.press('Escape');
+      await page.getByRole('button', { name: 'Falta', exact: true }).click();
+      dialog = page.getByRole('dialog', { name: 'Registrar falta', exact: true });
+      await dialog.locator('.live-player-options button').first().click();
+      await dialog.getByRole('button', { name: 'Registrar evento', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' });
+      await publish();
+      assert.equal(await page.locator('.live-foul-label').count(), 0, 'Sem texto redundante abaixo do time');
+      assert.equal(await page.locator('.live-team').first().locator('.live-foul-dots > .is-filled').count(), 1);
+      const eventSnapshot = JSON.stringify(events);
+      await page.getByRole('button', { name: 'Avançar tempo' }).click(); await page.getByText('2º tempo', { exact: true }).first().waitFor();
+      assert.equal(await page.locator('.live-team').first().locator('.live-foul-dots > .is-filled').count(), 0, 'Bolinhas mostram apenas as faltas do tempo selecionado');
+      await page.getByRole('button', { name: 'Voltar tempo' }).click();
+      dialog = page.getByRole('dialog', { name: 'Voltar para o 1º tempo?', exact: true });
+      await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
+      assert.equal(p.periodo_atual, 2, 'Cancelar retorno mantém o tempo atual');
+      await page.getByRole('button', { name: 'Voltar tempo' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Confirmar retorno', exact: true }).click();
+      await page.getByText('1º tempo', { exact: true }).first().waitFor();
+      assert.equal(JSON.stringify(events), eventSnapshot, 'Retornar ao tempo preserva os eventos');
+      assert.equal(await page.locator('.live-team').first().locator('.live-foul-dots > .is-filled').count(), 1, 'Ao voltar o tempo, as bolinhas recuperam as faltas registradas');
+      await page.getByRole('button', { name: 'Fazer substituição' }).click(); dialog = page.getByRole('dialog', { name: 'Fazer substituição', exact: true }); await dialog.waitFor();
+      await dialog.getByRole('group', { name: 'Titulares para sair' }).getByRole('button').first().click();
+      await dialog.getByRole('group', { name: 'Reservas para entrar' }).getByRole('button').first().click();
+      await dialog.getByRole('button', { name: 'Confirmar troca' }).click();
+      await dialog.waitFor({ state: 'detached' });
+      assert.equal(players[0].titular, false); assert.equal(players[5].titular, true);
+      assert.equal(await page.locator('.ludora-toast-action').count(), 0, 'Substituição não oferece reverter um gol anterior');
+      await page.locator('.match-detail-header h1').click();
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await page.screenshot({ path: path.join(output, `live-${width}-${theme}.png`), fullPage: true });
+      await add('Ocian').click(); dialog = page.getByRole('dialog', { name: 'Quem marcou pelo Ocian?' }); await dialog.getByRole('button', { name: 'Registrar sem identificar agora' }).click(); await dialog.waitFor({ state: 'detached' });
+      await publish();
+      await page.getByRole('button', { name: 'Finalizar partida', exact: true }).click();
+      dialog = page.getByRole('dialog', { name: 'Encerrar a partida?' });
+      await dialog.getByText('1 gol sem jogador identificado', { exact: true }).waitFor();
+      assert.equal(await dialog.locator('.club-badge').first().evaluate(node => getComputedStyle(node).borderWidth), '0px', 'Modal de encerrar usa escudos neutros');
+      await dialog.getByRole('button', { name: 'Encerrar com pendência' }).click();
+      await dialog.waitFor({ state: 'detached' });
+      await page.getByRole('heading', { name: 'Resultado da partida' }).waitFor(); assert.equal(await add('Ocian').count(), 0); assert.equal(await page.locator('.live-timeline-event.has-pending').count(), 1);
+      assert.match(await page.locator('.match-result-outcome').innerText(), /Vitória do Ocian/);
+      assert.equal(await page.locator('.live-time-stepper').count(), 0, 'Pós-jogo não mostra controles de tempo');
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Resumo não ultrapassa a largura da tela');
+      await page.screenshot({ path: path.join(output, `result-${width}-${theme}.png`), fullPage: true });
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, 'share', { configurable: true, value: async payload => { window.resultShared = payload; } });
+      });
+      await page.getByRole('button', { name: 'Compartilhar resultado', exact: true }).click();
+      dialog = page.getByRole('dialog', { name: 'Compartilhar resultado', exact: true });
+      const namesSwitch = dialog.getByRole('switch', { name: 'Incluir nomes dos jogadores', exact: true });
+      assert.equal(await namesSwitch.getAttribute('aria-checked'), 'false');
+      assert.doesNotMatch(await dialog.getByLabel('Prévia do compartilhamento').inputValue(), /Atleta Ocian|Atleta Santos/);
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, 'share', { configurable: true, value: async () => { throw new DOMException('Cancelado', 'AbortError'); } });
+      });
+      await dialog.getByRole('button', { name: 'Compartilhar', exact: true }).click();
+      assert.equal(await dialog.getByRole('alert').count(), 0, 'Cancelar no dispositivo não gera erro');
+      assert.equal(await dialog.isVisible(), true, 'Cancelar compartilhamento mantém a prévia');
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, 'share', { configurable: true, value: async payload => { window.resultShared = payload; } });
+      });
+      await namesSwitch.click();
+      assert.match(await dialog.getByLabel('Prévia do compartilhamento').inputValue(), /Atleta Ocian/);
+      await page.screenshot({ path: path.join(output, `share-${width}-${theme}.png`) });
+      await dialog.getByRole('button', { name: 'Compartilhar', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' });
+      assert.match(await page.evaluate(() => window.resultShared.text), /Atleta Ocian/);
+      assert.match(await page.evaluate(() => window.resultShared.url), /\/partidas\/106$/);
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.resultCopied = text; } } });
+      });
+      await page.getByRole('button', { name: 'Compartilhar resultado', exact: true }).click();
+      dialog = page.getByRole('dialog', { name: 'Compartilhar resultado', exact: true });
+      await dialog.getByRole('button', { name: 'Copiar resultado', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' });
+      const copied = await page.evaluate(() => window.resultCopied);
+      assert.match(copied, /Ocian 2 × 1 Santos/);
+      assert.doesNotMatch(copied, /Atleta Ocian|Atleta Santos/, 'Desligar nomes não inclui os autores no texto');
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('Sem permissão'); } } });
+      });
+      await page.getByRole('button', { name: 'Compartilhar resultado', exact: true }).click();
+      dialog = page.getByRole('dialog', { name: 'Compartilhar resultado', exact: true });
+      await dialog.getByRole('button', { name: 'Copiar resultado', exact: true }).click();
+      await dialog.getByRole('alert').getByText('Não foi possível compartilhar. Você pode selecionar e copiar o texto da prévia.', { exact: true }).waitFor();
+      assert.equal(await dialog.getByLabel('Prévia do compartilhamento').isVisible(), true, 'Falha ao copiar mantém o texto acessível');
+      await dialog.getByRole('button', { name: 'Voltar', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' });
+      assert.equal(await page.getByRole('link', { name: 'Ver acontecimentos', exact: true }).count(), 0);
+      await page.getByRole('button', { name: 'Adicionar evento com justificativa' }).click();
+      dialog = page.getByRole('dialog');
+      await dialog.getByRole('combobox', { name: 'Tipo de evento' }).click();
+      await dialog.getByRole('option', { name: 'Falta', exact: true }).click();
+      await dialog.getByRole('group', { name: 'Equipe do evento' }).getByRole('button', { name: 'Santos', exact: true }).click();
+      await dialog.locator('.live-player-options button').first().click();
+      assert.equal(await dialog.getByRole('button', { name: 'Registrar evento', exact: true }).isDisabled(), true);
+      await dialog.getByLabel('Motivo da correção', { exact: true }).fill('Falta registrada na súmula oficial após o encerramento');
+      const scoreBefore = [p.gols_mandante, p.gols_visitante];
+      await dialog.getByRole('button', { name: 'Registrar evento', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' });
+      assert.equal(events[0].tipo, 'FALTA'); assert.equal(events[0].time_id, 14);
+      assert.deepEqual([p.gols_mandante, p.gols_visitante], scoreBefore);
+      p.gols_visitante = p.gols_mandante;
+      await page.reload();
+      await page.getByText('Empate entre as equipes', { exact: true }).waitFor();
+      assert.equal(await page.locator('.match-result .is-winner').count(), 0, 'Empate não destaca vencedor');
+      p.status = 'AO_VIVO'; external = true; p.visitante.nome = 'Externo'; events = []; await page.reload();
+      await add('Externo').click(); await publish(); await page.waitForFunction(() => document.querySelectorAll('.live-timeline-event').length === 1); assert.equal(await page.getByRole('dialog').count(), 0); assert.equal(await page.locator('.live-pending').count(), 0);
+      operator = false; await page.reload(); await page.locator('.live-score-card').waitFor(); assert.equal(await page.locator('.live-goal-add').count(), 0); assert.equal(await page.getByRole('button', { name: 'Finalizar partida', exact: true }).count(), 0);
+      assert.deepEqual(errors, []);
+      console.log(`Live OK ${width}px ${theme}: goals, own goals, pending authors, retry, cancellation, period, result, external and read-only`);
+      await context.close();
+    }
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

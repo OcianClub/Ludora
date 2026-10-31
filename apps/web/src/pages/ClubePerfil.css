@@ -1,0 +1,369 @@
+.club-settings-page {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.club-settings-heading {
+  margin-bottom: 26px;
+}
+
+.club-settings-heading .page-sub {
+  margin-top: 8px;
+}
+
+.club-settings-page form {
+  display: grid;
+  gap: 20px;
+}
+
+.club-settings-section {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--linha);
+  border-radius: 10px;
+  background: var(--fundo-card);
+}
+
+.club-settings-section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.club-settings-section-heading > .icon {
+  margin-top: 2px;
+  color: var(--texto-sec);
+  flex-shrink: 0;
+}
+
+.club-settings-section h2 {
+  font-family: var(--font-corpo);
+  color: var(--texto);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.club-settings-section h2 > span {
+  margin-left: 8px;
+  color: var(--texto-sec);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.club-settings-section-heading p,
+.club-settings-hint {
+  margin-top: 4px;
+  color: var(--texto-sec);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.club-settings-section fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.club-settings-section fieldset:not(.club-address-grid) {
+  display: grid;
+  gap: 20px;
+}
+
+.club-settings-section .field {
+  min-width: 0;
+}
+
+.club-settings-section .field-input {
+  background: var(--fundo);
+}
+
+.club-settings-section .field-input:read-only {
+  cursor: default;
+}
+
+.club-crest-editor {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.club-crest-preview {
+  display: block;
+  flex-shrink: 0;
+}
+
+.club-crest-preview .club-badge {
+  padding: 10px;
+  border: 1px solid var(--linha);
+  border-radius: 12px;
+  background: var(--fundo-card-sec);
+  color: var(--texto);
+  font-size: 32px;
+}
+
+.club-crest-controls {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.club-crest-controls > strong {
+  color: var(--texto);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.club-crest-controls > p,
+.club-crest-file {
+  color: var(--texto-sec);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.club-crest-buttons {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.club-crest-buttons .btn-ghost {
+  color: var(--texto);
+}
+
+.club-settings-text-button {
+  min-height: 36px;
+  padding: 4px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--texto-sec);
+  font-size: 12px;
+}
+
+.club-settings-text-button:hover {
+  color: var(--titulo-erro);
+}
+
+.club-crest-file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.club-crest-link {
+  min-width: 0;
+}
+
+.club-crest-link > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  min-height: 36px;
+  border-radius: 5px;
+  color: var(--texto-sec);
+  font-size: 12px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.club-crest-link > summary::-webkit-details-marker {
+  display: none;
+}
+
+.club-crest-link[open] > summary .icon {
+  transform: rotate(90deg);
+}
+
+.club-crest-link > .field {
+  margin-top: 8px;
+}
+
+.club-crest-link > p {
+  margin-top: 8px;
+  color: var(--texto-sec);
+  font-size: 12px;
+}
+
+.club-address-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 22px;
+  color: var(--texto-sec);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.club-address-note > .icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.club-address-grid {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) 100px;
+  gap: 18px 16px;
+}
+
+.club-address-street {
+  grid-column: 1 / 3;
+}
+
+.club-address-district {
+  grid-column: 1 / 2;
+}
+
+.club-address-extra {
+  grid-column: 2 / 4;
+}
+
+.club-address-state {
+  position: relative;
+}
+
+.club-address-state select {
+  appearance: none;
+  padding-right: 32px;
+}
+
+.club-state-chevron {
+  position: absolute;
+  top: 36px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--texto-sec);
+  pointer-events: none;
+  transform: rotate(90deg);
+}
+
+.club-settings-hint {
+  margin-top: 16px;
+  font-size: 12px;
+}
+
+.club-settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+}
+
+.club-settings-actions > span {
+  color: var(--texto-sec);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.club-settings-save-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--borda-erro);
+  border-radius: 8px;
+  background: var(--fundo-erro);
+  color: var(--titulo-erro);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.club-settings-load-error {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  max-width: 480px;
+  margin: 64px auto;
+  color: var(--texto-sec);
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .club-settings-heading {
+    margin-bottom: 20px;
+  }
+
+  .club-settings-heading .page-title {
+    font-size: 25px;
+  }
+
+  .club-settings-heading .page-sub {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .club-settings-section {
+    padding: 18px 16px;
+  }
+
+  .club-settings-section-heading {
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .club-settings-section h2 {
+    font-size: 15px;
+  }
+
+  .club-settings-section-heading p,
+  .club-address-note {
+    font-size: 12px;
+  }
+
+  .club-crest-editor {
+    gap: 14px;
+  }
+
+  .club-crest-preview .club-badge {
+    width: 72px !important;
+    height: 72px !important;
+    padding: 8px;
+    font-size: 28px;
+  }
+
+  .club-crest-buttons {
+    gap: 8px;
+  }
+
+  .club-crest-buttons .btn {
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+
+  .club-address-grid {
+    grid-template-columns: minmax(0, 1fr) 86px;
+    gap: 16px 12px;
+  }
+
+  .club-address-cep {
+    grid-column: 1 / -1;
+  }
+
+  .club-address-city,
+  .club-address-street {
+    grid-column: 1 / 2;
+  }
+
+  .club-address-district,
+  .club-address-extra {
+    grid-column: 1 / -1;
+  }
+
+  .club-settings-actions {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .club-settings-actions .btn {
+    flex: 1;
+    justify-content: center;
+  }
+}

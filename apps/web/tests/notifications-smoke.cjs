@@ -10,7 +10,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   const errors = [];
   async function setup(width) {
-    const context = await browser.newContext({ viewport: { width, height: 900 }, hasTouch: width < 761, timezoneId: 'America/Sao_Paulo' });
+    const context = await browser.newContext({ viewport: { width, height: 900 }, hasTouch: width < 761, timezoneId: 'America/Sao_Paulo', colorScheme: 'dark' });
     await context.addInitScript(() => {
       localStorage.setItem('ludora_token', 'visual-test-only');
       localStorage.setItem('ludora_usuario', JSON.stringify({ id: 1, nome: 'Alex Morgan' }));
@@ -90,7 +90,19 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
         assert.equal(await dialog.getByRole('heading', { name: 'Ontem', exact: true }).count(), 1);
         assert.ok(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth), 'Sem overflow horizontal');
         await page.screenshot({ path: path.join(output, `notifications-${width}-dark.png`), animations: 'disabled' });
+        await page.evaluate(() => localStorage.setItem('ludora_tema', 'light'));
+        await page.emulateMedia({ colorScheme: 'light' });
+        await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+        await page.screenshot({ path: path.join(output, `notifications-${width}-light.png`), animations: 'disabled' });
+        await page.evaluate(() => localStorage.setItem('ludora_tema', 'dark'));
+        await page.emulateMedia({ colorScheme: 'dark' });
+        await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
         const first = state.rows[0];
+        await dialog.getByRole('button', { name: `Excluir notificação: ${first.titulo}`, exact: true }).click();
+        assert.equal(await dialog.locator('.notification-row').count(), 5);
+        assert.ok(state.rows.some(item => item.id === first.id), 'Exclusão aguarda o prazo para desfazer');
+        await dialog.getByRole('button', { name: 'Desfazer', exact: true }).click();
+        assert.equal(await dialog.locator('.notification-row').count(), 6);
         state.fail = true;
         await dialog.locator('.notification-card').first().hover();
         await dialog.getByRole('button', { name: `Excluir notificação: ${first.titulo}`, exact: true }).click();
@@ -108,6 +120,8 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
         await page.mouse.up();
         await page.waitForFunction(() => document.querySelectorAll('.notification-row').length === 5);
         assert.equal(new URL(page.url()).pathname, '/dashboard', 'Swipe não abre a partida');
+        await page.waitForResponse(response => response.request().method() === 'DELETE' && new URL(response.url()).pathname === `/notificacoes/${first.id}`);
+        await dialog.locator('.notification-undo').waitFor({ state: 'detached' });
         assert.ok(!state.rows.some(item => item.id === first.id));
         if (width < 761) {
           const nextCard = dialog.locator('.notification-card').first();
@@ -121,6 +135,8 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
           for (let step = 1; step <= 12; step++) await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: touchX - step * 10, y: touchY }] });
           await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
           await page.waitForFunction(() => document.querySelectorAll('.notification-row').length === 4);
+          await page.waitForResponse(response => response.request().method() === 'DELETE' && new URL(response.url()).pathname === `/notificacoes/${removedId}`);
+          await dialog.locator('.notification-undo').waitFor({ state: 'detached' });
           assert.ok(!state.rows.some(item => item.id === removedId), 'Swipe de toque exclui o aviso');
           await touch.detach();
         }
@@ -129,16 +145,13 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
         await dialog.getByRole('button', { name: 'Confirmar exclusão', exact: true }).click();
         await dialog.getByRole('alert', { name: 'Confirmar limpeza' }).waitFor({ state: 'detached' });
         assert.ok(state.rows.every(item => !item.lida));
-        await dialog.getByLabel('Ações das notificações').click();
-        await dialog.getByRole('button', { name: 'Marcar todas como lidas' }).click();
+        await dialog.getByRole('button', { name: 'Ler todas', exact: true }).click();
         await page.waitForFunction(() => document.querySelector('.notifications-trigger').getAttribute('aria-label') === 'Notificações, 0 não lidas');
         assert.ok(state.rows.every(item => item.lida));
         await dialog.getByLabel('Ações das notificações').click();
         await dialog.getByRole('button', { name: 'Excluir todas as notificações', exact: true }).click();
         await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
         assert.ok(state.rows.length > 0, 'Cancelar preserva o histórico');
-        await page.evaluate(() => { localStorage.setItem('ludora_tema', 'light'); window.dispatchEvent(new Event('ludora:theme-change')); });
-        await page.screenshot({ path: path.join(output, `notifications-${width}-light.png`), animations: 'disabled' });
         await dialog.getByLabel('Ações das notificações').click();
         await dialog.getByRole('button', { name: 'Excluir todas as notificações', exact: true }).click();
         await dialog.getByRole('button', { name: 'Confirmar exclusão', exact: true }).click();
@@ -156,9 +169,11 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
       const paused = new Promise(resolve => { race.state.onPaused = resolve; });
       await race.page.getByRole('button', { name: /^Notificações,/ }).click();
       await paused;
+      const removedId = race.state.rows[0].id;
       await race.dialog.locator('.notification-card').first().hover();
       await race.dialog.getByRole('button', { name: `Excluir notificação: ${race.state.rows[0].titulo}`, exact: true }).click();
       await race.page.waitForFunction(() => document.querySelectorAll('.notification-row').length === 2);
+      await race.page.waitForResponse(response => response.request().method() === 'DELETE' && new URL(response.url()).pathname === `/notificacoes/${removedId}`);
       const resumed = race.page.waitForResponse(response => new URL(response.url()).pathname === '/notificacoes' && response.request().method() === 'GET');
       race.state.pauseGet = false;
       race.state.releaseGet();

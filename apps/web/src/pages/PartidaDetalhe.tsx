@@ -1,3 +1,4 @@
+import { Toast } from '../components/Toast';
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -22,6 +23,7 @@ import { PlayerShirtDialog } from '../components/PlayerShirtDialog';
 import { carregarGestao, comandoPartida, type GestaoPartida } from '../services/sharedMatches';
 import { MatchOperations, PublishedLineups, MatchPreparationStatus } from '../components/MatchOperations';
 import './SharedMatches.css';
+import { MatchPreparationHeader, MatchLineupReview, LineupSwapHelp } from '../components/MatchPreparation';
 import { validTimeInput } from '../utils/timeInput';
 import { preparationStorageKey, readPreparationStep, rememberPreparationStep } from '../utils/matchPreparation';
 
@@ -29,15 +31,8 @@ const STATUS_NEXT: Record<string, string> = { AGENDADA: 'PREPARADA', PREPARADA: 
 const ETAPAS = [
   { titulo: 'Dados da partida', descricao: 'Confira o confronto, a data e o local antes de montar sua equipe.' },
   { titulo: 'Monte sua equipe', descricao: 'Defina os titulares e convoque os reservas da sua equipe.' },
-  { titulo: 'Tudo certo para jogar?', descricao: 'Revise os dados e a escalação. A partida começa somente quando você confirmar.' },
+  { titulo: 'Revise sua equipe', descricao: 'Confira os convocados antes de publicar a escalação.' },
 ];
-
-function formatPreparationDate(value: string) {
-  const date = new Date(`${value.slice(0, 10)}T12:00:00Z`);
-  return Number.isNaN(date.getTime()) ? 'Data a definir' : date.toLocaleDateString('pt-BR', {
-    day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC',
-  }).replace(/ de /g, ' ').replace(/\./g, '').toUpperCase();
-}
 
 const STATUS_BTN: Record<string, string> = { AGENDADA: 'Iniciar preparação', PREPARADA: 'Iniciar partida', AO_VIVO: 'Finalizar partida' };
 
@@ -62,6 +57,10 @@ export default function PartidaDetalhePage() {
   const [editor, setEditor] = useState<'match' | 'score' | null>(null);
   const [actionError, setActionError] = useState('');
   const [notice, setNotice] = useState('');
+  const [opponentOpen, setOpponentOpen] = useState(false);
+  const [responsibilityOpen, setResponsibilityOpen] = useState(false);
+  const [transferBusy, setTransferBusy] = useState(false);
+  const [transferError, setTransferError] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
   const [savingLineup, setSavingLineup] = useState(false);
   const [lineupDirty, setLineupDirty] = useState(false);
@@ -120,28 +119,44 @@ export default function PartidaDetalhePage() {
     let active = true;
     let unsubscribe = () => {};
     setLoading(true); setLoadError(''); setGestao(null); setEtapa(0); setLineupDirty(false); setSwapSource(null);
+    let refreshing = false;
+    let refreshQueued = false;
+    let refreshTimer: number | null = null;
     async function refresh() {
+      if (refreshing) { refreshQueued = true; return; }
+      refreshing = true;
       const version = ++refreshVersion.current;
       try {
         const data = await carregarGestao(Number(id));
         if (active && version === refreshVersion.current) { aplicarGestao(data, dirtyRef.current); setSyncError(''); }
       } catch { if (active) setSyncError('Não foi possível sincronizar. Confira sua conexão e tente recarregar.'); }
+      finally {
+        refreshing = false;
+        if (active && refreshQueued) { refreshQueued = false; void refresh(); }
+      }
     }
+    const scheduleRefresh = () => {
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => { refreshTimer = null; void refresh(); }, 60);
+    };
+    const poll = window.setInterval(() => { if (!document.hidden) void refresh(); }, 15000);
+    const resume = () => { if (!document.hidden) void refresh(); };
+    document.addEventListener('visibilitychange', resume);
     void (async () => {
       try {
         const [data, teams] = await Promise.all([carregarGestao(Number(id)), fetchTimes()]);
         const mine = data.equipes.find(e => e.id === data.minhaEquipeId);
-        const players = data.podePreparar && mine ? await fetchJogadoresPerfis(mine.categoria_id) : [];
+        const players = data.podePreparar && mine && ['AGENDADA', 'PREPARADA'].includes(data.partida.status) ? await fetchJogadoresPerfis(mine.categoria_id) : [];
         if (!active) return;
         aplicarGestao(data); setTimes(teams); setJogadores(players);
         setEtapa(readPreparationStep(data, preparationKey));
         if (!['AGENDADA', 'PREPARADA'].includes(data.partida.status)) rememberPreparationStep(preparationKey, null);
         if (token && clube) unsubscribe = subscribeToMatch({ baseUrl: BASE_URL, token, clubId: clube.id, matchId: Number(id),
-          onScore: () => { void refresh(); }, onRefresh: () => { void refresh(); }, onStateChange: setRealtimeState });
+          onScore: scheduleRefresh, onRefresh: scheduleRefresh, onStateChange: setRealtimeState });
       } catch (e) { if (active) setLoadError((e as Error).message || 'Não foi possível carregar a partida.'); }
       finally { if (active) setLoading(false); }
     })();
-    return () => { active = false; unsubscribe(); };
+    return () => { active = false; unsubscribe(); if (refreshTimer !== null) window.clearTimeout(refreshTimer); window.clearInterval(poll); document.removeEventListener('visibilitychange', resume); };
   }, [id, token, clube?.id, usuario?.id]);
 
   async function mudarStatus() {
@@ -202,7 +217,7 @@ export default function PartidaDetalhePage() {
       setLineupDirty(false);
       dirtyRef.current = false;
       await atualizarDados(true);
-      setNotice('Escalação salva como rascunho. Confirme a equipe para publicar.');
+      setNotice('');
       return true;
     } catch (err) { setActionError(err instanceof Error ? err.message : 'Não foi possível salvar a escalação.'); return false; }
     finally { setSavingLineup(false); }
@@ -249,6 +264,29 @@ export default function PartidaDetalhePage() {
   const busy = savingStatus || savingLineup;
   const escalaValida = titulares.length === necessarios && escalacao.every(item => Number.isInteger(item.numCamisa) && item.numCamisa >= 1 && item.numCamisa <= 99);
   const dadosValidos = Boolean(partida.data && partida.horario && validTimeInput(partida.horario));
+  const adversario = gestao?.equipes.find(equipe => equipe.id !== gestao.minhaEquipeId);
+  const equipesProntas = Boolean(gestao?.equipes.length && gestao.equipes.every(equipe => equipe.pronta)) && !lineupDirty;
+  const responsavelSumula = gestao?.equipes.find(equipe => equipe.clube_id === gestao.partida.sumula_clube_id)?.clube.nome || gestao?.organizador.nome;
+  const faltamTitulares = Math.max(0, necessarios - titulares.length);
+  const pendenciaEscalacao = faltamTitulares ? `Falta selecionar ${faltamTitulares} ${faltamTitulares === 1 ? 'titular' : 'titulares'}.` : 'Defina uma camisa válida para todos os convocados antes de continuar.';
+  const equipeConfirmada = Boolean(minhaEquipe?.pronta && !lineupDirty);
+  const podeIniciar = gestao?.podeSumula && equipesProntas && partida.status === 'PREPARADA';
+  let resumoEtapa = { titulo: 'Próximo passo: montar sua equipe', descricao: 'Você pode sair e continuar depois.' };
+  if (etapa === 1) {
+    resumoEtapa = {
+      titulo: lineupDirty ? 'Alterações não salvas' : equipeConfirmada ? 'Equipe confirmada' : escalacao.length ? 'Rascunho salvo' : 'Escolha os titulares',
+      descricao: !escalaValida ? pendenciaEscalacao : equipeConfirmada ? 'Sua escalação já está publicada. Você pode revisar a equipe.' : 'Salvar e revisar mantém a escalação como rascunho.',
+    };
+  } else if (etapa === 2) {
+    let descricao = 'Publica sua escalação. A partida ainda não será iniciada.';
+    if (equipeConfirmada) {
+      if (!equipesProntas) descricao = `Aguardando confirmação do ${adversario?.clube.nome || 'adversário'}.`;
+      else if (!gestao?.podeSumula) descricao = `As equipes estão prontas. Aguardando o ${responsavelSumula} iniciar.`;
+      else descricao = gestao.equipes.length > 1 ? 'As equipes estão prontas. Você já pode iniciar a partida.' : 'Sua equipe está pronta. Você já pode iniciar a partida.';
+    }
+    resumoEtapa = { titulo: equipeConfirmada ? 'Sua equipe está confirmada' : 'Confirme sua equipe', descricao };
+  }
+
 
   async function irParaEtapa(proxima: number) {
     if (!preparando || busy) return;
@@ -277,7 +315,7 @@ export default function PartidaDetalhePage() {
     try {
       await comandoPartida(partida!.id, 'preparacao', { versao: gestao?.partida.versao });
       await atualizarDados();
-      setNotice('Equipe confirmada. A escalação já está disponível para os dois clubes.');
+      setNotice('');
       rememberPreparationStep(preparationKey, 2);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Não foi possível confirmar a preparação. Tente novamente.');
@@ -294,7 +332,7 @@ export default function PartidaDetalhePage() {
       : item.jogador_id === destino ? { ...primeiro, titular: segundo.titular } : item));
     setLineupDirty(true);
     setSwapSource(null);
-    setNotice('Jogadores trocados. Salve a escalação para confirmar.');
+    setNotice('');
   }
 
   function terminarArraste(event: React.PointerEvent<HTMLButtonElement>, cancelar = false) {
@@ -313,14 +351,13 @@ export default function PartidaDetalhePage() {
     return items.map((item, index) => {
       const jogador = jogadores.find(j => j.id === item.jogador_id) || item.jogador;
       const nome = jogador?.nome || 'Jogador';
-      return <div className={`lineup-row${draggedId === item.jogador_id ? ' is-dragging' : ''}${dropTarget === item.jogador_id || swapSource === item.jogador_id ? ' is-swap-target' : ''}`} key={item.jogador_id} data-lineup-id={item.jogador_id}>
+      return <div className={`lineup-row${draggedId === item.jogador_id ? ' is-dragging' : ''}${dropTarget === item.jogador_id || swapSource === item.jogador_id ? ' is-swap-target' : ''}`} key={item.jogador_id} data-lineup-id={item.jogador_id} data-lineup-role={item.titular ? 'titular' : 'reserva'}>
         <span className="lineup-order" aria-label={`Posição ${inicio + index + 1} na escalação`}>{inicio + index + 1}</span>
         {podeGerenciar ? <button type="button" className="lineup-shirt lineup-shirt-edit" disabled={busy}
           aria-label={`Editar camisa de ${nome}`} onClick={() => setShirtPlayer({ id: item.jogador_id, nome, numCamisa: item.numCamisa || undefined })}>
           {item.numCamisa > 0 ? String(item.numCamisa).padStart(2, '0') : <Icon name="shirt" size={22}/>}
         </button> : <span className="lineup-shirt">{item.numCamisa > 0 ? String(item.numCamisa).padStart(2, '0') : '—'}</span>}
         <div className="lineup-player"><strong>{nome}</strong>{jogador?.posicao && <span className="lineup-position"><PositionIcon position={jogador.posicao} />{jogador.posicao}</span>}</div>
-        {item.titular && <span className="lineup-starter-tag">Titular</span>}
         {podeGerenciar && <>
           <button type="button" className="lineup-swap" aria-label={`${swapSource != null && swapSource !== item.jogador_id ? 'Trocar com' : 'Trocar'} ${nome}`} aria-pressed={swapSource === item.jogador_id} disabled={savingLineup || savingStatus}
             title="Arraste sobre outro convocado ou selecione dois jogadores para trocar"
@@ -395,49 +432,32 @@ export default function PartidaDetalhePage() {
     <div className="partida-detalhe">
       <header className="match-detail-header">
         <button type="button" className="match-detail-close" aria-label="Voltar para partidas" onClick={() => { if (!lineupDirty || confirm('Sair sem salvar as alterações da escalação?')) navigate('/partidas'); }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
-        <h1>{partidaEmAndamento ? 'Detalhes da partida' : 'Preparação da partida'}</h1>
+        <h1>{partidaEmAndamento ? <><span className="match-detail-desktop-title">{partida.status === 'FINALIZADA' ? 'Resumo da partida' : 'Detalhes da partida'}</span><span className="match-detail-mobile-title">{partida.mandante?.nome} × {partida.visitante?.nome}</span></> : 'Preparação da partida'}</h1>
         {preparando && <MatchActionsMenu disabled={busy || salvandoEvento || deletingEvent !== null || deleteBusy}
           onEdit={() => setEditor('match')}
-          onDelete={() => { setMotivoCancelamento(''); setDeleteError(''); setConfirmDelete(true); }}/>}
+          onResponsibility={gestao && gestao.equipes.length > 1 ? () => { setTransferError(''); setResponsibilityOpen(true); } : undefined}
+          onDelete={gestao && (gestao.podeSumula || gestao.organizador.id === clube?.id) ? () => { setMotivoCancelamento(''); setDeleteError(''); setConfirmDelete(true); } : undefined}/>}
       </header>
       {!preparando && actionError && <p className="notice-error" role="alert">{actionError}</p>}
-      {notice && <p className="match-notice match-feedback" role="status"><Icon name="info" size={18}/><span>{notice}</span></p>}
-      {gestao && <MatchPreparationStatus data={gestao}/>}
+      <Toast message={notice} onClose={() => setNotice('')}/>
+      {gestao && preparando && <MatchPreparationHeader data={gestao} dirty={lineupDirty}/>}
 
-      {partidaEmAndamento && <p role="status" className="realtime-status">
-        {realtimeState === 'connected'
-          ? 'Conectado às atualizações de placar e novos eventos.'
-          : realtimeState === 'connecting'
-            ? 'Conectando às atualizações ao vivo…'
-            : 'Atualizações ao vivo indisponíveis. Recarregue a página para consultar os dados atuais.'}
-      </p>}
+      {partida.status === 'AO_VIVO' && realtimeState !== 'connected' && <p role="status" className="live-connection-notice"><Icon name="broadcast" size={17}/>{realtimeState === 'connecting' ? 'Conectando às atualizações ao vivo…' : 'Reconectando ao tempo real. Os dados serão consultados periodicamente.'}</p>}
       {syncError && <p role="alert" className="realtime-status text-vermelho">{syncError}</p>}
 
       {preparando && <>
         <nav className="preparation-steps" aria-label="Etapas da preparação">
           <ol>{ETAPAS.map((item, index) => <li key={item.titulo}>
-            <button type="button" aria-current={etapa === index ? 'step' : undefined} disabled={busy} onClick={() => void irParaEtapa(index)}>
+            <button type="button" aria-current={etapa === index ? 'step' : undefined} disabled={busy || (index === 2 && (!escalaValida || !dadosValidos))} onClick={() => void irParaEtapa(index)}>
               <span className={`preparation-step-number${index < etapa ? ' is-complete' : ''}`}>{index < etapa ? <Icon name="checkAll" size={16}/> : index + 1}</span>
               <span>{['Dados', 'Escalação', 'Revisão'][index]}</span>
             </button>
           </li>)}</ol>
           <div className="preparation-progress" aria-hidden="true"><span style={{ width: `${((etapa + 1) / ETAPAS.length) * 100}%` }}/></div>
         </nav>
-        <div className="preparation-heading"><small>Etapa {etapa + 1} de 3</small><h2 ref={stageHeading} tabIndex={-1}>{ETAPAS[etapa].titulo}</h2><p>{ETAPAS[etapa].descricao}</p></div>
+        <div className="preparation-heading"><small>Etapa {etapa + 1} de 3</small><h2 ref={stageHeading} tabIndex={-1}>{ETAPAS[etapa].titulo}</h2><p>{etapa === 1 ? `Selecione ${necessarios} titulares e convoque os reservas.` : ETAPAS[etapa].descricao}</p>{etapa !== 2 && adversario && <button type="button" className="preparation-opponent-link" onClick={() => setOpponentOpen(true)}><Icon name="team" size={17}/>Ver escalação adversária<Icon name="chevronRight" size={15}/></button>}</div>
       </>}
-      {(!preparando || etapa !== 1) && <>
-      {preparando ? <section className="match-detail-card preparation-match-card" aria-label="Informações da partida">
-        <div className="preparation-match-header">
-          <span className="preparation-match-date"><Icon name="calendar" size={16}/>{formatPreparationDate(partida.data)}{partida.categoria?.nome ? ` · ${partida.categoria.nome.toUpperCase()}` : ''}</span>
-          <StatusBadge status={partida.status}/>
-        </div>
-        <div className="preparation-match-teams">
-          <div className="preparation-match-team"><ClubBadge src={mandante?.escudo} name={mandante?.nome || 'Mandante'} size={64}/><strong>{mandante?.nome || 'Mandante'}</strong><span>Mandante</span></div>
-          <div className="preparation-match-center"><strong>VS</strong><span>{partida.horario || 'Horário a definir'}</span></div>
-          <div className="preparation-match-team"><ClubBadge src={visitante?.escudo} name={visitante?.nome || 'Visitante'} size={64}/><strong>{visitante?.nome || 'Visitante'}</strong><span>Visitante</span></div>
-        </div>
-        <div className="preparation-match-location"><Icon name="location" size={18}/><span>{partida.local || 'Local a definir'}</span></div>
-      </section> : <section className={`match-detail-card${partida.status === 'AO_VIVO' ? ' is-live' : ''}${preparando && etapa === 2 ? ' is-review' : ''}`} aria-label="Informações da partida">
+      {!preparando && !partidaEmAndamento && <section className={`match-detail-card${partida.status === 'AO_VIVO' ? ' is-live' : ''}`} aria-label="Informações da partida">
         <div className="match-detail-date"><Icon name="calendar" size={16}/><span>{formatMatchDate(partida.data)}{partida.categoria?.nome ? ` · ${partida.categoria.nome.toUpperCase()}` : ''}</span></div>
         <div className="match-detail-confrontation">
           <div className="placar-time"><ClubBadge src={mandante?.escudo} name={mandante?.nome || 'Mandante'} size={64}/><span className="placar-time-nome">{mandante?.nome || 'Mandante'}</span></div>
@@ -454,25 +474,19 @@ export default function PartidaDetalhePage() {
         </dl>
         {!gestao && podeGerenciar && partidaEmAndamento && <div className="match-detail-score-edit"><Btn variant="ghost" size="sm" onClick={() => setEditor('score')}><Icon name="edit" size={14}/>Editar placar</Btn></div>}
       </section>}
-      {preparando && etapa === 2 && <section className="preparation-review" aria-label="Escalação para revisão">
-        <div className="preparation-review-heading"><div><h3>Equipe convocada</h3><p>{titulares.length} titulares · {reservas.length} reservas</p></div><Btn variant="ghost" size="sm" onClick={() => void irParaEtapa(1)}><Icon name="edit" size={15}/>Alterar</Btn></div>
-        <div className="preparation-review-lists">{[{ titulo: 'Titulares', items: titulares }, { titulo: 'Reservas', items: reservas }].map(group => <section key={group.titulo}>
-          <h4>{group.titulo}<span>{group.items.length}</span></h4>
-          <ul>{group.items.map(item => {
-            const jogador = jogadores.find(j => j.id === item.jogador_id) || item.jogador;
-            return <li key={item.jogador_id}>
-              <span className="review-player-shirt">{String(item.numCamisa).padStart(2, '0')}</span>
-              <div><strong>{jogador?.nome || 'Jogador'}</strong>{jogador?.posicao && <span className="lineup-position"><PositionIcon position={jogador.posicao}/>{jogador.posicao}</span>}</div>
-            </li>;
-          })}</ul>
-          {!group.items.length && <p className="lineup-empty">Nenhum reserva convocado.</p>}
-        </section>)}</div>
-        <p className="editor-description">Ao iniciar, a preparação será encerrada e os controles ao vivo ficarão disponíveis.</p>
+      {preparando && etapa === 0 && <section className="preparation-data-details" aria-label="Detalhes do confronto">
+        <header><h3>Detalhes do confronto</h3><Btn variant="ghost" size="sm" className="preparation-edit-data" aria-label="Editar dados" onClick={() => setEditor('match')}><Icon name="edit" size={16}/><span>Editar dados</span></Btn></header>
+        <div><Icon name="trophy" size={21}/><span><small>Competição</small><strong>{partida.competicao?.nome || 'Amistoso'}</strong></span></div>
+        <div><Icon name={partida.emCasa ? 'home' : 'bus'} size={21}/><span><small>Mando da sua equipe</small><strong>{partida.emCasa ? 'Em casa' : 'Fora de casa'}</strong></span></div>
+        {adversario && <p className="editor-description"><Icon name="info" size={17}/><span>Alterações de data, horário ou local precisam do aceite do {adversario.clube.nome}.</span></p>}
       </section>}
-      </>}
+      {preparando && etapa === 2 && gestao && <section className="preparation-review" aria-label="Escalação para revisão">
+        <div className="preparation-review-heading"><div><h3>Equipes convocadas</h3><p>Confira os titulares e as opções no banco de cada equipe.</p></div><Btn variant="ghost" size="sm" aria-label="Alterar sua equipe" onClick={() => void irParaEtapa(1)}><Icon name="edit" size={15}/><span className="review-edit-label">Alterar sua equipe</span></Btn></div>
+        <MatchLineupReview data={gestao} lineup={escalacao} players={jogadores} dirty={lineupDirty}/>
+      </section>}
 
       {/* Controles de status */}
-      {canRecord && partidaEmAndamento && STATUS_NEXT[partida.status] && (
+      {!gestao && canRecord && partidaEmAndamento && STATUS_NEXT[partida.status] && (
         <div className="partida-acoes">
           <Btn onClick={mudarStatus} disabled={savingStatus}>{savingStatus ? 'Salvando...' : STATUS_BTN[partida.status]}</Btn>
         </div>
@@ -530,39 +544,52 @@ export default function PartidaDetalhePage() {
       {abaVisivel === 'escalacao' && preparando && etapa === 1 && (
         <div className="aba-content">
           <div className="lineup-groups">
-            {podeGerenciar && <p className="lineup-swap-help" role="status"><Icon name="info" size={18}/><span>{swapSource == null ? 'Use o botão de troca para arrastar um jogador sobre outro ou selecione os dois botões para trocar.' : 'Selecione o botão de troca do outro jogador. Para cancelar, selecione novamente o primeiro.'}</span></p>}
-            <div className="lineup-columns"><section>
-              <h2>Titulares · {titulares.length}/{necessarios}</h2>
-              {titulares.length ? renderConvocados(titulares, 0) : <p className="lineup-empty">Selecione jogadores para preencher as {necessarios} vagas.</p>}
-            </section>
-            <section>
-              <h2>Reservas · {reservas.length}</h2>
-              {reservas.length ? renderConvocados(reservas, titulares.length) : <p className="lineup-empty">Nenhum reserva convocado.</p>}
-            </section>
-            </div>
-            {podeGerenciar && <details className="lineup-available">
-              <summary><span className="lineup-summary-label"><Icon name="team" size={19}/>Adicionar jogadores <small>{disponiveis.length}</small></span><Icon name="chevronRight" size={18} /></summary>
-              <div className="lineup-available-content">
-                <CollectionSearch label="Buscar jogador disponível" placeholder="Buscar nome, camisa ou posição" value={buscaJogador} onChange={setBuscaJogador}/>
-                <p className="editor-description">Os primeiros {necessarios} convocados são titulares. Os demais entram como reservas.</p>
-                <div className="escalacao-grid">
-                  {jogadoresEncontrados.map(j => (
-                    <article key={j.id} className="available-player">
-                      <button type="button" className="lineup-shirt available-shirt" disabled={busy}
-                        aria-label={`${j.numCamisa ? 'Editar' : 'Definir'} camisa de ${j.nome}`} onClick={() => setShirtPlayer(j)}>
-                        {j.numCamisa ? String(j.numCamisa).padStart(2, '0') : <Icon name="shirt" size={22}/>}
-                      </button>
-                      <button type="button" className="available-player-add" disabled={busy} aria-label={`Convocar ${j.nome}`}
-                        onClick={() => j.numCamisa ? toggleJogador(j.id) : setShirtPlayer(j)}>
-                        <span className="available-player-info"><strong>{j.nome}</strong><span className="lineup-position"><PositionIcon position={j.posicao}/>{j.posicao}</span>{!j.numCamisa && <small>Definir camisa para convocar</small>}</span>
-                        <Icon name="plus" size={18}/>
-                      </button>
-                    </article>
-                  ))}
-                  {!jogadoresEncontrados.length && <p className="lineup-empty">{disponiveis.length ? 'Nenhum jogador encontrado para essa busca.' : 'Todos os jogadores já foram convocados.'}</p>}
-                </div>
+            {podeGerenciar && <div className="lineup-swap-help">
+              <Icon name="info" size={18}/><p role="status">{swapSource == null ? 'Arraste pelo ícone para trocar jogadores.' : 'Selecione o ícone de troca do outro jogador ou toque novamente no primeiro para cancelar.'}</p>
+              <LineupSwapHelp/>
+            </div>}
+            {escalaValida && !reservas.length && <p className="lineup-reserve-tip"><Icon name="info" size={16}/>Recomendamos convocar alguns reservas para as substituições.</p>}
+            <div className="lineup-workspace">
+              <div className="lineup-selected">
+                <section aria-labelledby="starting-lineup-title">
+                  <h2 id="starting-lineup-title">Titulares <span>{titulares.length}/{necessarios}</span></h2>
+                  {renderConvocados(titulares, 0)}
+                  {Array.from({ length: Math.max(0, necessarios - titulares.length) }, (_, index) => <button
+                    type="button" className="lineup-empty-slot" key={index} disabled={busy}
+                    aria-label={`Selecionar titular para a vaga ${titulares.length + index + 1}`}
+                    onClick={() => document.getElementById('lineup-player-search')?.focus()}>
+                    <span className="lineup-order">{titulares.length + index + 1}</span><Icon name="user" size={20}/><span>Selecione um jogador do elenco</span><Icon name="plus" size={17}/>
+                  </button>)}
+                </section>
+                <section aria-labelledby="reserve-lineup-title">
+                  <h2 id="reserve-lineup-title">Reservas <span>{reservas.length}</span></h2>
+                  {reservas.length ? renderConvocados(reservas, titulares.length) : <button
+                    type="button" className="lineup-empty-slot lineup-empty-reserve" disabled={busy || !disponiveis.length || titulares.length < necessarios}
+                    onClick={() => { setBuscaJogador(''); document.getElementById('lineup-player-search')?.focus(); }}>
+                    <Icon name="user" size={20}/><span>Adicionar reserva<small>{titulares.length < necessarios ? 'Defina os titulares primeiro · opcional' : !disponiveis.length ? 'Nenhum jogador disponível no elenco' : 'Selecione um jogador do elenco · opcional'}</small></span><Icon name="plus" size={17}/>
+                  </button>}
+                </section>
               </div>
-            </details>}
+              <section className="lineup-roster" aria-labelledby="available-players-title">
+                <h2 id="available-players-title"><Icon name="team" size={19}/>Elenco {partida.categoria?.nome?.toUpperCase()}<span>{disponiveis.length} {disponiveis.length === 1 ? 'disponível' : 'disponíveis'}</span></h2>
+                <CollectionSearch id="lineup-player-search" label="Buscar jogador disponível" placeholder="Buscar nome, camisa ou posição" value={buscaJogador} onChange={setBuscaJogador}/>
+                <p className="editor-description">Os primeiros {necessarios} convocados são titulares. Os demais entram como reservas.</p>
+                <ul className="available-roster">
+                  {jogadoresEncontrados.map(j => <li key={j.id} className="available-player">
+                    <button type="button" className={`lineup-shirt available-shirt${!j.numCamisa ? ' is-missing' : ''}`} disabled={busy}
+                      aria-label={`${j.numCamisa ? 'Editar' : 'Definir'} camisa de ${j.nome}`} onClick={() => setShirtPlayer(j)}>
+                      {j.numCamisa ? String(j.numCamisa).padStart(2, '0') : <Icon name="shirt" size={22}/>}
+                    </button>
+                    <button type="button" className="available-player-add" disabled={busy} aria-label={`Convocar ${j.nome}`}
+                      onClick={() => j.numCamisa ? toggleJogador(j.id) : setShirtPlayer(j)}>
+                      <span className="available-player-info"><strong>{j.nome}</strong><span className="lineup-position"><PositionIcon position={j.posicao}/>{j.posicao}</span></span>
+                      <Icon name="plus" size={19}/>
+                    </button>
+                  </li>)}
+                </ul>
+                {!jogadoresEncontrados.length && <p className="lineup-empty">{disponiveis.length ? 'Nenhum jogador encontrado para essa busca.' : 'Todos os jogadores já foram convocados.'}</p>}
+              </section>
+            </div>
           </div>
           {podeGerenciar && !preparando && <div className="lineup-actions">
             <Btn onClick={salvarEscalacaoAtual} disabled={savingLineup || savingStatus}>{savingLineup ? 'Salvando...' : 'Salvar escalação'}</Btn>
@@ -572,30 +599,48 @@ export default function PartidaDetalhePage() {
       )}
 
       {preparando && <div className="preparation-footer">
+
         {actionError && <p role="alert" className="notice-error">{actionError}</p>}
         <div className="preparation-footer-content">
           <div className="preparation-save-state" role="status">
-            <span>{etapa === 2 && minhaEquipe?.pronta && !(gestao?.podeSumula && partida.status === 'PREPARADA')
-              ? 'Aguardando a outra equipe ou o responsável iniciar.'
-              : etapa === 2 && minhaEquipe?.pronta ? 'Tudo pronto para iniciar' : lineupDirty ? 'Alterações na escalação' : etapa === 0 ? 'Confira os dados da partida' : etapa === 1 ? 'Monte sua equipe' : 'Confirme sua equipe'}</span>
-            <small>{etapa === 1 ? `${titulares.length}/${necessarios} titulares · ${reservas.length} reservas. A revisão salva sua escalação.`
-              : etapa === 2 && minhaEquipe?.pronta ? 'Sua equipe está pronta e a escalação foi publicada.'
-              : etapa === 2 ? 'A confirmação publica sua escalação para o outro clube.' : 'Sua etapa será retomada ao voltar.'}</small>
+            <strong>{resumoEtapa.titulo}</strong>
+            <small id="lineup-requirements">{resumoEtapa.descricao}</small>
           </div>
           <div className="preparation-footer-buttons">
-            {etapa === 2 && <Btn variant="ghost" disabled={busy} onClick={() => void irParaEtapa(1)}><Icon name="chevronLeft" size={16}/>Voltar</Btn>}
+            {etapa === 2 && <Btn variant="ghost" disabled={busy} onClick={() => void irParaEtapa(1)}><Icon name="chevronLeft" size={16}/>Voltar à escalação</Btn>}
             {etapa === 1 && <Btn variant="ghost" disabled={busy} onClick={async () => { if (await salvarEscalacaoAtual()) { rememberPreparationStep(preparationKey, 1); navigate('/partidas'); } }}>{savingLineup ? 'Salvando…' : 'Salvar e sair'}</Btn>}
-            {etapa < 2 ? <Btn disabled={busy} onClick={() => void irParaEtapa(etapa + 1)}>{savingLineup ? 'Salvando…' : etapa === 0 ? 'Montar escalação' : 'Revisar partida'}<Icon name="chevronRight" size={16}/></Btn>
-              : !minhaEquipe?.pronta ? <Btn disabled={busy} onClick={() => void confirmarPreparacao()}>{savingStatus ? 'Confirmando…' : 'Confirmar preparação'}<Icon name="checkAll" size={17}/></Btn>
-              : gestao?.podeSumula && partida.status === 'PREPARADA' && <Btn disabled={busy} onClick={() => void mudarStatus()}>{savingStatus ? 'Iniciando…' : 'Iniciar partida'}<Icon name="chevronRight" size={17}/></Btn>}
+            {etapa < 2 ? <Btn disabled={busy || (etapa === 1 && !escalaValida)} aria-describedby={etapa === 1 ? 'lineup-requirements' : undefined} onClick={() => void irParaEtapa(etapa + 1)}>{savingLineup ? 'Salvando…' : etapa === 0 ? 'Montar escalação' : 'Salvar e revisar'}<Icon name="chevronRight" size={16}/></Btn>
+              : !equipeConfirmada ? <Btn disabled={busy} onClick={() => void confirmarPreparacao()}>{savingStatus ? 'Confirmando…' : 'Confirmar minha equipe'}<Icon name="checkAll" size={17}/></Btn>
+              : podeIniciar && <Btn disabled={busy} onClick={() => void mudarStatus()}>{savingStatus ? 'Iniciando…' : 'Iniciar partida'}<Icon name="chevronRight" size={17}/></Btn>}
           </div>
         </div>
       </div>}
 
-      {gestao && partidaEmAndamento && <MatchOperations data={gestao} refresh={() => atualizarDados()}/>}
+      {gestao && partidaEmAndamento && <MatchOperations data={gestao} refresh={() => atualizarDados()}
+        onEdit={gestao.podeSumula ? () => setEditor('match') : undefined}
+        onResponsibility={gestao.equipes.length > 1 ? () => { setTransferError(''); setResponsibilityOpen(true); } : undefined}/>}
       {gestao && !podeGerenciar && !partidaEmAndamento && <PublishedLineups data={gestao}/>}
-      {gestao && preparando && gestao.equipes.some(e => e.publicada_em) && <details className="lineup-available shared-published-preview"><summary><span className="lineup-summary-label"><Icon name="team" size={19}/>Escalações publicadas<small>{gestao.equipes.length} equipes</small></span><Icon name="chevronRight" size={18}/></summary><div className="lineup-available-content"><PublishedLineups data={gestao}/></div></details>}
-      {gestao?.podeSumula && preparando && gestao.equipes.length > 1 && <Btn variant="ghost" onClick={async () => { try { await comandoPartida(partida.id, 'sumula', {}); setNotice('Solicitação de transferência enviada. Consulte Solicitações de partidas.'); } catch (e) { setActionError((e as Error).message); } }}>Transferir responsabilidade pela súmula</Btn>}
+      {gestao && adversario && <Modal open={opponentOpen} title={`Escalação do ${adversario.clube.nome}`} className="preparation-modal preparation-opponent-modal" onClose={() => setOpponentOpen(false)}>
+        <p className="editor-description">{adversario.publicada_em ? 'Escalação publicada pelo adversário. Apenas o próprio clube pode alterá-la.' : 'O adversário ainda não publicou a escalação. Os rascunhos são privados.'}</p>
+        {adversario.publicada_em && <PublishedLineups data={{ ...gestao, minhaEquipeId: undefined, equipes: [adversario] }}/>}
+      </Modal>}
+      <Modal open={responsibilityOpen} className="preparation-modal preparation-responsibility-modal" title="Responsável pela súmula" onClose={() => { if (!transferBusy) setResponsibilityOpen(false); }} footer={<div className="editor-actions">
+        <Btn variant="ghost" disabled={transferBusy} onClick={() => setResponsibilityOpen(false)}>Fechar</Btn>
+        {gestao?.podeSumula && adversario && <Btn disabled={transferBusy} onClick={async () => {
+          setTransferBusy(true); setTransferError('');
+          try {
+            await comandoPartida(partida.id, 'sumula', {});
+            setResponsibilityOpen(false);
+            setNotice(`Solicitação enviada ao ${adversario.clube.nome}. Seu clube continua responsável até o aceite.`);
+          } catch (e) { setTransferError((e as Error).message); }
+          finally { setTransferBusy(false); }
+        }}>{transferBusy ? 'Enviando…' : 'Solicitar transferência'}</Btn>}
+      </div>}>
+        <div className="preparation-responsible"><Icon name="team" size={24}/><div><small>Clube responsável</small><strong>{responsavelSumula}</strong></div></div>
+        <p className="editor-description">O responsável inicia a partida e registra o placar e os eventos. Cada clube continua gerenciando sua própria escalação.</p>
+        {gestao?.podeSumula && adversario && <p className="editor-description">A transferência para o {adversario.clube.nome} depende do aceite na aba Solicitações.</p>}
+        {transferError && <p className="notice-error" role="alert">{transferError}</p>}
+      </Modal>
       <Modal open={confirmDelete} title="Cancelar partida" onClose={() => { if (!deleteBusy) setConfirmDelete(false); }} footer={<div className="editor-actions"><Btn disabled={deleteBusy} variant="ghost" onClick={() => setConfirmDelete(false)}>Voltar</Btn><Btn disabled={deleteBusy || !motivoCancelamento.trim()} variant="danger" onClick={async () => {
         setDeleteBusy(true); setDeleteError('');
         try { await comandoPartida(partida.id, 'status', { status: 'CANCELADA', motivo: motivoCancelamento, versao: gestao?.partida.versao }, 'PATCH'); setConfirmDelete(false); await atualizarDados(); }
