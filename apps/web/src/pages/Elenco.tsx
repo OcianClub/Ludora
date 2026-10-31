@@ -154,7 +154,7 @@ export default function ElencoPage() {
         const count = matching.filter(player => !value || (value === 'pending' ? !hasAssessment(player) : hasAssessment(player) && player.perfil_ml === value)).length;
         return <button key={value || 'all'} type="button" aria-pressed={profile === value} onClick={() => change({ perfil: value })} className={`scout-profile-filter profile-${value === 'Armador' ? 'playmaker' : value === 'Paredão' ? 'keeper' : 'scorer'}`}>{value === 'pending' ? 'Não avaliados' : value || 'Todos'}<span>{count}</span></button>;
       })}</div>
-      {!!chips.length && <div className="scout-active-filters" aria-label="Filtros ativos">{chips.map(chip => <button type="button" key={chip.key} onClick={() => change({ [chip.key]: '' })} aria-label={`Remover filtro ${chip.text}`} title={chip.text}>{chip.text}<Icon name="minus" size={14} /></button>)}<button type="button" onClick={clear}>Limpar tudo</button></div>}
+      {!!chips.length && <div className="scout-active-filters" aria-label="Filtros ativos">{chips.map(chip => <button type="button" key={chip.key} onClick={() => change({ [chip.key]: '' })} aria-label={`Remover filtro ${chip.text}`}>{chip.text}<Icon name="minus" size={14} /></button>)}<button type="button" onClick={clear}>Limpar tudo</button></div>}
       <ScoutIndexHelp />
       <div className="scout-section-heading scout-athletes-heading">
         <div className="scout-athlete-count"><h2>Atletas</h2><p role="status">{filtered.length} de {categoryPlayers.length} · {category?.nome.toUpperCase()}</p></div>
@@ -184,7 +184,7 @@ export default function ElencoPage() {
             if (!(event.target as Element).closest('button, a')) openPlayer(player);
           }}>
             <button className="scout-player-main" type="button" onClick={() => openPlayer(player)} aria-label={`Ver ficha de ${player.nome}`}>
-              <span className="scout-shirt">{player.numCamisa != null ? `#${player.numCamisa}` : '—'}</span><span className="scout-player-identity"><strong>{player.nome}</strong><span className="position-inline"><PositionIcon position={player.posicao}/>{normalizePosition(player.posicao) || 'Posição não informada'}{player.idade != null ? ` · ${player.idade} anos` : ''}</span></span>
+              <span className="scout-shirt">{player.numCamisa != null ? `#${player.numCamisa}` : '—'}</span><span className="scout-player-identity"><strong data-tooltip={player.nome} data-tooltip-overflow>{player.nome}</strong><span className="position-inline"><PositionIcon decorative tooltip={false} position={player.posicao}/>{normalizePosition(player.posicao) || 'Posição não informada'}{player.idade != null ? ` · ${player.idade} anos` : ''}</span></span>
               <span className="scout-rating"><span>{order === 'name' ? 'Índice' : SCOUT_ORDERS.find(item => item.value === order)?.label || 'Índice'}</span><strong>{metricValue(player, order)}</strong></span><Icon name="chevronRight" size={18} />
             </button>
             <div className="scout-player-bottom"><span className="scout-profile-label">{assessed ? player.perfil_ml : 'Não avaliado'}</span><dl className="scout-player-metrics"><div><dt>Escalações</dt><dd>{player.totalPartidas}</dd></div><div><dt>Gols</dt><dd>{player.totalGols}</dd></div><div><dt>{keeper ? 'Defesas' : 'Assistências'}</dt><dd>{keeper ? player.totalDefesas : player.totalAssistencias}</dd></div></dl></div>

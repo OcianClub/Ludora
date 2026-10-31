@@ -48,7 +48,7 @@ export function ConfirmDelete({ name, busy, error, onClose, onConfirm }: { name:
 }
 export function PositionBadge({ position, showLabel = false }: { position: string; showLabel?: boolean }) {
   const label = normalizePosition(position);
-  return showLabel ? <span className="position-symbol" data-tooltip={label}><PositionIcon position={label} decorative tooltip={false}/>{label}</span>
+  return showLabel ? <span className="position-symbol"><PositionIcon position={label} decorative tooltip={false}/>{label}</span>
     : <PositionIcon position={label}/>;
 }
 export function normalizePosition(value: string) { return /^ala/i.test(value) ? 'Alas' : value; }

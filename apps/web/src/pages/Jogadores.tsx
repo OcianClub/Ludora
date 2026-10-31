@@ -380,7 +380,7 @@ export default function JogadoresPage() {
     const next = active ? order === 'asc' ? 'desc' : 'default' : 'asc';
     const action = next === 'default' ? 'restaurar ordenação padrão' : `ordenar em ordem ${next === 'asc' ? 'crescente' : 'decrescente'}`;
     return <th scope="col" aria-sort={active ? (order === 'asc' ? 'ascending' : 'descending') : undefined}>
-      <button type="button" onClick={() => next === 'default' ? resetSort() : setSort(field, next)} aria-label={`${label}: ${action}`} title={action}>
+      <button type="button" onClick={() => next === 'default' ? resetSort() : setSort(field, next)} aria-label={`${label}: ${action}`} data-tooltip={action}>
         {label}
         <svg className="alunos-sort-icon" data-active={active} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           {active ? <path d={order === 'asc' ? 'M12 19V5m-5 5 5-5 5 5' : 'M12 5v14m-5-5 5 5 5-5'} /> : <path d="m8 8 4-4 4 4m-8 8 4 4 4-4"/>}
@@ -421,7 +421,7 @@ export default function JogadoresPage() {
                   const age = playerAge(aluno.dtNasc);
                   return <li key={aluno.id}>
                     <PlayerShirtButton player={aluno} editable={podeGerenciar} onClick={() => setShirtPlayer(aluno)} />
-                    <div><Link className="alunos-player-link" to={`/jogadores/${aluno.id}`} state={{ from: `/jogadores?${params}` }}>{aluno.nome}</Link><p>{normalizePosition(aluno.posicao)} · {Number.isFinite(age) ? `${age} anos` : 'Idade não informada'}</p></div>
+                    <div><Link className="alunos-player-link" data-tooltip={aluno.nome} data-tooltip-overflow to={`/jogadores/${aluno.id}`} state={{ from: `/jogadores?${params}` }}>{aluno.nome}</Link><p>{normalizePosition(aluno.posicao)} · {Number.isFinite(age) ? `${age} anos` : 'Idade não informada'}</p></div>
                     <Link className="student-open" to={`/jogadores/${aluno.id}`} state={{ from: `/jogadores?${params}` }} aria-label={`Abrir perfil de ${aluno.nome}`}><Icon name="chevronRight" size={18}/></Link>
                   </li>;
                 })}
@@ -481,7 +481,7 @@ export default function JogadoresPage() {
   return <div className="alunos-page">
     <div className="page-header">
       <div><h1 className="page-title">Jogadores</h1><p className="page-sub">Cadastros, camisas e categorias do {clube?.nome}.</p></div>
-      {podeGerenciar && <Btn className="alunos-add" aria-label="+ Adicionar aluno" onClick={() => abrir(selectedCategory)}><Icon name="plus" size={16} /><span className="alunos-add-label">Adicionar aluno</span></Btn>}
+      {podeGerenciar && <Btn className="alunos-add" aria-label="+ Adicionar aluno" data-tooltip="Adicionar aluno" data-tooltip-icon-only onClick={() => abrir(selectedCategory)}><Icon name="plus" size={16} /><span className="alunos-add-label">Adicionar aluno</span></Btn>}
     </div>
     {!listView && <CategoryFilter
       categories={categorias}

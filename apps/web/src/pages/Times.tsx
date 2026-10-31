@@ -239,7 +239,7 @@ export default function TimesPage() {
           event.currentTarget.querySelector('summary')?.focus();
         }
       }}>
-      <summary aria-label={`Opções de ${item.name}`}>···</summary><div onClick={event => {
+      <summary aria-label={`Opções de ${item.name}`} data-tooltip="Opções do time">···</summary><div onClick={event => {
         const menu = event.currentTarget.closest('details');
         menu?.removeAttribute('open');
         menu?.querySelector('summary')?.focus();
@@ -370,7 +370,7 @@ export default function TimesPage() {
     const expanded = expandedPreviews.includes(item.key);
     return <article key={item.key} className={`teams-card${item.clubId === clube?.id ? ' is-own' : ''}`}>
       <div className="teams-card-identity">
-        {podeGerenciar && (!item.clubId || item.clubId === clube?.id && clube.meuPapel === 'ADMIN') ? <button type="button" className="teams-edit-crest" aria-label={`Alterar escudo de ${item.name}`}
+        {podeGerenciar && (!item.clubId || item.clubId === clube?.id && clube.meuPapel === 'ADMIN') ? <button type="button" className="teams-edit-crest" aria-label={`Alterar escudo de ${item.name}`} data-tooltip="Alterar escudo"
           onClick={() => openCrest(item)}>
           <ClubBadge src={item.crest} name={item.name} size={48}/><span><Icon name="edit" size={12}/></span>
         </button> : <ClubBadge src={item.crest} name={item.name} size={48}/>}
@@ -386,9 +386,9 @@ export default function TimesPage() {
       <div className="teams-card-context">
         <p className="teams-context-label">{isOwn ? 'Retrospecto do clube' : `Contra ${clube?.nome}`} <span>· {selectedCategory?.nome.toUpperCase() || 'Todas as categorias'}</span></p>
         {summaryLoading ? <p className="teams-context-placeholder">Carregando retrospecto…</p> : summaryError ? <p className="teams-context-placeholder">Retrospecto indisponível</p> : <p className="teams-record">
-          <span className="teams-record-stat is-win"><strong>{summary?.vitorias || 0}</strong><abbr title="Vitórias">V</abbr></span>
-          <span className="teams-record-stat is-draw"><strong>{summary?.empates || 0}</strong><abbr title="Empates">E</abbr></span>
-          <span className="teams-record-stat is-loss"><strong>{summary?.derrotas || 0}</strong><abbr title="Derrotas">D</abbr></span>
+          <span className="teams-record-stat is-win"><strong>{summary?.vitorias || 0}</strong><abbr aria-label="Vitórias" data-tooltip="Vitórias">V</abbr></span>
+          <span className="teams-record-stat is-draw"><strong>{summary?.empates || 0}</strong><abbr aria-label="Empates" data-tooltip="Empates">E</abbr></span>
+          <span className="teams-record-stat is-loss"><strong>{summary?.derrotas || 0}</strong><abbr aria-label="Derrotas" data-tooltip="Derrotas">D</abbr></span>
           <small>{(summary?.vitorias || 0) + (summary?.empates || 0) + (summary?.derrotas || 0) ? `${(summary?.vitorias || 0) + (summary?.empates || 0) + (summary?.derrotas || 0)} jogos finalizados` : 'Sem confrontos finalizados'}</small>
         </p>}
         {summary?.proxima && <p className="teams-card-next"><Icon name="calendar" size={15}/><span>Próximo: <strong>{shortTeamDate(summary.proxima.data)}</strong> · {categoryName(summary.proxima.categoria_id)}</span></p>}
@@ -402,7 +402,7 @@ export default function TimesPage() {
 
   return <div className="teams-page">
     <header className="page-header"><div><h1 className="page-title">Times</h1><p className="page-sub">Organize os times e as categorias dos seus confrontos.</p></div>
-      {podeGerenciar && <Btn className="teams-add" aria-label="Adicionar time" title="Adicionar time" onClick={() => { setCreate(true); setNewName(''); setNewCategory(''); setError(''); }}><Icon name="plus" size={20}/><span>Adicionar time</span></Btn>}
+      {podeGerenciar && <Btn className="teams-add" aria-label="Adicionar time" data-tooltip="Adicionar time" data-tooltip-icon-only onClick={() => { setCreate(true); setNewName(''); setNewCategory(''); setError(''); }}><Icon name="plus" size={20}/><span>Adicionar time</span></Btn>}
     </header>
     <CategoryFilter categories={categorias} phase={phase} selected={selectedCategory} onPhase={selectPhase} onSelect={selectCategory}/>
     <div className="teams-tabs" role="group" aria-label="Vínculo dos times">
@@ -459,7 +459,7 @@ export default function TimesPage() {
                     event.preventDefault(); event.stopPropagation(); event.currentTarget.open = false;
                     event.currentTarget.querySelector('summary')?.focus();
                   }
-                }}><summary aria-label={`Opções de ${categoryName(time.categoria_id)}`}>···</summary><div>
+                }}><summary aria-label={`Opções de ${categoryName(time.categoria_id)}`} data-tooltip="Opções da categoria">···</summary><div>
                   <button type="button" onClick={() => edit(time)}><Icon name="edit" size={16}/>Editar</button>
                   <button type="button" onClick={() => { setDeleting(time); setError(''); }}><Icon name="trash" size={16}/>Excluir</button>
                 </div></details></div>}

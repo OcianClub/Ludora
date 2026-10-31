@@ -26,7 +26,7 @@ export function MatchActionsMenu({ disabled, onEdit, onDelete, onResponsibility 
   return <div className="match-actions-menu" ref={container} onBlur={event => {
     if (!event.currentTarget.contains(event.relatedTarget)) close();
   }}>
-    <button type="button" ref={trigger} className="match-actions-trigger" aria-label="Ações da partida"
+    <button type="button" ref={trigger} className="match-actions-trigger" aria-label="Ações da partida" data-tooltip="Ações da partida"
       aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={() => setOpen(value => !value)}
       onKeyDown={event => {
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setOpen(true); }

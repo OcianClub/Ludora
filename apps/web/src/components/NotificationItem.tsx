@@ -79,12 +79,12 @@ export function NotificationItem({ notice, busy, onRead, onDelete }: {
             <span className="notification-meta">
               {!notice.lida && <i className="notice-unread-dot" aria-hidden="true" />}
               <span>{presentation.label}</span>
-              <time dateTime={notice.criada_em} title={new Date(notice.criada_em).toLocaleString('pt-BR')}>{formatNoticeTime(notice.criada_em)}</time>
+              <time dateTime={notice.criada_em} data-tooltip={new Date(notice.criada_em).toLocaleString('pt-BR')}>{formatNoticeTime(notice.criada_em)}</time>
             </span>
             <strong>{notice.titulo}</strong><span className="notification-body">{body}</span>
           </span>
         </button>
-        <button type="button" className="notification-delete" aria-label={`Excluir notificação: ${notice.titulo}`} title="Excluir notificação" disabled={busy} onClick={onDelete}><Icon name="trash" size={19} /></button>
+        <button type="button" className="notification-delete" aria-label={`Excluir notificação: ${notice.titulo}`} data-tooltip="Excluir notificação" disabled={busy} onClick={onDelete}><Icon name="trash" size={19} /></button>
       </div>
     </div>
   );

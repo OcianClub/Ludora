@@ -38,23 +38,23 @@ export function MatchCard({ partida: p, featured = false, actions }: { partida: 
     <div className="match-card-header">
       <div className="match-calendar-highlight">
         <div className="match-calendar-heading">
-          <time dateTime={validDate ? p.data.slice(0, 10) : undefined} title={validDate ? formatMatchDate(p.data) : undefined}>{shortDate}</time>
+          <time dateTime={validDate ? p.data.slice(0, 10) : undefined} data-tooltip={validDate ? formatMatchDate(p.data) : undefined}>{shortDate}</time>
           <span className="match-category">{p.categoria?.nome?.toUpperCase() || 'Categoria não informada'}</span>
         </div>
         <span>{weekday && <span className="match-weekday">{weekday}</span>}<span><Icon name="clock" size={13} />{p.horario || 'Horário a definir'}</span></span>
       </div>
       <div className="match-card-badges">
         {live
-          ? <span className="match-live-radar" role="img" aria-label="Partida ao vivo" title="Partida ao vivo"><Icon name="broadcast" size={20} /></span>
+          ? <span className="match-live-radar" role="img" aria-label="Partida ao vivo" data-tooltip="Partida ao vivo"><Icon name="broadcast" size={20} /></span>
           : p.status === 'FINALIZADA' ? <span className={`match-result result-${result > 0 ? 'V' : result < 0 ? 'D' : 'E'}`}>{result > 0 ? 'Vitória' : result < 0 ? 'Derrota' : 'Empate'}</span>
           : p.status === 'CANCELADA' ? <span className="status-badge status-cancelada"><Icon name="cancel" size={14} />Cancelada</span> : <StatusBadge status={p.status} />}
         <span className="match-venue"><Icon name={p.emCasa ? 'home' : 'bus'} size={14} />{p.emCasa ? 'Casa' : 'Fora'}</span>
       </div>
     </div>
     <div className="match-teams">
-      <div className={`match-team${highlightHome ? ' match-team-current' : ''}`}><ClubBadge src={p.mandante?.escudo} name={teamName(p.mandante?.nome || 'Mandante')} size={52} /><strong title={teamName(p.mandante?.nome || 'Mandante')}>{teamName(p.mandante?.nome || 'Mandante')}</strong></div>
+      <div className={`match-team${highlightHome ? ' match-team-current' : ''}`}><ClubBadge src={p.mandante?.escudo} name={teamName(p.mandante?.nome || 'Mandante')} size={52} /><strong data-tooltip={teamName(p.mandante?.nome || 'Mandante')} data-tooltip-overflow>{teamName(p.mandante?.nome || 'Mandante')}</strong></div>
       <div className="match-score" aria-label={hasScore ? `${p.gols_mandante} a ${p.gols_visitante}` : 'Contra'}>{hasScore ? <><span>{p.gols_mandante}</span><small aria-hidden="true">·</small><span>{p.gols_visitante}</span></> : <small>VS</small>}</div>
-      <div className={`match-team${highlightAway ? ' match-team-current' : ''}`}><ClubBadge src={p.visitante?.escudo} name={teamName(p.visitante?.nome || 'Visitante')} size={52} /><strong title={teamName(p.visitante?.nome || 'Visitante')}>{teamName(p.visitante?.nome || 'Visitante')}</strong></div>
+      <div className={`match-team${highlightAway ? ' match-team-current' : ''}`}><ClubBadge src={p.visitante?.escudo} name={teamName(p.visitante?.nome || 'Visitante')} size={52} /><strong data-tooltip={teamName(p.visitante?.nome || 'Visitante')} data-tooltip-overflow>{teamName(p.visitante?.nome || 'Visitante')}</strong></div>
     </div>
     <div className="match-info">
       <span className="match-location"><Icon name="location" size={17} />{p.local || 'Local a definir'}</span>

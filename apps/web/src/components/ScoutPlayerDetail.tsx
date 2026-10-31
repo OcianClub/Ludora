@@ -41,7 +41,7 @@ export function ScoutPlayerDetail({ player, category, onClose }: { player: Perfi
   return <Modal open title="Ficha do atleta" className="scout-detail-dialog" onClose={onClose}>
     <header className={`scout-detail-identity scout-tone-${profileClass(player)}`}>
       <span className="scout-shirt">{player.numCamisa != null ? `#${player.numCamisa}` : '—'}</span>
-      <div className="scout-detail-person"><h2>{player.nome}</h2><p className="position-inline"><PositionIcon position={player.posicao}/>{player.posicao || 'Posição não informada'} · {category}{player.idade != null ? ` · ${player.idade} anos` : ''}</p>
+      <div className="scout-detail-person"><h2>{player.nome}</h2><p className="position-inline"><PositionIcon decorative tooltip={false} position={player.posicao}/>{player.posicao || 'Posição não informada'} · {category}{player.idade != null ? ` · ${player.idade} anos` : ''}</p>
         <span className="scout-profile-label">{hasAssessment(player) ? player.perfil_ml : 'Ainda não avaliado'}</span>
       </div>
       <div className="scout-rating"><span>Índice</span><strong>{hasAssessment(player) ? player.nota_geral!.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—'}</strong></div>

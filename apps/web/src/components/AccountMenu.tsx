@@ -100,7 +100,7 @@ export function AccountMenu({ header = false, avatar = false }: { header?: boole
 
   return <>
     <button ref={trigger} type="button" className={header ? 'profile-link header-profile-link account-trigger' : 'sidebar-usuario account-trigger'}
-      aria-label="Menu da conta" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined}
+      aria-label="Menu da conta" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined} data-tooltip="Minha conta" data-tooltip-icon-only
       onClick={() => setOpen(value => !value)}>
       {header ? (avatar ? <span className="usuario-avatar">{usuario?.nome?.trim().charAt(0).toUpperCase() || '?'}</span> : <Icon name="user" size={24} />) : <>
         <span className="usuario-avatar"><Icon name="user" size={20} /></span>
@@ -128,7 +128,7 @@ export function AccountMenu({ header = false, avatar = false }: { header?: boole
         }
       }}>
       <div className="account-popover-heading">
-        <p title={usuario?.email}>{usuario?.email || usuario?.nome || 'Minha conta'}</p>
+        <p data-tooltip={usuario?.email} data-tooltip-overflow>{usuario?.email || usuario?.nome || 'Minha conta'}</p>
         <ThemeOptions />
       </div>
       <nav className="account-popover-links" aria-label="Minha conta">

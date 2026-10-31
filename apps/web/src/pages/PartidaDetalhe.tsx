@@ -357,10 +357,10 @@ export default function PartidaDetalhePage() {
           aria-label={`Editar camisa de ${nome}`} onClick={() => setShirtPlayer({ id: item.jogador_id, nome, numCamisa: item.numCamisa || undefined })}>
           {item.numCamisa > 0 ? String(item.numCamisa).padStart(2, '0') : <Icon name="shirt" size={22}/>}
         </button> : <span className="lineup-shirt">{item.numCamisa > 0 ? String(item.numCamisa).padStart(2, '0') : '—'}</span>}
-        <div className="lineup-player"><strong>{nome}</strong>{jogador?.posicao && <span className="lineup-position"><PositionIcon position={jogador.posicao} />{jogador.posicao}</span>}</div>
+        <div className="lineup-player"><strong data-tooltip={nome} data-tooltip-overflow>{nome}</strong>{jogador?.posicao && <span className="lineup-position"><PositionIcon decorative tooltip={false} position={jogador.posicao} />{jogador.posicao}</span>}</div>
         {podeGerenciar && <>
           <button type="button" className="lineup-swap" aria-label={`${swapSource != null && swapSource !== item.jogador_id ? 'Trocar com' : 'Trocar'} ${nome}`} aria-pressed={swapSource === item.jogador_id} disabled={savingLineup || savingStatus}
-            title="Arraste sobre outro convocado ou selecione dois jogadores para trocar"
+            data-tooltip="Trocar jogador"
             onPointerDown={event => {
               if (event.button !== 0) return;
               skipSwapClick.current = false;
@@ -422,7 +422,7 @@ export default function PartidaDetalhePage() {
 
   const eventButtons = <section className="event-actions-panel">
     <h2 className="section-title">Registrar evento</h2>
-    <div className="event-action-grid">{EVENT_TYPES.map(type => <button key={type.value} className="event-action" disabled={!canRecord || type.unavailable} onClick={() => openEvent(type.value)} title={type.unavailable ? 'Cartão azul indisponível nesta versão' : type.label}>
+    <div className="event-action-grid">{EVENT_TYPES.map(type => <button key={type.value} className="event-action" disabled={!canRecord || type.unavailable} onClick={() => openEvent(type.value)}>
       <span className="event-icon-box"><EventIcon type={type.value} /></span><span>{type.label}</span>{type.unavailable && <small>Indisponível</small>}
     </button>)}</div>
     <p className="editor-description">{!podeGerenciar ? 'Seu vínculo permite acompanhar a partida. A edição é reservada à gestão do clube.' : !canRecord ? 'Inicie a partida para registrar os acontecimentos do jogo.' : 'Escolha um evento para informar jogador, período e minuto. O placar é ajustado separadamente.'}</p>
@@ -582,7 +582,7 @@ export default function PartidaDetalhePage() {
                     </button>
                     <button type="button" className="available-player-add" disabled={busy} aria-label={`Convocar ${j.nome}`}
                       onClick={() => j.numCamisa ? toggleJogador(j.id) : setShirtPlayer(j)}>
-                      <span className="available-player-info"><strong>{j.nome}</strong><span className="lineup-position"><PositionIcon position={j.posicao}/>{j.posicao}</span></span>
+                      <span className="available-player-info"><strong data-tooltip={j.nome} data-tooltip-overflow>{j.nome}</strong><span className="lineup-position"><PositionIcon decorative tooltip={false} position={j.posicao}/>{j.posicao}</span></span>
                       <Icon name="plus" size={19}/>
                     </button>
                   </li>)}

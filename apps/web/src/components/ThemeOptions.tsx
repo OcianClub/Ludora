@@ -28,7 +28,7 @@ export function ThemeOptions() {
   }
   return <div className="theme-options-control">
     <div className="account-theme-options" role="radiogroup" aria-label="Aparência">
-      {THEMES.map((item, index) => <button key={item.value} type="button" role="radio" aria-label={item.label} title={item.label}
+      {THEMES.map((item, index) => <button key={item.value} type="button" role="radio" aria-label={item.label} data-tooltip={item.label}
         aria-checked={theme === item.value} tabIndex={theme === item.value ? 0 : -1}
         onClick={() => choose(item.value)} onKeyDown={event => {
           if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;

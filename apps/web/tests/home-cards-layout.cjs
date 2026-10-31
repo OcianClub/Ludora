@@ -103,7 +103,11 @@ function matches(mode) {
         assert.ok((await page.getByRole('link', { name: 'Ver agenda', exact: true }).getAttribute('href')).includes('status=PROXIMAS'));
       }
       if (mode === 'extras') assert.equal(await page.locator('.home-extra-live a').count(), 1);
-      if (mode === 'prepared' && role === 'ADMIN') assert.equal(await page.locator('.home-preparation').count(), 1);
+      if (mode === 'prepared' && role === 'ADMIN') {
+        assert.equal(await page.locator('.home-preparation').count(), 0, 'Preparação aparece nas pendências, sem faixa duplicada');
+        assert.equal(await page.locator('.home-pending-items a[href="/partidas/106"]').count(), 1);
+        assert.equal(await page.locator('.home-match-cta').innerText(), 'Preparar partida');
+      }
       if ([390, 1366].includes(width) && ['normal', 'long'].includes(mode)) {
         await page.locator('.home-match-cta').evaluate(el => el.blur());
         await page.screenshot({ path: path.join(output, `${name}.png`), fullPage: true });

@@ -94,7 +94,7 @@ export function MatchLineupReview({ data, lineup, players, dirty = false }: { da
             <ul>{selected.map(item => {
               const player = own ? players.find(player => player.id === item.jogador_id) || item.jogador : item.jogador;
               return <li key={item.jogador_id}><span className="review-player-shirt">{String(item.numCamisa).padStart(2, '0')}</span>
-                <div><strong>{player?.nome || 'Jogador'}</strong>{player?.posicao && <span className="lineup-position"><PositionIcon position={player.posicao}/>{player.posicao}</span>}</div>
+                <div><strong>{player?.nome || 'Jogador'}</strong>{player?.posicao && <span className="lineup-position"><PositionIcon decorative tooltip={false} position={player.posicao}/>{player.posicao}</span>}</div>
               </li>;
             })}</ul>
             {!selected.length && <p className="lineup-empty">{starter ? 'Nenhum titular convocado.' : 'Nenhum reserva convocado.'}</p>}

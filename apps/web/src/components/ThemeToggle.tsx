@@ -45,7 +45,7 @@ export function ThemeToggle() {
         role="switch"
         aria-label="Tema escuro"
         aria-checked={dark}
-        title={dark ? 'Ativar tema claro' : 'Ativar tema escuro'}
+        data-tooltip={dark ? 'Ativar tema claro' : 'Ativar tema escuro'}
         onClick={toggle}
       >
         <span className="theme-switch-thumb settings-switch-thumb" aria-hidden="true">

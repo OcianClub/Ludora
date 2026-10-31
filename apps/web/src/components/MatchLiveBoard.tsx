@@ -141,12 +141,12 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
     const events = data.eventos.filter(event => event.time_id === teamId && event.periodo === p.periodo_atual);
     const fouls = events.filter(event => event.tipo === 'FALTA').length;
     return <div className="live-discipline">
-      <span className="live-foul-dots" aria-label={`${fouls} faltas cometidas no ${p.periodo_atual}º tempo`} title="Faltas cometidas neste tempo">
+      <span className="live-foul-dots" aria-label={`${fouls} faltas cometidas no ${p.periodo_atual}º tempo`} data-tooltip="Faltas cometidas neste tempo">
         {Array.from({ length: 5 }, (_, index) => <i key={index} className={index < fouls ? 'is-filled' : ''} />)}
         {fouls > 5 && <small>+{fouls - 5}</small>}
       </span>
       <span className="live-card-totals" aria-label="Cartões recebidos na partida">
-        {['AMARELO', 'VERMELHO', 'AZUL'].map(color => <span key={color} title={`Cartões ${color.toLowerCase()}s`}><EventIcon type={`CARTAO_${color}`} />{data.eventos.filter(event => event.time_id === teamId && event.tipo === `CARTAO_${color}`).length}</span>)}
+        {['AMARELO', 'VERMELHO', 'AZUL'].map(color => <span key={color} data-tooltip={`Cartões ${color.toLowerCase()}s`}><EventIcon type={`CARTAO_${color}`} />{data.eventos.filter(event => event.time_id === teamId && event.tipo === `CARTAO_${color}`).length}</span>)}
       </span>
     </div>;
   }
@@ -347,7 +347,7 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
               if (event.key === 'Escape') event.currentTarget.open = false;
             }}
           >
-            <summary aria-label="Opções da súmula">···</summary>
+            <summary aria-label="Opções da súmula" data-tooltip="Opções da súmula">···</summary>
             <div
               onClick={(event) => {
                 if ((event.target as Element).closest('button'))
@@ -442,14 +442,14 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
                         type="button"
                         className="live-goal-add"
                         disabled={busy}
-                        aria-label={`Registrar gol do ${p.mandante?.nome}`}
+                        aria-label={`Registrar gol do ${p.mandante?.nome}`} data-tooltip="Registrar gol"
                         onClick={() => openEvent('GOL', p.mandante_id)}
                       >
                         <Icon name="plus" size={23} />
                       </button>
                     )}
                     <strong>{p.gols_mandante}</strong>
-                    {live && data.podeSumula && <button type="button" className="live-goal-add live-goal-subtract" aria-label={`Subtrair gol do ${p.mandante?.nome}`} title={`Corrigir gol do ${p.mandante?.nome}`} disabled={busy || (!p.gols_mandante && !delayed.queue.some(item => item.payload.tipo === 'GOL' && item.payload.time_id === p.mandante_id))} onClick={() => subtractGoal(p.mandante_id)}><Icon name="minus" size={20} /></button>}
+                    {live && data.podeSumula && <button type="button" className="live-goal-add live-goal-subtract" aria-label={`Subtrair gol do ${p.mandante?.nome}`} data-tooltip="Subtrair um gol" disabled={busy || (!p.gols_mandante && !delayed.queue.some(item => item.payload.tipo === 'GOL' && item.payload.time_id === p.mandante_id))} onClick={() => subtractGoal(p.mandante_id)}><Icon name="minus" size={20} /></button>}
                   </div>
                   <span aria-hidden="true">·</span>
                   <div>
@@ -458,14 +458,14 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
                         type="button"
                         className="live-goal-add"
                         disabled={busy}
-                        aria-label={`Registrar gol do ${p.visitante?.nome}`}
+                        aria-label={`Registrar gol do ${p.visitante?.nome}`} data-tooltip="Registrar gol"
                         onClick={() => openEvent('GOL', p.visitante_id)}
                       >
                         <Icon name="plus" size={23} />
                       </button>
                     )}
                     <strong>{p.gols_visitante}</strong>
-                    {live && data.podeSumula && <button type="button" className="live-goal-add live-goal-subtract" aria-label={`Subtrair gol do ${p.visitante?.nome}`} title={`Corrigir gol do ${p.visitante?.nome}`} disabled={busy || (!p.gols_visitante && !delayed.queue.some(item => item.payload.tipo === 'GOL' && item.payload.time_id === p.visitante_id))} onClick={() => subtractGoal(p.visitante_id)}><Icon name="minus" size={20} /></button>}
+                    {live && data.podeSumula && <button type="button" className="live-goal-add live-goal-subtract" aria-label={`Subtrair gol do ${p.visitante?.nome}`} data-tooltip="Subtrair um gol" disabled={busy || (!p.gols_visitante && !delayed.queue.some(item => item.payload.tipo === 'GOL' && item.payload.time_id === p.visitante_id))} onClick={() => subtractGoal(p.visitante_id)}><Icon name="minus" size={20} /></button>}
                   </div>
                 </div>
               </div>
@@ -477,7 +477,7 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
               </div>
             </div>
             <div className={`live-score-facts${p.local ? '' : ' without-location'}`}>
-              {p.local && <span title={p.local}><Icon name="location" size={17} /><span>{p.local}</span></span>}
+              {p.local && <span><Icon name="location" size={17} /><span data-tooltip={p.local} data-tooltip-overflow>{p.local}</span></span>}
               <span><Icon name="clock" size={17} />{p.horario || 'Horário não definido'}</span>
               <span><Icon name={inHome ? 'home' : 'bus'} size={16} />{inHome ? 'Casa' : 'Fora'}</span>
             </div>
@@ -608,7 +608,7 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
                             e.currentTarget.open = false;
                         }}
                       >
-                        <summary aria-label={`Opções do evento ${event.id}`}>···</summary>
+                        <summary aria-label={`Opções do evento ${event.id}`} data-tooltip="Opções do acontecimento">···</summary>
                         <div>
                           {canIdentifyGoal(data, event, clube?.id) &&
                             data.equipes.some(
@@ -655,7 +655,7 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
             <Icon name="archive" size={17} />
             <span>
               <strong>Histórico de alterações</strong>
-              <small title={auditEntries[0] ? auditTitle(auditEntries[0]) : undefined}>
+              <small data-tooltip={auditEntries[0] ? auditTitle(auditEntries[0]) : undefined} data-tooltip-overflow>
                 {auditEntries[0] ? `Última: ${auditTitle(auditEntries[0])}` : 'Nenhuma alteração registrada'}
               </small>
             </span>
@@ -835,9 +835,9 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
                         {String(player.numCamisa).padStart(2, '0')}
                       </span>
                       <span>
-                        <strong>{player.jogador?.nome || 'Jogador'}</strong>
+                        <strong data-tooltip={player.jogador?.nome} data-tooltip-overflow>{player.jogador?.nome || 'Jogador'}</strong>
                         <small>
-                          <PositionIcon position={player.jogador?.posicao || ''} />
+                          <PositionIcon decorative tooltip={false} position={player.jogador?.posicao || ''} />
                           {player.jogador?.posicao}
                           {player.titular ? ' · Em campo' : ' · Reserva'}
                         </small>
@@ -1105,7 +1105,7 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
                 }}
                 onClick={() => starter ? setOut(String(player.jogador_id)) : setInto(String(player.jogador_id))}>
                 <span className="lineup-shirt">{String(player.numCamisa).padStart(2, '0')}</span>
-                <span><strong>{player.jogador?.nome}</strong><small><PositionIcon position={player.jogador?.posicao || ''} />{player.jogador?.posicao}</small></span>
+                <span><strong data-tooltip={player.jogador?.nome} data-tooltip-overflow>{player.jogador?.nome}</strong><small><PositionIcon decorative tooltip={false} position={player.jogador?.posicao || ''} />{player.jogador?.posicao}</small></span>
                 <Icon name={String(player.jogador_id) === (starter ? out : into) ? 'checkAll' : 'switchClub'} size={17} />
               </button>)}
             </div>

@@ -19,7 +19,7 @@ export function CollectionFilterButton({ onClick, label = 'Filtros', count = 0, 
   onClick: () => void; label?: string; count?: number; className?: string;
 }) {
   return <Btn variant="ghost" className={`collection-control collection-filter-button compact-filter-button ${className}`}
-    onClick={onClick} aria-label={label} title={label} aria-haspopup="dialog">
+    onClick={onClick} aria-label={label} data-tooltip={label} aria-haspopup="dialog">
     <Icon name="filters" size={18}/>
     {count > 0 && <span className="compact-filter-count">{count}</span>}
   </Btn>;
@@ -31,7 +31,7 @@ export function CollectionViewToggle({ value, onChange, options, label = 'Modo d
   label?: string; className?: string;
 }) {
   return <div className={`collection-control collection-mode-toggle compact-view-toggle ${className}`} data-swipe-ignore role="group" aria-label={label}>
-    {options.map(option => <button type="button" key={option.value} aria-label={option.label} title={option.label}
+    {options.map(option => <button type="button" key={option.value} aria-label={option.label} data-tooltip={option.label} data-tooltip-icon-only
       aria-pressed={value === option.value} onClick={() => onChange(option.value)}>
       <Icon name={option.icon} size={16}/><span className="compact-control-label">{option.label}</span>
     </button>)}

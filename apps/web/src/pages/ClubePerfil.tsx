@@ -146,7 +146,7 @@ export default function ClubePerfil() {
                 </Btn>
                 {data.escudo && <button type="button" className="club-settings-text-button" onClick={() => { update('escudo', null); setImageName(''); }}>Remover</button>}
               </div>}
-              {imageName && <span className="club-crest-file" title={imageName}>Selecionado: {imageName}</span>}
+              {imageName && <span className="club-crest-file" data-tooltip={imageName} data-tooltip-overflow>Selecionado: {imageName}</span>}
             </div>
             <input ref={fileInput} className="sr-only" tabIndex={-1} type="file" accept="image/png,image/jpeg,image/webp"
               aria-label="Selecionar escudo do clube" disabled={!editable || busy || imageBusy} aria-invalid={!!errors.escudo}

@@ -32,14 +32,14 @@ export function MatchListRow({ partida: p }: { partida: Partida }) {
       <div className="match-list-contest">
         <div className={`match-list-team${highlightHome ? ' is-current' : ''}`}>
           <ClubBadge src={p.mandante?.escudo} name={home} size={40} />
-          <strong title={home}>{home}</strong>
+          <strong data-tooltip={home} data-tooltip-overflow>{home}</strong>
         </div>
         <div className={`match-list-score${finished ? ' has-result' : ''}`} aria-label={finished ? `${p.gols_mandante} a ${p.gols_visitante}` : 'Contra'}>
           {finished ? <><b>{p.gols_mandante}</b><i aria-hidden="true">·</i><b>{p.gols_visitante}</b></> : <small>VS</small>}
         </div>
         <div className={`match-list-team${highlightAway ? ' is-current' : ''}`}>
           <ClubBadge src={p.visitante?.escudo} name={away} size={40} />
-          <strong title={away}>{away}</strong>
+          <strong data-tooltip={away} data-tooltip-overflow>{away}</strong>
         </div>
       </div>
       <span className="match-list-location"><Icon name="location" size={16} /><span>{p.local || 'Local a definir'}</span></span>

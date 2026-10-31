@@ -9,7 +9,7 @@ export function PlayerShirtButton({ player, editable, onClick }: { player: Jogad
   if (!editable) return <span className={`alunos-shirt${empty ? ' is-empty' : ''}`} aria-label={empty ? 'Sem camisa' : `Camisa ${player.numCamisa}`}>{player.numCamisa ?? '—'}</span>;
   return <button type="button" className={`alunos-shirt alunos-shirt-action${empty ? ' is-empty' : ''}`}
     aria-label={`${empty ? 'Definir camisa de' : 'Editar camisa de'} ${player.nome}`}
-    title={empty ? 'Definir número da camisa' : 'Editar número da camisa'} onClick={onClick}>
+    data-tooltip={empty ? 'Definir número da camisa' : 'Editar número da camisa'} onClick={onClick}>
     {empty ? <Icon name="shirt" size={22} /> : player.numCamisa}
     <span className="shirt-edit-hint"><Icon name="edit" size={10} /></span>
   </button>;

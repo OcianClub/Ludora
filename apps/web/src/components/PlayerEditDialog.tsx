@@ -63,7 +63,7 @@ export function PlayerEditDialog({ player, onClose, onSaved }: { player: Editabl
         <BirthDateField value={form.dtNasc} onChange={dtNasc => { setConflict(null); setError(''); setForm(f => ({ ...f, dtNasc })); }}/>
         <Input label="Camisa" inputMode="numeric" value={form.numCamisa} onChange={e => { setConflict(null); setForm(f => ({ ...f, numCamisa: digitsOnly(e.target.value).slice(0,2) })); }}/>
         <p className="full" role="status">{category ? `Categoria: ${category.toUpperCase()}` : 'Verificando categoria…'}</p>
-        <div className="position-options full" role="group" aria-label="Posição">{POSITIONS.map(value => <button type="button" key={value} data-tooltip={value} aria-pressed={form.posicao === value} onClick={() => setForm(f => ({ ...f, posicao: value }))}><PositionBadge position={value} showLabel/></button>)}</div>
+        <div className="position-options full" role="group" aria-label="Posição">{POSITIONS.map(value => <button type="button" key={value} aria-pressed={form.posicao === value} onClick={() => setForm(f => ({ ...f, posicao: value }))}><PositionBadge position={value} showLabel/></button>)}</div>
       </fieldset>
       {photoBusy && <p role="status">Preparando foto…</p>}
       {conflict && <div className="alunos-conflict" role="alert"><p>A camisa {conflict.camisa} já pertence a {conflict.nome}. {conflict.camisa_anterior === null ? 'O outro jogador ficará sem camisa.' : `O outro jogador receberá a camisa ${conflict.camisa_anterior}.`}</p><Btn variant="ghost" type="button" disabled={busy} onClick={() => setConflict(null)}>Cancelar troca</Btn><Btn type="button" disabled={busy} onClick={() => void save(conflict)}>Confirmar troca</Btn></div>}

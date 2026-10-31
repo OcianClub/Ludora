@@ -232,7 +232,7 @@ export function Notifications() {
   return (
     <>
       <button className="profile-link notifications-trigger" type="button"
-        aria-label={`Notificações, ${unreadCount} não lidas`}
+        aria-label={`Notificações, ${unreadCount} não lidas`} data-tooltip="Notificações"
         aria-haspopup="dialog" aria-expanded={open} aria-controls={dialogId}
         onClick={() => { setOpen(true); void reload.current(); }}>
         <Icon name="bell" size={23} />
@@ -246,7 +246,7 @@ export function Notifications() {
         </div>} headerActions={clube?.meuPapel && <details className="notification-menu"
           onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}
           onKeyDown={event => { if (event.key === 'Escape' && event.currentTarget.open) { event.preventDefault(); event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
-          <summary aria-label="Ações das notificações">···</summary>
+          <summary aria-label="Ações das notificações" data-tooltip="Ações das notificações">···</summary>
           <div className="notification-menu-options" onClick={event => {
             if ((event.target as HTMLElement).closest('button')) event.currentTarget.closest('details')?.removeAttribute('open');
           }}>

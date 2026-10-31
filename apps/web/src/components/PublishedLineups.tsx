@@ -66,9 +66,9 @@ export function PublishedLineups({ data, statistics = false }: { data: GestaoPar
                       {String(player.numCamisa).padStart(2, '0')}
                     </span>
                     <div className="lineup-player">
-                      <strong title={player.jogador?.nome}>{player.jogador?.nome}</strong>
+                      <strong data-tooltip={player.jogador?.nome} data-tooltip-overflow>{player.jogador?.nome}</strong>
                       <span className="lineup-position">
-                        <PositionIcon position={player.jogador?.posicao || ''} />
+                        <PositionIcon decorative tooltip={false} position={player.jogador?.posicao || ''} />
                         {player.jogador?.posicao}
                       </span>
                     </div>
@@ -78,7 +78,7 @@ export function PublishedLineups({ data, statistics = false }: { data: GestaoPar
                         ['GOL', 'GOL', 'Gols'], ['ASSISTENCIA', 'AST', 'Assistências'],
                         ['FALTA', 'FAL', 'Faltas'], ['CARTAO_AMARELO', 'AMA', 'Cartões amarelos'],
                         ...(['DEFESA', 'CARTAO_VERMELHO', 'CARTAO_AZUL'].filter(type => (totals.get(`${equipe.time_id}:${player.jogador_id}`)?.[type] || 0) > 0).map(type => [type, type === 'DEFESA' ? 'DEF' : type === 'CARTAO_AZUL' ? 'AZU' : 'VER', type === 'DEFESA' ? 'Defesas' : type === 'CARTAO_AZUL' ? 'Cartões azuis' : 'Cartões vermelhos'])),
-                      ].map(([type, label, title]) => <span key={type} title={title} aria-label={`${title}: ${totals.get(`${equipe.time_id}:${player.jogador_id}`)?.[type] || 0}`}><b>{totals.get(`${equipe.time_id}:${player.jogador_id}`)?.[type] || 0}</b><small>{label}</small></span>)}
+                      ].map(([type, label, title]) => <span key={type} data-tooltip={title} aria-label={`${title}: ${totals.get(`${equipe.time_id}:${player.jogador_id}`)?.[type] || 0}`}><b>{totals.get(`${equipe.time_id}:${player.jogador_id}`)?.[type] || 0}</b><small>{label}</small></span>)}
                     </div>}
                   </div>
                 ))}

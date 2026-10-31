@@ -87,10 +87,9 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
               <div className="moment-results">
                 {[...historico].reverse().map((match, index) => (
                   <Link key={match.id} className={`moment-result result-${resultadoPartida(match)}`}
-                    to={`/partidas/${match.id}`} title={`${teamName(match.mandante?.nome || 'Mandante')} ${match.gols_mandante} × ${match.gols_visitante} ${teamName(match.visitante?.nome || 'Visitante')} · ${dataHome(match.data)}`}
+                    to={`/partidas/${match.id}`} data-tooltip={`${teamName(match.mandante?.nome || 'Mandante')} ${match.gols_mandante} × ${match.gols_visitante} ${teamName(match.visitante?.nome || 'Visitante')} · ${dataHome(match.data)}`}
                     aria-label={`${RESULTADOS[resultadoPartida(match)]}: ${teamName(match.mandante?.nome || 'Mandante')} ${match.gols_mandante} a ${match.gols_visitante} ${teamName(match.visitante?.nome || 'Visitante')}, ${dataHome(match.data, true)}. Ver partida`}>
                     <strong>{resultadoPartida(match)}</strong>
-                    <span className="moment-result-detail" aria-hidden="true">{teamName(match.emCasa ? match.visitante?.nome || 'Adversário' : match.mandante?.nome || 'Adversário')}<b>{match.gols_mandante} × {match.gols_visitante}</b></span>
                     <small className={index === historico.length - 1 ? 'is-latest' : ''}>{dataHome(match.data)}</small>
                   </Link>
                 ))}
@@ -116,7 +115,7 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
                     aria-label={`${dataHome(day, true)}, ${match.horario || 'horário a definir'}: contra ${teamName(opponent?.nome || 'Adversário')}. ${acaoHome(match, podeGerenciar, clube?.id)}`}>
                     <time className="home-upcoming-time" dateTime={match.horario ? `${day}T${match.horario}` : day}><Icon name="clock" size={14} />{match.horario || 'A definir'}</time>
                     <ClubBadge src={opponent?.escudo} name={teamName(opponent?.nome || 'Adversário')} size={34} />
-                    <span className="home-upcoming-opponent"><strong title={teamName(opponent?.nome || 'Adversário')}>{teamName(opponent?.nome || 'Adversário')}</strong><small><Icon name={match.emCasa ? 'home' : 'bus'} size={13} />{match.emCasa ? 'Em casa' : 'Fora'}<i aria-hidden="true">·</i>{podeGerenciar ? match.minha_equipe_pronta ? 'Equipe confirmada' : match.status === 'PREPARADA' ? 'Preparada' : 'Agendada' : match.local || 'Local a definir'}</small></span>
+                    <span className="home-upcoming-opponent"><strong data-tooltip={teamName(opponent?.nome || 'Adversário')} data-tooltip-overflow>{teamName(opponent?.nome || 'Adversário')}</strong><small><Icon name={match.emCasa ? 'home' : 'bus'} size={13} />{match.emCasa ? 'Em casa' : 'Fora'}<i aria-hidden="true">·</i>{podeGerenciar ? match.minha_equipe_pronta ? 'Equipe confirmada' : match.status === 'PREPARADA' ? 'Preparada' : 'Agendada' : match.local || 'Local a definir'}</small></span>
                     <span className="home-upcoming-action"><span>{podeGerenciar ? acaoHome(match, true, clube?.id).replace(' da partida', '') : 'Ver jogo'}</span><Icon name="chevronRight" size={16} /></span>
                   </Link>;
                 })}

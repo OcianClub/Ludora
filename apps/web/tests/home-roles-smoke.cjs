@@ -76,7 +76,8 @@ const output = path.resolve(__dirname, '../../../test-results/home-roles');
           assert.equal(await page.locator('.home-stale-live').count(), 1);
           const ball = page.locator('.moment-result').first();
           await ball.focus();
-          assert.equal(await ball.locator('.moment-result-detail').evaluate(el => getComputedStyle(el).visibility), 'visible');
+          await page.getByRole('tooltip').waitFor();
+          assert.match(await page.getByRole('tooltip').innerText(), /Ocian 3 × 1 Santos/);
           assert.match(await ball.getAttribute('aria-label'), /Ocian 3 a 1 Santos/);
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${role} ${width}: overflow`);
           if (width > 760) {

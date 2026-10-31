@@ -95,8 +95,8 @@ export function HomeHistoryTable({ partidas }: { partidas: HomePartida[] }) {
                 <td className="history-competition">{partida.competicao?.nome || 'Sem competição informada'}</td>
                 <td className="history-confrontation">
                   <div className="history-table-teams">
-                    <span className={partida.emCasa ? 'is-club' : ''}><ClubBadge src={partida.mandante?.escudo} name={home} size={28} /><span title={home}>{home}{partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</span></span>
-                    <span className={!partida.emCasa ? 'is-club' : ''}><ClubBadge src={partida.visitante?.escudo} name={away} size={28} /><span title={away}>{away}{!partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</span></span>
+                    <span className={partida.emCasa ? 'is-club' : ''}><ClubBadge src={partida.mandante?.escudo} name={home} size={28} /><span data-tooltip={home} data-tooltip-overflow>{home}{partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</span></span>
+                    <span className={!partida.emCasa ? 'is-club' : ''}><ClubBadge src={partida.visitante?.escudo} name={away} size={28} /><span data-tooltip={away} data-tooltip-overflow>{away}{!partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</span></span>
                   </div>
                 </td>
                 <td className="history-score-cell"><div className="history-table-score" aria-label={`${partida.gols_mandante} a ${partida.gols_visitante}`}><strong>{partida.gols_mandante}</strong><strong>{partida.gols_visitante}</strong></div></td>

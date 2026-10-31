@@ -37,6 +37,7 @@ export const AuthField = forwardRef<HTMLInputElement, Props>(function AuthField(
         {password && (
           <button type="button" className="access-eye" disabled={props.disabled}
             aria-label={`${visible ? 'Ocultar' : 'Mostrar'} ${label.toLowerCase()}`} aria-pressed={visible}
+            data-tooltip={`${visible ? 'Ocultar' : 'Mostrar'} ${label.toLowerCase()}`}
             onClick={() => setVisible(current => !current)}>
             <Icon name={visible ? 'eyeOff' : 'eye'} size={20} />
           </button>
