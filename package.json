@@ -4,6 +4,9 @@
   "version": "0.0.1",
   "packageManager": "pnpm@11.20.0",
   "scripts": {
+    "build:api": "pnpm --filter @ludora/api exec prisma generate && pnpm --filter @ludora/api run build",
+    "start:api": "pnpm --filter @ludora/api run start",
+    "build:web": "pnpm --filter @ludora/web run build",
     "dev": "concurrently --kill-others --names API,ML,MOBILE,WEB --prefix-colors blue,magenta,green,cyan --handle-input --default-input-target MOBILE \"pnpm dev:api\" \"pnpm dev:ml\" \"pnpm dev:mobile\" \"pnpm dev:web\"",
     "dev:web": "pnpm --filter @ludora/web run dev",
     "dev:api": "node scripts/dev-service.cjs api",

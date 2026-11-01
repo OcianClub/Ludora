@@ -54,6 +54,10 @@ export function criarApp(io: Server) {
   });
   app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '256kb' }));
 
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
+  });
+
   app.use(criarAdminRoutes(io));
   app.use(authRoutes);
   app.use(criarCadastroRoutes());

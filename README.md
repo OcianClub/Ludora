@@ -338,6 +338,7 @@ usar um banco descartável separado.
 
 ## Documentação complementar
 
+- [Deploy da API no Render e web na Vercel](docs/deploy-render-vercel.md)
 - [Auditoria de segurança, performance e interface — 01/11/2026](docs/auditoria-2026-11-01.md)
 - [Fluxo de partidas compartilhadas e validação](docs/partidas-compartilhadas.md)
 
