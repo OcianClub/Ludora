@@ -1,7 +1,6 @@
 import { randomBytes } from 'crypto';
 import { Router } from 'express';
 
-import { isProduction } from '../../config/env';
 import { prisma } from '../../lib/prisma';
 import {
   exigirAdminDoClube,
@@ -339,7 +338,6 @@ router.post(
         email_enviado: emailEnviado,
         aviso,
         codigo,
-        ...(isProduction ? {} : { token }),
       });
     } catch (error) {
       console.error('Erro ao criar convite:', error);
@@ -576,9 +574,7 @@ router.post(
 
         email_enviado: emailEnviado,
         aviso,
-        ...(isProduction
-          ? {}
-          : { token: tokenNovo, codigo: codigoNovo }),
+        codigo: codigoNovo,
       });
     } catch (error) {
       console.error('Erro ao reenviar convite:', error);

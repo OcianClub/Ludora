@@ -94,6 +94,9 @@ test('rotas protegem expiração, tentativas, consumo concorrente e sessões ant
   );
 
   const io = {
+    of: () => ({
+      in: () => ({ disconnectSockets: () => { desconexoes += 1; } }),
+    }),
     in: () => ({
       disconnectSockets: () => {
         desconexoes += 1;
@@ -159,7 +162,7 @@ test('rotas protegem expiração, tentativas, consumo concorrente e sessões ant
   ]);
   assert.deepEqual(resultados.map((r) => r.status).sort(), [200, 400]);
   assert.equal(versao, 1);
-  assert.equal(desconexoes, 1);
+  assert.equal(desconexoes, 2);
   assert.equal(await bcrypt.compare(dados.senha, senhaSalva), true);
   assert.equal((await post('/auth/redefinir-senha', dados)).status, 400);
   assert.equal(await getUsuarioIdPeloToken(tokenAntigo, banco), null);

@@ -179,7 +179,7 @@ router.delete('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async
     }
     await prisma.jogador.delete({ where: { id } });
     res.json({ mensagem: 'Excluído com sucesso' });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch { res.status(500).json({ error: 'Não foi possível excluir o jogador. Tente novamente.' }); }
 });
 
 // ==========================================

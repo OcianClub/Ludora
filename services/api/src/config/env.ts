@@ -4,6 +4,9 @@ import type jwt from 'jsonwebtoken';
 
 export const isProduction = process.env.NODE_ENV === 'production';
 export const PYTHON_AI_URL = process.env.PYTHON_AI_URL;
+if (isProduction && PYTHON_AI_URL && !process.env.ML_API_KEY) {
+  throw new Error('Configure ML_API_KEY para utilizar o Scout IA em produção.');
+}
 
 if (!process.env.JWT_SECRET) {
   console.error('ERRO FATAL: A variável JWT_SECRET não foi encontrada no arquivo .env!');

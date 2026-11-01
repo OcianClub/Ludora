@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "concurrently --kill-others --names API,ML,MOBILE,WEB --prefix-colors blue,magenta,green,cyan --handle-input --default-input-target MOBILE \"pnpm dev:api\" \"pnpm dev:ml\" \"pnpm dev:mobile\" \"pnpm dev:web\"",
     "dev:web": "pnpm --filter @ludora/web run dev",
-    "dev:api": "pnpm --filter @ludora/api run start",
-    "dev:ml": "cd services/ml && .\\.venv\\Scripts\\python.exe -m uvicorn main:app --reload",
+    "dev:api": "node scripts/dev-service.cjs api",
+    "dev:ml": "node scripts/dev-service.cjs ml",
     "dev:desktop": "pnpm --filter @ludora/desktop run dev",
     "build:desktop": "pnpm --filter @ludora/desktop run build",
     "dist:desktop": "pnpm --filter @ludora/desktop run dist:win",
@@ -19,8 +19,8 @@
     "dev:mobile:android": "pnpm --filter @ludora/mobile run android",
     "dev:mobile:check": "pnpm --filter @ludora/mobile run check",
     "perf:scout": "pnpm --filter @ludora/api exec tsx ../../apps/mobile/tests/scout.bench.ts",
-    "test:app": "pnpm --filter @ludora/api exec tsx --test tests/*.test.ts ../../apps/mobile/tests/*.test.ts",
-    "test:app:completo": "pnpm --filter @ludora/api run build && pnpm --filter @ludora/api exec tsx --test tests/*.test.ts tests/*.test.cjs tests/*.test.mjs ../../apps/mobile/tests/*.test.ts ../../apps/web/tests/*.test.mjs"
+    "test:app": "pnpm --filter @ludora/api exec tsx --require ./tests/setup.cjs --test tests/*.test.ts ../../apps/mobile/tests/*.test.ts",
+    "test:app:completo": "pnpm --filter @ludora/api run build && pnpm --filter @ludora/api exec tsx --require ./tests/setup.cjs --test tests/*.test.ts tests/*.test.cjs tests/*.test.mjs ../../apps/mobile/tests/*.test.ts ../../apps/web/tests/*.test.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

@@ -2,7 +2,7 @@ import { CompetitionPanel } from '../components/CompetitionPanel';
 import './SharedMatches.css';
 import { useEffect, useState } from 'react';
 import { fetchCompeticoes, criarCompeticao, atualizarCompeticao, deletarCompeticao, type Competicao } from '../services/api';
-import { Btn, Modal, Input, Spinner } from '../components/UI';
+import { Btn, Modal, Input, LoadingSkeleton } from '../components/UI';
 import { Choice, ViewToggle, type ViewMode } from '../components/CollectionControls';
 import { BlockColumns } from '../components/BlockColumns';
 import { Icon } from '../components/Icon';
@@ -59,7 +59,7 @@ export default function CompeticoesPage() {
       <Choice label="Temporada" value={year} onChange={setYear} options={[{value:'',label:'Todas'},...[...new Set(competicoes.map(c=>c.ano))].sort((a,b)=>b-a).map(ano=>({value:String(ano),label:String(ano)}))]} />
       <ViewToggle value={view} onChange={setView} />
     </div>
-    {loading ? <Spinner/> : loadError ? <p className="notice-error" role="alert">{loadError}</p> : <>
+    {loading ? <LoadingSkeleton kind="cards" /> : loadError ? <p className="notice-error" role="alert">{loadError}</p> : <>
       <p className="competition-count">{visible.length} competições encontradas</p>
       <BlockColumns list={view === 'list'}>{visible.map(c => <article key={c.id} className={`competition-card ${view === 'list' ? 'competition-row' : ''}`}>
         <div className="competition-identity"><span className="competition-icon"><Icon name="trophy" size={24}/></span><div><small>{c.ano} · {c.tipo === 'BASE' ? 'Base' : 'Iniciação'}</small><h2>{c.nome}</h2></div></div>

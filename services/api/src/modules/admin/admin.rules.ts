@@ -3,7 +3,8 @@ import { EventEmitter } from 'node:events';
 // ─── Super Admin ──────────────────────────────────────────────────────────────
 // Não existe papel de plataforma no banco (os papéis são por clube). A lista de
 // Super Admins vem do ambiente, o que evita migration no banco compartilhado.
-// O e-mail só chega aqui depois de confirmado por código (ver cadastro.routes).
+// Novas contas da allowlist exigem confirmação por código no cadastro; perfil
+// e aceite de convite não podem adotar um e-mail reservado à plataforma.
 
 export function parseSuperAdmins(raw: string | undefined): Set<string> {
   return new Set(
@@ -115,7 +116,8 @@ export function nivelPorStatus(status: number): NivelLog {
 // parecem credenciais (códigos de convite, tokens). Nunca registramos corpo
 // nem cabeçalhos: só método, caminho, status e duração.
 export function limparCaminho(url: string): string {
-  const semQuery = String(url || '').split('?')[0].split('#')[0];
+  const semQuery = String(url || '').split('?')[0].split('#')[0]
+    .replace(/(\/convites\/(?:codigo\/)?)\/?[^/]+/i, '$1:token');
   return semQuery
     .split('/')
     .map(segmento => (/^[A-Za-z0-9_-]{16,}$/.test(segmento) ? ':token' : segmento))

@@ -1,5 +1,6 @@
 import { Component, Suspense, lazy, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
+import { LoadingSkeleton } from './components/LoadingSkeleton';
 
 const loaders = {
   '/login': () => import('./pages/Login'),
@@ -72,8 +73,8 @@ export function Page({ children }: { children: ReactNode }) {
   return (
     <PageBoundary key={pathname}>
       <Suspense fallback={
-        <div className="route-loading" role="status" aria-label="Abrindo tela">
-          <span className="spinner" />
+        <div className="route-loading">
+          <LoadingSkeleton label="Abrindo tela" count={3} />
         </div>
       }>
         {children}

@@ -1,7 +1,9 @@
 import { app, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { SuperAdminUsuario } from '@ludora/shared-types';
 import { CANAIS, type ConfigApp, type ResultadoLogin } from '../shared/bridge';
-import { emailValido, metodoPermitido, caminhoApiPermitido } from '../shared/rules';
+import { emailValido, metodoPermitido, caminhoApiPermitido, rendererUrlPermitida } from '../shared/rules';
 import { chamarApi } from './api-client';
 import { API_URL_PADRAO, lerApiUrl, salvarApiUrl } from './config';
 import { iniciarLogs, obterHistorico, pararLogs } from './realtime';
@@ -10,10 +12,11 @@ import { armazenamentoSeguro, carregarDoDisco, limparSessao, salvarSessao, sessa
 // Só o nosso próprio renderer pode falar com o processo principal.
 function remetenteConfiavel(evento: IpcMainInvokeEvent, janela: BrowserWindow): boolean {
   if (evento.sender !== janela.webContents) return false;
+  if (evento.senderFrame !== janela.webContents.mainFrame) return false;
   const url = evento.senderFrame?.url ?? '';
-  const dev = process.env.ELECTRON_RENDERER_URL;
-  if (dev) return url.startsWith(dev);
-  return url.startsWith('file://');
+  const entrada = process.env.ELECTRON_RENDERER_URL
+    || pathToFileURL(path.join(__dirname, '../renderer/index.html')).href;
+  return rendererUrlPermitida(url, entrada);
 }
 
 export function registrarIpc(obterJanela: () => BrowserWindow | null) {

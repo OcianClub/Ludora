@@ -43,3 +43,18 @@ export function metodoPermitido(metodo: unknown): metodo is MetodoHttp {
 export function emailValido(valor: unknown): valor is string {
   return typeof valor === 'string' && valor.length <= 254 && /^[^\s@]+@[^\s@]+$/.test(valor);
 }
+
+export function rendererUrlPermitida(candidata: string, entrada: string): boolean {
+  try {
+    const destino = new URL(candidata);
+    const origem = new URL(entrada);
+    if (destino.username || destino.password) return false;
+    if (!['http:', 'https:', 'file:'].includes(origem.protocol)) return false;
+    return destino.protocol === origem.protocol
+      && destino.host === origem.host
+      && destino.pathname === origem.pathname
+      && destino.search === origem.search;
+  } catch {
+    return false;
+  }
+}

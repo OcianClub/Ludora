@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cachedJson, deixarDeSeguirClube, fetchClubes, seguirClube, type Clube } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Btn, Modal, Spinner } from '../components/UI';
+import { Btn, Modal, LoadingSkeleton } from '../components/UI';
 import { Brand, ClubBadge } from '../components/Brand';
 import { AccountMenu } from '../components/AccountMenu';
 import { Notifications } from '../components/Notifications';
@@ -136,7 +136,7 @@ export default function SelecionarClubePage() {
     <main className="selecionar-body" data-tooltip-disabled>
       <div className="selecionar-intro"><h1>Encontre o seu clube</h1><p>Acesse qualquer clube. Seguir serve para deixar seus favoritos salvos aqui.</p></div>
       {erro && <div className="club-picker-error" role="alert"><span>{erro}</span>{!clubes.length && <button type="button" onClick={() => setTentativa(value => value + 1)}>Tentar novamente</button>}</div>}
-      {loading ? <Spinner /> : <>
+      {loading ? <LoadingSkeleton kind="rows" /> : <>
         {!query && gerenciados.length > 0 && <section className="club-picker-section" aria-labelledby="clubs-roles">
           <h2 id="clubs-roles" className="club-picker-section-title">Com cargo <span>{gerenciados.length}</span></h2>
           <div className="club-picker-grid">{gerenciados.map(item => card(item))}</div>

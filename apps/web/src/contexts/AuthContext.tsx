@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   atualizarMeuPerfil,
   fetchMeuPerfil,
   invalidateApiReads,
   getToken,
+  getClubeId,
   setToken,
   removeToken,
   setClubeId,
@@ -15,6 +16,8 @@ import {
 } from '../services/api';
 import { BASE_URL } from '../services/config';
 import { AuthError, authRequest } from '../services/authHttp';
+import { invalidateReadCache } from '../services/readCache';
+import { clearSavedSession, reconcileClubAccess } from '../services/authSession';
 
 interface AuthContextValue {
   usuario: Usuario | null;
@@ -46,53 +49,78 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [clube, setClube] = useState<Clube | null>(() => lerSalvo<Clube>('ludora_clube'));
   const [token, setTokenState] = useState<string | null>(getToken());
   const [fazendoLogin, setFazendoLogin] = useState(false);
+  const sessionVersion = useRef(0);
+  const activeToken = useRef(token);
+  activeToken.current = token;
+
+  const applyProfile = useCallback((perfil: PerfilUsuario) => {
+    const atualizado = {
+      id: perfil.id,
+      nome: perfil.nome,
+      email: perfil.email,
+      criadoEm: perfil.criadoEm,
+    };
+    setUsuario(atualizado);
+    localStorage.setItem('ludora_usuario', JSON.stringify(atualizado));
+    const selected = lerSalvo<Clube>('ludora_clube');
+    if (!selected || selected.id !== getClubeId()) return;
+    const nextClub = reconcileClubAccess(selected, perfil.clubes);
+    if (JSON.stringify([selected.meuPapel, selected.acessoTodasCategorias, selected.categoriasAcesso]) !== JSON.stringify([nextClub.meuPapel, nextClub.acessoTodasCategorias, nextClub.categoriasAcesso])) {
+      invalidateApiReads();
+    }
+    localStorage.setItem('ludora_clube', JSON.stringify(nextClub));
+    setClube(current => current?.id === selected.id ? nextClub : current);
+  }, []);
 
   useEffect(() => {
     let ativo = true;
-    const t = getToken();
+    const t = token;
+    const version = sessionVersion.current;
+    const controller = new AbortController();
     if (t) {
-      const clubeSalvo = lerSalvo<Clube>('ludora_clube');
-      authRequest<PerfilUsuario>(`${BASE_URL}/usuarios/me`, { headers: { Authorization: `Bearer ${t}` } })
+      authRequest<PerfilUsuario>(`${BASE_URL}/usuarios/me`, {
+        headers: { Authorization: `Bearer ${t}` },
+        signal: controller.signal,
+      })
         .then(perfil => {
-          if (!ativo || getToken() !== t) return;
-          const usuarioAtual = {
-            id: perfil.id,
-            nome: perfil.nome,
-            email: perfil.email,
-            criadoEm: perfil.criadoEm,
-          };
-          setUsuario(usuarioAtual);
-          localStorage.setItem('ludora_usuario', JSON.stringify(usuarioAtual));
-
-          if (clubeSalvo) {
-            const vinculoAtual = perfil.clubes.find(item => item.id === clubeSalvo.id);
-            if (JSON.stringify([clubeSalvo.meuPapel, clubeSalvo.acessoTodasCategorias, clubeSalvo.categoriasAcesso]) !== JSON.stringify([vinculoAtual?.meuPapel, vinculoAtual?.acessoTodasCategorias, vinculoAtual?.categoriasAcesso])) invalidateApiReads();
-            if (vinculoAtual) {
-              setClube(vinculoAtual);
-              localStorage.setItem('ludora_clube', JSON.stringify(vinculoAtual));
-            } else {
-              setClube({ ...clubeSalvo, meuPapel: null });
-              localStorage.setItem('ludora_clube', JSON.stringify({ ...clubeSalvo, meuPapel: null }));
-            }
-          }
+          if (!ativo || getToken() !== t || sessionVersion.current !== version) return;
+          applyProfile(perfil);
         })
         .catch(error => {
-          if (!ativo || getToken() !== t || !(error instanceof AuthError) || error.status !== 401) return;
+          if (!ativo || getToken() !== t || sessionVersion.current !== version || !(error instanceof AuthError) || error.status !== 401) return;
+          sessionVersion.current++;
           setTokenState(null);
           setUsuario(null);
           setClube(null);
-          try {
-            removeToken();
-            removeClubeId();
-            localStorage.removeItem('ludora_usuario');
-            localStorage.removeItem('ludora_clube');
-          } catch { /* A sessão já foi removida da memória. */ }
+          invalidateReadCache();
+          clearSavedSession();
         });
     }
-    return () => { ativo = false; };
+    return () => { ativo = false; controller.abort(); };
+  }, [token, applyProfile]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const sync = (event: StorageEvent) => {
+      if (event.storageArea !== localStorage || (event.key && !['ludora_token', 'ludora_usuario', 'ludora_clube', 'ludora_clube_id'].includes(event.key))) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const nextToken = getToken();
+        if (nextToken !== activeToken.current) sessionVersion.current++;
+        activeToken.current = nextToken;
+        invalidateReadCache();
+        setTokenState(nextToken);
+        setUsuario(nextToken ? lerSalvo<Usuario>('ludora_usuario') : null);
+        const selected = nextToken ? lerSalvo<Clube>('ludora_clube') : null;
+        setClube(selected?.id === getClubeId() ? selected : null);
+      }, 0);
+    };
+    window.addEventListener('storage', sync);
+    return () => { clearTimeout(timer); window.removeEventListener('storage', sync); };
   }, []);
 
   const iniciarSessao = useCallback((dados: { token: string; usuario: Usuario }) => {
+    sessionVersion.current++;
     try {
       removeToken();
       removeClubeId();
@@ -100,6 +128,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('ludora_usuario', JSON.stringify(dados.usuario));
       setToken(dados.token);
     } catch {
+      invalidateReadCache();
+      clearSavedSession();
       setTokenState(null);
       setUsuario(null);
       setClube(null);
@@ -111,9 +141,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, senha: string) => {
+    const version = sessionVersion.current;
     setFazendoLogin(true);
     try {
       const data = await apiLogin(email, senha);
+      if (sessionVersion.current !== version) throw new AuthError('O acesso foi alterado em outra janela. Tente entrar novamente.');
       iniciarSessao(data);
     } finally {
       setFazendoLogin(false);
@@ -121,10 +153,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [iniciarSessao]);
 
   const logout = useCallback(() => {
-    removeToken();
-    removeClubeId();
-    localStorage.removeItem('ludora_usuario');
-    localStorage.removeItem('ludora_clube');
+    sessionVersion.current++;
+    invalidateReadCache();
+    clearSavedSession();
     setUsuario(null);
     setClube(null);
     setTokenState(null);
@@ -138,22 +169,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const atualizarPerfil = useCallback(async (dados: { nome: string; email: string; senha?: string }) => {
+    const currentToken = getToken();
+    const version = sessionVersion.current;
     const atualizado = await atualizarMeuPerfil(dados);
+    if (!currentToken || getToken() !== currentToken || sessionVersion.current !== version) return;
     setUsuario(atualizado);
     localStorage.setItem('ludora_usuario', JSON.stringify(atualizado));
   }, []);
 
   const recarregarPerfil = useCallback(async () => {
+    const currentToken = getToken();
+    const version = sessionVersion.current;
     const perfil = await fetchMeuPerfil();
-    const atualizado = {
-      id: perfil.id,
-      nome: perfil.nome,
-      email: perfil.email,
-      criadoEm: perfil.criadoEm,
-    };
-    setUsuario(atualizado);
-    localStorage.setItem('ludora_usuario', JSON.stringify(atualizado));
-  }, []);
+    if (!currentToken || getToken() !== currentToken || sessionVersion.current !== version) return;
+    applyProfile(perfil);
+  }, [applyProfile]);
 
   const podeGerenciar = !!clube?.meuPapel && PAPEIS_GESTORES.includes(clube.meuPapel);
 

@@ -4,6 +4,7 @@ import type { Server } from 'socket.io';
 
 import { corsOptions, isProduction } from './config/env';
 import { comprimirConsultas } from './middlewares/compressao.middleware';
+import { protegerCacheHttp, tratarErroHttp } from './middlewares/http-errors.middleware';
 import authRoutes from './modules/auth/auth.routes';
 import { criarCadastroRoutes } from './modules/auth/cadastro.routes';
 import { criarRecuperacaoRoutes } from './modules/auth/recuperacao.routes';
@@ -28,6 +29,7 @@ export function criarApp(io: Server) {
 
   app.disable('x-powered-by');
   app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 0));
+  app.use(protegerCacheHttp);
   app.use(cors(corsOptions));
   app.use(comprimirConsultas);
   app.use(registrarRequisicoes);
@@ -74,34 +76,7 @@ export function criarApp(io: Server) {
     res.status(404).json({ error: 'Rota não encontrada' });
   });
 
-  app.use(
-    (
-      error: any,
-      _req: express.Request,
-      res: express.Response,
-      _next: express.NextFunction
-    ) => {
-      const status =
-        error?.type === 'entity.too.large'
-          ? 413
-          : error?.message === 'Origem não permitida pelo CORS'
-            ? 403
-            : 500;
-
-      if (status === 500) {
-        console.error('Erro não tratado:', error?.message || error);
-      }
-
-      res.status(status).json({
-        error:
-          status === 413
-            ? 'Payload muito grande'
-            : status === 403
-              ? 'Origem não permitida'
-              : 'Erro interno do servidor',
-      });
-    }
-  );
+  app.use(tratarErroHttp);
 
   return app;
 }

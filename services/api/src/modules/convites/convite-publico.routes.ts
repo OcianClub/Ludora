@@ -7,6 +7,7 @@ import { prisma } from '../../lib/prisma';
 import { exigirAutenticacao } from '../../middlewares/auth.middleware';
 import { limitarAuth } from '../../middlewares/rate-limit.middleware';
 import { obterFiltroCredencialConvite } from './convite.utils';
+import { ehSuperAdmin, parseSuperAdmins } from '../admin/admin.rules';
 
 const router = Router();
 
@@ -151,9 +152,9 @@ router.post(
       });
     }
 
-    if (senha.length < 8 || senha.length > 128) {
+    if (senha.length < 8 || Buffer.byteLength(senha, 'utf8') > 72) {
       return res.status(400).json({
-        error: 'A senha deve possuir entre 8 e 128 caracteres',
+        error: 'A senha deve possuir pelo menos 8 caracteres e até 72 bytes',
       });
     }
 
@@ -204,6 +205,12 @@ router.post(
 
       if (!convite.email) {
         return res.status(409).json({ error: 'Entre na sua conta para aceitar este código de uso único.', codigo: 'CONTA_EXISTENTE' });
+      }
+      if (ehSuperAdmin(convite.email, parseSuperAdmins(process.env.SUPERADMIN_EMAILS))) {
+        return res.status(409).json({
+          error: 'Confirme seu e-mail pelo cadastro e faça login para aceitar o convite.',
+          codigo: 'CONTA_EXISTENTE',
+        });
       }
       const usuarioExistente = await prisma.usuario.findUnique({
         where: {

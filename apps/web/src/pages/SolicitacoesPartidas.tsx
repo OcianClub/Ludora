@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { carregarPropostas, responderProposta, type PropostaPartida } from '../services/sharedMatches';
-import { Btn, Input, Modal, Spinner } from '../components/UI';
+import { Btn, Input, Modal, LoadingSkeleton } from '../components/UI';
 import { Icon } from '../components/Icon';
 import { InfoNotice } from '../components/InfoNotice';
 import { MatchDateField, MatchTimeField } from '../components/MatchDateTime';
@@ -65,7 +65,7 @@ export default function SolicitacoesPartidas() {
     <div className="shared-status-tabs" role="group" aria-label="Filtrar solicitações">{[['PENDENTE', 'Pendentes'], ['', 'Todas']].map(([v, l]) => <button key={l} aria-pressed={filtro === v} onClick={() => setFiltro(v)}>{l}</button>)}</div>
     <Toast message={notice} onClose={() => setNotice('')}/>
     {!selected && error && <p role="alert" className="notice-error">{error}<button onClick={() => void refresh()}>Tentar novamente</button></p>}
-    {loading ? <Spinner/> : <div className="shared-proposal-list">{items.filter(p => !filtro || p.status === filtro).map(p => {
+    {loading ? <LoadingSkeleton kind="rows" /> : <div className="shared-proposal-list">{items.filter(p => !filtro || p.status === filtro).map(p => {
       const recebida = p.respondente_id === clube?.id;
       const sugestao = p.dados.sugestao;
       const autorSugestao = sugestao?.clube_id === p.origem_id ? p.origem.nome : p.destino.nome;

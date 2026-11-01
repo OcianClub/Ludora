@@ -9,7 +9,7 @@ import { FilterSelect } from '../components/FilterSelect';
 import { Icon } from '../components/Icon';
 import { InfoNotice } from '../components/InfoNotice';
 import { TeamInsights, shortTeamDate } from '../components/TeamInsights';
-import { Btn, Input, Modal, Spinner } from '../components/UI';
+import { Btn, Input, Modal, LoadingSkeleton } from '../components/UI';
 import { useAuth } from '../contexts/AuthContext';
 import {
   adicionarCategoriaTime, arquivarTime, atualizarEscudoTime, atualizarTime, criarTime, deletarTime,
@@ -419,7 +419,7 @@ export default function TimesPage() {
       {!mobile && <CollectionViewToggle value={view} onChange={setView} options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'list', label: 'Lista', icon: 'list' }]}/>}
     </div>
     {notice && <p role="status" className="teams-notice">{notice}</p>}
-    {loading ? <Spinner/> : loadError ? <div className="teams-empty" role="alert"><Icon name="alert" size={26}/><p>{loadError}</p><Btn variant="ghost" onClick={() => setVersion(v => v + 1)}>Tentar novamente</Btn></div> : <>
+    {loading ? <LoadingSkeleton kind="cards" /> : loadError ? <div className="teams-empty" role="alert"><Icon name="alert" size={26}/><p>{loadError}</p><Btn variant="ghost" onClick={() => setVersion(v => v + 1)}>Tentar novamente</Btn></div> : <>
       {!!own.length && <section className="teams-section"><h2>Seu clube</h2><div className={`teams-grid ${listView ? 'is-list' : ''}`}>{own.map(renderTeam)}</div></section>}
       {!!others.length && <section className="teams-section"><h2>{own.length ? 'Outros times' : 'Times cadastrados'}</h2><div className={`teams-grid ${listView ? 'is-list' : ''}`}>{others.map(renderTeam)}</div></section>}
       {!visible.length && <div className="teams-empty"><Icon name="search" size={26}/><h2>Nenhum time encontrado</h2><p>{groups.length ? 'Tente outro nome ou remova os filtros.' : 'Os times cadastrados aparecerão aqui com suas categorias.'}</p>

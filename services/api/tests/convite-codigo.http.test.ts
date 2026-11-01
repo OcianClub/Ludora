@@ -59,7 +59,25 @@ test('convite por código mantém vínculo ao e-mail e exige administração', a
     assert.equal(emailed.status, 201);
     const emailedResult: any = await emailed.json();
     assert.match(emailedResult.codigo, /^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+    assert.equal(emailedResult.token, undefined);
     assert.equal(writes[4].codigo_hash, gerarHashCodigoConvite(emailedResult.codigo));
     assert.equal(emailedResult.email_enviado, false);
+    let renewed: any;
+    replace(prisma.conviteClube, 'findFirst', async () => ({
+      id: 'invite-1', email: body.email, papel: 'TECNICO', status: 'PENDENTE',
+      token_hash: 'previous-hash', clube: { nome: 'Ocian' }, criadoPor: { nome: 'Admin' },
+    }));
+    replace(prisma.conviteClube, 'updateMany', async (args: any) => { renewed = args; return { count: 1 }; });
+    const resent = await fetch(`${base}/convites/invite-1/reenviar`, {
+      method: 'POST', headers: { 'x-clube-id': '2', Authorization: `Bearer ${token}` },
+    });
+    assert.equal(resent.status, 200);
+    const resentResult: any = await resent.json();
+    assert.equal(resentResult.token, undefined);
+    assert.match(resentResult.codigo, /^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+    assert.equal(renewed.where.clube_id, 2);
+    assert.equal(renewed.where.token_hash, 'previous-hash');
+    assert.equal(renewed.data.codigo_hash, gerarHashCodigoConvite(resentResult.codigo));
+    assert.notEqual(renewed.data.token_hash, 'previous-hash');
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
 });

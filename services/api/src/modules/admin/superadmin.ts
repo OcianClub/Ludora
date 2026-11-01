@@ -3,6 +3,7 @@ import type { Server } from 'socket.io';
 
 import { getUsuarioId, getUsuarioIdPeloToken } from '../../auth/jwt';
 import { prisma } from '../../lib/prisma';
+import { agendarExpiracaoTokenVerificado } from '../../realtime/sessoes';
 import {
   BufferLogs,
   ehSuperAdmin,
@@ -91,6 +92,7 @@ export function registrarNamespaceAdmin(io: Server) {
       const admin = await carregarSuperAdmin(await getUsuarioIdPeloToken(token));
       if (!admin) return next(new Error('Não autorizado'));
       socket.data.superAdmin = admin;
+      socket.data.token = token;
       next();
     } catch {
       next(new Error('Não autorizado'));
@@ -98,6 +100,9 @@ export function registrarNamespaceAdmin(io: Server) {
   });
 
   ns.on('connection', socket => {
+    socket.join(`usuario:${socket.data.superAdmin.id}`);
+    agendarExpiracaoTokenVerificado(socket, socket.data.token);
+    delete socket.data.token;
     socket.emit('snapshot', logs.snapshot(100));
     logs.registrar({
       nivel: 'audit',

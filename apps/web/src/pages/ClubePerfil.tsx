@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { requestJson, type Clube } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Btn, Input, Select, Spinner } from '../components/UI';
+import { Btn, Input, Select, LoadingSkeleton } from '../components/UI';
 import { ClubBadge } from '../components/Brand';
 import { Icon } from '../components/Icon';
 import { Toast } from '../components/Toast';
@@ -115,7 +115,7 @@ export default function ClubePerfil() {
 
   if (!data) return error ? <div className="club-settings-load-error" role="alert">
     <Icon name="alert" size={26} /><p>{error}</p><Btn onClick={() => setVersion(value => value + 1)}>Tentar novamente</Btn>
-  </div> : <Spinner />;
+  </div> : <LoadingSkeleton kind="form" />;
 
   const address = { ...EMPTY_CLUB_ADDRESS, ...data.endereco };
   return <div className="club-settings-page">

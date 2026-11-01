@@ -1,8 +1,10 @@
 import { app, BrowserWindow, nativeTheme, session, shell } from 'electron';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { darkColors, lightColors } from '@ludora/design-tokens';
 import { registrarIpc } from './ipc';
 import { pararLogs } from './realtime';
+import { rendererUrlPermitida } from '../shared/rules';
 
 let janela: BrowserWindow | null = null;
 
@@ -46,9 +48,9 @@ function criarJanela() {
     return { action: 'deny' };
   });
   janela.webContents.on('will-navigate', (evento, url) => {
-    const dev = process.env.ELECTRON_RENDERER_URL;
-    const interno = dev ? url.startsWith(dev) : url.startsWith('file://');
-    if (!interno) evento.preventDefault();
+    const entrada = process.env.ELECTRON_RENDERER_URL
+      || pathToFileURL(path.join(__dirname, '../renderer/index.html')).href;
+    if (!rendererUrlPermitida(url, entrada)) evento.preventDefault();
   });
 
   if (process.env.ELECTRON_RENDERER_URL) {

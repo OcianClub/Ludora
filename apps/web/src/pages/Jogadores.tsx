@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { requestJson, criarJogador, fetchCategorias, preverCategoria, ErroJogador,
   type Jogador, type Categoria, type ConflitoCamisa, type DadosJogador } from '../services/api';
-import { Btn, Modal, Input, Spinner } from '../components/UI';
+import { Btn, Modal, Input, LoadingSkeleton } from '../components/UI';
 import { useAuth } from '../contexts/AuthContext';
 import './Jogadores.css';
 import { Choice, PositionBadge, POSITIONS, normalizePosition } from '../components/CollectionControls';
@@ -406,7 +406,7 @@ export default function JogadoresPage() {
     return (
     <section className={`alunos-directory${listView ? ' alunos-directory--list' : ''}`} aria-labelledby={`alunos-list-heading-${selectedCategory.id}`} aria-busy={loading}>
       <h2 id={`alunos-list-heading-${selectedCategory.id}`} className="sr-only" tabIndex={-1} ref={offset === 0 ? listHeading : undefined}>Lista de jogadores</h2>
-      {erroLista ? <div role="alert" className="alunos-error">{erroLista}<Btn variant="ghost" onClick={() => setVersao(v => v + 1)}>Tentar novamente</Btn></div> : loading && (!jogadores.length || listView) ? <Spinner /> : listView ? <div className="alunos-sub-list">
+      {erroLista ? <div role="alert" className="alunos-error">{erroLista}<Btn variant="ghost" onClick={() => setVersao(v => v + 1)}>Tentar novamente</Btn></div> : loading && (!jogadores.length || listView) ? <LoadingSkeleton kind="table" /> : listView ? <div className="alunos-sub-list">
         {allCategories.map(category => {
           const rows = categoryRows[category.id];
           const count = counts.find(value => value.categoria_id === category.id)?.total || 0;
@@ -523,7 +523,7 @@ export default function JogadoresPage() {
         setShirtPlayer(null);
         setVersao(value => value + 1);
       }} />}
-    {!blocos.length && (loading ? <Spinner /> : <p className="alunos-sub-message">{erroLista || 'Nenhuma categoria disponível neste grupo.'}</p>)}
+    {!blocos.length && (loading ? <LoadingSkeleton kind="table" /> : <p className="alunos-sub-message">{erroLista || 'Nenhuma categoria disponível neste grupo.'}</p>)}
 
     <CollectionFilterDialog open={filtersOpen} className="alunos-filter-dialog" title="Filtrar jogadores" onClose={() => setFiltersOpen(false)}
       onClear={() => setDraftFilters({ position: '', shirt: '', sort: 'default', direction: 'asc' })} onApply={applyFilters} applyLabel="Aplicar filtros">

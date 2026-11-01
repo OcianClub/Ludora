@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { cachedJson, fetchPartidas, criarPartida, fetchTimes, fetchCategorias, fetchCompeticoes, type Partida, type Time, type Categoria, type Competicao } from '../services/api';
-import { Btn, Modal, Input, Spinner } from '../components/UI';
+import { Btn, Modal, Input, LoadingSkeleton } from '../components/UI';
 import { ClubBadge } from '../components/Brand';
 import { useAuth } from '../contexts/AuthContext';
 import { MatchCard, formatMatchDate } from '../components/MatchCard';
@@ -550,7 +550,7 @@ export default function PartidasPage() {
         </div>
 
       {loadWarning && <div className="schedule-load-warning" role="status"><Icon name="filters" size={20} /><div><strong>Algumas opções não carregaram</strong><p>{loadWarning}</p></div><Btn variant="ghost" size="sm" onClick={carregar}>Atualizar</Btn></div>}
-      {loading ? <Spinner /> : loadError ? <div className="schedule-load-error" role="alert"><span><Icon name="ball" size={26} /></span><div><strong>Não foi possível carregar a agenda</strong><p>{loadError}</p></div><Btn onClick={carregar}>Tentar novamente</Btn></div> : null}
+      {loading ? <LoadingSkeleton kind="cards" /> : loadError ? <div className="schedule-load-error" role="alert"><span><Icon name="ball" size={26} /></span><div><strong>Não foi possível carregar a agenda</strong><p>{loadError}</p></div><Btn onClick={carregar}>Tentar novamente</Btn></div> : null}
       {renderSchedule(0)}
 
       {periodOpen && <SchedulePeriodDialog inicio={range.inicio} fim={range.fim} onClose={() => setPeriodOpen(false)}

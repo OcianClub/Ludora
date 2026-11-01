@@ -4,22 +4,11 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { iniciarMedicaoCarregamento } from '@/src/utils/desempenho';
-
-// ── Fonte única de verdade pro "clube ativo" ──
-//
-// Antes, cada tela (jogos.tsx, ClubesExplorer.tsx) guardava sua PRÓPRIA
-// cópia local de nome/escudo/papel do clube ativo, e relia o SecureStore
-// de forma assíncrona toda vez que ganhava foco. Como o tab navigator não
-// desmonta as telas ao trocar de aba, a tela ficava, por um instante, com
-// o valor antigo (do clube anterior) na memória até a leitura assíncrona
-// terminar — esse instante é o "pisca" / nome ou escudo errado.
-//
-// Com o Context, a troca de clube atualiza o estado de forma SÍNCRONA (no
-// mesmo render), e toda tela que usa useClubeAtivo() recebe o valor novo
-// imediatamente — sem releitura, sem corrida, sem flicker.
+import { criarPersistenciaClube } from '@/src/utils/persistenciaClube';
 
 export type PapelClube =
   | 'ADMIN'
@@ -55,57 +44,40 @@ export function ClubeAtivoProvider({
 }) {
   const [clubeAtivo, setClubeAtivo] = useState<ClubeAtivo | null>(null);
   const [carregandoClubeAtivo, setCarregandoClubeAtivo] = useState(true);
+  const montado = useRef(true);
+  const persistencia = useRef<ReturnType<typeof criarPersistenciaClube> | null>(null);
+  if (!persistencia.current) {
+    persistencia.current = criarPersistenciaClube(SecureStore, (clube) => {
+      if (montado.current) setClubeAtivo(clube);
+    });
+  }
 
-  // Única leitura do SecureStore, uma vez, no boot do app (ex: depois do
-  // login, quando o _layout raiz monta o Provider). Nunca mais precisa
-  // reler durante a navegação — só quando o próprio clube ativo muda.
   useEffect(() => {
-    (async () => {
-      try {
-        const [id, nome, escudo, papel] = await Promise.all([
-          SecureStore.getItemAsync('clubeAtivoId'),
-          SecureStore.getItemAsync('clubeAtivoNome'),
-          SecureStore.getItemAsync('clubeAtivoEscudo'),
-          SecureStore.getItemAsync('clubeAtivoPapel'),
-        ]);
-        if (id && Number.isSafeInteger(Number(id)) && Number(id) > 0) {
-          setClubeAtivo({
-            id: Number(id),
-            nome: nome || 'MEU CLUBE',
-            escudo: escudo || null,
-            papel: (papel as PapelClube) || null,
-          });
-        }
-      } catch {
-        setClubeAtivo(null);
-      } finally {
-        setCarregandoClubeAtivo(false);
-      }
-    })();
+    montado.current = true;
+    let ativo = true;
+    void persistencia.current!.restaurar().finally(() => {
+      if (ativo) setCarregandoClubeAtivo(false);
+    });
+    return () => {
+      ativo = false;
+      montado.current = false;
+      persistencia.current!.invalidar();
+    };
   }, []);
 
   const definirClubeAtivo = useCallback(async (clube: ClubeAtivo) => {
     const finalizar = iniciarMedicaoCarregamento('clube:persistencia');
     // A API lê o clube no SecureStore: persiste antes de disparar os efeitos
     // das telas para evitar requisições com o identificador do clube anterior.
-    await Promise.all([
-      SecureStore.setItemAsync('clubeAtivoId', String(clube.id)),
-      SecureStore.setItemAsync('clubeAtivoNome', clube.nome),
-      SecureStore.setItemAsync('clubeAtivoEscudo', clube.escudo || ''),
-      SecureStore.setItemAsync('clubeAtivoPapel', clube.papel || ''),
-    ]);
-    setClubeAtivo(clube);
-    finalizar();
+    try {
+      await persistencia.current!.definir(clube);
+    } finally {
+      finalizar();
+    }
   }, []);
 
   const limparClubeAtivo = useCallback(async () => {
-    setClubeAtivo(null);
-    await Promise.all([
-      SecureStore.deleteItemAsync('clubeAtivoId'),
-      SecureStore.deleteItemAsync('clubeAtivoNome'),
-      SecureStore.deleteItemAsync('clubeAtivoEscudo'),
-      SecureStore.deleteItemAsync('clubeAtivoPapel'),
-    ]);
+    await persistencia.current!.limpar();
   }, []);
 
   const podeGerenciar =

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Icon, IconName } from './Icon';
 import './UI.css';
+export { LoadingSkeleton } from './LoadingSkeleton';
 
 // ── Badge de status de partida ──
 const STATUS_MAP: Record<string, { label: string; cls: string }> = {
@@ -48,11 +49,12 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export function Input({ label, error, className = '', ...rest }: InputProps) {
   const generatedId = React.useId();
   const id = rest.id || generatedId;
+  const describedBy = [rest['aria-describedby'], error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined;
   return (
     <div className={`field ${className}`}>
       {label && <label className="field-label" htmlFor={id}>{label}</label>}
-      <input className={`field-input${error ? ' field-input--error' : ''}`} {...rest} id={id} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : rest['aria-describedby']} />
-      {error && <span className="field-error" id={`${id}-error`}>{error}</span>}
+      <input className={`field-input${error ? ' field-input--error' : ''}`} {...rest} id={id} aria-invalid={error ? true : rest['aria-invalid']} aria-describedby={describedBy} />
+      {error && <span className="field-error" id={`${id}-error`} aria-live="polite">{error}</span>}
     </div>
   );
 }
@@ -168,7 +170,7 @@ export function Modal({ open, onClose, title, children, className = '', id, foot
 
 // ── Spinner ──
 export function Spinner() {
-  return <div className="spinner" aria-label="Carregando" />;
+  return <div className="spinner" role="status" aria-label="Carregando" />;
 }
 
 // ── Empty state ──

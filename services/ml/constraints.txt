@@ -1,0 +1,2 @@
+# GHSA-xcq7-p3pf-p88h: evita o parser vulnerável de tracestate quando requerido pelo FastAPI.
+opentelemetry-api>=1.45.1

@@ -5,6 +5,7 @@ import { corsOptions } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { idPositivo } from '../utils/id';
 import { registrarNamespaceAdmin } from '../modules/admin/superadmin';
+import { agendarExpiracaoTokenVerificado } from './sessoes';
 
 export function criarSocketServer(
   autenticarToken = getUsuarioIdPeloToken,
@@ -34,6 +35,7 @@ export function criarSocketServer(
 
       socket.data.clubeId = clubeId;
       socket.data.usuarioId = usuarioId;
+      socket.data.token = tokenInformado;
       next();
     } catch {
       next(new Error('Não autorizado'));
@@ -43,6 +45,8 @@ export function criarSocketServer(
   io.on('connection', (socket) => {
     socket.join(`clube:${socket.data.clubeId}`);
     socket.join(`usuario:${socket.data.usuarioId}`);
+    agendarExpiracaoTokenVerificado(socket, socket.data.token);
+    delete socket.data.token;
   });
 
   registrarNamespaceAdmin(io);

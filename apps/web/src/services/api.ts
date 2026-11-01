@@ -1,6 +1,8 @@
 import { cachedRead, invalidateReadCache, peekRead, readLifetime } from './readCache';
 import { BASE_URL } from './config';
 import { authRequest } from './authHttp';
+import { fetchJsonResponse } from './http';
+import { clearSavedSession } from './authSession';
 import { contextoScoutValido, type ContextoScout } from '../../../mobile/src/utils/contextoScout';
 export { BASE_URL } from './config';
 
@@ -20,8 +22,10 @@ export function setToken(t: string) { invalidateReadCache(); localStorage.setIte
 export function removeToken() { invalidateReadCache(); localStorage.removeItem('ludora_token'); }
 
 export function getClubeId(): number | null {
-  const v = localStorage.getItem('ludora_clube_id');
-  return v ? Number(v) : null;
+  try {
+    const value = Number(localStorage.getItem('ludora_clube_id'));
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  } catch { return null; }
 }
 export function setClubeId(id: number) { localStorage.setItem('ludora_clube_id', String(id)); }
 export function removeClubeId() { localStorage.removeItem('ludora_clube_id'); }
@@ -46,15 +50,18 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const res = method === 'GET' && lifetime > 0 && !options.headers && options.cache !== 'no-store'
     ? await cachedRead(
       readScope() + endpoint,
-      signal => fetch(`${BASE_URL}${endpoint}`, { ...options, headers, signal }),
+      signal => fetchJsonResponse(`${BASE_URL}${endpoint}`, { ...options, headers, signal }),
       lifetime,
       options.signal,
     )
-    : await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
-  if (res.ok && method !== 'GET' && !endpoint.startsWith('/notificacoes') && endpoint !== '/usuarios/me/notificacoes') invalidateReadCache();
+    : await fetchJsonResponse(`${BASE_URL}${endpoint}`, { ...options, headers });
+  if (res.ok && method !== 'GET' && !endpoint.startsWith('/notificacoes') && endpoint !== '/usuarios/me/notificacoes') invalidateReadCache(`${BASE_URL}:${token || ''}:`);
+  if (getToken() !== token || getClubeId() !== clubeId) {
+    throw new DOMException('O clube ou a sessão foi alterado durante a solicitação', 'AbortError');
+  }
   if (res.status === 401 && token && getToken() === token && !endpoint.startsWith('/auth/')) {
-    removeToken();
-    removeClubeId();
+    invalidateReadCache();
+    clearSavedSession();
     window.location.href = '/login';
   }
   return res;

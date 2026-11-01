@@ -1,0 +1,122 @@
+.loading-skeleton {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding-block: 4px;
+}
+
+.loading-skeleton-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  min-height: 78px;
+  padding: 16px;
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  background: var(--fundo-card);
+}
+
+.loading-skeleton-mark,
+.loading-skeleton-line {
+  display: block;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--fundo-card-sec);
+  animation: skeleton-breathe 1.6s ease-in-out infinite alternate;
+}
+
+.loading-skeleton-mark {
+  width: 40px;
+  height: 40px;
+}
+
+.loading-skeleton-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 10px;
+}
+
+.loading-skeleton-line {
+  width: 62%;
+  height: 13px;
+}
+
+.loading-skeleton-line--short {
+  width: 38%;
+  height: 10px;
+}
+
+.loading-skeleton--cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.loading-skeleton--cards .loading-skeleton-item {
+  min-height: 176px;
+}
+
+.loading-skeleton--table {
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+}
+
+.loading-skeleton--table .loading-skeleton-item {
+  min-height: 72px;
+  border: 0;
+  border-bottom: 1px solid var(--linha);
+  border-radius: 0;
+}
+
+.loading-skeleton--table .loading-skeleton-item:last-child {
+  border-bottom: 0;
+}
+
+.loading-skeleton--form .loading-skeleton-item {
+  min-height: 84px;
+}
+
+.loading-skeleton--form .loading-skeleton-mark {
+  display: none;
+}
+
+.loading-skeleton--match .loading-skeleton-item:first-child {
+  min-height: 220px;
+}
+
+@keyframes skeleton-breathe {
+  from { opacity: .45; }
+  to { opacity: .85; }
+}
+
+@media (max-width: 1000px) {
+  .loading-skeleton--cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .loading-skeleton--cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .loading-skeleton-item {
+    min-height: 68px;
+    padding: 12px;
+  }
+
+  .loading-skeleton--cards .loading-skeleton-item {
+    min-height: 144px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-skeleton-mark,
+  .loading-skeleton-line {
+    animation: none;
+  }
+}

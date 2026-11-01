@@ -4,6 +4,7 @@ import type { Server } from 'socket.io';
 
 import { JWT_SECRET } from '../../config/env';
 import { prisma } from '../../lib/prisma';
+import { desconectarSessoes } from '../../realtime/sessoes';
 import { limitarRecuperacao } from '../../middlewares/rate-limit.middleware';
 import {
   emailRecuperacaoConfigurado,
@@ -168,7 +169,7 @@ export function criarRecuperacaoRoutes(
     });
     if (!alterada) return res.status(400).json({ error: MENSAGEM_CODIGO });
 
-    io.in(`usuario:${recuperacao.usuario_id}`).disconnectSockets(true);
+    desconectarSessoes(io, recuperacao.usuario_id);
     return res.json({
       mensagem: 'Senha alterada. Entre novamente com sua nova senha.',
     });

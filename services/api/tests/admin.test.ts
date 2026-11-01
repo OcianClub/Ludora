@@ -60,6 +60,8 @@ test('logs HTTP removem query string e mascaram segmentos que parecem credenciai
   assert.equal(limparCaminho('/admin/usuarios?busca=ana@x.com&limite=5'), '/admin/usuarios');
   assert.equal(limparCaminho('/partidas/42?x=1#frag'), '/partidas/42');
   assert.equal(limparCaminho('/convites/aB3dE5gH7jK9mN2pQ4rS'), '/convites/:token');
+  assert.equal(limparCaminho('/convites/codigo/ABCD-2345'), '/convites/codigo/:token');
+  assert.equal(limparCaminho('/convites/codigo/ABCD-2345/aceitar?email=privado@test.com'), '/convites/codigo/:token/aceitar');
   assert.equal(limparCaminho('/clubes/12/membros'), '/clubes/12/membros');
   assert.ok(limparCaminho('/' + 'a'.repeat(500)).length <= 200);
 });

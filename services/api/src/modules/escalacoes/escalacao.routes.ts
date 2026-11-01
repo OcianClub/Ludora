@@ -89,7 +89,7 @@ router.put<{ id: string }>(
       res.json(nova);
     } catch (error: any) {
       console.error('Erro ao salvar escalação:', error.message);
-      res.status(500).json({ error: error.message || 'Erro ao salvar escalação' });
+      res.status(500).json({ error: 'Não foi possível salvar a escalação. Tente novamente.' });
     }
   }
 );

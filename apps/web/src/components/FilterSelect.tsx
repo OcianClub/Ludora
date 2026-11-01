@@ -18,6 +18,8 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
   const search = useRef({ text: '', time: 0 });
   const items = [{ value: '', label: emptyLabel }, ...options];
   const selected = Math.max(0, items.findIndex(item => String(item.value) === value));
+  const inline = inlineOptions || !!root.current?.closest('dialog[open]');
+  const activeIndex = Math.min(active, items.length - 1);
 
   useEffect(() => {
     if (!open) return;
@@ -29,23 +31,23 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
   }, [open]);
 
   useEffect(() => {
-    if (open) document.getElementById(`${id}-option-${active}`)?.scrollIntoView({ block: 'nearest' });
-  }, [active, open, id]);
+    if (open) document.getElementById(`${id}-option-${activeIndex}`)?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, open, id]);
 
   function choose(index: number) {
-    onChange(String(items[index].value));
+    onChange(String(items[Math.min(index, items.length - 1)].value));
     setOpen(false);
   }
 
   return (
-    <div className={`schedule-select field${inlineOptions ? ' schedule-select-inline' : ''}`} ref={root} onBlur={event => {
+    <div className={`schedule-select field${inline ? ' schedule-select-inline' : ''}`} ref={root} onBlur={event => {
       if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
     }}>
       <span className="field-label" id={`${id}-label`}>{label}</span>
       <button type="button" className="schedule-select-trigger" role="combobox"
-        aria-labelledby={`${id}-label`} aria-expanded={open} aria-haspopup="listbox"
+        aria-labelledby={`${id}-label ${id}-value`} aria-expanded={open} aria-haspopup="listbox"
         aria-controls={open ? `${id}-options` : undefined} data-value={value}
-        aria-activedescendant={open ? `${id}-option-${active}` : undefined}
+        aria-activedescendant={open ? `${id}-option-${activeIndex}` : undefined}
         onClick={() => { setActive(selected); setOpen(previous => !previous); }}
         onKeyDown={event => {
           if (event.key === 'Escape' && open) {
@@ -57,7 +59,7 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
           } else if (open && ['Home', 'End'].includes(event.key)) {
             event.preventDefault(); setActive(event.key === 'Home' ? 0 : items.length - 1);
           } else if (open && ['Enter', ' '].includes(event.key)) {
-            event.preventDefault(); choose(active);
+            event.preventDefault(); choose(activeIndex);
           } else if (event.key.length === 1 && event.key !== ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) {
             const now = Date.now();
             search.current = { text: (now - search.current.time < 600 ? search.current.text : '') + event.key.toLocaleLowerCase('pt-BR'), time: now };
@@ -65,14 +67,14 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
             if (index >= 0) { event.preventDefault(); setActive(index); setOpen(true); }
           }
         }}>
-        <span className={compactLabel ? 'schedule-select-full-label' : undefined}>{items[selected].label}</span>
+        <span id={`${id}-value`} className={compactLabel ? 'schedule-select-full-label' : undefined}>{items[selected].label}</span>
         {compactLabel && <span className="schedule-select-compact-label" aria-hidden="true">{compactLabel}</span>}
         <span className="schedule-select-chevron"><Icon name="chevronRight" size={16} /></span>
       </button>
-      {open && <div id={`${id}-options`} role="listbox" aria-labelledby={`${id}-label`} className={`schedule-select-options${inlineOptions ? ' schedule-select-options-inline' : ''}`}>
+      {open && <div id={`${id}-options`} role="listbox" aria-labelledby={`${id}-label`} className={`schedule-select-options${inline ? ' schedule-select-options-inline' : ''}`}>
         {items.map((item, index) => (
           <div key={item.value} id={`${id}-option-${index}`} role="option" aria-selected={index === selected}
-            data-highlighted={index === active} onPointerMove={() => setActive(index)}
+            data-highlighted={index === activeIndex} onPointerMove={() => setActive(index)}
             onMouseDown={event => event.preventDefault()} onClick={() => choose(index)}>
             <span>{item.label}</span>{index === selected && <span aria-hidden="true" className="schedule-select-check">✓</span>}
           </div>

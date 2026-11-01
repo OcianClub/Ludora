@@ -119,12 +119,17 @@ select.field-input option { background: var(--fundo-card-sec); }
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px 20px 14px;
   border-bottom: 1px solid var(--linha);
+  flex-shrink: 0;
+  gap: 16px;
 }
 .modal-title { font-family: var(--font-titulo); font-size: 18px; font-weight: 600; }
 .modal-close {
   background: none; border: none; color: var(--texto-sec);
   font-size: 16px; padding: 4px 8px; border-radius: 4px;
   transition: color 0.12s;
+  flex-shrink: 0;
+  min-width: 32px;
+  min-height: 32px;
 }
 .modal-close:hover { color: var(--texto); }
 .modal-body { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
@@ -217,3 +222,5 @@ tr:hover td { background: var(--fundo-card-sec); }
 }
 .modal::backdrop { background: rgba(0, 0, 0, .72); }
 .modal-body { overscroll-behavior: contain; }
+.modal-body { min-height: 0; }
+.modal-title { min-width: 0; overflow-wrap: anywhere; }

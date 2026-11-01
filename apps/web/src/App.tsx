@@ -1,5 +1,5 @@
 import { Page, preloadPage, LoginPage, RegistrarPage, SelecionarClubePage, DashboardPage, JogadoresPage, JogadorPerfil, ClubePerfil, TimesPage, SolicitacoesPartidas, PartidasPage, PartidaDetalhePage, CompeticoesPage, ElencoPage, PerfilPage, MembrosPage, RecuperarSenhaPage, ConvitePage } from './routePages';
-import { useEffect } from 'react';
+import { Fragment, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
@@ -10,7 +10,7 @@ function Protegida({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
   if (!token) return <Navigate to="/login" replace />;
   if (!clube && pathname !== '/perfil') return <Navigate to="/selecionar-clube" replace />;
-  return <>{children}</>;
+  return <Fragment key={token}>{children}</Fragment>;
 }
 
 function RouteNavigation() {
@@ -41,7 +41,7 @@ function RouteNavigation() {
 function SoToken({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
   if (!token) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+  return <Fragment key={token}>{children}</Fragment>;
 }
 
 export default function App() {

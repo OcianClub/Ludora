@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { caminhoApiPermitido, emailValido, metodoPermitido, validarApiUrl } from '../src/shared/rules';
+import { caminhoApiPermitido, emailValido, metodoPermitido, validarApiUrl, rendererUrlPermitida } from '../src/shared/rules';
 
 test('URL da API: https sempre, http só em máquina local, sem credenciais, devolve só a origem', () => {
   assert.equal(validarApiUrl('https://api.ludora.com/'), 'https://api.ludora.com');
@@ -37,4 +37,25 @@ test('métodos HTTP e e-mail de login são validados', () => {
   for (const m of ['get', 'TRACE', 'CONNECT', 'OPTIONS', '', null, 1]) assert.equal(metodoPermitido(m), false);
   assert.equal(emailValido('dev@ludora.com'), true);
   for (const e of ['dev', 'a b@c.com', '', null, 'x'.repeat(300) + '@a.com']) assert.equal(emailValido(e), false);
+});
+
+test('renderer só navega e executa IPC no documento de entrada, permitindo rotas por hash', () => {
+  const dev = 'http://localhost:5173/';
+  assert.equal(rendererUrlPermitida(`${dev}#/clubes`, dev), true);
+  for (const url of [
+    'http://localhost:5173.evil.test/',
+    'http://localhost:5173@evil.test/',
+    'http://localhost:51730/',
+    'http://localhost:5173/outro.html',
+    'http://localhost:5173/?script=externo',
+    'https://localhost:5173/',
+    'file:///C:/outro.html',
+    '',
+  ]) assert.equal(rendererUrlPermitida(url, dev), false, url);
+
+  const arquivo = 'file:///C:/Ludora/out/renderer/index.html';
+  assert.equal(rendererUrlPermitida(`${arquivo}#/visao`, arquivo), true);
+  assert.equal(rendererUrlPermitida('file:///C:/Ludora/out/renderer/roubado.html', arquivo), false);
+  assert.equal(rendererUrlPermitida('file://servidor/C:/Ludora/out/renderer/index.html', arquivo), false);
+  assert.equal(rendererUrlPermitida('about:blank', arquivo), false);
 });

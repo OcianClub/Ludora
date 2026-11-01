@@ -8,6 +8,7 @@ import type { Server } from 'socket.io';
 import { PYTHON_AI_URL } from '../../config/env';
 import { prisma } from '../../lib/prisma';
 import { idPositivo } from '../../utils/id';
+import { desconectarSessoes } from '../../realtime/sessoes';
 import { validarCargo } from '../clubes/membros.rules';
 import {
   SUBS_PADRAO,
@@ -300,6 +301,7 @@ export function criarAdminRoutes(io: Server) {
     const existe = await prisma.usuario.findUnique({ where: { id }, select: { id: true } });
     if (!existe) throw new ErroHttp(404, 'Usuário não encontrado');
     await prisma.usuario.update({ where: { id }, data: { versao_sessao: { increment: 1 } } });
+    desconectarSessoes(io, id);
     auditar(req, `Sessões revogadas: usuário #${id}`);
     res.json({ ok: true });
   }));

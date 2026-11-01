@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { requestJson } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Btn, Spinner, StatusBadge } from '../components/UI';
+import { Btn, LoadingSkeleton, StatusBadge } from '../components/UI';
 import { Icon } from '../components/Icon';
 import { PositionBadge } from '../components/CollectionControls';
 import { PlayerEditDialog, type EditablePlayer } from '../components/PlayerEditDialog';
@@ -40,7 +40,7 @@ export default function JogadorPerfil({ history }: { history?: 'partidas' | 'cam
   const page = records?.pagina || 1;
   return <div className="player-profile-page">
     <Link className="player-back" to={history ? `/jogadores/${id}` : from} state={{ from }}><Icon name="chevronLeft" size={18}/>{history ? 'Perfil do jogador' : 'Jogadores'}</Link>
-    {loading ? <Spinner/> : error ? <div className="notice-error" role="alert">{error}<Btn variant="ghost" onClick={() => setVersion(v => v + 1)}>Tentar novamente</Btn></div> : player && <>
+    {loading ? <LoadingSkeleton kind="match" /> : error ? <div className="notice-error" role="alert">{error}<Btn variant="ghost" onClick={() => setVersion(v => v + 1)}>Tentar novamente</Btn></div> : player && <>
       <header className="player-profile-header"><div className="player-portrait">{player.foto ? <img src={player.foto} alt={`Foto de ${player.nome}`}/> : <Icon name="user" size={44}/>}</div><div className="player-profile-title"><p className="eyebrow">{clube?.nome} · {player.categoria.nome.toUpperCase()}</p><h1>{player.nome}</h1><span><PositionBadge position={player.posicao}/> {player.posicao} · {playerAge(player.dtNasc)} anos · {player.numCamisa == null ? 'Sem camisa' : `Camisa ${player.numCamisa}`}</span></div><div className="player-profile-actions">{player.podeEditar && !history && <Btn aria-label="Editar jogador" variant="ghost" onClick={() => setEdit(true)}><Icon name="edit" size={20}/></Btn>}<Link className="btn btn-ghost btn-md" aria-label="Abrir scout do jogador" to={`/elenco?atleta=${id}&categoria_id=${player.categoria.id}&fase=${player.categoria.tipo}`}><Icon name="radar" size={20}/></Link></div></header>
       {history ? <section className="player-panel"><h2>{history === 'partidas' ? 'Histórico de partidas' : 'Histórico de campeonatos'}</h2>
         {history === 'partidas' ? <div className="player-history-filter"><FilterSelect label="Situação" emptyLabel="Todas as situações" value={params.get('status') || ''}

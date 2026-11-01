@@ -1,3 +1,5 @@
+import { fetchJsonResponse, RequestError } from './http';
+
 export class AuthError extends Error {
   status: number;
   code?: string;
@@ -18,10 +20,8 @@ export async function authRequest<T>(
   timeout = 20_000,
   uncertainWrite = false,
 ): Promise<T> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
+    const response = await fetchJsonResponse(url, options, timeout);
     const body = await response.json().catch(() => null);
     if (!response.ok) {
       const message = response.status === 429
@@ -39,11 +39,13 @@ export async function authRequest<T>(
     }
     return body as T;
   } catch (error) {
+    if (options.signal?.aborted) throw error;
     if (error instanceof AuthError) throw error;
+    if (error instanceof RequestError && error.kind === 'response') throw new AuthError(error.message);
     throw new AuthError(uncertainWrite
       ? 'Não recebemos a confirmação do serviço. Verifique sua conexão. Se você estava criando uma conta, aceitando um convite ou trocando a senha, tente entrar antes de repetir a operação.'
-      : 'Não conseguimos conectar ao Ludora. Verifique sua internet e tente novamente.');
-  } finally {
-    clearTimeout(timer);
+      : error instanceof RequestError && error.kind === 'timeout'
+        ? 'O serviço demorou para responder. Verifique sua internet e tente novamente.'
+        : 'Não conseguimos conectar ao Ludora. Verifique sua internet e tente novamente.');
   }
 }

@@ -9,6 +9,7 @@ import {
   exigirPartidaDoClube,
   exigirPartidaVisivelDoClube,
   obterEscopoCategorias,
+  obterEscopoCategoriasLeitura,
   podeAcessarCategoria,
 } from '../../middlewares/permissoes.middleware';
 import { processarMachineLearning } from '../../services/scout-ia.service';
@@ -354,7 +355,7 @@ export function criarPartidaRoutes(io: Server) {
         );
         res.json(partida);
       } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        res.status(500).json({ error: 'Não foi possível atualizar a partida. Tente novamente.' });
       }
     }
   );
@@ -371,7 +372,7 @@ export function criarPartidaRoutes(io: Server) {
         await prisma.partida.delete({ where: { id } });
         res.json({ ok: true });
       } catch (e: any) {
-        res.status(500).json({ error: e.message ?? 'Erro ao excluir partida' });
+        res.status(500).json({ error: 'Não foi possível excluir a partida. Tente novamente.' });
       }
     }
   );
@@ -566,11 +567,17 @@ export function criarPartidaRoutes(io: Server) {
     '/jogadores/:id/estatisticas',
     exigirClubePublico,
     async (req, res) => {
-      const jogadorId = Number(req.params.id);
+      const jogadorId = idPositivo(req.params.id);
+      if (!jogadorId) return res.status(400).json({ error: 'Jogador inválido.' });
+      const escopo = await obterEscopoCategoriasLeitura(
+        (req as any).usuarioId,
+        (req as any).clubeId
+      );
       const jogadorExiste = await prisma.jogador.count({
         where: {
           id: jogadorId,
           categoria: { clube_id: (req as any).clubeId },
+          ...(escopo.acessoTotal ? {} : { categoria_id: { in: escopo.categoriaIds } }),
         },
       });
       if (!jogadorExiste)

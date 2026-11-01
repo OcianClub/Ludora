@@ -1,7 +1,5 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 function escaparHtml(valor: string): string {
   return valor.replace(/[&<>'"]/g, caractere => {
     const entidades: Record<string, string> = {
@@ -34,9 +32,10 @@ export async function enviarEmailConvite({
   const remetente = process.env.EMAIL_FROM;
   const baseUrl = process.env.INVITE_BASE_URL;
 
-  if (!remetente || !baseUrl) {
+  if (!process.env.RESEND_API_KEY || !remetente || !baseUrl) {
     throw new Error('Configuração de e-mail incompleta');
   }
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
   const link = `${baseUrl}/${encodeURIComponent(token)}`;
   const clubeSeguro = escaparHtml(nomeClube);

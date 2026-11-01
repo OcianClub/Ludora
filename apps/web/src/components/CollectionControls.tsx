@@ -17,15 +17,16 @@ export function Choice({ label, value, options, onChange, disabled = false, plac
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const id = useId();
+  const inline = inlineOptions || !!root.current?.closest('dialog[open]');
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
     document.addEventListener('pointerdown', close);
     return () => document.removeEventListener('pointerdown', close);
   }, [open]);
-  return <div className={`choice field${inlineOptions ? ' choice-inline' : ''}`} ref={root} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
+  return <div className={`choice field${inline ? ' choice-inline' : ''}`} ref={root} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
     <span className="field-label" id={`${id}-label`}>{label}</span>
-    <button ref={trigger} type="button" className="field-input choice-trigger" aria-labelledby={`${id}-label ${id}-value`} aria-expanded={open && !disabled} aria-controls={`${id}-options`} disabled={disabled}
+    <button ref={trigger} type="button" className="field-input choice-trigger" aria-labelledby={`${id}-label ${id}-value`} aria-expanded={open && !disabled} aria-controls={open && !disabled ? `${id}-options` : undefined} disabled={disabled}
       onClick={() => setOpen(!open)} onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('[data-choice-option]')?.focus()); } }}>
       <span id={`${id}-value`}>{options.find(o => o.value === value)?.label || placeholder}</span>
       <svg className="choice-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>

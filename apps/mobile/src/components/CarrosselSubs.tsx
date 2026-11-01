@@ -1,5 +1,5 @@
 import { Icon } from '@ludora/icons';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, FlatList } from 'react-native';
 import { typography } from '@ludora/design-tokens';
 import Animated, { useSharedValue, useAnimatedStyle, useAnimatedRef, useAnimatedReaction, scrollTo, cancelAnimation, runOnJS, withSpring, type SharedValue } from 'react-native-reanimated';
@@ -71,7 +71,10 @@ export const CarrosselSubs = memo(function CarrosselSubs({
   const inicio = useSharedValue(indexAtual);
   const origem = useSharedValue(indexAtual);
   const engaged = useSharedValue(false);
-  const listRef = useAnimatedRef<FlatList<{ id: string; title: string }>>();
+  const listRef = useAnimatedRef<Pick<FlatList<{ id: string; title: string }>, 'getScrollableNode'>>();
+  const anexarLista = useCallback((lista: FlatList<{ id: string; title: string }> | null) => {
+    listRef(lista);
+  }, [listRef]);
   const dadosAtuais = tipoFiltro === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
   useEffect(() => {
     if (!progressoPagina) progressoLocal.value = withSpring(indexAtual, { damping: 25, stiffness: 220 });
@@ -150,7 +153,7 @@ export const CarrosselSubs = memo(function CarrosselSubs({
           style={styles.trackViewport}
           onLayout={({ nativeEvent }) => setLarguraTrack(nativeEvent.layout.width)}
         >
-          <Animated.FlatList ref={listRef} horizontal data={dadosAtuais} scrollEnabled={false} showsHorizontalScrollIndicator={false}
+          <Animated.FlatList ref={anexarLista} horizontal data={dadosAtuais} scrollEnabled={false} showsHorizontalScrollIndicator={false}
             keyExtractor={item => item.id} extraData={indexAtual} initialNumToRender={4} removeClippedSubviews={false}
             contentContainerStyle={{ paddingHorizontal: Math.max(0, (larguraTrack - ITEM_INTERVAL) / 2), alignItems: 'center' }}
             getItemLayout={(_, index) => ({ length: ITEM_INTERVAL, offset: ITEM_INTERVAL * index, index })}

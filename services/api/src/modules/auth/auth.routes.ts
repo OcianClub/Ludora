@@ -6,6 +6,7 @@ import { JWT_OPTIONS, JWT_SECRET } from '../../config/env';
 import { prisma } from '../../lib/prisma';
 import { exigirAutenticacao } from '../../middlewares/auth.middleware';
 import { limitarAuth } from '../../middlewares/rate-limit.middleware';
+import { ehSuperAdmin, parseSuperAdmins } from '../admin/admin.rules';
 
 const router = Router();
 
@@ -145,12 +146,24 @@ router.patch('/usuarios/me', exigirAutenticacao, async (req, res) => {
   if (
     nome.length < 2 ||
     nome.length > 100 ||
+    email.length > 254 ||
     !/^\S+@\S+\.\S+$/.test(email) ||
-    (senha && (senha.length < 8 || senha.length > 128))
+    (senha && (senha.length < 8 || Buffer.byteLength(senha, 'utf8') > 72))
   ) {
     return res.status(400).json({ error: 'Dados de usuário inválidos' });
   }
   try {
+    if (ehSuperAdmin(email, parseSuperAdmins(process.env.SUPERADMIN_EMAILS))) {
+      const atual = await prisma.usuario.findUnique({
+        where: { id: (req as any).usuarioId },
+        select: { email: true },
+      });
+      if (atual?.email.trim().toLowerCase() !== email) {
+        return res.status(403).json({
+          error: 'Este e-mail exige confirmação pelo fluxo de cadastro.',
+        });
+      }
+    }
     const data: any = { nome, email };
     if (senha) data.senha = await bcrypt.hash(senha, 12);
     const usuario = await prisma.usuario.update({

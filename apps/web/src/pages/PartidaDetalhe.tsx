@@ -6,7 +6,7 @@ import {
   fetchEscalacao, salvarEscalacao, fetchJogadoresPerfis, fetchTimes,
   Partida, Evento, EscalacaoItem, PerfilJogador, Time, BASE_URL, type Jogador, type ConflitoCamisa
 } from '../services/api';
-import { Btn, Modal, Input, Select, StatusBadge, Spinner, Card } from '../components/UI';
+import { Btn, Modal, Input, Select, StatusBadge, LoadingSkeleton, Card } from '../components/UI';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToMatch, type RealtimeState } from '../services/matchRealtime';
 import './PartidaDetalhe.css';
@@ -241,7 +241,7 @@ export default function PartidaDetalhePage() {
     });
   }
 
-  if (loading) return <Spinner />;
+  if (loading) return <LoadingSkeleton kind="match" />;
   if (loadError) return <div role="alert" style={{ padding: 40 }}>{loadError}</div>;
   if (!partida) return <div style={{ color: 'var(--texto-sec)', padding: 40 }}>Partida não encontrada</div>;
 

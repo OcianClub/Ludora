@@ -82,11 +82,11 @@ Preencha as variáveis no exemplo:
 | `RESEND_API_KEY` / `EMAIL_FROM` | Envio de códigos, recuperação de senha e convites |
 | `INVITE_BASE_URL` | URL da interface que receberá links de convite |
 | `PYTHON_AI_URL` | Endereço do Scout IA; deixe vazio se não for executá-lo |
+| `ML_API_KEY` | Mesma chave privada no backend e no processo Python; obrigatória em produção com Scout IA habilitado |
 | `SUPERADMIN_EMAILS` | E-mails com acesso ao painel desktop, separados por vírgula; vazio = ninguém |
 
-Na implementação atual, `RESEND_API_KEY` também é necessária para inicializar a
-API, pois o cliente de e-mail é criado na importação do módulo. O remetente de
-teste `onboarding@resend.dev` restringe os destinatários; para envios gerais,
+Sem configuração do Resend, a API inicia, mas as operações de envio de e-mail
+ficam indisponíveis. O remetente de teste `onboarding@resend.dev` restringe os destinatários; para envios gerais,
 configure um domínio verificado. O link de convite exige uma interface acessível:
 a API sozinha não serve a página de aceite.
 
@@ -119,6 +119,11 @@ Inicia **API, Scout IA, mobile e web** no mesmo terminal, com os logs identifica
 por serviço. Use `Ctrl+C` para encerrar todos. Se um serviço encerrar, os demais
 iniciados pelo comando também serão encerrados, evitando processos esquecidos.
 Pare as instâncias anteriores antes de executar, para não disputar as mesmas portas.
+
+`dev:api` e `dev:ml` iniciam os processos com `NODE_ENV=development`, mesmo que
+o `.env` local contenha `production`. O ML reutiliza a `ML_API_KEY` da API quando
+ela estiver configurada, sem exibir a chave. O comando `start` da API continua
+respeitando a configuração de produção.
 
 Os comandos individuais continuam disponíveis: `pnpm dev:api`, `pnpm dev:ml`,
 `pnpm dev:mobile` e `pnpm dev:web`. A API usa a build existente; após alterar seu
@@ -252,6 +257,12 @@ py -m venv .venv
 Defina `PYTHON_AI_URL=http://localhost:8000` na API e reinicie o backend.
 O serviço Python também precisa permanecer aberto em seu próprio terminal.
 
+Para autenticar a comunicação, configure a mesma `ML_API_KEY` em
+`services/api/.env` e no ambiente do terminal Python, antes de iniciar o Uvicorn
+(PowerShell: `$env:ML_API_KEY = 'sua-chave-privada'`). O serviço Python não carrega
+arquivos `.env` automaticamente. Sem chave, em desenvolvimento, aceita apenas
+conexões locais; em produção, a chave é obrigatória nos dois serviços.
+
 ## Estrutura de pastas
 
 ```text
@@ -305,6 +316,10 @@ Não use esse comando para preparar uma base compartilhada ou de produção.
 Os testes automatizados não substituem testes de interface, entrega de push
 ou comportamento do aparelho sem internet.
 
+As suítes `test:app` e `test:app:completo` usam configuração isolada, sem herdar
+as credenciais do `.env`. Testes de integração que gravam em PostgreSQL devem
+usar um banco descartável separado.
+
 ## Problemas frequentes
 
 | Problema | Verificação |
@@ -315,7 +330,7 @@ ou comportamento do aparelho sem internet.
 | Web bloqueado por CORS | Origem exata do Vite/preview em `CORS_ORIGINS`; reinicie a API |
 | Erro do PostgreSQL/Supabase | Confira se o projeto está ativo e se as URLs de conexão estão corretas |
 | Erro de módulo nativo | Instale um development build compatível com as dependências atuais |
-| API falha por chave Resend ausente | Configure `RESEND_API_KEY` no ambiente do backend |
+| Scout IA retorna acesso não autorizado | Confira a mesma `ML_API_KEY` na API e no ambiente do processo Python |
 | Falha ao enviar código por e-mail | Confira chave, remetente e restrições de destinatários do Resend |
 | Desktop diz que a conta não tem acesso | Confira se o e-mail está em `SUPERADMIN_EMAILS` e reinicie a API |
 | Desktop não conecta | URL em **Ajustes** e API em execução; no Render gratuito a primeira chamada pode demorar |
@@ -323,6 +338,7 @@ ou comportamento do aparelho sem internet.
 
 ## Documentação complementar
 
+- [Auditoria de segurança, performance e interface — 01/11/2026](docs/auditoria-2026-11-01.md)
 - [Fluxo de partidas compartilhadas e validação](docs/partidas-compartilhadas.md)
 
 - [Referência técnica e contratos da API](docs/referencia-tecnica.md)
