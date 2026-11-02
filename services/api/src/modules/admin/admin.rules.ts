@@ -1,10 +1,7 @@
 import { EventEmitter } from 'node:events';
 
 // ─── Super Admin ──────────────────────────────────────────────────────────────
-// Não existe papel de plataforma no banco (os papéis são por clube). A lista de
-// Super Admins vem do ambiente, o que evita migration no banco compartilhado.
-// Novas contas da allowlist exigem confirmação por código no cadastro; perfil
-// e aceite de convite não podem adotar um e-mail reservado à plataforma.
+// A allowlist mantém os acessos legados durante a migração para o papel persistido.
 
 export function parseSuperAdmins(raw: string | undefined): Set<string> {
   return new Set(
@@ -17,6 +14,15 @@ export function parseSuperAdmins(raw: string | undefined): Set<string> {
 
 export function ehSuperAdmin(email: string | null | undefined, lista: Set<string>): boolean {
   return !!email && lista.has(email.trim().toLowerCase());
+}
+
+export function papelPlataformaEfetivo(
+  usuario: { papel_plataforma?: string; email?: string | null },
+  lista = parseSuperAdmins(process.env.SUPERADMIN_EMAILS),
+): 'SUPERADMIN' | 'USUARIO' {
+  return usuario.papel_plataforma === 'SUPERADMIN' || ehSuperAdmin(usuario.email, lista)
+    ? 'SUPERADMIN'
+    : 'USUARIO';
 }
 
 // ─── Validações ───────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ import { validarCargo } from '../clubes/membros.rules';
 import {
   SUBS_PADRAO,
   parseSuperAdmins,
+  papelPlataformaEfetivo,
   tipoCategoriaPorIdade,
   validarBusca,
   validarClube,
@@ -282,6 +283,7 @@ export function criarAdminRoutes(io: Server) {
         nome: true,
         email: true,
         criadoEm: true,
+        papel_plataforma: true,
         clubes: { select: { papel: true, clube: { select: { id: true, nome: true } } } },
       },
     });
@@ -291,7 +293,8 @@ export function criarAdminRoutes(io: Server) {
       nome: u.nome,
       email: u.email,
       criadoEm: u.criadoEm,
-      superadmin: lista.has(u.email.toLowerCase()),
+      papel_plataforma: papelPlataformaEfetivo(u, lista),
+      superadmin: papelPlataformaEfetivo(u, lista) === 'SUPERADMIN',
       clubes: u.clubes.map(v => ({ clube_id: v.clube.id, nome: v.clube.nome, papel: v.papel })),
     })));
   }));
@@ -377,7 +380,12 @@ export function criarAdminRoutes(io: Server) {
         email: { configurado: !!process.env.RESEND_API_KEY },
         supabaseStorage: { configurado: !!process.env.SUPABASE_SERVICE_ROLE_KEY },
       },
-      superAdmins: parseSuperAdmins(process.env.SUPERADMIN_EMAILS).size,
+      superAdmins: await prisma.usuario.count({ where: {
+        OR: [
+          { papel_plataforma: 'SUPERADMIN' },
+          ...[...parseSuperAdmins(process.env.SUPERADMIN_EMAILS)].map(email => ({ email: { equals: email, mode: 'insensitive' as const } })),
+        ],
+      } }),
       conexoes: { principal: io.of('/').sockets.size, admin: io.of('/admin').sockets.size },
     });
   }));

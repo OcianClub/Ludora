@@ -68,6 +68,7 @@ model Usuario {
   criadoEm            DateTime          @default(now())
   notificacoes_ativas Boolean           @default(true)
   versao_sessao       Int               @default(0)
+  papel_plataforma    PapelPlataforma   @default(USUARIO)
   recuperacao_senha   RecuperacaoSenha?
 
   clubes            UsuarioClube[]
@@ -450,6 +451,11 @@ enum StatusConvite {
   PENDENTE
   ACEITO
   REVOGADO
+}
+
+enum PapelPlataforma {
+  USUARIO
+  SUPERADMIN
 }
 
 enum PapelUsuario {

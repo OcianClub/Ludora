@@ -6,7 +6,7 @@ import { JWT_OPTIONS, JWT_SECRET } from '../../config/env';
 import { prisma } from '../../lib/prisma';
 import { exigirAutenticacao } from '../../middlewares/auth.middleware';
 import { limitarAuth } from '../../middlewares/rate-limit.middleware';
-import { ehSuperAdmin, parseSuperAdmins } from '../admin/admin.rules';
+import { ehSuperAdmin, parseSuperAdmins, papelPlataformaEfetivo } from '../admin/admin.rules';
 
 const router = Router();
 
@@ -55,6 +55,7 @@ router.post('/auth/login', limitarAuth, async (req, res) => {
       nome: usuario.nome,
       email: usuario.email,
       criadoEm: usuario.criadoEm,
+      papel_plataforma: papelPlataformaEfetivo(usuario),
     },
     nome: usuario.nome,
     criadoEm: usuario.criadoEm,
@@ -73,6 +74,7 @@ router.get('/usuarios/me', exigirAutenticacao, async (req, res) => {
         email: true,
         criadoEm: true,
         notificacoes_ativas: true,
+        papel_plataforma: true,
         clubes: {
           orderBy: { clube: { nome: 'asc' } },
           select: {
@@ -101,6 +103,7 @@ router.get('/usuarios/me', exigirAutenticacao, async (req, res) => {
       email: usuario.email,
       criadoEm: usuario.criadoEm,
       notificacoes_ativas: usuario.notificacoes_ativas,
+      papel_plataforma: papelPlataformaEfetivo(usuario),
       clubes: usuario.clubes.map((vinculo) => ({
         ...vinculo.clube,
         meuPapel: vinculo.papel,

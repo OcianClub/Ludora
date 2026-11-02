@@ -3,10 +3,12 @@
 // uma resposta em services/api/src/modules/admin, atualize aqui também.
 
 export type PapelClube = 'ADMIN' | 'TECNICO' | 'MESARIO' | 'TORCEDOR' | 'OLHEIRO';
+export type PapelPlataforma = 'USUARIO' | 'SUPERADMIN';
 export type PlanoClube = 'FREE' | 'DEMO' | 'TRIAL' | 'PRO';
 export type NivelLog = 'info' | 'warn' | 'error' | 'audit';
 
 export interface SuperAdminUsuario {
+  papel_plataforma: 'SUPERADMIN';
   id: number;
   nome: string;
   email: string;
@@ -62,6 +64,7 @@ export interface DefinirPapel {
 }
 
 export interface UsuarioGlobal {
+  papel_plataforma: PapelPlataforma;
   id: number;
   nome: string;
   email: string;

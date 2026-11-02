@@ -88,7 +88,7 @@ test('painel Super Admin: autorização, proteção de dados e regras de seguran
   await t.test('super admin (e-mail da allowlist, sem diferença de caixa) acessa /admin/me', async () => {
     const r = await chamar('GET', '/admin/me', DEV.id);
     assert.equal(r.status, 200);
-    assert.deepEqual((await r.json()).usuario, DEV);
+    assert.deepEqual((await r.json()).usuario, { ...DEV, papel_plataforma: 'SUPERADMIN' });
   });
 
   await t.test('usuários: seleção explícita, o hash da senha nunca é pedido nem devolvido', async () => {

@@ -6,10 +6,9 @@ import { prisma } from '../../lib/prisma';
 import { agendarExpiracaoTokenVerificado } from '../../realtime/sessoes';
 import {
   BufferLogs,
-  ehSuperAdmin,
+  papelPlataformaEfetivo,
   limparCaminho,
   nivelPorStatus,
-  parseSuperAdmins,
 } from './admin.rules';
 
 // Buffer único, compartilhado pelo logger HTTP, pelas rotas e pelo socket.
@@ -19,19 +18,18 @@ export interface SuperAdmin {
   id: number;
   nome: string;
   email: string;
+  papel_plataforma: 'SUPERADMIN';
 }
 
 // Lido a cada chamada (barato) para respeitar o .env já carregado por config/env.
 export async function carregarSuperAdmin(usuarioId: number | null): Promise<SuperAdmin | null> {
   if (!usuarioId) return null;
-  const lista = parseSuperAdmins(process.env.SUPERADMIN_EMAILS);
-  if (lista.size === 0) return null; // sem allowlist configurada, ninguém é super admin
-
   const usuario = await prisma.usuario.findUnique({
     where: { id: usuarioId },
-    select: { id: true, nome: true, email: true },
+    select: { id: true, nome: true, email: true, papel_plataforma: true },
   });
-  return usuario && ehSuperAdmin(usuario.email, lista) ? usuario : null;
+  if (!usuario || papelPlataformaEfetivo(usuario) !== 'SUPERADMIN') return null;
+  return { id: usuario.id, nome: usuario.nome, email: usuario.email, papel_plataforma: 'SUPERADMIN' };
 }
 
 export async function exigirSuperAdmin(req: Request, res: Response, next: NextFunction) {

@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "packageManager": "pnpm@11.20.0",
   "scripts": {
+    "superadmin:grant": "pnpm --filter @ludora/api run superadmin:grant",
     "build:api": "pnpm --filter @ludora/api exec prisma generate && pnpm --filter @ludora/api run build",
     "start:api": "pnpm --filter @ludora/api run start",
     "build:web": "pnpm --filter @ludora/web run build",

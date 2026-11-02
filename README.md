@@ -83,7 +83,7 @@ Preencha as variáveis no exemplo:
 | `INVITE_BASE_URL` | URL da interface que receberá links de convite |
 | `PYTHON_AI_URL` | Endereço do Scout IA; deixe vazio se não for executá-lo |
 | `ML_API_KEY` | Mesma chave privada no backend e no processo Python; obrigatória em produção com Scout IA habilitado |
-| `SUPERADMIN_EMAILS` | E-mails com acesso ao painel desktop, separados por vírgula; vazio = ninguém |
+| `SUPERADMIN_EMAILS` | Compatibilidade com superadmins por e-mail; prefira o papel de plataforma `SUPERADMIN` |
 
 Sem configuração do Resend, a API inicia, mas as operações de envio de e-mail
 ficam indisponíveis. O remetente de teste `onboarding@resend.dev` restringe os destinatários; para envios gerais,
@@ -225,9 +225,10 @@ clubes-clientes, ajusta permissões, consulta usuários e acompanha o banco e os
 da API em tempo real. Não é distribuído aos clubes. Detalhes, rotas e limitações em
 [docs/desktop-super-admin.md](docs/desktop-super-admin.md).
 
-O acesso é decidido **no servidor**: só entram contas cujo e-mail esteja em
-`SUPERADMIN_EMAILS` no `services/api/.env`, separados por vírgula. A conta precisa já
-existir e estar confirmada. Reinicie a API depois de alterar a variável.
+O acesso é decidido **no servidor** pelo papel de plataforma `SUPERADMIN`.
+A conta precisa já existir. Após aplicar a migration, conceda o papel com
+`pnpm superadmin:grant email-da-conta`. O guia de [SUPERADMIN](docs/papel-superadmin.md)
+explica a ativação. `SUPERADMIN_EMAILS` continua funcionando para acessos legados.
 
 Com a API em execução (seção 3), abra **outro terminal na raiz**:
 
@@ -235,7 +236,7 @@ Com a API em execução (seção 3), abra **outro terminal na raiz**:
 pnpm dev:desktop
 ```
 
-Entre com uma conta de `SUPERADMIN_EMAILS`. A URL da API pode ser trocada em
+Entre com uma conta autorizada como SUPERADMIN. A URL da API pode ser trocada em
 **Ajustes** dentro do app. O painel nunca acessa o banco diretamente (só a API) e
 guarda o token cifrado pelo sistema.
 
@@ -332,12 +333,13 @@ usar um banco descartável separado.
 | Erro de módulo nativo | Instale um development build compatível com as dependências atuais |
 | Scout IA retorna acesso não autorizado | Confira a mesma `ML_API_KEY` na API e no ambiente do processo Python |
 | Falha ao enviar código por e-mail | Confira chave, remetente e restrições de destinatários do Resend |
-| Desktop diz que a conta não tem acesso | Confira se o e-mail está em `SUPERADMIN_EMAILS` e reinicie a API |
+| Desktop diz que a conta não tem acesso | Confira se a conta possui o papel de plataforma `SUPERADMIN`; veja o guia abaixo |
 | Desktop não conecta | URL em **Ajustes** e API em execução; no Render gratuito a primeira chamada pode demorar |
 | Electron não abre ou não foi instalado | Rode `node apps\desktop\node_modules\electron\install.js` e repita `pnpm dev:desktop` |
 
 ## Documentação complementar
 
+- [Papel SUPERADMIN e concessão de acesso ao desktop](docs/papel-superadmin.md)
 - [Deploy da API no Render e web na Vercel](docs/deploy-render-vercel.md)
 - [Auditoria de segurança, performance e interface — 01/11/2026](docs/auditoria-2026-11-01.md)
 - [Fluxo de partidas compartilhadas e validação](docs/partidas-compartilhadas.md)
