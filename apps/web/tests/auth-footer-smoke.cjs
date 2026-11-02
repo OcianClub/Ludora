@@ -3,6 +3,36 @@ const { chromium } = require('playwright');
 
 const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5187';
 
+async function checkOverlayKeyboard(page) {
+  const footer = page.locator('.auth-footer');
+  for (const input of await page.locator('.auth-form input:not([type="checkbox"])').all()) {
+    assert.ok(await input.evaluate(el => parseFloat(getComputedStyle(el).fontSize) >= 16), 'Campo evita zoom automático no iPhone');
+    await input.focus();
+    await page.evaluate(() => {
+      Object.defineProperty(visualViewport, 'height', { value: 420, configurable: true });
+      Object.defineProperty(visualViewport, 'offsetTop', { value: 0, configurable: true });
+      visualViewport.dispatchEvent(new Event('resize'));
+    });
+    await page.waitForFunction(() => document.querySelector('.auth-page').dataset.authEditing === 'true');
+    assert.equal(await footer.evaluate(el => getComputedStyle(el).position), 'static');
+    await page.waitForFunction(() => {
+      const rect = document.activeElement.getBoundingClientRect();
+      return rect.top >= 0 && rect.bottom <= 401;
+    });
+    const fieldBox = await input.boundingBox();
+    const footerBox = await footer.boundingBox();
+    assert.ok(footerBox.y >= fieldBox.y + fieldBox.height, 'Rodapé fica depois do campo, sem sobrepor');
+  }
+  await page.evaluate(() => {
+    document.activeElement.blur();
+    delete visualViewport.height;
+    delete visualViewport.offsetTop;
+    visualViewport.dispatchEvent(new Event('resize'));
+  });
+  await page.waitForFunction(() => document.querySelector('.auth-page').dataset.authEditing === 'false');
+  assert.equal(await footer.evaluate(el => getComputedStyle(el).position), 'fixed');
+}
+
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
@@ -19,28 +49,42 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5187';
         assert.equal(await button.evaluate(el => el.form?.id), path === '/login' ? 'login-form' : 'register-form');
         if (width <= 760) {
           assert.ok(Math.abs((await footer.boundingBox()).y + (await footer.boundingBox()).height - 844) < 2);
-          await page.evaluate(() => {
-            Object.defineProperty(visualViewport, 'height', { value: 480, configurable: true });
-            visualViewport.dispatchEvent(new Event('resize'));
-          });
-          await page.waitForFunction(() => document.querySelector('.auth-page').style.getPropertyValue('--auth-keyboard-inset') === '364px');
-          const box = await footer.boundingBox();
-          assert.ok(box.y + box.height <= 481, 'Rodapé fica acima do teclado simulado');
-          await page.evaluate(() => {
-            delete visualViewport.height;
-            visualViewport.dispatchEvent(new Event('resize'));
-          });
-          await page.waitForFunction(() => document.querySelector('.auth-page').style.getPropertyValue('--auth-keyboard-inset') === '0px');
+          const inputs = page.locator('.auth-form input:not([type="checkbox"])');
+          await checkOverlayKeyboard(page);
+          await page.setViewportSize({ width, height: 420 });
+          await inputs.last().focus();
+          await page.waitForFunction(() => document.querySelector('.auth-page').dataset.authEditing === 'true');
+          await page.waitForFunction(() => document.activeElement.getBoundingClientRect().bottom <= innerHeight - 19);
+          assert.equal(await footer.evaluate(el => getComputedStyle(el).position), 'static');
+          await page.evaluate(() => document.activeElement.blur());
+          await page.setViewportSize({ width, height: 844 });
+          await page.waitForFunction(() => document.querySelector('.auth-page').dataset.authEditing === 'false');
         } else {
           assert.ok((await page.locator('.access-invite').boundingBox()).y > (await footer.boundingBox()).y);
         }
         await button.click();
         await page.locator('.access-field-feedback').first().waitFor();
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+        if (path === '/registrar') {
+          await page.locator('input[name="nome"]').fill('João Teste');
+          await page.locator('input[name="email"]').fill('joao@example.test');
+          await button.click();
+          await page.getByRole('heading', { name: 'Proteja sua conta' }).waitFor();
+          if (width <= 760) await checkOverlayKeyboard(page);
+          await page.locator('input[name="senha"]').fill('teste1234');
+          await page.locator('input[name="confirmacao"]').fill('teste1234');
+          await page.route('**/auth/cadastro/solicitar-codigo', route => route.fulfill({
+            json: { cadastro_id: 'a'.repeat(64) },
+          }));
+          await button.click();
+          await page.getByRole('heading', { name: 'Confirme seu e-mail' }).waitFor();
+          if (width <= 760) await checkOverlayKeyboard(page);
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+        }
       }
       await page.close();
     }
-    console.log('PASS: login/cadastro, submit externo, rodapé e teclado simulado em 320/390/760/1440 px.');
+    console.log('PASS: login e 3 etapas do cadastro, submit externo, rodapé sem sobreposição, campos visíveis e teclado simulado (overlay e resize) em 320/390/760/1440 px.');
   } finally {
     await browser.close();
   }

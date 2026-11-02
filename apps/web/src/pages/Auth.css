@@ -526,7 +526,7 @@
 }
 @media (max-width: 760px) {
   .auth-card--footer {
-    padding-bottom: calc(var(--auth-footer-height, 130px) + var(--auth-keyboard-inset, 0px) + 20px);
+    padding-bottom: calc(var(--auth-footer-height, 130px) + 20px);
   }
   .auth-card--footer > .access-invite {
     order: 0;
@@ -535,11 +535,19 @@
     position: fixed;
     z-index: 20;
     inset-inline: 0;
-    bottom: var(--auth-keyboard-inset, 0px);
+    bottom: 0;
     margin-top: 0;
     padding: 12px max(24px, calc((100vw - 460px) / 2)) max(12px, env(safe-area-inset-bottom));
     border-top: 1px solid var(--linha);
     background: var(--fundo);
+  }
+  .auth-page[data-auth-editing="true"] .auth-card--footer {
+    padding-bottom: calc(var(--auth-keyboard-inset, 0px) + 20px);
+  }
+  .auth-page[data-auth-editing="true"] .auth-footer {
+    position: static;
+    margin-top: 24px;
+    padding-inline: 0;
   }
   .auth-footer .auth-btn {
     margin-top: 0;
@@ -697,9 +705,12 @@
     gap: 9px;
   }
   .access-input-row input {
-    font-size: 14px;
+    font-size: 16px;
     line-height: 22px;
     padding-block: 12px;
+  }
+  .access-input-row input::placeholder {
+    font-size: 14px;
   }
   .access-input-row > svg, .access-input-row > .icon {
     width: 18px;

@@ -20,12 +20,33 @@ export function AuthShell({ title, subtitle, children, back, progress, footer, n
     if (!hasFooter) return;
     const viewport = window.visualViewport;
     let frame = 0;
+    let restingHeight = window.innerHeight;
+    let restingWidth = window.innerWidth;
+    let wasEditing = false;
     const measure = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const inset = viewport ? Math.max(0, innerHeight - viewport.height - viewport.offsetTop) : 0;
+        if (window.innerWidth !== restingWidth) {
+          restingWidth = window.innerWidth;
+          restingHeight = window.innerHeight;
+        }
+        const focused = document.activeElement;
+        const editable = focused instanceof HTMLElement && focused.matches('input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]), textarea, [contenteditable="true"]');
+        const keyboardVisible = restingHeight - (viewport?.height ?? innerHeight) > 150;
+        const editing = editable || (wasEditing && keyboardVisible);
+        if (!editing) restingHeight = window.innerHeight;
+        wasEditing = editing;
+        if (shell.current) shell.current.dataset.authEditing = String(editing);
         shell.current?.style.setProperty('--auth-keyboard-inset', `${inset}px`);
         shell.current?.style.setProperty('--auth-footer-height', `${footerElement.current?.offsetHeight || 130}px`);
+        if (editable && window.matchMedia('(max-width: 760px)').matches) {
+          const rect = focused.getBoundingClientRect();
+          const visibleTop = viewport?.offsetTop ?? 0;
+          const visibleBottom = visibleTop + (viewport?.height ?? innerHeight);
+          if (rect.bottom > visibleBottom - 20) window.scrollBy({ top: rect.bottom - visibleBottom + 20, behavior: 'instant' });
+          else if (rect.top < visibleTop + 12) window.scrollBy({ top: rect.top - visibleTop - 12, behavior: 'instant' });
+        }
       });
     };
     const observer = new ResizeObserver(measure);
@@ -33,6 +54,8 @@ export function AuthShell({ title, subtitle, children, back, progress, footer, n
     viewport?.addEventListener('resize', measure);
     viewport?.addEventListener('scroll', measure);
     window.addEventListener('resize', measure);
+    document.addEventListener('focusin', measure);
+    document.addEventListener('focusout', measure);
     measure();
     return () => {
       cancelAnimationFrame(frame);
@@ -40,6 +63,8 @@ export function AuthShell({ title, subtitle, children, back, progress, footer, n
       viewport?.removeEventListener('resize', measure);
       viewport?.removeEventListener('scroll', measure);
       window.removeEventListener('resize', measure);
+      document.removeEventListener('focusin', measure);
+      document.removeEventListener('focusout', measure);
     };
   }, [hasFooter]);
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [title]);
