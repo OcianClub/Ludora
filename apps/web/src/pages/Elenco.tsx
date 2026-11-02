@@ -22,7 +22,7 @@ import '../components/ResponsiveControls.css';
 const PROFILE_ICONS: Record<string, IconName> = { Artilheiro: 'ball', Armador: 'switchClub', Paredão: 'defense' };
 
 function metricValue(player: PerfilJogador, order: string) {
-  if (order === 'rating' || order === 'name') return hasAssessment(player) ? player.nota_geral!.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—';
+  if (order === 'rating' || order === 'name') return player.totalPartidas;
   const field = { goals: 'totalGols', assists: 'totalAssistencias', saves: 'totalDefesas', games: 'totalPartidas', shirt: 'numCamisa' } as const;
   return player[field[order as keyof typeof field]] ?? '—';
 }
@@ -112,19 +112,19 @@ export default function ElencoPage() {
     return [
     { title: 'Mais gols', field: 'totalGols', icon: 'ball' },
     { title: 'Assistências', field: 'totalAssistencias', icon: 'handshake' },
-    { title: 'Maior índice', field: 'nota_geral', icon: 'radar' },
+    { title: 'Convocações', field: 'totalPartidas', icon: 'team' },
   ].map(item => {
-    const candidates = item.field === 'nota_geral' ? categoryPlayers.filter(hasAssessment) : categoryPlayers;
+    const candidates = categoryPlayers;
     const max = Math.max(0, ...candidates.map(player => Number(player[item.field as keyof PerfilJogador]) || 0));
     const tied = candidates.filter(player => Number(player[item.field as keyof PerfilJogador]) === max);
-    return { ...item, value: max, player: max > 0 || item.field === 'nota_geral' ? tied[0] || null : null, tied: tied.length, tiedPlayers: tied };
+    return { ...item, value: max, player: max > 0 ? tied[0] || null : null, tied: tied.length, tiedPlayers: tied };
     });
   }
   const chips = [
     { key: 'busca', text: search && `Busca: ${search}` }, { key: 'posicao', text: position },
-    { key: 'perfil', text: profile === 'pending' ? 'Não avaliados' : profile },
+    { key: 'perfil', text: profile === 'pending' ? 'Sem perfil' : profile },
     { key: 'registros', text: records && (records === 'with' ? 'Com escalações' : 'Sem escalações') },
-    { key: 'avaliacao', text: assessment && (assessment === 'with' ? 'Com avaliação' : 'Sem avaliação') },
+    { key: 'avaliacao', text: assessment && (assessment === 'with' ? 'Com perfil' : 'Sem perfil') },
   ].filter(chip => chip.text);
   const clear = () => change({ busca: '', posicao: '', perfil: '', registros: '', avaliacao: '' });
   const categoryIndex = phaseCategories.indexOf(category!);
@@ -152,7 +152,7 @@ export default function ElencoPage() {
       </div>
       <div data-swipe-ignore ref={offset === 0 ? profileTrack : undefined} className="scout-profile-filters" role="group" aria-label="Perfil de desempenho">{['', ...SCOUT_PROFILES, 'pending'].map(value => {
         const count = matching.filter(player => !value || (value === 'pending' ? !hasAssessment(player) : hasAssessment(player) && player.perfil_ml === value)).length;
-        return <button key={value || 'all'} type="button" aria-pressed={profile === value} onClick={() => change({ perfil: value })} className={`scout-profile-filter profile-${value === 'Armador' ? 'playmaker' : value === 'Paredão' ? 'keeper' : 'scorer'}`}>{value === 'pending' ? 'Não avaliados' : value || 'Todos'}<span>{count}</span></button>;
+        return <button key={value || 'all'} type="button" aria-pressed={profile === value} onClick={() => change({ perfil: value })} className={`scout-profile-filter profile-${value === 'Armador' ? 'playmaker' : value === 'Paredão' ? 'keeper' : 'scorer'}`}>{value === 'pending' ? 'Sem perfil' : value || 'Todos'}<span>{count}</span></button>;
       })}</div>
       {!!chips.length && <div className="scout-active-filters" aria-label="Filtros ativos">{chips.map(chip => <button type="button" key={chip.key} onClick={() => change({ [chip.key]: '' })} aria-label={`Remover filtro ${chip.text}`}>{chip.text}<Icon name="minus" size={14} /></button>)}<button type="button" onClick={clear}>Limpar tudo</button></div>}
       <ScoutIndexHelp />
@@ -174,9 +174,9 @@ export default function ElencoPage() {
           </button>;
         })}
       </div>
-      <p className="scout-data-note">Totais acumulados · índice calculado com os registros disponíveis.</p>
+      <p className="scout-data-note">Partidas finalizadas · convocações não confirmam minutos em campo. Abra a ficha para filtrar por campeonato ou partida.</p>
       {!filtered.length ? <div className="scout-empty"><Empty icon="👥" message={categoryPlayers.length ? 'Nenhum atleta corresponde aos filtros.' : 'Nenhum atleta cadastrado nesta categoria.'} />{!!chips.length && <Btn variant="ghost" onClick={clear}>Limpar filtros</Btn>}</div> : <>
-        {list && <div className="scout-list-head" aria-hidden="true"><span>Atleta · Índice</span><span>Perfil · Escalações · Gols · Assistências / Defesas</span></div>}
+        {list && <div className="scout-list-head" aria-hidden="true"><span>Atleta · Registros</span><span>Perfil · Convocações · Gols · Assistências / Defesas</span></div>}
         <div className={`scout-players${list ? ' scout-players-list' : ''}`}>{filtered.slice(0, offset === 0 ? limit : 24).map(player => {
           const assessed = hasAssessment(player);
           const keeper = normalizePosition(player.posicao) === 'Goleiro';
@@ -185,9 +185,9 @@ export default function ElencoPage() {
           }}>
             <button className="scout-player-main" type="button" onClick={() => openPlayer(player)} aria-label={`Ver ficha de ${player.nome}`}>
               <span className="scout-shirt">{player.numCamisa != null ? `#${player.numCamisa}` : '—'}</span><span className="scout-player-identity"><strong data-tooltip={player.nome} data-tooltip-overflow>{player.nome}</strong><span className="position-inline"><PositionIcon decorative tooltip={false} position={player.posicao}/>{normalizePosition(player.posicao) || 'Posição não informada'}{player.idade != null ? ` · ${player.idade} anos` : ''}</span></span>
-              <span className="scout-rating"><span>{order === 'name' ? 'Índice' : SCOUT_ORDERS.find(item => item.value === order)?.label || 'Índice'}</span><strong>{metricValue(player, order)}</strong></span><Icon name="chevronRight" size={18} />
+              <span className="scout-rating"><span>{order === 'name' ? 'Convocações' : SCOUT_ORDERS.find(item => item.value === order)?.label || 'Convocações'}</span><strong>{metricValue(player, order)}</strong></span><Icon name="chevronRight" size={18} />
             </button>
-            <div className="scout-player-bottom"><span className="scout-profile-label">{assessed ? player.perfil_ml : 'Não avaliado'}</span><dl className="scout-player-metrics"><div><dt>Escalações</dt><dd>{player.totalPartidas}</dd></div><div><dt>Gols</dt><dd>{player.totalGols}</dd></div><div><dt>{keeper ? 'Defesas' : 'Assistências'}</dt><dd>{keeper ? player.totalDefesas : player.totalAssistencias}</dd></div></dl></div>
+            <div className="scout-player-bottom"><span className="scout-profile-label">{assessed ? player.perfil_ml : 'Sem perfil'}</span><dl className="scout-player-metrics"><div><dt>Convocações</dt><dd>{player.totalPartidas}</dd></div><div><dt>Gols</dt><dd>{player.totalGols}</dd></div><div><dt>{keeper ? 'Defesas' : 'Assistências'}</dt><dd>{keeper ? player.totalDefesas : player.totalAssistencias}</dd></div></dl></div>
           </article>;
         })}</div>
         {filtered.length > limit && <Btn className="scout-show-more" variant="ghost" onClick={() => setLimit(value => value + 24)}>Mostrar mais atletas ({filtered.length - limit})</Btn>}
@@ -219,13 +219,13 @@ export default function ElencoPage() {
       }}>
       <fieldset className="scout-filter-options"><legend>Posição</legend>{['', ...POSITIONS].map(value => <button type="button" key={value} aria-pressed={draftPosition === value} onClick={() => setDraftPosition(value)}>{value || 'Todas'}</button>)}</fieldset>
       <fieldset className="scout-filter-options"><legend>Participação</legend>{[{ value: '', label: 'Todos' }, { value: 'with', label: 'Com escalações' }, { value: 'without', label: 'Sem escalações' }].map(item => <button type="button" key={item.value} aria-pressed={draftRecords === item.value} onClick={() => setDraftRecords(item.value)}>{item.label}</button>)}</fieldset>
-      <fieldset className="scout-filter-options"><legend>Avaliação</legend>{[{ value: '', label: 'Todos' }, { value: 'with', label: 'Com avaliação' }, { value: 'without', label: 'Não avaliados' }].map(item => <button type="button" key={item.value} aria-pressed={draftAssessment === item.value} onClick={() => setDraftAssessment(item.value)}>{item.label}</button>)}</fieldset>
+      <fieldset className="scout-filter-options"><legend>Perfil de registros</legend>{[{ value: '', label: 'Todos' }, { value: 'with', label: 'Com perfil' }, { value: 'without', label: 'Sem perfil' }].map(item => <button type="button" key={item.value} aria-pressed={draftAssessment === item.value} onClick={() => setDraftAssessment(item.value)}>{item.label}</button>)}</fieldset>
       <FilterSelect label="Ordenar por" emptyLabel="Padrão (índice)" options={SCOUT_ORDERS} value={draftOrder} onChange={setDraftOrder} inlineOptions />
     </CollectionFilterDialog>
     <Modal open={!!tiedLeaders} title={tiedLeaders ? `${tiedLeaders.title} · atletas empatados` : 'Atletas empatados'} onClose={() => setTiedLeaders(null)}>
       <p className="scout-help">Atletas com o mesmo resultado nesta categoria. Selecione um para ver sua ficha.</p>
       <div className="scout-tied-list">{tiedLeaders?.players.map(player => <button key={player.id} type="button" onClick={() => { setTiedLeaders(null); openPlayer(player); }}><span>{player.nome}</span><Icon name="chevronRight" size={17}/></button>)}</div>
     </Modal>
-    {selected && !loading && <ScoutPlayerDetail key={`${clube?.id}-${selected.id}`} player={selected} category={categories.find(item => item.id === selected.categoria_id)?.nome.toUpperCase() || 'Sem categoria'} onClose={() => change({ atleta: '' })} />}
+    {selected && !loading && <ScoutPlayerDetail key={`${clube?.id}-${selected.id}`} player={selected} category={categories.find(item => item.id === selected.categoria_id)?.nome.toUpperCase() || 'Sem categoria'} initialFilter={{ partida_id: Number(params.get('partida_id')) || undefined, competicao_id: Number(params.get('competicao_id')) || undefined }} onClose={() => change({ atleta: '', partida_id: '', competicao_id: '' })} />}
   </div>;
 }

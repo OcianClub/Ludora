@@ -73,7 +73,7 @@ export function HomePending({ category, matches, refreshKey }: {
         </Link>)}
       </div>
       {!complete && <p className="home-pending-note"><Icon name="info" size={16} /><span>{!data || !incoming ? 'Consultando as pendências…' : <>Parte da consulta está indisponível. Confira a <Link to="/partidas">agenda</Link> ou os cadastros do elenco.</>}</span></p>}
-      {unassessed > 0 ? <p className="home-pending-note"><Icon name="radar" size={16} /><span>{unassessed} {unassessed === 1 ? 'atleta ainda sem avaliação' : 'atletas ainda sem avaliação'}. O índice depende dos registros de jogo. <Link to={`/elenco?categoria_id=${category.id}&perfil=pending`}>Consultar Scout</Link></span></p>
+      {unassessed > 0 ? <p className="home-pending-note"><Icon name="radar" size={16} /><span>{unassessed} {unassessed === 1 ? 'atleta ainda sem perfil de contribuição' : 'atletas ainda sem perfil de contribuição'}. O perfil depende da amostra de registros, não é uma nota de habilidade. <Link to={`/elenco?categoria_id=${category.id}&perfil=pending`}>Consultar Scout</Link></span></p>
         : complete && <p className="home-pending-note"><Icon name="info" size={16} /><span>{items.length ? 'As ações respeitam seu acesso a esta categoria.' : 'Os próximos jogos e registros pendentes aparecerão aqui.'}</span></p>}
     </div>
   </section>;

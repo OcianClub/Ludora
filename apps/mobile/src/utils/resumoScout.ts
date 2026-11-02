@@ -16,7 +16,7 @@ export function calcularResumo(jogadores: Jogador[]): ResumoCategoria {
     const jogador = jogadores[indice];
     if (jogador.gols > artilheiro.gols) artilheiro = jogador;
     if (jogador.assistencias > assistente.assistencias) assistente = jogador;
-    if (jogador.nota_geral > lider.nota_geral) lider = jogador;
+    if (jogador.jogos_disputados > lider.jogos_disputados) lider = jogador;
   }
   return {
     artilheiro: { nome: artilheiro.nome, gols: artilheiro.gols },
@@ -25,6 +25,6 @@ export function calcularResumo(jogadores: Jogador[]): ResumoCategoria {
       assistencias: assistente.assistencias,
       colocacao: 1,
     },
-    lider: { nome: lider.nome, pontos: Math.round(lider.nota_geral) },
+    lider: { nome: lider.nome, pontos: lider.jogos_disputados },
   };
 }

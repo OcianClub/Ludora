@@ -119,6 +119,12 @@ export function selecionarJogadoresLocais(valor: unknown): Jogador[] | null {
         typeof jogador.perfil_ml === 'string' ? jogador.perfil_ml : 'Sem dados',
       scores_ml: scores,
       nota_geral: estatistica('nota_geral'),
+      analise_scout: jogador.analise_scout?.versao === 2 ? {
+        versao: 2,
+        calculado_em: typeof jogador.analise_scout.calculado_em === 'string' ? jogador.analise_scout.calculado_em : '',
+        convocacoes: numero(jogador.analise_scout.convocacoes) ? jogador.analise_scout.convocacoes : 0,
+        grupo_tamanho: numero(jogador.analise_scout.grupo_tamanho) ? jogador.analise_scout.grupo_tamanho : 0,
+      } : null,
       categoria: jogador.categoria,
       categoria_tipo: jogador.categoria_tipo,
       categoria_id: jogador.categoria_id,

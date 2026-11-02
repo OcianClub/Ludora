@@ -246,6 +246,9 @@
 
 .lineup-order { flex-shrink: 0; width: 22px; color: var(--texto-sec); text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
 .lineup-player { display: grid; flex: 1; min-width: 0; gap: 5px; }
+.lineup-scout-link { display: block; min-width: 0; color: inherit; }
+.lineup-scout-link:hover { color: var(--primaria); }
+.lineup-scout-link:focus-visible { outline: 2px solid var(--primaria); outline-offset: 3px; border-radius: 4px; }
 .lineup-player strong { font-size: 14px; overflow-wrap: anywhere; }
 .lineup-position { display: flex; align-items: center; gap: 6px; color: var(--texto-sec); font-size: 12px; }
 .lineup-shirt { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border-radius: 7px; background: var(--lineup-shirt); font-weight: 600; font-variant-numeric: tabular-nums; }

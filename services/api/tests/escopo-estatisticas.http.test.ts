@@ -68,6 +68,15 @@ test('consultas alternativas respeitam categorias e falhas de persistência não
     assert.equal((await request('/jogadores/2/estatisticas')).status, 200);
     assert.equal(grouped, 3);
   });
+  await t.test('Scout contextual exige sessão e valida os filtros antes de consultar o banco', async () => {
+    role = 'ADMIN';
+    assert.equal((await fetch(base + '/jogadores/1/scout-contexto', { headers: { 'x-clube-id': '2' } })).status, 401);
+    for (const query of ['competicao_id=abc', 'partida_id=-1', 'ano=2026.5', 'ano=1899', 'ano=20260', 'competicao_id=4&partida_id=5']) {
+      const response = await request('/jogadores/1/scout-contexto?' + query);
+      assert.equal(response.status, 400, query);
+      assert.doesNotMatch(await response.text(), /postgres|prisma|QUERY/);
+    }
+  });
   await t.test('exceções de banco em membros, vínculos e exclusão não chegam à resposta', async () => {
     role = 'ADMIN';
     failPersistence = true;

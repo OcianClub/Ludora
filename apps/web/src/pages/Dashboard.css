@@ -698,6 +698,12 @@
   }
 }
 @media (max-width: 760px) {
+  .dashboard > .page-header {
+    display: none;
+  }
+  .dashboard .home-controls {
+    --category-control-height: 40px;
+  }
   .home-history-table {
     table-layout: fixed;
     font-size: 11px;

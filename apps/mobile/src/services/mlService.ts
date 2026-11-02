@@ -8,9 +8,11 @@ import {
 export async function obterContextoScout(
   jogadorId: number,
   clubeId: number,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  filtro: import('../utils/contextoScout').FiltroContextoScout = {}
 ): Promise<ContextoScout> {
-  const resposta = await apiFetch(`/jogadores/${jogadorId}/scout-contexto`, {
+  const query = Object.entries(filtro).filter(([, value]) => value !== undefined).map(([key, value]) => `${key}=${value}`).join('&');
+  const resposta = await apiFetch(`/jogadores/${jogadorId}/scout-contexto${query ? `?${query}` : ''}`, {
     headers: { 'x-clube-id': String(clubeId) },
     signal,
   });
@@ -40,6 +42,7 @@ export interface ScoresMl {
 }
 
 export interface Jogador {
+  analise_scout?: { versao: 2; calculado_em: string; convocacoes: number; grupo_tamanho: number } | null;
   id_jogador: number;
   nome: string;
   posicao: string;

@@ -1,10 +1,10 @@
 import type { PerfilJogador } from '../services/api';
 
-export const SCOUT_PROFILES = ['Artilheiro', 'Armador', 'Paredão'] as const;
+export const SCOUT_PROFILES = ['Artilheiro', 'Armador', 'Paredão', 'Misto'] as const;
 export const SCOUT_ORDERS = [
-  { value: 'rating', label: 'Índice' }, { value: 'goals', label: 'Gols' },
+  { value: 'rating', label: 'Convocações' }, { value: 'goals', label: 'Gols' },
   { value: 'assists', label: 'Assistências' }, { value: 'saves', label: 'Defesas' },
-  { value: 'games', label: 'Escalações' }, { value: 'name', label: 'Nome A–Z' }, { value: 'shirt', label: 'Camisa' },
+  { value: 'name', label: 'Nome A–Z' }, { value: 'shirt', label: 'Camisa' },
 ];
 export function nextScoutOrder(current: string | null, next: string, ascending: boolean) {
   const initiallyAscending = ['name', 'shirt'].includes(next);
@@ -13,11 +13,13 @@ export function nextScoutOrder(current: string | null, next: string, ascending: 
   return { ordem: next, direcao: initiallyAscending ? 'desc' : 'asc' };
 }
 export const profileDescription: Record<string, string> = {
-  Artilheiro: 'Perfil associado à finalização e à participação ofensiva.',
-  Armador: 'Perfil associado à visão de jogo e à criação de jogadas.',
-  Paredão: 'Perfil associado às ações defensivas registradas.',
+  Artilheiro: 'Gols predominam entre os eventos ofensivos e defesas registrados. Não é uma avaliação da qualidade de finalização.',
+  Armador: 'Assistências predominam entre os eventos ofensivos e defesas registrados. Não mede toda a criação de jogadas.',
+  Paredão: 'Defesas predominam entre os eventos ofensivos e defesas registrados. Não mede o aproveitamento do goleiro.',
+  Misto: 'Há equilíbrio entre os tipos de contribuição registrados. O perfil não determina a posição do atleta.',
 };
 export function hasAssessment(player: PerfilJogador) {
+  if (player.analise_scout?.versao === 2) return !!player.perfil_ml && player.perfil_ml !== 'Sem dados';
   return !!player.perfil_ml && !/^sem\b/i.test(player.perfil_ml) && typeof player.nota_geral === 'number' && Number.isFinite(player.nota_geral);
 }
 export function profileClass(player: PerfilJogador) {
@@ -29,10 +31,9 @@ export function searchScout(value: string) {
 export function sortScout(players: PerfilJogador[], order: string, ascending = ['name', 'shirt'].includes(order)) {
   const field = { goals: 'totalGols', assists: 'totalAssistencias', saves: 'totalDefesas', games: 'totalPartidas' } as const;
   return [...players].sort((a, b) => {
-    if (order === 'rating' && hasAssessment(a) !== hasAssessment(b)) return hasAssessment(a) ? -1 : 1;
     if (order === 'shirt' && (a.numCamisa == null) !== (b.numCamisa == null)) return a.numCamisa == null ? 1 : -1;
     let difference = 0;
-    if (order === 'rating') difference = (hasAssessment(b) ? b.nota_geral! : -1) - (hasAssessment(a) ? a.nota_geral! : -1);
+    if (order === 'rating') difference = b.totalPartidas - a.totalPartidas;
     else if (order === 'shirt') difference = (a.numCamisa ?? Infinity) - (b.numCamisa ?? Infinity);
     else if (order in field) {
       const key = field[order as keyof typeof field];

@@ -4,6 +4,21 @@ import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 export const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    seletor: {
+      flexDirection: 'row',
+      gap: 4,
+      padding: 4,
+      borderRadius: 10,
+      backgroundColor: colors.card,
+    },
+    opcao: {
+      flex: 1,
+      minHeight: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 8,
+      borderRadius: 7,
+    },
     container: {
       gap: 12,
       marginBottom: 24,

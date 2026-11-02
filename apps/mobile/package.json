@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start --dev-client --lan",
+    "start": "node ../../scripts/start-mobile.cjs --dev-client --lan",
     "start:go": "expo start --go --lan",
-    "start:clean": "expo start --dev-client --lan --clear",
+    "start:clean": "node ../../scripts/start-mobile.cjs --dev-client --lan --clear",
     "start:tunnel": "expo start --dev-client --tunnel",
     "android": "expo start --dev-client --lan --android",
     "ios": "expo start --dev-client --lan --ios",

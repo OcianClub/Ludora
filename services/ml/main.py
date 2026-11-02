@@ -1,14 +1,14 @@
 from contextlib import asynccontextmanager
 from hmac import compare_digest
 import os
+from typing import List, Dict
 
+import numpy as np
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
-from typing import List, Dict
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.cluster import KMeans
+from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import RobustScaler
+
 
 def validar_configuracao():
     if os.getenv("NODE_ENV") == "production" and not os.getenv("ML_API_KEY"):
@@ -36,123 +36,87 @@ def autenticar_servico(request: Request):
     if not request.client or request.client.host not in {"127.0.0.1", "::1"}:
         raise HTTPException(status_code=401, detail="Serviço não autorizado.")
 
+
 class JogadorStats(BaseModel):
     jogador_id: int = Field(gt=0, le=2_147_483_647)
+    categoria_id: int = Field(default=0, ge=0)
+    posicao: str = Field(default="", max_length=60)
     GOL: int = Field(default=0, ge=0, le=1_000_000)
     ASSISTENCIA: int = Field(default=0, ge=0, le=1_000_000)
     DEFESA: int = Field(default=0, ge=0, le=1_000_000)
     CARTAO_AMARELO: int = Field(default=0, ge=0, le=1_000_000)
     CARTAO_VERMELHO: int = Field(default=0, ge=0, le=1_000_000)
     FALTA: int = Field(default=0, ge=0, le=1_000_000)
-    jogos_disputados: int = Field(default=1, ge=0, le=1_000_000)
+    jogos_disputados: int = Field(default=0, ge=0, le=1_000_000)
+
+
+class Semelhante(BaseModel):
+    jogador_id: int
+    distancia: float
+
 
 class ScoutResultado(BaseModel):
     jogador_id: int
+    versao: int = 2
     perfil_ml: str
+    nota_geral: None = None
     scores: Dict[str, float]
-    nota_geral: float
+    convocacoes: int
+    grupo_tamanho: int = 0
+    semelhantes: List[Semelhante] = Field(default_factory=list)
+    metodo: str = "v2-registros-por-convocacao"
 
-@app.post(
-    "/internal/ml/treinar-perfis",
-    response_model=List[ScoutResultado],
-    dependencies=[Depends(autenticar_servico)],
-)
+
+def normalizar_posicao(posicao: str):
+    value = posicao.strip().lower()
+    return "ala" if value in {"ala", "alas"} else value
+
+
+@app.post("/internal/ml/treinar-perfis", response_model=List[ScoutResultado],
+          dependencies=[Depends(autenticar_servico)])
 def treinar_perfis(stats: List[JogadorStats]):
-    if len(stats) < 3:
-        raise HTTPException(
-            status_code=400,
-            detail="Mínimo de 3 jogadores com partidas para análise de IA."
-        )
-
-    if len(stats) > 5000:
-        raise HTTPException(status_code=400, detail="Limite de 5000 jogadores por análise.")
-    if len({jogador.jogador_id for jogador in stats}) != len(stats):
+    if not stats or len(stats) > 5000:
+        raise HTTPException(status_code=400, detail="Envie entre 1 e 5000 atletas por análise.")
+    if len({s.jogador_id for s in stats}) != len(stats):
         raise HTTPException(status_code=400, detail="A análise contém jogadores duplicados.")
 
-    df = pd.DataFrame([s.model_dump() for s in stats])
-    ids = df['jogador_id'].values
-    
-    jogos = df['jogos_disputados'].replace(0, 1)
-
-    df['gols_pj'] = df['GOL'] / jogos
-    df['assis_pj'] = df['ASSISTENCIA'] / jogos
-    df['defesa_pj'] = df['DEFESA'] / jogos
-    df['falta_pj'] = df['FALTA'] / jogos
-    df['cartao_pj'] = (df['CARTAO_AMARELO'] + 2 * df['CARTAO_VERMELHO']) / jogos
-
-    scaler = MinMaxScaler(feature_range=(0, 100))
-
-    def safe_scale(col):
-        if df[col].max() == 0:
-            return np.zeros(len(df))
-        return scaler.fit_transform(df[[col]]).flatten()
-
-    finalizacao = safe_scale('gols_pj')
-    visao_de_jogo = safe_scale('assis_pj')
-    defesa = safe_scale('defesa_pj')
-
-    indisciplina = df['falta_pj'] + df['cartao_pj']
-    if indisciplina.max() == 0:
-        disciplina = np.full(len(df), 100.0)
-    else:
-        ind_scaled = scaler.fit_transform(indisciplina.values.reshape(-1, 1)).flatten()
-        disciplina = 100 - ind_scaled
-
-    intensidade = safe_scale('falta_pj') * 0.5 + safe_scale('defesa_pj') * 0.5
-    tecnica = safe_scale('assis_pj') * 0.5 + safe_scale('gols_pj') * 0.5
-
-    features_km = np.column_stack((finalizacao, visao_de_jogo, defesa, disciplina, intensidade))
-
-    if len(np.unique(features_km, axis=0)) < 3:
-        raise HTTPException(
-            status_code=400,
-            detail="Registros ainda insuficientemente variados para classificar três perfis.",
-        )
-    
-    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
-    clusters = kmeans.fit_predict(features_km)
-
-    centroids = pd.DataFrame(features_km, columns=['fin', 'vis', 'def', 'dis', 'int'])
-    centroids['cluster'] = clusters
-    medias = centroids.groupby('cluster').mean()
-
-    # O cluster com mais defesas é inevitavelmente o dos Goleiros
-    idx_paredao = medias['def'].idxmax()
-    
-    # Removemos o goleiro para achar os Alas
-    restantes = medias.drop(idx_paredao) 
-    
-    # Entre os Alas, quem finaliza mais é o Artilheiro
-    idx_artilheiro = restantes['fin'].idxmax()
-    
-    nomes_perfis = {}
-    for i in range(3):
-        if i == idx_artilheiro:
-            nomes_perfis[i] = "Artilheiro"
-        elif i == idx_paredao:
-            nomes_perfis[i] = "Paredão"
-        else:
-            nomes_perfis[i] = "Armador"
-
     resultados = []
-    for idx, jogador_id in enumerate(ids):
-        nota_geral = (finalizacao[idx] + visao_de_jogo[idx] + defesa[idx] + disciplina[idx] + tecnica[idx]) / 5
-
+    grupos = {}
+    for jogador in stats:
+        eventos = [jogador.GOL, jogador.ASSISTENCIA, jogador.DEFESA]
+        perfil = "Sem dados"
+        if jogador.jogos_disputados >= 5 and sum(eventos) >= 3:
+            maiores = [i for i, count in enumerate(eventos) if count == max(eventos)]
+            perfil = ["Artilheiro", "Armador", "Paredão"][maiores[0]] if len(maiores) == 1 else "Misto"
         resultados.append(ScoutResultado(
-            jogador_id=int(jogador_id),
-            perfil_ml=nomes_perfis[clusters[idx]],
-            scores={
-                "finalizacao":   round(float(finalizacao[idx]), 1),
-                "visao_de_jogo": round(float(visao_de_jogo[idx]), 1),
-                "defesa":        round(float(defesa[idx]), 1),
-                "disciplina":    round(float(disciplina[idx]), 1),
-                "intensidade":   round(float(intensidade[idx]), 1),
-                "tecnica":       round(float(tecnica[idx]), 1)
-            },
-            nota_geral=round(float(nota_geral), 1)
+            jogador_id=jogador.jogador_id, perfil_ml=perfil,
+            convocacoes=jogador.jogos_disputados,
+            scores={key: round(value / jogador.jogos_disputados, 4) if jogador.jogos_disputados else 0
+                    for key, value in zip(["gols_por_convocacao", "assistencias_por_convocacao", "defesas_por_convocacao"], eventos)},
         ))
+        posicao = normalizar_posicao(jogador.posicao)
+        if jogador.categoria_id and posicao and jogador.jogos_disputados >= 5 and sum(eventos):
+            grupos.setdefault((jogador.categoria_id, posicao), []).append(len(resultados) - 1)
 
+    for indices in grupos.values():
+        indices.sort(key=lambda i: resultados[i].jogador_id)
+        for index in indices:
+            resultados[index].grupo_tamanho = len(indices)
+        if len(indices) < 5:
+            continue
+        matriz = np.array([list(resultados[i].scores.values()) for i in indices])
+        # Similaridade de registros, sem atribuir habilidade ou prever desempenho.
+        scaled = RobustScaler().fit_transform(matriz)
+        modelo = NearestNeighbors(n_neighbors=4, metric="euclidean", algorithm="kd_tree").fit(scaled)
+        distancias, vizinhos = modelo.kneighbors(scaled)
+        for linha, index in enumerate(indices):
+            candidatos = [(float(d), resultados[indices[v]].jogador_id)
+                          for d, v in zip(distancias[linha], vizinhos[linha]) if indices[v] != index]
+            candidatos.sort(key=lambda pair: (pair[0], pair[1]))
+            resultados[index].semelhantes = [Semelhante(jogador_id=id, distancia=round(d, 4))
+                                               for d, id in candidatos[:3]]
     return resultados
+
 
 if __name__ == "__main__":
     import uvicorn

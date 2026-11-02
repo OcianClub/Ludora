@@ -129,6 +129,10 @@ Os comandos individuais continuam disponíveis: `pnpm dev:api`, `pnpm dev:ml`,
 `pnpm dev:mobile` e `pnpm dev:web`. A API usa a build existente; após alterar seu
 código, compile novamente conforme a seção abaixo.
 
+Se a porta `8081` estiver ocupada, `dev:mobile` escolhe uma porta livre até `8091`
+e informa a mudança no terminal, inclusive dentro de `pnpm dev`. No development
+build, conecte-se pelo novo endereço/QR code. A URL da API (`3000`) não muda.
+
 ## 3. Preparar e iniciar a API
 
 Com o banco configurado, execute **na raiz**:
@@ -244,6 +248,9 @@ Se a API estiver ligada a um banco compartilhado, criar clube, alterar cargo e
 encerrar sessões alteram dados reais. Use um clube de teste.
 
 ## 7. Scout IA (opcional)
+
+O Scout v2 oferece recortes por campeonato e partida e comparação exploratória
+de registros. Regras, limites de amostra e reprocessamento: [Scout v2](docs/scout-v2.md).
 
 A API inicia sem Python; o aviso de Scout IA desativado
 é esperado quando `PYTHON_AI_URL` está vazio. Para habilitá-lo, execute no Windows:

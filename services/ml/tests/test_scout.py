@@ -51,11 +51,10 @@ class ScoutTests(unittest.TestCase):
             with self.assertRaises(ValidationError):
                 JogadorStats(**dados)
 
-    def test_pouca_diversidade_retorna_validacao_em_vez_de_crash(self):
+    def test_pouca_diversidade_nao_inventa_grupos_ou_notas(self):
         for quantidade in [3, 10]:
-            with self.assertRaises(HTTPException) as erro:
-                treinar_perfis([JogadorStats(jogador_id=id + 1) for id in range(quantidade)])
-            self.assertEqual(erro.exception.status_code, 400)
+            resultados = treinar_perfis([JogadorStats(jogador_id=id + 1) for id in range(quantidade)])
+            self.assertTrue(all(r.perfil_ml == 'Sem dados' and r.nota_geral is None and not r.semelhantes for r in resultados))
 
     def test_duplicados_e_lote_excessivo(self):
         for dados in [
@@ -68,13 +67,43 @@ class ScoutTests(unittest.TestCase):
 
     def test_perfis_variados_preservam_resultados_finitos(self):
         resultados = treinar_perfis([
-            JogadorStats(jogador_id=1, GOL=10, jogos_disputados=2),
-            JogadorStats(jogador_id=2, ASSISTENCIA=10, jogos_disputados=2),
-            JogadorStats(jogador_id=3, DEFESA=10, jogos_disputados=2),
+            JogadorStats(jogador_id=1, GOL=10, jogos_disputados=5),
+            JogadorStats(jogador_id=2, ASSISTENCIA=10, jogos_disputados=5),
+            JogadorStats(jogador_id=3, DEFESA=10, jogos_disputados=5),
         ])
         self.assertEqual({r.perfil_ml for r in resultados}, {"Artilheiro", "Armador", "Paredão"})
-        self.assertTrue(all(0 <= r.nota_geral <= 100 for r in resultados))
-        self.assertTrue(all(0 <= s <= 100 for r in resultados for s in r.scores.values()))
+        self.assertTrue(all(r.nota_geral is None and r.versao == 2 for r in resultados))
+        self.assertTrue(all(0 <= s for r in resultados for s in r.scores.values()))
+        self.assertEqual(resultados[0].scores['gols_por_convocacao'], 2)
+        self.assertNotIn('tecnica', resultados[0].scores)
+        self.assertNotIn('intensidade', resultados[0].scores)
+
+    def test_amostra_minima_perfil_misto_e_atleta_sem_eventos(self):
+        resultados = treinar_perfis([
+            JogadorStats(jogador_id=1, GOL=100, jogos_disputados=1),
+            JogadorStats(jogador_id=2, GOL=2, jogos_disputados=10),
+            JogadorStats(jogador_id=3, GOL=3, ASSISTENCIA=3, jogos_disputados=5),
+            JogadorStats(jogador_id=4, jogos_disputados=20),
+        ])
+        self.assertEqual([r.perfil_ml for r in resultados], ['Sem dados', 'Sem dados', 'Misto', 'Sem dados'])
+
+    def test_similaridade_respeita_categoria_posicao_e_amostra(self):
+        dados = [JogadorStats(jogador_id=i, categoria_id=1, posicao='Ala' if i % 2 else 'Alas', GOL=i, jogos_disputados=10) for i in range(1, 7)]
+        dados += [JogadorStats(jogador_id=20, categoria_id=2, posicao='Alas', GOL=2, jogos_disputados=10),
+                  JogadorStats(jogador_id=21, categoria_id=1, posicao='Goleiro', DEFESA=12, jogos_disputados=10),
+                  JogadorStats(jogador_id=22, categoria_id=1, posicao='Alas', GOL=10, jogos_disputados=1)]
+        resultados = treinar_perfis(dados)
+        for resultado in resultados[:6]:
+            self.assertEqual(resultado.grupo_tamanho, 6)
+            self.assertEqual(len(resultado.semelhantes), 3)
+            self.assertTrue(all(s.jogador_id in range(1, 7) and s.jogador_id != resultado.jogador_id for s in resultado.semelhantes))
+        self.assertTrue(all(not r.semelhantes for r in resultados[6:]))
+        invertidos = {r.jogador_id: r.model_dump() for r in treinar_perfis(list(reversed(dados)))}
+        self.assertEqual({r.jogador_id: r.model_dump() for r in resultados}, invertidos)
+
+    def test_grupo_pequeno_nao_recebe_semelhantes(self):
+        dados = [JogadorStats(jogador_id=i, categoria_id=1, posicao='Fixo', GOL=3, jogos_disputados=8) for i in range(1, 5)]
+        self.assertTrue(all(not r.semelhantes for r in treinar_perfis(dados)))
 
     def test_http_rejeita_chave_antes_do_processamento(self):
         async def executar():

@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import type { GestaoPartida } from '../services/sharedMatches';
 import { Icon } from './Icon';
 import { PositionIcon } from './PositionIcon';
 import { eventAuthorTeam } from '../utils/matchEvents';
 
 export function PublishedLineups({ data, statistics = false }: { data: GestaoPartida; statistics?: boolean }) {
+  const { clube } = useAuth();
   const [selected, setSelected] = useState<number | null>(null);
   const sides = [
     { ...data.partida.mandante, id: data.partida.mandante_id },
@@ -66,7 +69,11 @@ export function PublishedLineups({ data, statistics = false }: { data: GestaoPar
                       {String(player.numCamisa).padStart(2, '0')}
                     </span>
                     <div className="lineup-player">
-                      <strong data-tooltip={player.jogador?.nome} data-tooltip-overflow>{player.jogador?.nome}</strong>
+                      {statistics && equipe.clube_id === clube?.id ? (
+                        <Link className="lineup-scout-link" to={`/elenco?categoria_id=${equipe.categoria_id}&atleta=${player.jogador_id}&partida_id=${data.partida.id}`} aria-label={`Scout de ${player.jogador?.nome} nesta partida`}>
+                          <strong data-tooltip={player.jogador?.nome} data-tooltip-overflow>{player.jogador?.nome}</strong>
+                        </Link>
+                      ) : <strong data-tooltip={player.jogador?.nome} data-tooltip-overflow>{player.jogador?.nome}</strong>}
                       <span className="lineup-position">
                         <PositionIcon decorative tooltip={false} position={player.jogador?.posicao || ''} />
                         {player.jogador?.posicao}

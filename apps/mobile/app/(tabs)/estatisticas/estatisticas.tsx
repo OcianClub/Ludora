@@ -23,7 +23,6 @@ import {
 } from 'react-native';
 import { Redirect, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Polygon, Line, Text as SvgText } from 'react-native-svg';
 import { CategoryPager, type CategoryPagerHandle } from '@/src/components/CategoryPager';
 import { CategoryPageMotion } from '@/src/components/CategoryPageMotion';
 import { useCategoryPagerMotion } from '@/src/hooks/useCategoryPagerMotion';
@@ -31,7 +30,6 @@ import { useCategoryPagerMotion } from '@/src/hooks/useCategoryPagerMotion';
 import {
   obterPerfisJogadores,
   Jogador,
-  ScoresMl,
 } from '@/src/services/mlService';
 import { Header } from '@/src/components/Header';
 import { HeaderClube } from '@/src/components/HeaderClube';
@@ -75,165 +73,21 @@ const getCoresPerfil = (
   'Sem dados': colors.textoSecundario,
 });
 
-const DESCRICAO_PERFIL: Record<string, string> = {
-  Artilheiro:
-    'Perfil associado ao grupo com maior índice médio de finalização.',
-  Paredão: 'Perfil associado ao grupo com maior índice médio de defesas.',
-  Armador:
-    'Perfil geralmente associado à visão de jogo e à criação de jogadas.',
-  'Sem dados':
-    'Perfil ainda não calculado. Os registros do atleta continuam disponíveis.',
-};
-
 const PERFIS: { valor: PerfilScout; icone: IconName }[] = [
   { valor: 'Todos', icone: 'account-outline' },
   { valor: 'Artilheiro', icone: 'soccer' },
   { valor: 'Armador', icone: 'handshake' },
   { valor: 'Paredão', icone: 'shield-check' },
+  { valor: 'Misto', icone: 'account-outline' },
   { valor: 'Sem dados', icone: 'information-outline' },
 ];
 
 const OPCOES_ORDENACAO: { label: string; value: OrdenacaoScout }[] = [
-  { label: 'Índice', value: 'NOTA' },
+  { label: 'Convocações', value: 'NOTA' },
   { label: 'Gols', value: 'GOLS' },
   { label: 'Assistências', value: 'ASSISTENCIAS' },
   { label: 'Defesas', value: 'DEFESAS' },
 ];
-
-function notaExibida(nota: number): string {
-  if (!nota || nota <= 0) return '—';
-  return Math.round(nota).toString();
-}
-
-// ── Hexágono SVG ─────────────────────────────────────────────────────────────
-interface HexProps {
-  scores: ScoresMl;
-  size?: number;
-}
-
-function HexagonoScout({ scores, size = 140 }: HexProps) {
-  const cx = size / 2;
-  const cy = size / 2;
-  const R = size * 0.32;
-
-  const eixos = [
-    { label: 'FINALIZAÇÃO', key: 'finalizacao' },
-    { label: 'VISÃO', key: 'visao_de_jogo' },
-    { label: 'DEFESA', key: 'defesa' },
-    { label: 'DISCIPLINA', key: 'disciplina' },
-    { label: 'INTENSIDADE', key: 'intensidade' },
-    { label: 'TÉCNICA', key: 'tecnica' },
-  ];
-
-  const angulo = (i: number) => Math.PI / 2 + (2 * Math.PI * i) / 6;
-
-  const pontoBase = (i: number, r: number) => ({
-    x: cx + r * Math.cos(angulo(i)),
-    y: cy - r * Math.sin(angulo(i)),
-  });
-
-  const pontoValor = (i: number) => {
-    const val = (scores[eixos[i].key as keyof ScoresMl] ?? 0) / 100;
-    return pontoBase(i, R * val);
-  };
-
-  const gridPoly = (frac: number) =>
-    eixos
-      .map((_, i) => {
-        const p = pontoBase(i, R * frac);
-        return `${p.x},${p.y}`;
-      })
-      .join(' ');
-
-  const valorPoly = eixos
-    .map((_, i) => {
-      const p = pontoValor(i);
-      return `${p.x},${p.y}`;
-    })
-    .join(' ');
-
-  return (
-    <View style={{ alignItems: 'center', width: size, height: size }}>
-      <HexSVG
-        cx={cx}
-        cy={cy}
-        R={R}
-        eixos={eixos}
-        angulo={angulo}
-        pontoBase={pontoBase}
-        gridPoly={gridPoly}
-        valorPoly={valorPoly}
-        size={size}
-      />
-    </View>
-  );
-}
-
-function HexSVG({
-  cx,
-  cy,
-  R,
-  eixos,
-  pontoBase,
-  gridPoly,
-  valorPoly,
-  size,
-}: any) {
-  const { colors } = useTheme();
-  return (
-    <Svg width={size} height={size}>
-      {[0.33, 0.66, 1].map((frac, idx) => (
-        <Polygon
-          key={`grid-${idx}`}
-          points={gridPoly(frac)}
-          fill="none"
-          stroke={frac === 1 ? colors.borda : colors.linha}
-          strokeWidth={frac === 1 ? 1.5 : 1}
-        />
-      ))}
-
-      {eixos.map((_: any, i: number) => {
-        const p = pontoBase(i, R);
-        return (
-          <Line
-            key={`line-${i}`}
-            x1={cx}
-            y1={cy}
-            x2={p.x}
-            y2={p.y}
-            stroke={colors.linha}
-            strokeWidth={1}
-          />
-        );
-      })}
-
-      <Polygon
-        points={valorPoly}
-        fill={colors.primaria + '33'}
-        stroke={colors.primaria}
-        strokeWidth={2}
-      />
-
-      {eixos.map((eixo: any, i: number) => {
-        const p = pontoBase(i, R + 20);
-        return (
-          <SvgText
-            key={`text-${i}`}
-            x={p.x}
-            y={p.y + 3}
-            fill={colors.textoSecundario}
-            fontSize="9"
-            fontWeight="bold"
-            fontFamily="Inter_600SemiBold"
-            textAnchor="middle"
-          >
-            {eixo.label}
-          </SvgText>
-        );
-      })}
-    </Svg>
-  );
-}
 
 // ── Card da Lista ─────────────────────────────────────────────────────────────
 const CardJogador = memo(function CardJogador({
@@ -273,8 +127,8 @@ const CardJogador = memo(function CardJogador({
         </View>
 
         <View style={styles.cardDireita}>
-          <Text style={styles.cardNotaLabel}>ÍNDICE</Text>
-          <Text style={styles.cardNota}>{notaExibida(jogador.nota_geral)}</Text>
+          <Text style={styles.cardNotaLabel}>CONVOCAÇÕES</Text>
+          <Text style={styles.cardNota}>{String(jogador.jogos_disputados)}</Text>
         </View>
         <Icon name="chevron-right" size={18} color={colors.textoSecundario} />
       </View>
@@ -335,7 +189,7 @@ function ModalScout({
 
   const stats = [
     {
-      label: 'Escalações',
+      label: 'Convocações',
       valor: jogador.jogos_disputados,
       icone: 'soccer-field',
     },
@@ -371,11 +225,11 @@ function ModalScout({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scoutContent}
         >
-          <View style={[styles.scoutIdentidade, { borderColor: corPerfil }]}>
+          <View style={[styles.scoutIdentidade, { borderColor: colors.borda }]}>
             <View
               style={[
                 styles.scoutAvatarNum,
-                { backgroundColor: corPerfil + '22', borderColor: corPerfil },
+                { backgroundColor: colors.cardSecundario, borderColor: colors.borda },
               ]}
             >
               <Text style={[styles.scoutAvatarNumTxt, { color: corPerfil }]}>
@@ -395,29 +249,8 @@ function ModalScout({
                   flexWrap: 'wrap',
                 }}
               >
-                <View
-                  style={[
-                    styles.scoutChip,
-                    {
-                      backgroundColor: corPerfil + '22',
-                      borderColor: corPerfil,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.scoutChipTxt, { color: corPerfil }]}>
-                    {jogador.perfil_ml}
-                  </Text>
-                </View>
                 <View style={styles.scoutChip}>
                   <Text style={styles.scoutChipTxt}>{jogador.categoria}</Text>
-                </View>
-                <View style={styles.scoutChip}>
-                  <Text style={styles.scoutChipTxt}>
-                    {jogador.jogos_disputados}{' '}
-                    {jogador.jogos_disputados === 1
-                      ? 'escalação'
-                      : 'escalações'}
-                  </Text>
                 </View>
                 {idade && (
                   <View style={styles.scoutChip}>
@@ -425,16 +258,6 @@ function ModalScout({
                   </View>
                 )}
               </View>
-              <Text style={styles.scoutPerfilDescricao} numberOfLines={2}>
-                {DESCRICAO_PERFIL[jogador.perfil_ml] ??
-                  DESCRICAO_PERFIL['Sem dados']}
-              </Text>
-            </View>
-            <View style={styles.scoutNotaContainer}>
-              <Text style={styles.scoutNotaLabel}>ÍNDICE</Text>
-              <Text style={[styles.scoutNota, { color: corPerfil }]}>
-                {notaExibida(jogador.nota_geral)}
-              </Text>
             </View>
           </View>
 
@@ -445,50 +268,10 @@ function ModalScout({
             consultaLocal={consultaLocal}
           />
 
-          {/* Hexágono & Barras */}
-          {jogador.scores_ml ? (
-            <View style={styles.scoutHexContainer}>
-              <Text style={styles.scoutSecaoLabel}>ÍNDICES COMPARATIVOS</Text>
-              <HexagonoScout scores={jogador.scores_ml} size={220} />
-              <Text style={styles.scoutRadarNota}>
-                Escala relativa aos atletas analisados. 100 representa o maior
-                valor observado no conjunto atual.
-              </Text>
-
-              <View style={styles.scoutScoresGrid}>
-                {Object.entries(jogador.scores_ml).map(([key, val]) => (
-                  <View key={key} style={styles.scoutScoreItem}>
-                    <Text style={styles.scoutScoreLabel} numberOfLines={1}>
-                      {key.replace(/_/g, ' ').toUpperCase()}
-                    </Text>
-                    <View style={styles.scoutScoreBarBg}>
-                      <View
-                        style={[
-                          styles.scoutScoreBar,
-                          { width: `${val}%`, backgroundColor: corPerfil },
-                        ]}
-                      />
-                    </View>
-                    <Text style={[styles.scoutScoreVal, { color: corPerfil }]}>
-                      {val.toFixed(0)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : (
-            <View style={styles.scoutSemDados}>
-              <Icon name="chart-arc" size={40} color={colors.borda} />
-              <Text style={styles.scoutSemDadosTxt}>
-                O perfil ainda não foi calculado. Os registros abaixo podem ser
-                consultados independentemente do processamento do Scout IA.
-              </Text>
-            </View>
-          )}
-
+          {consultaLocal && <>
           <Text style={styles.scoutSecaoLabel}>TOTAIS REGISTRADOS</Text>
           <Text style={styles.scoutRadarNota}>
-            Acumulado do cadastro atual, incluindo partidas em andamento. Não
+            Histórico geral do cadastro atual, somente partidas finalizadas. Não
             corresponde apenas ao recorte recente acima.
           </Text>
           <View style={styles.scoutStatsGrid}>
@@ -507,6 +290,7 @@ function ModalScout({
           </View>
 
           <View style={{ height: 60 }} />
+          </>}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -1009,7 +793,7 @@ export default function Estatisticas() {
                                   />
                                 </View>
                                 <Text style={styles.resumoCardLabel}>
-                                  MAIOR ÍNDICE
+                                  CONVOCAÇÕES
                                 </Text>
                                 <Text style={styles.resumoCardValor}>
                                   {resumo.lider?.pontos || '—'}

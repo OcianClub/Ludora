@@ -1148,6 +1148,12 @@
   width: 100%;
   margin-block: 10px 6px;
 }
+.match-schedule[data-status="AO_VIVO"] > .schedule-active-filters[data-empty="true"] {
+  display: none;
+}
+.match-schedule[data-status="AO_VIVO"] > .schedule-presentation-toolbar {
+  margin-block: 10px 14px;
+}
 .schedule-results > .schedule-presentation-toolbar {
   margin-bottom: -12px;
 }

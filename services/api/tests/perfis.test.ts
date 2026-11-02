@@ -44,13 +44,13 @@ test('perfis usam agregação e contagem com o mesmo escopo de clube e categoria
   };
   const resultado = await consultarPerfis(tx, where);
   assert.deepEqual(consultas[0].where, where);
-  assert.deepEqual(consultas[1].where, { jogador: { is: where }, gol_contra: false, partida: { status: { in: ['AO_VIVO', 'FINALIZADA'] } } });
+  assert.deepEqual(consultas[1].where, { jogador: { is: where }, gol_contra: false, partida: { status: 'FINALIZADA' } });
   assert.deepEqual(consultas[1].by, ['jogador_id', 'tipo']);
   assert.equal(consultas[0].select.eventos, undefined);
   assert.equal(consultas[0].select.escalacoes, undefined);
   assert.equal(consultas[0].select.cpf, undefined);
   assert.deepEqual(consultas[0].select._count, {
-    select: { escalacoes: { where: { partida: { status: { in: ['AO_VIVO', 'FINALIZADA'] } } } } },
+    select: { escalacoes: { where: { partida: { status: 'FINALIZADA' } } } },
   });
   assert.deepEqual(resultado[0], {
     id_jogador: 12,
@@ -60,6 +60,7 @@ test('perfis usam agregação e contagem com o mesmo escopo de clube e categoria
     idade: new Date().getFullYear() - 2012,
     perfil_ml: 'Sem dados',
     scores_ml: null,
+    analise_scout: null,
     nota_geral: 0,
     categoria: 'sub-14',
     categoria_tipo: 'BASE',
@@ -71,6 +72,7 @@ test('perfis usam agregação e contagem com o mesmo escopo de clube e categoria
     defesas: 9,
     cartoes_amarelos: 1,
     cartoes_vermelhos: 0,
+    cartoes_azuis: 0,
     faltas_cometidas: 0,
   });
 });

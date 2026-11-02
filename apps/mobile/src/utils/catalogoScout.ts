@@ -24,6 +24,7 @@ function categoriaVazia(): DadosCategoria {
       Artilheiro: 0,
       Armador: 0,
       Paredão: 0,
+      Misto: 0,
       'Sem dados': 0,
     },
   };

@@ -101,6 +101,7 @@ export type HomePartida = Omit<Partida, 'mandante_id' | 'visitante_id' | 'catego
 export interface Evento { id: number; partida_id: number; tipo: string; periodo: number; minuto?: number; jogador_id?: number; jogador?: {id:number;nome:string} | null; }
 export interface EscalacaoItem { jogador_id: number; numCamisa: number; titular: boolean; jogador?: Jogador; }
 export interface PerfilJogador extends Jogador {
+  analise_scout?: { versao: 2; calculado_em: string; convocacoes: number; grupo_tamanho: number } | null;
   categoria_nome?: string;
   categoria_tipo?: string; totalGols: number; totalAssistencias: number; totalCartoes: number; totalDefesas: number; totalFaltas: number; totalPartidas: number; idade?: number; scores_ml?: Record<string, number> | null; }
 export interface Estatisticas { gols: number; assistencias: number; defesas: number; cartaoAmarelo: number; cartaoVermelho: number; faltas: number; }
@@ -304,16 +305,18 @@ function normalizeProfiles(dados: unknown[]): PerfilJogador[] {
     categoria_nome: j.categoria,
     categoria_tipo: j.categoria_tipo,
     scores_ml: j.scores_ml ?? null,
+    analise_scout: j.analise_scout ?? null,
     totalGols: j.totalGols ?? j.gols ?? 0,
     totalAssistencias: j.totalAssistencias ?? j.assistencias ?? 0,
-    totalCartoes: j.totalCartoes ?? ((j.cartoes_amarelos ?? 0) + (j.cartoes_vermelhos ?? 0)),
+    totalCartoes: j.totalCartoes ?? ((j.cartoes_amarelos ?? 0) + (j.cartoes_vermelhos ?? 0) + (j.cartoes_azuis ?? 0)),
     totalDefesas: j.totalDefesas ?? j.defesas ?? 0,
     totalFaltas: j.totalFaltas ?? j.faltas_cometidas ?? 0,
     totalPartidas: j.totalPartidas ?? j.jogos_disputados ?? 0,
   }));
 }
-export async function fetchContextoScout(id: number, signal?: AbortSignal): Promise<ContextoScout> {
-  const res = await apiFetch(`/jogadores/${id}/scout-contexto`, { signal });
+export async function fetchContextoScout(id: number, signal?: AbortSignal, filtro: import('../../../mobile/src/utils/contextoScout').FiltroContextoScout = {}): Promise<ContextoScout> {
+  const query = new URLSearchParams(Object.entries(filtro).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
+  const res = await apiFetch(`/jogadores/${id}/scout-contexto${query.size ? `?${query}` : ''}`, { signal });
   if (!res.ok) throw new Error('Não foi possível carregar o histórico do atleta. Tente novamente.');
   const data: unknown = await res.json();
   if (!contextoScoutValido(data, id)) throw new Error('Não foi possível confirmar os dados do histórico.');

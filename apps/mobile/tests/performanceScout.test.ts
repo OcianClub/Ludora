@@ -8,14 +8,14 @@ import { calcularResumo } from '../src/utils/resumoScout';
 import { filtrarJogadoresScout } from '../src/utils/filtrosScout';
 import { gerarJogadoresScout } from './scout.fixture';
 
-test('resumo linear mantém resultados e desempates do cálculo anterior sem ordenar a origem', () => {
+test('resumo linear usa convocações e mantém desempates sem ordenar a origem', () => {
   const jogadores = gerarJogadoresScout(1600);
   const original = jogadores.map((j) => j.id_jogador);
   const artilheiro = [...jogadores].sort((a, b) => b.gols - a.gols)[0];
   const assistente = [...jogadores].sort(
     (a, b) => b.assistencias - a.assistencias
   )[0];
-  const lider = [...jogadores].sort((a, b) => b.nota_geral - a.nota_geral)[0];
+  const lider = [...jogadores].sort((a, b) => b.jogos_disputados - a.jogos_disputados)[0];
   assert.deepEqual(calcularResumo(jogadores), {
     artilheiro: { nome: artilheiro.nome, gols: artilheiro.gols },
     assistente: {
@@ -23,7 +23,7 @@ test('resumo linear mantém resultados e desempates do cálculo anterior sem ord
       assistencias: assistente.assistencias,
       colocacao: 1,
     },
-    lider: { nome: lider.nome, pontos: Math.round(lider.nota_geral) },
+    lider: { nome: lider.nome, pontos: lider.jogos_disputados },
   });
   assert.deepEqual(
     jogadores.map((j) => j.id_jogador),

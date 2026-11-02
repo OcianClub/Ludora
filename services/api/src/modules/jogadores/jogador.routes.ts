@@ -79,6 +79,13 @@ router.get('/jogadores/perfis', exigirClubePublico, async (req, res) => {
 router.get('/jogadores/:id/scout-contexto', exigirClubePublico, async (req, res) => {
   const jogadorId = idPositivo(req.params.id);
   if (!jogadorId) return res.status(400).json({ error: 'Atleta inválido.' });
+  const competicaoId = req.query.competicao_id === undefined ? undefined : idPositivo(req.query.competicao_id);
+  const partidaId = req.query.partida_id === undefined ? undefined : idPositivo(req.query.partida_id);
+  const ano = req.query.ano === undefined ? undefined : Number(req.query.ano);
+  if (competicaoId === null || partidaId === null || competicaoId && partidaId
+    || ano !== undefined && (!Number.isSafeInteger(ano) || ano < 1900 || ano > 2200)) {
+    return res.status(400).json({ error: 'Selecione um campeonato ou uma partida válida. O ano deve ter quatro dígitos.' });
+  }
   const clubeId = (req as any).clubeId as number;
   try {
     const escopo = await obterEscopoCategoriasLeitura(
@@ -90,7 +97,8 @@ router.get('/jogadores/:id/scout-contexto', exigirClubePublico, async (req, res)
         tx,
         jogadorId,
         clubeId,
-        escopo.acessoTotal ? null : escopo.categoriaIds
+        escopo.acessoTotal ? null : escopo.categoriaIds,
+        { competicaoId: competicaoId ?? undefined, partidaId: partidaId ?? undefined, ano }
       ),
       { isolationLevel: 'RepeatableRead' }
     );

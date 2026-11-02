@@ -498,7 +498,7 @@ export default function PartidasPage() {
   }
 
   return (
-    <div className="match-schedule">
+    <div className="match-schedule" data-status={filtroStatus}>
       <div className="page-header">
         <div><span className="eyebrow">DENTRO DA QUADRA</span><h1 className="page-title">Partidas</h1><p className="page-sub">{podeGerenciar ? 'Gerencie, acompanhe e consulte os resultados das partidas do clube.' : 'Acompanhe a agenda, os placares e os resultados do clube.'}</p></div>
         {podeGerenciar && <div className="schedule-header-actions"><Link className="btn btn-ghost btn-md" to="/partidas/solicitacoes"><Icon name="email" size={18}/>Solicitações{requests > 0 && <span className="schedule-request-badge" aria-label={`${requests} solicitações aguardando resposta`}>{requests}</span>}</Link><Btn className="schedule-desktop-new" aria-label="Nova partida" data-tooltip="Nova partida" data-tooltip-icon-only onClick={openCreate}><Icon name="plus" size={18} />Nova partida</Btn></div>}
