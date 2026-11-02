@@ -56,23 +56,37 @@ function context(query) {
     },
     partidas: query.has('ano')
       ? []
-      : [
-          {
-            id: 105,
-            data: '2026-10-29',
-            adversario: 'Santos',
+      : Array.from(
+          { length: single ? 1 : championship ? 6 : 10 },
+          (_, index) => ({
+            id: 105 - index,
+            data: `2026-10-${29 - index}`,
+            adversario:
+              index === 0
+                ? 'Associação Esportiva de Nome Muito Extenso Sem EspaçoNoFinalParaTestar'
+                : 'Santos',
             horario: '19:30',
             status: single ? 'AO_VIVO' : 'FINALIZADA',
             convocado: true,
             titular_inicial: true,
-            gols: 1,
-            assistencias: 2,
+            gols: single
+              ? 1
+              : championship
+                ? index % 2 === 0
+                  ? 1
+                  : 0
+                : [1, 0, 2, 0, 1, 1, 0, 1, 0, 2][index],
+            assistencias: index === 0 ? 2 : 0,
             defesas: 0,
             mandante: 'Ocian',
             visitante: 'Santos',
             gols_mandante: 2,
             gols_visitante: 1,
-            competicao: { id: 2, nome: 'Copa Iniciação', ano: 2026 },
+            competicao: {
+              id: 2,
+              nome: '[DEMO] Copa Ocian Iniciação Campeonato de Nome Muito Extenso',
+              ano: 2026,
+            },
             eventos: [
               {
                 id: 1,
@@ -82,9 +96,10 @@ function context(query) {
                 gol_contra: false,
               },
             ],
-          },
-        ],
+          }),
+        ),
     opcoes: {
+      temporadas: [2026, 2025],
       competicoes: [{ id: 2, nome: 'Copa Iniciação', ano: 2026 }],
       partidas: [
         {
@@ -115,7 +130,7 @@ function context(query) {
         page.on('pageerror', (error) => failures.push(error.message));
         await install(page);
         await page.route('**/jogadores/perfis*', (route) =>
-          route.fulfill({ json: [player] })
+          route.fulfill({ json: [player] }),
         );
         await page.route('**/jogadores/101/scout-contexto*', async (route) => {
           const query = new URL(route.request().url()).searchParams;
@@ -140,16 +155,16 @@ function context(query) {
                 id: 1,
                 nome: 'Alex',
                 email: 'visual@example.test',
-              })
+              }),
             );
             localStorage.setItem(
               'ludora_clube',
-              JSON.stringify({ id: 2, nome: 'Ocian', meuPapel: 'ADMIN' })
+              JSON.stringify({ id: 2, nome: 'Ocian', meuPapel: 'ADMIN' }),
             );
             localStorage.setItem('ludora_clube_id', '2');
             localStorage.setItem('ludora_tema', theme);
           },
-          { theme }
+          { theme },
         );
         await page.goto(`${base}/elenco?categoria_id=1&atleta=101`);
         const dialog = page.getByRole('dialog', { name: 'Ficha do atleta' });
@@ -158,7 +173,7 @@ function context(query) {
           .waitFor();
         assert.equal(
           await page.locator('html').getAttribute('data-theme'),
-          theme
+          theme,
         );
         assert.equal(
           await dialog
@@ -166,13 +181,82 @@ function context(query) {
             .filter({ hasText: 'Gols' })
             .locator('dd')
             .textContent(),
-          '8'
+          '8',
         );
+        await dialog.getByRole('img', { name: /Radar de eventos/ }).waitFor();
+        assert.equal(
+          await dialog.locator('input[type="number"]').count(),
+          0,
+          'Temporada não permite anos digitados',
+        );
+        const season = dialog.getByRole('combobox', { name: /Temporada/ });
+        await season.click();
+        assert.equal(
+          await dialog
+            .getByRole('option', { name: '1900', exact: true })
+            .count(),
+          0,
+        );
+        await dialog.getByRole('option', { name: '2025', exact: true }).click();
+        await dialog.getByText('Ainda sem registros neste período').waitFor();
+        assert.equal(await dialog.locator('.scout-recorded-totals').count(), 0);
+        await dialog
+          .getByRole('button', { name: 'Ver histórico completo' })
+          .click();
+        await dialog
+          .getByText('25 partidas com registro', { exact: true })
+          .waitFor();
+        await dialog
+          .locator('.athlete-disclosure')
+          .filter({ hasText: 'Disciplina e escalação' })
+          .locator('summary')
+          .click();
+        await dialog.getByText('Gols contra', { exact: true }).waitFor();
+        await dialog
+          .locator('.athlete-disclosure')
+          .filter({ hasText: 'Disciplina e escalação' })
+          .locator('summary')
+          .click();
+        await dialog.locator('.modal-body').evaluate((el) => {
+          el.scrollTop = 0;
+        });
+        await page.screenshot({
+          path: `test-results/scout-sheet-${theme}-${width}.png`,
+          fullPage: true,
+        });
+        assert.equal(
+          await dialog.locator('.athlete-trend-bars button').count(),
+          10,
+          'Gráfico preserva os dez jogos, sem agregar partidas diferentes',
+        );
+        assert.ok(
+          await dialog
+            .locator('.scout-history-table tbody tr')
+            .evaluateAll((rows) =>
+              rows.every((row) => {
+                const first = row.querySelector('th').getBoundingClientRect();
+                const text = [
+                  ...row.querySelectorAll(
+                    '.athlete-history-opponent, .athlete-history-competition',
+                  ),
+                ];
+                return text.every(
+                  (el) => el.getBoundingClientRect().right <= first.right + 1,
+                );
+              }),
+            ),
+          'Adversário e campeonato longos não invadem as colunas numéricas',
+        );
+        await dialog.locator('.scout-history-table').scrollIntoViewIfNeeded();
+        await page.screenshot({ path: `test-results/scout-sheet-history-${theme}-${width}.png` });
         await dialog
           .getByRole('button', { name: 'Campeonato', exact: true })
           .click();
         await dialog
           .getByText('6 partidas com registro', { exact: true })
+          .waitFor();
+        await dialog
+          .getByRole('img', { name: /Radar de eventos: Gols 3/ })
           .waitFor();
         assert.equal(
           await dialog
@@ -180,7 +264,7 @@ function context(query) {
             .filter({ hasText: 'Gols' })
             .locator('dd')
             .textContent(),
-          '3'
+          '3',
         );
         const combobox = dialog.getByRole('combobox');
         await combobox.focus();
@@ -197,7 +281,7 @@ function context(query) {
             .locator('.scout-athlete-events')
             .getByText('Gol', { exact: true })
             .count(),
-          1
+          1,
         );
         assert.equal(await dialog.getByText(/Médias nas últimas/).count(), 0);
         await dialog
@@ -214,7 +298,7 @@ function context(query) {
         assert.equal(
           await dialog.locator('.scout-recorded-totals').count(),
           0,
-          'Falha não mantém totais de outro recorte'
+          'Falha não mantém totais de outro recorte',
         );
         await dialog.getByRole('button', { name: 'Tentar novamente' }).click();
         await dialog
@@ -227,19 +311,21 @@ function context(query) {
           .getByText('25 partidas com registro', { exact: true })
           .waitFor();
         await dialog
-          .getByRole('button', { name: 'Santos', exact: false })
+          .locator('.scout-history-table .scout-match-link')
+          .first()
           .click();
         await dialog.getByText(/Dados provisórios: esta partida/).waitFor();
         assert.ok(requests.some((q) => q.competicao_id === '2'));
         assert.ok(requests.some((q) => q.partida_id === '105'));
+        assert.ok(requests.some((q) => q.ano === '2025'));
         assert.ok(
           await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
-          'Modal sem overflow horizontal'
+          'Modal sem overflow horizontal',
         );
         assert.ok(
           await page.evaluate(
-            () => document.documentElement.scrollWidth <= innerWidth + 1
-          )
+            () => document.documentElement.scrollWidth <= innerWidth + 1,
+          ),
         );
         assert.deepEqual(failures, []);
         await page.screenshot({
@@ -249,7 +335,7 @@ function context(query) {
         await page.close();
       }
     console.log(
-      'PASS: Scout geral/campeonato/partida, erro/retry, teclado e overflow em 320/390/820/1440 px, claro e escuro.'
+      'PASS: Scout geral/campeonato/partida, radar, evolução, temporadas válidas, vazio, erro/retry, teclado e overflow em 320/390/820/1440 px, claro e escuro.',
     );
   } finally {
     await browser.close();

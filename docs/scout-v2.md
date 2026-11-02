@@ -55,8 +55,18 @@ O resultado usa `versao: 2` e `metodo: v2-registros-por-convocacao`:
   cinco convocações e algum evento nessas métricas. Retorna até três semelhantes.
 - A distância não é probabilidade, qualidade ou previsão. Semelhança refere-se
   apenas aos registros disponíveis; grupos sem base suficiente ficam vazios.
-- `nota_geral` passa a ser `null` no banco. As interfaces escondem o índice e o
-  radar antigos. Metadados e semelhantes ficam no JSON `scores_ml`, versionado.
+- `nota_geral` passa a ser `null` no banco. O índice e os eixos antigos de
+  habilidade não são usados. A ficha web apresenta um radar de contagens reais
+  (gols, assistências, defesas, faltas e cartões) e um gráfico dos últimos jogos.
+  O radar usa a maior contagem do próprio recorte como limite: não é nota de
+  qualidade nem comparação de habilidade. Metadados e semelhantes ficam no
+  JSON `scores_ml`, versionado.
+
+A temporada na ficha web é um seletor dos anos com registros finalizados do
+atleta. `opcoes.temporadas` considera o histórico inteiro, inclusive anos fora
+das últimas 100 partidas oferecidas no seletor de jogos. Trocar o recorte
+atualiza os totais, gráficos e histórico juntos. Disciplina, registros por tempo
+e atletas semelhantes ficam em seções expansíveis para simplificar a leitura.
 
 Os limites de amostra são regras iniciais de produto, sem alegação de validação
 estatística. Devem ser revisados com dados reais e avaliação dos técnicos.

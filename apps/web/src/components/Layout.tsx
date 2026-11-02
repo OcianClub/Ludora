@@ -41,7 +41,6 @@ function LayoutContent() {
   const [tabletExpanded, setTabletExpanded] = useState(false);
   const [mobile, setMobile] = useState(() => matchMedia('(max-width: 760px)').matches);
   const expanded = compactSidebar ? tabletExpanded : sidebarExpanded;
-  const sidebarRef = useRef<HTMLElement>(null);
   const layoutRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLElement>(null);
   const location = useLocation();
@@ -64,15 +63,6 @@ function LayoutContent() {
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
   }, []);
-  useEffect(() => {
-    if (!compactSidebar || !tabletExpanded) return;
-    const outside = (event: PointerEvent) => {
-      const target = event.target as Element;
-      if (!sidebarRef.current?.contains(target) && !target.closest('[data-account-popover], dialog')) setTabletExpanded(false);
-    };
-    document.addEventListener('pointerdown', outside);
-    return () => document.removeEventListener('pointerdown', outside);
-  }, [compactSidebar, tabletExpanded]);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 760px)');
     const closeOnDesktop = () => { setMobile(media.matches); if (!media.matches) setMoreOpen(false); };
@@ -118,7 +108,7 @@ function LayoutContent() {
     <div className="layout" data-sidebar-expanded={expanded} ref={layoutRef}>
       <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
       
-      <aside className="sidebar" ref={sidebarRef} data-tooltip-disabled>
+      <aside className="sidebar" data-tooltip-disabled>
         <div className="sidebar-top">
         <Link to="/dashboard" className="sidebar-brand" aria-label="Ludora — visão geral" aria-hidden={!expanded} tabIndex={expanded ? 0 : -1}>
           <Brand subtitle={false} />

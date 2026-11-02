@@ -444,6 +444,7 @@
 }
 
 .content {
+  container: workspace / inline-size;
   max-width: var(--workspace-max-width);
   margin: 0 auto;
   padding: 32px var(--workspace-gutter) 48px;
@@ -476,9 +477,6 @@
   }
   .content {
     padding-top: 28px;
-  }
-  .workspace {
-    margin-left: var(--sidebar-collapsed-w);
   }
 }
 @media (max-width: 760px) {

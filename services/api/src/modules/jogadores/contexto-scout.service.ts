@@ -145,6 +145,11 @@ export async function consultarContextoScout(
     orderBy: { data: 'desc' },
     take: 100,
   });
+  const datasRegistradas = await tx.partida.groupBy({
+    by: ['data'],
+    where: { ...base, status: 'FINALIZADA' },
+    orderBy: { data: 'desc' },
+  });
   const contar = (tipo: string, contra = false) =>
     eventos
       .filter((e) => e.tipo === tipo && e.gol_contra === contra)
@@ -231,6 +236,7 @@ export async function consultarContextoScout(
           .reduce((n, e) => n + e._count._all, 0),
       })),
     opcoes: {
+      temporadas: [...new Set(datasRegistradas.map((p) => p.data.getUTCFullYear()))],
       competicoes: competicoes.flatMap((c) =>
         c.competicao ? [c.competicao] : []
       ),

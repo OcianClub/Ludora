@@ -113,6 +113,7 @@ select.field-input option { background: var(--fundo-card-sec); }
   border-radius: 12px;
   width: calc(100% - 32px); max-width: 500px;
   max-height: 90vh;
+  max-height: 90dvh;
   display: flex; flex-direction: column;
 }
 .modal-header {
@@ -132,7 +133,17 @@ select.field-input option { background: var(--fundo-card-sec); }
   min-height: 32px;
 }
 .modal-close:hover { color: var(--texto); }
-.modal-body { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+  padding: 20px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+}
 .logout-dialog .modal-close {
   min-width: 44px;
   min-height: 44px;
@@ -204,7 +215,7 @@ tr:hover td { background: var(--fundo-card-sec); }
 .filter-bar .field { min-width: 150px; }
 
 /* ── Form grid ── */
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .form-grid .full { grid-column: 1 / -1; }
 .btn { justify-content: center; }
 .field { min-width: 0; }
@@ -221,6 +232,7 @@ tr:hover td { background: var(--fundo-card-sec); }
   .modal-body { padding: 16px; }
 }
 .modal::backdrop { background: rgba(0, 0, 0, .72); }
-.modal-body { overscroll-behavior: contain; }
-.modal-body { min-height: 0; }
 .modal-title { min-width: 0; overflow-wrap: anywhere; }
+.modal-footer {
+  flex-shrink: 0;
+}

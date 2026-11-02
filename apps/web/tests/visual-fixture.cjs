@@ -1,5 +1,5 @@
 // Dados exclusivamente do teste: intercepta o HTTP no navegador, sem banco.
-exports.install = async function install(page, { role = 'ADMIN', playerCount = 8 } = {}) {
+exports.install = async function install(page, { role = 'ADMIN', playerCount = 8, decorate, onUnknown } = {}) {
   const clubes=[{id:2,nome:'Ocian',meuPapel:role},{id:3,nome:'Santos',meuPapel:null},{id:4,nome:'Ludora FC',meuPapel:null}].map(c=>({...c,plano:'DEMO',cidade:'Praia Grande',estado:'SP'}));
   const usuario={id:1,nome:'Alex Morgan',email:'visual@example.test'};
   const categorias=[7,8,9,10,12,14,16,18].map((n,i)=>({id:i+1,nome:`sub-${n}`,faixaIdade:n,tipo:n<=10?'INICIACAO':'BASE',clube_id:2}));
@@ -15,6 +15,7 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
     return {id:c.id*100+i,categoria:c,categoria_id:c.id,data:d.toISOString(),horario:'18:30',local:'Quadra de demonstração',mandante,visitante,mandante_id:mandante.id,visitante_id:visitante.id,gols_mandante:i%4,gols_visitante:1,status:i<5?'FINALIZADA':i===5?'AO_VIVO':i===6?'PREPARADA':'AGENDADA',emCasa:true,somente_leitura:false};
   }));
   const competicoes=[{id:1,nome:'[DEMO] Copa Ocian Base',tipo:'BASE',ano:2026,clube_id:2},{id:2,nome:'[DEMO] Copa Ocian Iniciação',tipo:'INICIACAO',ano:2026,clube_id:2}];
+  decorate?.({ clubes, usuario, categorias, times, jogadores, partidas, competicoes });
   const shared=partidas.find(p=>p.id===106);
   Object.assign(shared,{somente_leitura:true,clube_origem_id:3,categoria_id:99,categoria:{...shared.categoria,id:99,clube_id:3}});
   await page.route('http://localhost:3000/**',async route=>{
@@ -62,7 +63,10 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
     };
     if(pathname==='/socket.io/')return route.fulfill({status:400,body:'Test without socket server'});
     const body=responses[pathname]??(pathname.endsWith('/escalacao')?[{jogador_id:900,numCamisa:10,titular:true,jogador:{nome:'James Walker',posicao:'Fixo',numCamisa:10}}]:pathname.endsWith('/eventos')?[{id:1,partida_id:106,tipo:'GOL',periodo:1,jogador_id:900,jogador:{id:900,nome:'James Walker'}}]:undefined);
-    if(body===undefined) throw new Error(`Fixture sem endpoint: ${pathname}`);
+    if(body===undefined) {
+      if (onUnknown) return onUnknown(route);
+      throw new Error(`Fixture sem endpoint: ${pathname}`);
+    }
     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
   });
 };

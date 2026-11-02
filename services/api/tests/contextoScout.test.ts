@@ -8,6 +8,11 @@ function fixture(filtro: FiltroScout = {}, total = 25) {
   const tx = {
     jogador: { async findFirst(q: any) { queries.jogador.push(q); return { id: 12, categoria_id: 7, posicao: 'Alas', scores_ml: null }; } },
     partida: {
+      async groupBy(q: any) { queries.partida.push(q); return [
+        { data: new Date('2026-10-19Z') },
+        { data: new Date('2026-01-12Z') },
+        { data: new Date('2024-11-01Z') },
+      ]; },
       async count(q: any) { queries.count.push(q); return total; },
       async findMany(q: any) { queries.partida.push(q);
         if (q.distinct) return [{ competicao: { id: 4, nome: 'Copa', ano: 2026 } }];
@@ -53,6 +58,9 @@ test('contexto agrega o recorte inteiro, limita histórico e opções, preserva 
   assert.equal(result?.partidas[0].adversario, 'Visitante', 'Compartilhadas usam o lado do participante, não emCasa do organizador');
   assert.equal(result?.partidas[0].gols, 1);
   assert.equal(result?.partidas[0].eventos.length, 2);
+  assert.deepEqual(result?.opcoes.temporadas, [2026, 2024], 'Temporadas vêm de todo o histórico finalizado, sem duplicar anos');
+  assert.equal(queries.partida.at(-1).where.status, 'FINALIZADA');
+  assert.deepEqual(queries.partida.at(-1).where.AND, where.AND, 'Anos disponíveis mantêm o escopo do clube e atleta');
 });
 
 test('campeonato e temporada filtram histórico e todos os agregados sem usar partida ao vivo', async () => {

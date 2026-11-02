@@ -427,7 +427,7 @@ export default function TimesPage() {
     </>}
 
     <Modal open={!!group} title={group?.name || 'Time'} className="teams-drawer" onClose={() => { if (!busy) setSelected(null); }}
-      heading={group && <span className="teams-drawer-identity"><ClubBadge src={group.crest} name={group.name} size={44}/><span><strong>{group.name}</strong><small>{group.items.length} categorias{group.clubId && <span className="teams-membership is-club">{group.clubId === clube?.id ? 'Seu clube' : 'No Ludora'}</span>}</small></span></span>}
+      heading={group && <span className="teams-drawer-identity"><ClubBadge src={group.crest} name={group.name} size={44}/><span><strong data-tooltip={group.name} data-tooltip-overflow>{group.name}</strong><small>{group.items.length} categorias{group.clubId && <span className="teams-membership is-club">{group.clubId === clube?.id ? 'Seu clube' : 'No Ludora'}</span>}</small></span></span>}
       headerActions={podeGerenciar && group ? renderHeaderMenu(group) : undefined}>
       {group && <>
         <>

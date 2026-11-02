@@ -293,6 +293,12 @@
   flex: 1;
   padding-block: 20px;
 }
+.dashboard .home-team strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
 .dashboard .home-focus-public {
   grid-template-areas: "feature moment" "upcoming upcoming";
 }
@@ -731,5 +737,30 @@
   }
   .home-pending-item-copy strong {
     font-size: 13px;
+  }
+}
+
+@container workspace (max-width: 720px) {
+  .dashboard .home-skeleton-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard .home-focus {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "feature" "pending" "upcoming" "moment";
+  }
+  .dashboard .home-focus-public {
+    grid-template-areas: "feature" "moment" "upcoming";
+  }
+  .dashboard .home-focus-with-extras {
+    grid-template-areas: "feature" "extras" "pending" "upcoming" "moment";
+  }
+  .dashboard .home-focus-public.home-focus-with-extras {
+    grid-template-areas: "feature" "extras" "moment" "upcoming";
+  }
+  .dashboard .home-focus-public.home-has-highlights {
+    grid-template-areas: "feature" "moment" "upcoming" "highlights";
+  }
+  .dashboard .home-focus-public.home-has-highlights.home-focus-with-extras {
+    grid-template-areas: "feature" "extras" "moment" "upcoming" "highlights";
   }
 }

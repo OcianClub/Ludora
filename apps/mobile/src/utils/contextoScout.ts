@@ -62,6 +62,7 @@ export interface ContextoScout {
     defesas: number;
   }[];
   opcoes?: {
+    temporadas?: number[];
     competicoes: { id: number; nome: string; ano: number }[];
     partidas: { id: number; data: string; nome: string; status: string }[];
   };
@@ -119,6 +120,9 @@ export function contextoScoutValido(
       !dados.opcoes ||
       !Array.isArray(dados.opcoes.competicoes) ||
       !Array.isArray(dados.opcoes.partidas) ||
+      (dados.opcoes.temporadas != null &&
+        (!Array.isArray(dados.opcoes.temporadas) ||
+          !dados.opcoes.temporadas.every((ano) => Number.isInteger(ano) && ano >= 1900 && ano <= 2200))) ||
       !Array.isArray(dados.por_tempo) ||
       !Array.isArray(dados.semelhantes)
     )

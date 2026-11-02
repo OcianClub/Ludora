@@ -77,6 +77,17 @@
 }
 .home-controls button:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
 .home-no-category { padding: 8px; font-size: 13px; color: var(--texto-sec); }
+@container workspace (max-width: 640px) {
+  .home-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .home-phase { width: 100%; }
+  .home-phase button { flex: 1; }
+  .home-category-picker { width: 100%; padding-left: 0; border-left: 0; }
+  .home-controls .home-sub-strip button { flex: 1 0 auto; }
+}
 @media (max-width: 760px) {
   .home-controls {
     --category-control-height: 36px;

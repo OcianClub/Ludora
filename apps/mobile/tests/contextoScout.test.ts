@@ -86,7 +86,10 @@ test('contrato v2 rejeita seletores, eventos e modelo inválidos antes de render
     opcoes: { partidas: [], competicoes: [] }, por_tempo: [], semelhantes: [], modelo: null,
   };
   assert.equal(contextoScoutValido(valido, 1), true);
+  assert.equal(contextoScoutValido({ ...valido, opcoes: { ...valido.opcoes, temporadas: [2026, 2025] } }, 1), true);
   for (const invalido of [
+    { ...valido, opcoes: { ...valido.opcoes, temporadas: ['2026'] } },
+    { ...valido, opcoes: { ...valido.opcoes, temporadas: [2026.5] } },
     { ...valido, opcoes: { partidas: [null], competicoes: [] } },
     { ...valido, por_tempo: [{ periodo: 1, gols: -1, assistencias: 0, defesas: 0 }] },
     { ...valido, semelhantes: [{ id: 1, nome: 'Mesmo atleta', numCamisa: null }] },

@@ -3,7 +3,8 @@
   left: 24px;
   bottom: 24px;
   z-index: 1600;
-  display: flex;
+  display: grid;
+  grid-template-columns: 19px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   max-width: min(440px, calc(100vw - 32px));
@@ -16,9 +17,16 @@
   font-size: 13px;
   line-height: 1.5;
 }
+.ludora-toast:has(.ludora-toast-action) {
+  grid-template-columns: 19px minmax(0, 1fr) auto auto;
+}
 .ludora-toast > .icon {
   color: var(--primaria);
   flex-shrink: 0;
+}
+.ludora-toast > span:not(.icon) {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .ludora-toast button {
   flex-shrink: 0;
@@ -45,5 +53,19 @@
     left: 16px;
     bottom: calc(85px + env(safe-area-inset-bottom));
     font-size: 12px;
+  }
+  .ludora-toast:has(.ludora-toast-action) {
+    grid-template-columns: 19px minmax(0, 1fr) 30px;
+    gap: 6px 10px;
+  }
+  .ludora-toast .ludora-toast-action {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+    padding-inline: 0;
+  }
+  .ludora-toast > button:last-child {
+    grid-column: 3;
+    grid-row: 1;
   }
 }

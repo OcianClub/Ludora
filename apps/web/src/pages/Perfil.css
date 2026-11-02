@@ -361,3 +361,13 @@
     font-size: 10px;
   }
 }
+
+@container workspace (max-width: 640px) {
+  .perfil-settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .perfil-atalhos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

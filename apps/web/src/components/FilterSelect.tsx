@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from './Icon';
 import './FilterSelect.css';
+import { useDropdownPlacement } from '../hooks/useDropdownPlacement';
 
 export function FilterSelect({ label, value, emptyLabel, options, onChange, inlineOptions = false, compactLabel }: {
   label: string;
@@ -19,6 +20,7 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
   const items = [{ value: '', label: emptyLabel }, ...options];
   const selected = Math.max(0, items.findIndex(item => String(item.value) === value));
   const inline = inlineOptions || !!root.current?.closest('dialog[open]');
+  const placement = useDropdownPlacement(root, open, inline);
   const activeIndex = Math.min(active, items.length - 1);
 
   useEffect(() => {
@@ -71,7 +73,7 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
         {compactLabel && <span className="schedule-select-compact-label" aria-hidden="true">{compactLabel}</span>}
         <span className="schedule-select-chevron"><Icon name="chevronRight" size={16} /></span>
       </button>
-      {open && <div id={`${id}-options`} role="listbox" aria-labelledby={`${id}-label`} className={`schedule-select-options${inline ? ' schedule-select-options-inline' : ''}`}>
+      {open && <div id={`${id}-options`} role="listbox" aria-labelledby={`${id}-label`} style={placement} className={`schedule-select-options${inline ? ' schedule-select-options-inline' : ''}`}>
         {items.map((item, index) => (
           <div key={item.value} id={`${id}-option-${index}`} role="option" aria-selected={index === selected}
             data-highlighted={index === activeIndex} onPointerMove={() => setActive(index)}

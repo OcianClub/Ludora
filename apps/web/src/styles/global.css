@@ -59,5 +59,18 @@ button:disabled { cursor: not-allowed; }
 .text-vermelho { color: var(--vermelho); }
 .font-titulo { font-family: var(--font-titulo); }
 
+@media (max-width: 760px) and (pointer: coarse) {
+  /* Impede o zoom automático de foco no Safari sem aumentar a altura dos campos. */
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 13px;
+  }
+}
+
 .route-loading { display: grid; place-items: center; min-height: 240px; }
 .route-load-error { display: grid; gap: 16px; justify-items: start; padding: 24px; color: var(--texto-sec); }

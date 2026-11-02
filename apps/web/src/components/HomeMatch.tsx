@@ -38,14 +38,14 @@ export function HomeMatch({ partida, manager = false }: { partida: HomePartida; 
       <div className="home-scoreboard">
         <div className={`home-team${partida.emCasa ? ' is-club' : ''}`}>
           <ClubBadge src={partida.mandante?.escudo} name={teamName(partida.mandante?.nome || 'Mandante')} size={72} />
-          <strong>{teamName(partida.mandante?.nome || 'Mandante')}{partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</strong>
+          <strong data-tooltip={teamName(partida.mandante?.nome || 'Mandante')} data-tooltip-overflow>{teamName(partida.mandante?.nome || 'Mandante')}{partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</strong>
         </div>
         <div className="home-score" aria-label={live || finished ? `${partida.gols_mandante} a ${partida.gols_visitante}` : 'Contra'}>
           {live || finished ? <><span>{partida.gols_mandante}</span><i aria-hidden="true">·</i><span>{partida.gols_visitante}</span></> : <span className="home-versus">VS</span>}
         </div>
         <div className={`home-team${!partida.emCasa ? ' is-club' : ''}`}>
           <ClubBadge src={partida.visitante?.escudo} name={teamName(partida.visitante?.nome || 'Visitante')} size={72} />
-          <strong>{teamName(partida.visitante?.nome || 'Visitante')}{!partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</strong>
+          <strong data-tooltip={teamName(partida.visitante?.nome || 'Visitante')} data-tooltip-overflow>{teamName(partida.visitante?.nome || 'Visitante')}{!partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</strong>
         </div>
       </div>
       {!live && !finished && <MatchCountdown date={partida.data} time={partida.horario} />}

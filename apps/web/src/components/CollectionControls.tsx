@@ -4,6 +4,7 @@ import './CollectionControls.css';
 import './ResponsiveControls.css';
 import { PositionIcon } from './PositionIcon';
 import { CollectionViewToggle } from './CollectionToolbar';
+import { useDropdownPlacement } from '../hooks/useDropdownPlacement';
 
 export type ViewMode = 'grid' | 'list';
 export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (value: ViewMode) => void }) {
@@ -18,6 +19,7 @@ export function Choice({ label, value, options, onChange, disabled = false, plac
   const trigger = useRef<HTMLButtonElement>(null);
   const id = useId();
   const inline = inlineOptions || !!root.current?.closest('dialog[open]');
+  const placement = useDropdownPlacement(root, open && !disabled, inline, 225);
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
@@ -31,7 +33,7 @@ export function Choice({ label, value, options, onChange, disabled = false, plac
       <span id={`${id}-value`}>{options.find(o => o.value === value)?.label || placeholder}</span>
       <svg className="choice-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
     </button>
-    {open && !disabled && <div id={`${id}-options`} className="choice-options" role="group" aria-labelledby={`${id}-label`} onKeyDown={e => {
+    {open && !disabled && <div id={`${id}-options`} className="choice-options" style={placement} role="group" aria-labelledby={`${id}-label`} onKeyDown={e => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); trigger.current?.focus(); }
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
         e.preventDefault(); const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button')]; const index = buttons.indexOf(document.activeElement as HTMLButtonElement);

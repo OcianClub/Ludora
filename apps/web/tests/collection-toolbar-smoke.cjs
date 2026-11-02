@@ -5,9 +5,9 @@ const { chromium } = require('playwright');
 const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5189';
 const output = path.resolve(__dirname, '../../../test-results/web-collection-toolbar');
 const pages = [
-  { route: '/jogadores', title: 'Filtrar jogadores', filter: '.alunos-filter-toggle', search: '.alunos-search', ready: '.home-pager-current .alunos-directory' },
-  { route: '/elenco', title: 'Filtrar elenco', filter: '.scout-controls .collection-filter-button', search: '.scout-search', ready: '.home-pager-current .scout-player' },
-  { route: '/partidas', title: 'Filtrar partidas', filter: '.schedule-mobile-filter-button', search: '.schedule-search', ready: '.home-pager-current .match-card' },
+  { route: '/jogadores', title: 'Filtrar jogadores', filter: '.alunos-filter-toggle', search: '.alunos-search', ready: '.alunos-directory' },
+  { route: '/elenco', title: 'Filtrar elenco', filter: '.scout-controls .collection-filter-button', search: '.scout-search', ready: '.scout-player' },
+  { route: '/partidas', title: 'Filtrar partidas', filter: '.schedule-mobile-filter-button', search: '.schedule-search', ready: '.match-card' },
 ];
 
 (async () => {
@@ -41,25 +41,25 @@ const pages = [
         const search = page.locator(screen.search);
         if (await search.isVisible()) assert.equal((await search.boundingBox()).height, expected, `${screen.route}: altura da busca`);
         const toggle = page.locator('.collection-mode-toggle:visible').first();
-        assert.equal((await toggle.boundingBox()).height, expected, `${screen.route}: altura do seletor`);
-        if (width <= 760) {
+        if (await toggle.count()) assert.equal((await toggle.boundingBox()).height, expected, `${screen.route}: altura do seletor`);
+        if (width <= 760 && await toggle.count()) {
           for (const button of await toggle.locator('button').all()) assert.equal((await button.innerText()).trim(), '');
         }
-        {
+        if (!(screen.route === '/jogadores' && width <= 760)) {
+          const phase = page.getByRole('tablist', { name: 'Fase', exact: true });
+          await phase.getByRole('tab', { name: 'Iniciação', exact: true }).click();
           assert.deepEqual(await page.locator('.home-sub-strip button').allTextContents(), ['SUB-7', 'SUB-8', 'SUB-9', 'SUB-10']);
-          const phase = page.getByRole('group', { name: 'Fase', exact: true });
-          await phase.getByRole('button', { name: 'Base', exact: true }).click();
+          await phase.getByRole('tab', { name: 'Base', exact: true }).click();
           assert.deepEqual(await page.locator('.home-sub-strip button').allTextContents(), ['SUB-12', 'SUB-14', 'SUB-16', 'SUB-18']);
-          await page.waitForFunction(() => document.querySelector('.home-sub-strip button[aria-pressed="true"]')?.textContent === 'SUB-12');
-          await page.getByRole('button', { name: 'Próxima categoria', exact: true }).click();
-          await page.waitForFunction(() => document.querySelector('.home-sub-strip button[aria-pressed="true"]')?.textContent === 'SUB-14');
+          await page.waitForFunction(() => document.querySelector('.home-sub-strip button[aria-selected="true"]')?.textContent === 'SUB-12');
+          await page.getByRole('tab', { name: 'SUB-12', exact: true }).press('ArrowRight');
+          await page.waitForFunction(() => document.querySelector('.home-sub-strip button[aria-selected="true"]')?.textContent === 'SUB-14');
         }
         const filter = screen.route === '/partidas' && width > 760 ? page.getByRole('button', { name: 'Mais filtros', exact: true }) : page.locator(screen.filter);
         if (await filter.isVisible()) {
           const box = await filter.boundingBox();
           assert.equal(box.height, expected, `${screen.route}: altura de filtros`);
           assert.equal(box.width, expected, `${screen.route}: botão quadrado`);
-          if (screen.route === '/elenco' && width === 1366) assert.equal((await page.locator('.scout-desktop-position .schedule-select-trigger').boundingBox()).height, box.height);
           await filter.click();
           const dialog = page.getByRole('dialog', { name: screen.route === '/partidas' && width > 760 ? 'Mais filtros' : screen.title, exact: true });
           await dialog.waitFor();

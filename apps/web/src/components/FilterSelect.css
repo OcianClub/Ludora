@@ -91,6 +91,10 @@
   flex-shrink: 0;
   color: var(--primaria);
 }
+.schedule-select-options [role="option"] > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 
 .schedule-select-compact-label {
   display: none;
