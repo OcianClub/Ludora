@@ -101,6 +101,7 @@ export type NivelLog = 'info' | 'warn' | 'error' | 'audit';
 
 export interface EntradaLog {
   id: number;
+  clubeId?: number;
   ts: string;
   nivel: NivelLog;
   tipo: 'http' | 'audit' | 'sistema';

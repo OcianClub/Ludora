@@ -1,59 +1,47 @@
-import { useState } from 'react';
-import { Brand } from '@web/components/Brand';
-import { ThemeToggle } from '@web/components/ThemeToggle';
-import { PasswordInput } from '@web/components/PasswordInput';
-import { Input } from '@web/components/UI';
+import { useState, type FormEvent } from 'react';
+import { AuthShell } from '@web/components/AuthShell';
+import { AccessFeedback } from '@web/components/auth/AccessFeedback';
+import { AuthField } from '@web/components/auth/AuthField';
+import { useAccessForm } from '@web/components/auth/useAccessForm';
+import { erroEmail } from '@web/utils/authValidation';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 
-// Mesma estrutura e classes do AuthShell do web, com texto de uso interno.
 export default function LoginPage() {
   const { entrar } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [erro, setErro] = useState('');
-  const [enviando, setEnviando] = useState(false);
+  const access = useAccessForm();
+  const erroSenha = senha ? '' : 'Informe sua senha para entrar.';
 
-  async function enviar(e: React.FormEvent) {
-    e.preventDefault();
-    setErro('');
-    setEnviando(true);
-    try {
-      await entrar(email, senha);
-    } catch (err) {
-      setErro((err as Error).message);
-    } finally {
-      setEnviando(false);
-    }
+  function enviar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!access.validate({ email: erroEmail(email), senha: erroSenha })) return;
+    void access.run(() => entrar(email, senha));
   }
 
   return (
-    <main className="auth-page">
-      <section className="auth-story" aria-label="Ludora">
-        <Brand />
-        <div className="auth-story-content">
-          <span className="eyebrow">USO INTERNO · EQUIPE LUDORA</span>
-          <h2>Todos os clubes.<br />Uma só<br /><span>visão.</span></h2>
-          <p>Gerencie clubes-clientes, permissões e a saúde da plataforma em um só lugar.</p>
-        </div>
-        <span className="auth-story-footer">ACESSO RESTRITO AOS DESENVOLVEDORES.</span>
-      </section>
-      <section className="auth-panel">
-        <div className="auth-card">
-          <ThemeToggle />
-          <div className="auth-mobile-brand"><Brand /></div>
-          <div className="auth-heading">
-            <span className="eyebrow">PAINEL SUPER ADMIN</span>
-            <h1>Entrar no painel</h1>
-            <p>Use a conta da equipe cadastrada como Super Admin.</p>
-          </div>
-          <form onSubmit={enviar} className="auth-form">
-            <Input label="E-mail" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="voce@ludora.com" />
-            <PasswordInput autoComplete="current-password" value={senha} onChange={e => setSenha(e.target.value)} required placeholder="Digite sua senha" />
-            {erro && <div className="auth-erro" role="alert">{erro}</div>}
-            <button className="btn btn-primary btn-md auth-btn" disabled={enviando}>{enviando ? 'Entrando...' : 'Entrar'}</button>
-          </form>
-        </div>
-      </section>
-    </main>
+    <AuthShell
+      title="Bem-vindo de volta"
+      subtitle="Entre com sua conta Super Admin para gerenciar a plataforma Ludora."
+      footer={
+        <button className="btn btn-primary auth-btn" type="submit" form="login-form" disabled={access.busy} aria-busy={access.busy}>
+          {access.busy ? 'Entrando…' : 'Entrar'}
+        </button>
+      }
+    >
+      <AccessFeedback message={access.error} />
+      <form id="login-form" ref={access.formRef} onSubmit={enviar} className="auth-form" noValidate>
+        <fieldset disabled={access.busy} className="access-fields">
+          <AuthField label="E-mail" name="email" type="email" autoComplete="email" maxLength={254}
+            placeholder="email@exemplo.com" value={email}
+            onChange={event => { setEmail(event.target.value); access.setError(''); }}
+            onBlur={() => access.blur('email')} error={access.feedback('email', erroEmail(email))} />
+          <AuthField label="Senha" name="senha" type="password" icon="password" autoComplete="current-password"
+            placeholder="Digite sua senha" value={senha}
+            onChange={event => { setSenha(event.target.value); access.setError(''); }}
+            error={access.feedback('senha', erroSenha)} />
+        </fieldset>
+      </form>
+    </AuthShell>
   );
 }

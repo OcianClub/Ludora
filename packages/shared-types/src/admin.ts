@@ -98,6 +98,7 @@ export interface StatusSistema {
 
 export interface EntradaLog {
   id: number;
+  clubeId?: number;
   ts: string;
   nivel: NivelLog;
   tipo: 'http' | 'audit' | 'sistema';

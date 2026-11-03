@@ -34,8 +34,12 @@ export default function LogsPage() {
     let ativo = true;
     window.ludora.logs.historico().then(h => ativo && setEntradas(a => mesclar(a, h.entradas)));
     const parar = window.ludora.logs.aoReceber(e => {
-      if (pausadoRef.current) fila.current.push(e); // congela a tela sem perder registros
-      else setEntradas(a => mesclar(a, [e]));
+      if (pausadoRef.current) {
+        fila.current.push(e);
+        if (fila.current.length > LIMITE) fila.current.shift();
+      } else {
+        setEntradas(a => mesclar(a, [e]));
+      }
     });
     return () => { ativo = false; parar(); };
   }, []);
@@ -60,7 +64,7 @@ export default function LogsPage() {
       <div className="filter-bar">
         <Select label="Nível" emptyLabel="Tudo" options={NIVEIS} value={nivel} onChange={e => setNivel(e.target.value)} />
         <Input label="Filtrar texto" placeholder="/partidas, 500, Clube criado…" value={texto} onChange={e => setTexto(e.target.value)} />
-        <Btn variant="ghost" onClick={() => setPausado(p => !p)}>{pausado ? `Retomar${fila.current.length ? ` (${fila.current.length})` : ''}` : 'Pausar'}</Btn>
+        <Btn variant="ghost" onClick={() => setPausado(p => !p)}>{pausado ? 'Retomar' : 'Pausar'}</Btn>
         <Btn variant="ghost" onClick={() => { setEntradas([]); fila.current = []; }}>Limpar tela</Btn>
       </div>
 

@@ -20,6 +20,8 @@ import {
   validarLimite,
   type NivelLog,
 } from './admin.rules';
+import { criarConvite, listarConvites, revogarConvite } from '../convites/convite-admin.routes';
+import { limitarOperacaoPesada } from '../../middlewares/rate-limit.middleware';
 import { exigirSuperAdmin, logs } from './superadmin';
 
 class ErroHttp extends Error {
@@ -52,11 +54,12 @@ const validar = <T>(fn: () => T): T => {
   }
 };
 
-const auditar = (req: Request, mensagem: string) =>
+const auditar = (req: Request, mensagem: string, clubeId?: number) =>
   logs.registrar({
     nivel: 'audit',
     tipo: 'audit',
     mensagem,
+    clubeId,
     usuarioId: (req as any).usuarioId,
   });
 
@@ -163,7 +166,7 @@ export function criarAdminRoutes(io: Server) {
       return novo;
     });
 
-    auditar(req, `Clube criado: #${clube.id} ${clube.nome} (${clube.plano})`);
+    auditar(req, `Clube criado: #${clube.id} ${clube.nome} (${clube.plano})`, clube.id);
     res.status(201).json(clube);
   }));
 
@@ -176,11 +179,47 @@ export function criarAdminRoutes(io: Server) {
     if (!existe) throw new ErroHttp(404, 'Clube não encontrado');
 
     const clube = await prisma.clube.update({ where: { id }, data: dados });
-    auditar(req, `Clube atualizado: #${id} (${Object.keys(dados).join(', ')})`);
+    auditar(req, `Clube atualizado: #${id} (${Object.keys(dados).join(', ')})`, id);
     res.json(clube);
   }));
 
+  router.post('/admin/clubes/:id/categorias-padrao', rota(async (req, res) => {
+    const clubeId = idDe(req.params.id, 'Clube');
+    const clube = await prisma.clube.findUnique({ where: { id: clubeId }, select: { id: true } });
+    if (!clube) throw new ErroHttp(404, 'Clube não encontrado');
+    const { count } = await prisma.categoria.createMany({
+      data: SUBS_PADRAO.map(idade => ({
+        nome: `sub-${idade}`,
+        faixaIdade: idade,
+        tipo: tipoCategoriaPorIdade(idade),
+        clube_id: clubeId,
+      })),
+      skipDuplicates: true,
+    });
+    if (count) auditar(req, `Categorias padrão adicionadas: clube #${clubeId} (${count})`, clubeId);
+    res.json({ adicionadas: count });
+  }));
+
   // ── Membros e permissões ──────────────────────────────────────────────────
+  const noClube = (handler: Handler, acao?: string) => rota(async (req, res) => {
+    const clubeId = idDe(req.params.clubeId, 'Clube');
+    const clube = await prisma.clube.findUnique({ where: { id: clubeId }, select: { id: true } });
+    if (!clube) throw new ErroHttp(404, 'Clube não encontrado');
+    Object.assign(req, { clubeId });
+    if (acao) res.once('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 300) auditar(req, acao, clubeId);
+    });
+    await handler(req, res);
+  });
+
+  router.get('/admin/clubes/:clubeId/convites', noClube(listarConvites));
+  router.post('/admin/clubes/:clubeId/convites', limitarOperacaoPesada, noClube(criarConvite, 'Convite criado'));
+  router.post('/admin/clubes/:clubeId/convites/:id/revogar', noClube(revogarConvite, 'Convite revogado'));
+  router.get('/admin/clubes/:clubeId/atividade', noClube(async (req, res) => {
+    const clubeId = idDe(req.params.clubeId, 'Clube');
+    res.json(logs.snapshot(500).filter(item => item.tipo === 'audit' && item.clubeId === clubeId).slice(-50).reverse());
+  }));
+
   router.get('/admin/clubes/:id/membros', rota(async (req, res) => {
     const clubeId = idDe(req.params.id, 'Clube');
     const [categorias, membros] = await Promise.all([
@@ -243,7 +282,7 @@ export function criarAdminRoutes(io: Server) {
       }
     }, { isolationLevel: 'Serializable' });
 
-    auditar(req, `Permissão: usuário #${usuarioId} → ${entrada.papel} no clube #${clubeId}`);
+    auditar(req, `Permissão: usuário #${usuarioId} → ${entrada.papel} no clube #${clubeId}`, clubeId);
     res.json({ ok: true });
   }));
 
@@ -261,7 +300,7 @@ export function criarAdminRoutes(io: Server) {
       await tx.usuarioClube.delete({ where: { id: atual.id } });
     }, { isolationLevel: 'Serializable' });
 
-    auditar(req, `Vínculo removido: usuário #${usuarioId} do clube #${clubeId}`);
+    auditar(req, `Vínculo removido: usuário #${usuarioId} do clube #${clubeId}`, clubeId);
     res.json({ ok: true });
   }));
 
@@ -360,9 +399,11 @@ export function criarAdminRoutes(io: Server) {
     if (PYTHON_AI_URL) {
       const t0 = Date.now();
       try {
-        // Qualquer resposta HTTP (mesmo 404) prova que o serviço está de pé.
-        await axios.get(PYTHON_AI_URL, { timeout: 4000, validateStatus: () => true });
-        scout = { configurado: true, acessivel: true, ms: Date.now() - t0 };
+        const resposta = await axios.get(new URL('/health', PYTHON_AI_URL).href, {
+          timeout: 4000,
+          maxRedirects: 0,
+        });
+        scout = { configurado: true, acessivel: resposta.data?.status === 'ok', ms: Date.now() - t0 };
       } catch {
         scout = { configurado: true, acessivel: false };
       }

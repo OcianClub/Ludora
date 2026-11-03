@@ -19,8 +19,8 @@ function criarJanela() {
   janela = new BrowserWindow({
     width: 1360,
     height: 860,
-    minWidth: 1100,
-    minHeight: 700,
+    minWidth: 640,
+    minHeight: 480,
     show: false,
     title: 'Ludora Admin',
     autoHideMenuBar: true,

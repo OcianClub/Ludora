@@ -10,8 +10,6 @@ import '@fontsource/inter/600.css';
 // Estilos e tema do web, reaproveitados sem cópia.
 import '@web/styles/global.css';
 import '@web/components/UI.css';
-import '@web/components/Layout.css';
-import '@web/components/ThemeToggle.css';
 import '@web/pages/Auth.css';
 import './styles/desktop.css';
 import { applyTheme, setThemePreference } from '@web/styles/theme';

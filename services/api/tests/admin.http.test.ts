@@ -33,6 +33,15 @@ test('painel Super Admin: autorização, proteção de dados e regras de seguran
     chamadas.usuarioFindMany.push(args);
     return [{ id: 1, nome: 'Dev', email: 'dev@ludora.com', criadoEm: new Date(), clubes: [{ papel: 'ADMIN', clube: { id: 3, nome: 'Ocian' } }] }];
   });
+  replace(prisma.clube, 'findUnique', async ({ where }: any) => where.id === 3 || where.id === 99 ? { id: where.id } : null);
+  replace(prisma.conviteClube, 'count', async ({ where }: any) => {
+    assert.equal(where.clube_id, 3);
+    return 0;
+  });
+  replace(prisma.conviteClube, 'findMany', async ({ where }: any) => {
+    assert.equal(where.clube_id, 3);
+    return [];
+  });
   const tx = {
     clube: {
       findUnique: async () => ({ id: 3 }),
@@ -69,6 +78,8 @@ test('painel Super Admin: autorização, proteção de dados e regras de seguran
   await t.test('sem token: 401; usuário comum (mesmo gestor de clube): 403; todas as rotas protegidas', async () => {
     const rotas: [string, string][] = [['GET', '/admin/me'], ['GET', '/admin/overview'], ['POST', '/admin/clubes'], ['PATCH', '/admin/clubes/3'],
       ['GET', '/admin/clubes/3/membros'], ['PUT', '/admin/clubes/3/membros/5'], ['DELETE', '/admin/clubes/3/membros/5'],
+      ['GET', '/admin/clubes/3/convites'], ['POST', '/admin/clubes/3/convites'],
+      ['POST', '/admin/clubes/3/convites/abc/revogar'], ['GET', '/admin/clubes/3/atividade'],
       ['GET', '/admin/usuarios'], ['POST', '/admin/usuarios/5/revogar-sessoes'], ['GET', '/admin/db/status'], ['GET', '/admin/sistema'], ['GET', '/admin/logs']];
     for (const [m, c] of rotas) {
       assert.equal((await chamar(m, c)).status, 401, `${m} ${c} sem token`);
@@ -132,6 +143,37 @@ test('painel Super Admin: autorização, proteção de dados e regras de seguran
     assert.equal((await chamar('PUT', '/admin/clubes/3/membros/5', DEV.id, { papel: 'TORCEDOR' })).status, 200);
     assert.equal((await chamar('DELETE', '/admin/clubes/3/membros/5', DEV.id)).status, 200);
     assert.equal(chamadas.vinculoDelete.length, 1);
+  });
+
+  await t.test('categorias padrão podem ser completadas sem duplicação e exigem acesso global', async () => {
+    const criadas = new Set<string>(['sub-7']);
+    replace(prisma.categoria, 'createMany', async ({ data, skipDuplicates }: any) => {
+      assert.equal(skipDuplicates, true);
+      assert.ok(data.every((categoria: any) => categoria.clube_id === 3));
+      const antes = criadas.size;
+      data.forEach((categoria: any) => criadas.add(categoria.nome));
+      return { count: criadas.size - antes };
+    });
+    const rota = '/admin/clubes/3/categorias-padrao';
+    assert.equal((await chamar('POST', rota, COMUM.id)).status, 403);
+    assert.equal((await chamar('POST', '/admin/clubes/404/categorias-padrao', DEV.id)).status, 404);
+    const primeira = await chamar('POST', rota, DEV.id);
+    assert.equal(primeira.status, 200);
+    assert.deepEqual(await primeira.json(), { adicionadas: 7 });
+    assert.deepEqual(await (await chamar('POST', rota, DEV.id)).json(), { adicionadas: 0 });
+  });
+
+  await t.test('convites e atividade são limitados ao clube selecionado', async () => {
+    const lista = await chamar('GET', '/admin/clubes/3/convites', DEV.id);
+    assert.equal(lista.status, 200);
+    assert.deepEqual(await lista.json(), { total: 0, convites: [] });
+    assert.equal((await chamar('GET', '/admin/clubes/999/convites', DEV.id)).status, 404);
+
+    const atividade = await chamar('GET', '/admin/clubes/99/atividade', DEV.id);
+    assert.equal(atividade.status, 200);
+    const registros = await atividade.json();
+    assert.ok(registros.some((item: any) => item.mensagem.startsWith('Clube criado')));
+    assert.ok(registros.every((item: any) => item.clubeId === 99 && item.tipo === 'audit'));
   });
 
   await t.test('cargo reaproveita validarCargo: técnico exige categorias; cargo desconhecido é recusado', async () => {

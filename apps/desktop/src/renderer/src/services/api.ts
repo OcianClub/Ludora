@@ -46,6 +46,9 @@ export const atualizarClube = (id: number, dados: EdicaoClube) =>
 export const fetchMembros = (clubeId: number) =>
   requestJson<MembrosDoClube>(`/admin/clubes/${clubeId}/membros`);
 
+export const criarCategoriasPadrao = (clubeId: number) =>
+  requestJson<{ adicionadas: number }>(`/admin/clubes/${clubeId}/categorias-padrao`, { method: 'POST' });
+
 export const definirPapel = (clubeId: number, usuarioId: number, dados: DefinirPapel) =>
   requestJson<{ ok: true }>(`/admin/clubes/${clubeId}/membros/${usuarioId}`, { method: 'PUT', body: dados });
 

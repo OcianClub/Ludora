@@ -21,8 +21,12 @@ export default function BancoPage() {
     setCarregando(true);
     setErro('');
     const [b, s] = await Promise.allSettled([fetchStatusBanco(), fetchStatusSistema()]);
-    if (b.status === 'fulfilled') setBanco(b.value); else { setBanco(null); setErro(`Banco: ${b.reason.message}`); }
-    if (s.status === 'fulfilled') setSistema(s.value);
+    setBanco(b.status === 'fulfilled' ? b.value : null);
+    setSistema(s.status === 'fulfilled' ? s.value : null);
+    setErro([
+      b.status === 'rejected' ? `Banco: ${b.reason.message}` : '',
+      s.status === 'rejected' ? `Servidor e integrações: ${s.reason.message}` : '',
+    ].filter(Boolean).join(' · '));
     setCarregando(false);
   }, []);
   useEffect(() => { void carregar(); }, [carregar]);
@@ -68,8 +72,8 @@ export default function BancoPage() {
           <h2 className="section-title">Integrações e servidor</h2>
           <div className="integracoes">
             <div><span>Scout IA (Python)</span><Estado ok={!sistema.integracoes.scoutIA.configurado ? null : sistema.integracoes.scoutIA.acessivel} texto={!sistema.integracoes.scoutIA.configurado ? 'Não configurado' : sistema.integracoes.scoutIA.acessivel ? `Acessível · ${sistema.integracoes.scoutIA.ms} ms` : 'Inacessível'} /></div>
-            <div><span>E-mail (Resend)</span><Estado ok={sistema.integracoes.email.configurado ? true : null} texto={sistema.integracoes.email.configurado ? 'Configurado' : 'Não configurado'} /></div>
-            <div><span>Supabase Storage</span><Estado ok={sistema.integracoes.supabaseStorage.configurado ? true : null} texto={sistema.integracoes.supabaseStorage.configurado ? 'Configurado' : 'Não configurado'} /></div>
+            <div><span>E-mail (Resend)</span><Estado ok={null} texto={sistema.integracoes.email.configurado ? 'Configurado' : 'Não configurado'} /></div>
+            <div><span>Supabase Storage</span><Estado ok={null} texto={sistema.integracoes.supabaseStorage.configurado ? 'Configurado' : 'Não configurado'} /></div>
           </div>
           <div className="tabelas" style={{ marginTop: 16 }}>
             <div className="tabela-item"><span>Ambiente</span><strong>{sistema.ambiente}</strong></div>
@@ -79,7 +83,7 @@ export default function BancoPage() {
             <div className="tabela-item"><span>Conexões app/web</span><strong>{sistema.conexoes.principal}</strong></div>
             <div className="tabela-item"><span>Super Admins</span><strong>{sistema.superAdmins}</strong></div>
           </div>
-          <p className="dica" style={{ marginTop: 12 }}>Integrações mostram apenas se estão configuradas; chaves e senhas nunca saem da API.</p>
+          <p className="dica" style={{ marginTop: 12 }}>O Scout IA é verificado pelo endpoint de saúde. E-mail e armazenamento exibem o estado da configuração.</p>
         </Card>
       )}
     </div>
