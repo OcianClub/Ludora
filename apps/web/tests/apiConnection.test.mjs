@@ -110,3 +110,19 @@ test('login aguarda conexão antes de enviar credenciais e não repete POST', as
   assert.deepEqual(await result, { token: 'teste' });
   assert.deepEqual(calls.map(call => call.method), ['GET', 'POST']);
 });
+
+test('falha no health não bloqueia o login nem repete a sondagem em cada requisição', async t => {
+  let probes = 0;
+  t.mock.method(globalThis, 'fetch', async url => {
+    if (url.endsWith('/health')) {
+      probes++;
+      throw new TypeError('Failed to fetch');
+    }
+    return new Response('{"token":"teste"}');
+  });
+  configureApiConnection('https://probe.onrender.com');
+  const url = 'https://probe.onrender.com/auth/login';
+  assert.deepEqual(await authRequest(url, { method: 'POST' }), { token: 'teste' });
+  assert.deepEqual(await authRequest(url, { method: 'POST' }), { token: 'teste' });
+  assert.equal(probes, 1);
+});

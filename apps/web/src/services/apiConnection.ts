@@ -6,6 +6,7 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
   let state: ConnectionState = 'idle';
   let pending: Promise<void> | undefined;
   let readyAt = 0;
+  let failedAt = 0;
   const listeners = new Set<() => void>();
   const update = (value: ConnectionState) => {
     state = value;
@@ -34,6 +35,7 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
         readyAt = Date.now();
         update('ready');
       } catch {
+        failedAt = Date.now();
         update('error');
         throw new RequestError(
           'Não foi possível conectar ao servidor. Ele pode estar iniciando; tente novamente em instantes.',
@@ -65,6 +67,15 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
   return {
     prepare,
     wait,
+    async waitForRequest(signal?: AbortSignal | null) {
+      if (signal?.aborted) throw signal.reason || new DOMException('Consulta cancelada', 'AbortError');
+      if (state === 'error' && Date.now() - failedAt < 30_000) return;
+      try {
+        await wait(signal);
+      } catch (error) {
+        if (signal?.aborted || !(error instanceof RequestError)) throw error;
+      }
+    },
     getState: () => state,
     subscribe(listener: () => void) {
       listeners.add(listener);
@@ -86,9 +97,8 @@ export function configureApiConnection(baseUrl: string) {
 }
 
 export function waitForApiConnection(url: string, signal?: AbortSignal | null) {
-  return configured && url.startsWith(`${apiBase}/`) ? configured.wait(signal) : undefined;
+  return configured && url.startsWith(`${apiBase}/`) ? configured.waitForRequest(signal) : undefined;
 }
 
 export const subscribeApiConnection = (listener: () => void) => configured?.subscribe(listener) || (() => undefined);
 export const getApiConnectionState = () => configured?.getState() || 'idle';
-export const retryApiConnection = () => { void configured?.prepare().catch(() => undefined); };
