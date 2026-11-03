@@ -147,7 +147,13 @@ async function executarAnalise(clubeId?: number) {
     console.error(
       'Falha no processamento do Scout IA:',
       axios.isAxiosError(error)
-        ? error.code || error.response?.status
+        ? error.response?.status === 401
+          ? 'Serviço Python recusou a autenticação. Confira ML_API_KEY nos dois serviços.'
+          : error.response?.status === 404
+            ? 'Rota de análise não encontrada. Confira PYTHON_AI_URL e a versão publicada do Python.'
+            : error.code === 'ECONNABORTED'
+              ? 'O Python não respondeu em 120 segundos. Confira o estado e os logs do serviço ML.'
+              : `HTTP ${error.response?.status ?? 'sem resposta'} (${error.code || 'falha de rede'})`
         : 'Resposta inválida'
     );
   }

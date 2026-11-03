@@ -2,6 +2,7 @@ import { cachedRead, invalidateReadCache, peekRead, readLifetime } from './readC
 import { BASE_URL } from './config';
 import { authRequest } from './authHttp';
 import { fetchJsonResponse } from './http';
+import { waitForApiConnection } from './apiConnection';
 import { clearSavedSession } from './authSession';
 import { contextoScoutValido, type ContextoScout } from '../../../mobile/src/utils/contextoScout';
 export { BASE_URL } from './config';
@@ -36,6 +37,8 @@ export function invalidateApiReads(endpoint = '') { invalidateReadCache(readScop
 
 // ── Fetch central ──
 async function apiFetch(endpoint: string, options: RequestInit = {}) {
+  const connection = waitForApiConnection(`${BASE_URL}${endpoint}`, options.signal);
+  if (connection) await connection;
   const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type') && options.method && !['GET', 'DELETE'].includes(options.method)) {
     headers.set('Content-Type', 'application/json');

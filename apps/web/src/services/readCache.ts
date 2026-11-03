@@ -22,6 +22,7 @@ export function readLifetime(endpoint: string) {
   if (path === '/categorias') return 60_000;
   if (['/times', '/competicoes'].includes(path)) return 30_000;
   if (['/jogadores', '/jogadores/perfis', '/clubes'].includes(path)) return 15_000;
+  if (/^\/jogadores\/\d+\/scout-contexto$/.test(path)) return 15_000;
   if (['/partidas', '/partidas/home', '/times/contexto'].includes(path)) return 5_000;
   return 0;
 }

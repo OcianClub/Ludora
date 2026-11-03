@@ -24,6 +24,11 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="Ludora Scout IA", lifespan=lifespan)
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok", "versao": 2}
+
+
 def autenticar_servico(request: Request):
     chave = os.getenv("ML_API_KEY", "")
     if chave:

@@ -128,6 +128,7 @@ test('detalhes ao vivo e notificações não recebem TTL de dados estáticos', (
   assert.equal(readLifetime('/partidas/17/eventos'), 0);
   assert.equal(readLifetime('/notificacoes'), 0);
   assert.equal(readLifetime('/categorias'), 60000);
+  assert.equal(readLifetime('/jogadores/17/scout-contexto?ano=2026'), 15000);
   assert.equal(readLifetime('/partidas?status=AO_VIVO'), 5000);
 });
 

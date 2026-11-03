@@ -8,7 +8,7 @@ from fastapi import HTTPException, Request
 from pydantic import ValidationError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from main import JogadorStats, autenticar_servico, treinar_perfis, validar_configuracao, app
+from main import JogadorStats, autenticar_servico, treinar_perfis, validar_configuracao, app, health
 
 
 def request(host="127.0.0.1", key=""):
@@ -19,6 +19,11 @@ def request(host="127.0.0.1", key=""):
 
 
 class ScoutTests(unittest.TestCase):
+    def test_health_nao_expoe_chave_nem_calcula_analise(self):
+        self.assertEqual(health(), {"status": "ok", "versao": 2})
+        route = next(route for route in app.routes if route.path == "/health")
+        self.assertEqual(route.dependencies, [])
+
     def test_chave_obrigatoria_producao(self):
         with patch.dict("os.environ", {"NODE_ENV": "production", "ML_API_KEY": ""}):
             with self.assertRaises(RuntimeError):

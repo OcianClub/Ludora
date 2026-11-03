@@ -73,4 +73,27 @@ button:disabled { cursor: not-allowed; }
 }
 
 .route-loading { display: grid; place-items: center; min-height: 240px; }
+.api-connection-notice {
+  position: fixed;
+  z-index: 10000;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--texto);
+  font-size: 13px;
+  box-shadow: 0 4px 20px #0003;
+}
+.api-connection-notice button { color: var(--primaria); white-space: nowrap; }
+@media (max-width: 760px) {
+  .api-connection-notice { bottom: calc(80px + env(safe-area-inset-bottom)); }
+}
 .route-load-error { display: grid; gap: 16px; justify-items: start; padding: 24px; color: var(--texto-sec); }

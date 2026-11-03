@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Btn, Modal, Spinner } from './UI';
-import { fetchContextoScout, type PerfilJogador } from '../services/api';
+import { cachedJson, fetchContextoScout, type PerfilJogador } from '../services/api';
 import { formatMatchDate } from './MatchCard';
 import {
   resumirContextoScout,
@@ -54,9 +54,12 @@ export function ScoutPlayerDetail({
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
+    const query = new URLSearchParams(Object.entries(filtro).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
+    const saved = cachedJson<ContextoScout>(`/jogadores/${player.id}/scout-contexto${query.size ? `?${query}` : ''}`);
+    setLoading(!saved);
     setError('');
-    setContext(null);
+    setContext(saved || null);
+    if (saved) setOptions(saved.opcoes);
     contentElement.current
       ?.closest('.modal-body')
       ?.scrollTo({ top: 0, behavior: 'instant' });

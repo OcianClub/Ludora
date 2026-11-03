@@ -83,7 +83,34 @@ Depois de obter a URL estável da Vercel, atualize `CORS_ORIGINS` e `INVITE_BASE
 5. Valide uma partida em duas sessões para conferir Socket.IO, usando dados de teste.
 6. Teste convite e recuperação por e-mail apenas para destinatários controlados.
 
-No Render Free, a suspensão por inatividade pode atrasar o primeiro acesso. Para operação contínua de partidas e tarefas em segundo plano, avalie uma instância que permaneça ativa; não houve alteração de plano por esta configuração.
+### Publicar o serviço Python do Scout
+
+O Python é um **segundo Web Service** no Render, separado da API Node. Para este repositório:
+
+| Campo | Valor |
+|---|---|
+| Branch | A mesma versão publicada da API |
+| Root Directory | `services/ml` |
+| Language | Python 3 |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+| Health Check Path | `/health` |
+
+No serviço Python, configure `NODE_ENV=production` e `ML_API_KEY` com um segredo privado. Na API Node, configure **a mesma** `ML_API_KEY` e `PYTHON_AI_URL=https://ludora-ml.onrender.com` (ou a URL real do serviço Python, sem `/docs`, `/health` ou o caminho da análise).
+
+A Vercel continua usando apenas `VITE_API_URL=https://ludora-pgho.onrender.com`. O navegador não chama o Python diretamente e não precisa da chave ML. Não adicione `ML_API_KEY` nas variáveis do frontend.
+
+Após publicar, `/health` do Python deve retornar `{"status":"ok","versao":2}`. `/` pode retornar 404; isso, sozinho, não significa falha no ML. Estatísticas e gráficos usam os registros do banco; o Python recalcula os perfis e as similaridades em segundo plano ao finalizar/corrigir partidas. Publicar o serviço não recalcula registros antigos automaticamente.
+
+Para atualizar dados já existentes, um gestor com acesso a todas as categorias pode enviar **uma vez** `POST /admin/reprocessar-scout` para a API, autenticado com Bearer e `x-clube-id` do clube desejado. A resposta confirma o início do processamento, não sua conclusão. Acompanhe os logs da API até a mensagem de jogadores processados. Falhas 401 indicam chaves diferentes; 404 indica URL/versão incompatível; timeout indica serviço indisponível ou demorando para iniciar. Não repita a operação a cada carregamento de tela.
+
+### Reduzir a espera no plano gratuito
+
+O Render Free suspende cada serviço após 15 minutos sem tráfego; o despertar pode levar cerca de um minuto. API e Python despertam separadamente. O web inicia uma verificação compartilhada de `/health` ao abrir a aplicação e aguarda até 90 segundos antes das primeiras chamadas. Um aviso aparece se a conexão demorar; as consultas normais continuam com prazo de 20 segundos. Após inatividade, a verificação só se repete quando houver nova ação na API, sem polling para manter o serviço acordado.
+
+Fichas Scout consultadas ficam por 15 segundos no cache em memória, separado por API, sessão, clube e filtros. Alterações feitas pelo usuário invalidam esse cache. Eventos ao vivo continuam sem cache estático. As análises Python já concluídas são salvas no PostgreSQL, evitando recalcular ML toda vez que alguém abre a página.
+
+Mantenha API e ML na mesma região e, se possível, próximos da região do PostgreSQL/Supabase. Antes de mudar a conexão de produção, confira no Supabase a opção de pooler indicada para seu ambiente. Cache reduz leituras repetidas, mas não elimina o despertar nem a latência de consultas inéditas. Para operação contínua de partidas e tarefas em segundo plano, avalie uma instância que permaneça ativa; nenhuma alteração de plano é feita pelo código.
 
 ## Referências oficiais
 
