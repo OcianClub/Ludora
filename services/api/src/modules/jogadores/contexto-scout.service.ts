@@ -71,12 +71,10 @@ export async function consultarContextoScout(
         }
       : {}),
   };
-  const totalPartidas = await tx.partida.count({ where });
-  if ((filtro.partidaId || filtro.competicaoId) && totalPartidas === 0)
-    return null;
+  const limiteRecentes = 10;
   const partidas = await tx.partida.findMany({
     where,
-    take: 10,
+    take: limiteRecentes,
     orderBy: [{ data: 'desc' }, { horario: 'desc' }, { id: 'desc' }],
     select: {
       id: true,
@@ -96,7 +94,7 @@ export async function consultarContextoScout(
       visitante: { select: { nome: true } },
       jogadores_escalonados: {
         where: { jogador_id: jogadorId },
-        select: { titular_inicial: true, numCamisa: true },
+        select: { titular_inicial: true },
       },
       eventos: {
         where: { jogador_id: jogadorId },
@@ -111,6 +109,11 @@ export async function consultarContextoScout(
       },
     },
   });
+  if ((filtro.partidaId || filtro.competicaoId) && partidas.length === 0)
+    return null;
+  const totalPartidas = partidas.length < limiteRecentes
+    ? partidas.length
+    : await tx.partida.count({ where });
   const eventos = await tx.evento.groupBy({
     by: ['tipo', 'gol_contra', 'periodo'],
     where: { jogador_id: jogadorId, partida: { is: where } },

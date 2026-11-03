@@ -17,12 +17,12 @@ function fixture(filtro: FiltroScout = {}, total = 25) {
       async findMany(q: any) { queries.partida.push(q);
         if (q.distinct) return [{ competicao: { id: 4, nome: 'Copa', ano: 2026 } }];
         if (!q.select.eventos) return [{ id: 5, data: new Date('2026-10-19Z'), status: 'FINALIZADA', mandante: { nome: 'Ludora' }, visitante: { nome: 'Visitante' } }];
-        return [{ id: 5, data: new Date('2026-10-19Z'), horario: '19:00', status: filtro.partidaId ? 'AO_VIVO' : 'FINALIZADA',
+        return Array.from({ length: Math.min(total, q.take) }, (_, i) => ({ id: 5 + i, data: new Date('2026-10-19Z'), horario: '19:00', status: filtro.partidaId ? 'AO_VIVO' : 'FINALIZADA',
           emCasa: false, mandante_id: 1, gols_mandante: 2, gols_visitante: 3,
           participantes: [{ time_id: 1 }], mandante: { nome: 'Ludora' }, visitante: { nome: 'Visitante' },
           competicao: { id: 4, nome: 'Copa', ano: 2026 }, jogadores_escalonados: [{ titular_inicial: null, numCamisa: 9 }],
           eventos: [{ id: 1, tipo: 'GOL', periodo: 1, minuto: null, gol_contra: false }, { id: 2, tipo: 'GOL', periodo: 1, minuto: null, gol_contra: true }],
-        }];
+        }));
       },
     },
     evento: { async groupBy(q: any) { queries.evento.push(q); return [
@@ -78,14 +78,17 @@ test('campeonato e temporada filtram histórico e todos os agregados sem usar pa
 });
 
 test('partida ao vivo fica explicitamente provisória, sem permitir consultar outra partida sem vínculo', async () => {
-  const { tx, queries } = fixture({ partidaId: 5 });
+  const { tx, queries } = fixture({ partidaId: 5 }, 1);
   const result = await consultarContextoScout(tx, 12, 3, [7], { partidaId: 5 });
-  assert.equal(queries.count[0].where.id, 5);
-  assert.deepEqual(queries.count[0].where.status, { in: ['AO_VIVO', 'FINALIZADA'] });
+  assert.equal(queries.partida[0].where.id, 5);
+  assert.deepEqual(queries.partida[0].where.status, { in: ['AO_VIVO', 'FINALIZADA'] });
+  assert.equal(result?.total_partidas, 1);
+  assert.equal(queries.count.length, 0);
   assert.equal(result?.recorte.provisorio, true);
   const missing = fixture({ partidaId: 999 }, 0);
   assert.equal(await consultarContextoScout(missing.tx, 12, 3, [7], { partidaId: 999 }), null);
-  assert.equal(missing.queries.partida.length, 0);
+  assert.equal(missing.queries.partida.length, 1);
+  assert.equal(missing.queries.evento.length, 0);
 });
 
 test('categorias vazias não viram acesso total; atleta fora do escopo não consulta histórico', async () => {

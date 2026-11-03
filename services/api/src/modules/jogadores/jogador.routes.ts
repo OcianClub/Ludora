@@ -76,7 +76,10 @@ router.get('/jogadores/perfis', exigirClubePublico, async (req, res) => {
   }
 });
 
-router.get('/jogadores/:id/scout-contexto', exigirClubePublico, async (req, res) => {
+router.get('/jogadores/:id/scout-contexto', (req, res, next) => {
+  res.locals.scoutInicio = performance.now();
+  next();
+}, exigirClubePublico, async (req, res) => {
   const jogadorId = idPositivo(req.params.id);
   if (!jogadorId) return res.status(400).json({ error: 'Atleta inválido.' });
   const competicaoId = req.query.competicao_id === undefined ? undefined : idPositivo(req.query.competicao_id);
@@ -92,6 +95,7 @@ router.get('/jogadores/:id/scout-contexto', exigirClubePublico, async (req, res)
       (req as any).usuarioId,
       clubeId
     );
+    const inicioConsulta = performance.now();
     const contexto = await prisma.$transaction(
       (tx) => consultarContextoScout(
         tx,
@@ -102,6 +106,8 @@ router.get('/jogadores/:id/scout-contexto', exigirClubePublico, async (req, res)
       ),
       { isolationLevel: 'RepeatableRead', maxWait: 3_000, timeout: 14_000 }
     );
+    const fimConsulta = performance.now();
+    res.setHeader('Server-Timing', `scout-db;dur=${(fimConsulta - inicioConsulta).toFixed(1)}, scout-total;dur=${(fimConsulta - res.locals.scoutInicio).toFixed(1)}`);
     if (!contexto) {
       return res.status(404).json({
         error: 'Atleta não encontrado neste clube ou nas categorias permitidas.',
