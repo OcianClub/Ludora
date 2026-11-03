@@ -320,7 +320,11 @@ function normalizeProfiles(dados: unknown[]): PerfilJogador[] {
 export async function fetchContextoScout(id: number, signal?: AbortSignal, filtro: import('../../../mobile/src/utils/contextoScout').FiltroContextoScout = {}): Promise<ContextoScout> {
   const query = new URLSearchParams(Object.entries(filtro).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
   const res = await apiFetch(`/jogadores/${id}/scout-contexto${query.size ? `?${query}` : ''}`, { signal });
-  if (!res.ok) throw new Error('Não foi possível carregar o histórico do atleta. Tente novamente.');
+  if (!res.ok) {
+    if (res.status === 403) throw new Error('Seu acesso não permite consultar este histórico.');
+    if (res.status === 404) throw new Error('O histórico solicitado não está disponível neste clube.');
+    throw new Error(`Não foi possível consultar o histórico do atleta (HTTP ${res.status}). Tente novamente.`);
+  }
   const data: unknown = await res.json();
   if (!contextoScoutValido(data, id)) throw new Error('Não foi possível confirmar os dados do histórico.');
   return data;

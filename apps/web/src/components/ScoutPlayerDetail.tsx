@@ -70,9 +70,9 @@ export function ScoutPlayerDetail({
           setOptions(data.opcoes);
         }
       })
-      .catch(() => {
+      .catch((cause: unknown) => {
         if (!controller.signal.aborted)
-          setError('Não foi possível carregar os dados. Tente novamente.');
+          setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os dados. Tente novamente.');
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);

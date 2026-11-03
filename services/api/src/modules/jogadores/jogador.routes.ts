@@ -100,7 +100,7 @@ router.get('/jogadores/:id/scout-contexto', exigirClubePublico, async (req, res)
         escopo.acessoTotal ? null : escopo.categoriaIds,
         { competicaoId: competicaoId ?? undefined, partidaId: partidaId ?? undefined, ano }
       ),
-      { isolationLevel: 'RepeatableRead' }
+      { isolationLevel: 'RepeatableRead', maxWait: 3_000, timeout: 14_000 }
     );
     if (!contexto) {
       return res.status(404).json({
@@ -108,7 +108,14 @@ router.get('/jogadores/:id/scout-contexto', exigirClubePublico, async (req, res)
       });
     }
     res.json(contexto);
-  } catch {
+  } catch (error) {
+    const code = error instanceof Error && 'code' in error ? error.code : undefined;
+    console.error('Falha na consulta do histórico Scout', {
+      jogadorId,
+      clubeId,
+      tipo: error instanceof Error ? error.name : typeof error,
+      code,
+    });
     res.status(500).json({ error: 'Não foi possível carregar o histórico do atleta.' });
   }
 });
