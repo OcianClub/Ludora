@@ -427,6 +427,53 @@
   color: var(--primaria);
 }
 .athlete-loading,
+.athlete-load-error {
+  display: grid;
+  gap: 16px;
+  padding: 18px 0;
+}
+.athlete-loading-label,
+.athlete-load-message,
+.athlete-load-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.athlete-loading-label,
+.athlete-load-message p {
+  color: var(--texto-sec);
+  font-size: 13px;
+}
+.athlete-skeleton {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.athlete-skeleton span {
+  min-height: 66px;
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  background: var(--fundo-card);
+}
+.athlete-load-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--fundo-card);
+  color: var(--texto-sec);
+}
+.athlete-load-message h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.athlete-load-message p {
+  margin: 4px 0 0;
+}
+.athlete-load-actions {
+  flex-wrap: wrap;
+}
 .athlete-empty {
   display: flex;
   min-height: 230px;

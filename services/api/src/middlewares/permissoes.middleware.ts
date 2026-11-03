@@ -159,11 +159,8 @@ export interface EscopoCategorias {
   categoriaIds: number[];
 }
 
-export async function obterEscopoCategorias(
-  usuarioId: number,
-  clubeId: number
-): Promise<EscopoCategorias> {
-  const vinculo = await prisma.usuarioClube.findUnique({
+function buscarVinculoCategorias(usuarioId: number, clubeId: number) {
+  return prisma.usuarioClube.findUnique({
     where: {
       usuario_id_clube_id: {
         usuario_id: usuarioId,
@@ -180,7 +177,19 @@ export async function obterEscopoCategorias(
       },
     },
   });
+}
 
+export async function obterEscopoCategorias(
+  usuarioId: number,
+  clubeId: number
+): Promise<EscopoCategorias> {
+  const vinculo = await buscarVinculoCategorias(usuarioId, clubeId);
+  return escopoDoVinculo(vinculo);
+}
+
+function escopoDoVinculo(
+  vinculo: Awaited<ReturnType<typeof buscarVinculoCategorias>>
+): EscopoCategorias {
   if (!vinculo || vinculo.papel === 'TORCEDOR' || vinculo.papel === 'OLHEIRO') {
     return { acessoTotal: false, categoriaIds: [] };
   }
@@ -200,15 +209,7 @@ export async function obterEscopoCategoriasLeitura(
   usuarioId: number,
   clubeId: number
 ): Promise<EscopoCategorias> {
-  const vinculo = await prisma.usuarioClube.findUnique({
-    where: {
-      usuario_id_clube_id: {
-        usuario_id: usuarioId,
-        clube_id: clubeId,
-      },
-    },
-    select: { papel: true },
-  });
+  const vinculo = await buscarVinculoCategorias(usuarioId, clubeId);
 
   // Sem vínculo, o usuário está consultando o conteúdo público do clube.
   // A limitação de categoria é uma regra de gestão, não de visualização.
@@ -217,7 +218,7 @@ export async function obterEscopoCategoriasLeitura(
     return { acessoTotal: true, categoriaIds: [] };
   }
 
-  return obterEscopoCategorias(usuarioId, clubeId);
+  return escopoDoVinculo(vinculo);
 }
 
 export async function podeAcessarCategoria(

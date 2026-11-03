@@ -90,6 +90,7 @@ router.get('/jogadores/:id/scout-contexto', (req, res, next) => {
     return res.status(400).json({ error: 'Selecione um campeonato ou uma partida válida. O ano deve ter quatro dígitos.' });
   }
   const clubeId = (req as any).clubeId as number;
+  const inicioEscopo = performance.now();
   try {
     const escopo = await obterEscopoCategoriasLeitura(
       (req as any).usuarioId,
@@ -107,7 +108,12 @@ router.get('/jogadores/:id/scout-contexto', (req, res, next) => {
       { isolationLevel: 'RepeatableRead', maxWait: 3_000, timeout: 14_000 }
     );
     const fimConsulta = performance.now();
-    res.setHeader('Server-Timing', `scout-db;dur=${(fimConsulta - inicioConsulta).toFixed(1)}, scout-total;dur=${(fimConsulta - res.locals.scoutInicio).toFixed(1)}`);
+    res.setHeader('Server-Timing', [
+      `scout-auth;dur=${(inicioEscopo - res.locals.scoutInicio).toFixed(1)}`,
+      `scout-scope;dur=${(inicioConsulta - inicioEscopo).toFixed(1)}`,
+      `scout-db;dur=${(fimConsulta - inicioConsulta).toFixed(1)}`,
+      `scout-total;dur=${(fimConsulta - res.locals.scoutInicio).toFixed(1)}`,
+    ].join(', '));
     if (!contexto) {
       return res.status(404).json({
         error: 'Atleta não encontrado neste clube ou nas categorias permitidas.',

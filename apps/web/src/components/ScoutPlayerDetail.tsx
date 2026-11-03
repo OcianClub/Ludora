@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Btn, Modal, Spinner } from './UI';
 import { cachedJson, fetchContextoScout, type PerfilJogador } from '../services/api';
+import { RequestError } from '../services/http';
 import { formatMatchDate } from './MatchCard';
 import {
   resumirContextoScout,
@@ -47,7 +48,7 @@ export function ScoutPlayerDetail({
         ? 'competicao'
         : 'geral',
   );
-  const [error, setError] = useState('');
+  const [error, setError] = useState<'offline' | 'network' | 'timeout' | 'other' | null>(null);
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
   const contentElement = useRef<HTMLDivElement>(null);
@@ -57,7 +58,7 @@ export function ScoutPlayerDetail({
     const query = new URLSearchParams(Object.entries(filtro).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
     const saved = cachedJson<ContextoScout>(`/jogadores/${player.id}/scout-contexto${query.size ? `?${query}` : ''}`);
     setLoading(!saved);
-    setError('');
+    setError(null);
     setContext(saved || null);
     if (saved) setOptions(saved.opcoes);
     contentElement.current
@@ -71,8 +72,12 @@ export function ScoutPlayerDetail({
         }
       })
       .catch((cause: unknown) => {
-        if (!controller.signal.aborted)
-          setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os dados. Tente novamente.');
+        if (controller.signal.aborted) return;
+        const kind = cause instanceof RequestError && (cause.kind === 'timeout' || cause.kind === 'network')
+          ? !navigator.onLine ? 'offline' : cause.kind
+          : 'other';
+        if (kind === 'other') setContext(null);
+        setError(kind);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -81,6 +86,18 @@ export function ScoutPlayerDetail({
   }, [player.id, attempt, filtro]);
 
   const summary = context ? resumirContextoScout(context) : null;
+  const errorTitle = {
+    offline: 'Você está sem conexão',
+    network: 'Conexão indisponível',
+    timeout: 'O histórico demorou para responder',
+    other: 'Não foi possível carregar o histórico',
+  };
+  const errorHint = {
+    offline: 'Reconecte-se para consultar os registros do atleta.',
+    network: 'Verifique sua conexão e tente novamente.',
+    timeout: 'Tente novamente em alguns instantes.',
+    other: 'Tente abrir a ficha novamente em instantes.',
+  };
   const single = context?.recorte?.tipo === 'partida';
   const match = single ? context?.partidas[0] : null;
   const totals = context?.totais;
@@ -231,30 +248,44 @@ export function ScoutPlayerDetail({
           />
         )}
       </div>
-      <div className="athlete-content" aria-busy={loading} ref={contentElement}>
+      <div className="athlete-content" ref={contentElement}>
         {loading ? (
-          <div className="athlete-loading" role="status">
-            <Spinner />
-            <span>Carregando estatísticas…</span>
+          <div className="athlete-loading">
+            <div className="athlete-loading-label" role="status">
+              <Spinner />
+              <span>{tipo === 'partida' ? 'Carregando registros da partida…' : tipo === 'competicao' ? 'Carregando dados do campeonato…' : 'Carregando histórico do atleta…'}</span>
+            </div>
+            <div className="athlete-skeleton" aria-hidden="true">
+              <span /><span /><span />
+            </div>
           </div>
-        ) : error ? (
-          <div role="alert" className="athlete-empty">
-            <Icon name="alert" size={24} />
-            <p>{error}</p>
-            <Btn
-              variant="ghost"
-              onClick={() => setAttempt((value) => value + 1)}
-            >
-              Tentar novamente
-            </Btn>
-            <Btn variant="ghost" onClick={() => changeType('geral')}>
-              Voltar ao geral
-            </Btn>
+        ) : error && !context ? (
+          <div className="athlete-load-error">
+            <div className="athlete-load-message" role="status">
+              <span className="athlete-load-icon"><Icon name="alert" size={20} /></span>
+              <div>
+                <h3>{errorTitle[error]}</h3>
+                <p>{errorHint[error]}</p>
+              </div>
+            </div>
+            <div className="athlete-load-actions">
+              <Btn onClick={() => setAttempt((value) => value + 1)}>
+                Tentar novamente
+              </Btn>
+              {tipo !== 'geral' && (
+                <Btn variant="ghost" onClick={() => changeType('geral')}>
+                  Voltar ao geral
+                </Btn>
+              )}
+            </div>
           </div>
         ) : (
           context &&
           summary && (
             <>
+              {error && <p className="athlete-notice" role="status">
+                Mostrando os últimos dados carregados. {errorHint[error]}
+              </p>}
               <div className="athlete-section-heading">
                 <h3>{title}</h3>
                 <span>
