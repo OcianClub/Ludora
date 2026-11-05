@@ -1,6 +1,7 @@
 type PartidaResumo = {
   id?: number;
   somente_leitura?: boolean;
+  minha_equipe_pronta?: boolean | null;
   data: string;
   horario: string | null;
   status: string;
@@ -29,12 +30,12 @@ export function acoesDaPartidaNaHome(
   const preparar =
     podeGerenciar &&
     !!partida &&
-    !partida.somente_leitura &&
+    (!partida.somente_leitura || partida.minha_equipe_pronta != null) &&
     ['AGENDADA', 'PREPARADA'].includes(partida.status);
   const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
   return {
     preparar,
-    iniciar: preparar && partida?.data.split('T')[0] === hoje,
+    iniciar: preparar && !partida?.somente_leitura && partida?.data.split('T')[0] === hoje,
   };
 }
 

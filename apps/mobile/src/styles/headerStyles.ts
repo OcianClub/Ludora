@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { typography } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
+import { MARGEM_TELA } from './layout';
 
 export const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
@@ -8,7 +9,7 @@ export const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
+      paddingHorizontal: MARGEM_TELA,
       paddingBottom: 8,
       backgroundColor: colors.fundo,
       flexShrink: 0,

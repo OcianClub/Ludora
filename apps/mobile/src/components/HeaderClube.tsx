@@ -12,7 +12,6 @@ export function HeaderClube() {
       logoUrl={identidade.escudo}
       papelUsuario={identidade.papel}
       showLogo
-      showProfile
       btnNotificacao="bell"
     />
   );

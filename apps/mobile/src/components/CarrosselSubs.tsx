@@ -6,8 +6,9 @@ import Animated, { useSharedValue, useAnimatedStyle, useAnimatedRef, useAnimated
 import { pageDestination } from '@/src/utils/categoryMotion';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
+import { MARGEM_TELA } from '@/src/styles/layout';
 
-const MARGEM_CONTEUDO = 20;
+const MARGEM_CONTEUDO = MARGEM_TELA;
 const LARGURA_ITEM = 100;
 const GAP_ITEM = 8;
 const ITEM_INTERVAL = LARGURA_ITEM + GAP_ITEM;

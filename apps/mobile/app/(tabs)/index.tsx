@@ -1,5 +1,4 @@
 import {
-  Alert,
   AppState,
   View,
   Text,
@@ -8,17 +7,19 @@ import {
   InteractionManager,
 } from 'react-native';
 import { createStyles } from '../../src/styles/indexStyles';
+import { MARGEM_TELA } from '../../src/styles/layout';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { HeaderClube } from '@/src/components/HeaderClube';
 import { PaginaCategoria } from '@/src/components/PaginaCategoria';
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { CategoryPager, type CategoryPagerHandle } from '@/src/components/CategoryPager';
 import { CategoryPageMotion } from '@/src/components/CategoryPageMotion';
 import { useCategoryPagerMotion } from '@/src/hooks/useCategoryPagerMotion';
 import {
-  atualizarStatusPartida,
-  fetchEscalacaoPartida,
+  apiFetch,
+  fetchClubes,
+  fetchCategorias,
   fetchHome,
 } from '@/src/services/api';
 import {
@@ -45,7 +46,20 @@ import { iniciarMedicaoCarregamento } from '@/src/utils/desempenho';
 import { AvisoConsultaLocal } from '@/src/components/AvisoConsultaLocal';
 
 
+const normalizarSub = (nome: string) => nome.trim().replace(/\s+/g, '-').toUpperCase();
+
+type PendenciasHome = {
+  clubeId: number;
+  acesso: Awaited<ReturnType<typeof fetchClubes>>[number] | undefined;
+  categorias: { id: number; nome: string }[];
+  camisas: { categoria_id: number; semCamisa: number }[] | null;
+  propostas: { categoria_nome?: string; respondente_id: number; status: string }[] | null;
+};
+
 export default function Home() {
+  const router = useRouter();
+  const [scoutHome, setScoutHome] = useState<{ clubeId: number; contagens: Map<string, number> } | null>(null);
+  const [pendencias, setPendencias] = useState<PendenciasHome | null>(null);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const pagerRef = useRef<CategoryPagerHandle>(null);
@@ -57,7 +71,6 @@ export default function Home() {
   const medicaoTela = useRef<ReturnType<
     typeof iniciarMedicaoCarregamento
   > | null>(null);
-  const iniciando = useRef(false);
   const scoutPreparado = useRef(new Set<number>());
   const [erroCarregamento, setErroCarregamento] = useState('');
   const [consultaLocal, setConsultaLocal] = useState<number | null>(null);
@@ -66,9 +79,6 @@ export default function Home() {
   const [consultandoServidor, setConsultandoServidor] = useState(false);
 
   const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(
-    null
-  );
-  const [iniciandoPartidaId, setIniciandoPartidaId] = useState<number | null>(
     null
   );
   const [faseAtiva, setFaseAtiva] = useState<'INICIACAO' | 'BASE'>('INICIACAO');
@@ -84,7 +94,7 @@ export default function Home() {
   const { clubeAtivo, podeGerenciar } = useClubeAtivo();
   const { versaoNotificacoes } = useNotificacoes();
 
-  const carregarDadosDoClube = useCallback(async () => {
+  const carregarDadosDoClube = useCallback(async (revalidar = false) => {
     medicaoTela.current = iniciarMedicaoCarregamento('home:estado-pronto');
     const pedido = controle.iniciar();
     setConsultandoServidor(true);
@@ -103,7 +113,7 @@ export default function Home() {
       const resultado = await consultarComCopiaLocal<Partida[]>({
         clubeId: clubeAtivo.id,
         recurso: 'home',
-        carregar: () => fetchHome(clubeAtivo.id),
+        carregar: () => fetchHome(clubeAtivo.id, revalidar),
         selecionar: selecionarPartidasLocais,
         onLocal: (local) => {
           if (
@@ -135,6 +145,18 @@ export default function Home() {
             recurso: 'scout',
             carregar: () => obterPerfisJogadores(undefined, clubeId),
             selecionar: selecionarJogadoresLocais,
+          }).then(resultado => {
+            if (!controle.atual(pedido) || resultado.origem === 'local') {
+              scoutPreparado.current.delete(clubeId);
+              return;
+            }
+            const contagens = new Map<string, number>();
+            for (const jogador of resultado.dados) {
+              if (jogador.perfil_ml && !/^sem\b/i.test(jogador.perfil_ml)) continue;
+              const sub = normalizarSub(jogador.categoria);
+              contagens.set(sub, (contagens.get(sub) ?? 0) + 1);
+            }
+            setScoutHome({ clubeId, contagens });
           }).catch(() => {
             scoutPreparado.current.delete(clubeId);
           });
@@ -171,7 +193,7 @@ export default function Home() {
     useCallback(() => {
       void carregarDadosDoClube();
       const appState = AppState.addEventListener('change', (estado) => {
-        if (estado === 'active') void carregarDadosDoClube();
+        if (estado === 'active') void carregarDadosDoClube(true);
       });
       const intervalo = setInterval(() => {
         if (
@@ -191,7 +213,7 @@ export default function Home() {
   const atualizarHome = useCallback(async () => {
     setAtualizando(true);
     try {
-      await carregarDadosDoClube();
+      await carregarDadosDoClube(true);
     } finally {
       setAtualizando(false);
     }
@@ -199,7 +221,7 @@ export default function Home() {
 
   const fecharDetalhes = useCallback(() => {
     setPartidaSelecionada(null);
-    void carregarDadosDoClube();
+    void carregarDadosDoClube(true);
   }, [carregarDadosDoClube]);
 
   useEffect(() => {
@@ -219,45 +241,57 @@ export default function Home() {
     [partidasGlobais, subsAtuais, diaAtual, mudouClubeNaTela]
   );
 
-  const handleIniciarPartida = useCallback(async (partida: Partida) => {
-    if (iniciando.current) return;
-    iniciando.current = true;
-    setIniciandoPartidaId(partida.id);
-    try {
-      const escalacao = await fetchEscalacaoPartida(partida.id);
-      const titulares = escalacao.filter(
-        (jogador: { titular?: boolean }) => jogador.titular
-      ).length;
-      if (titulares !== 5) {
-        Alert.alert(
-          'Escalação incompleta',
-          `Para iniciar é obrigatório definir exatamente 5 titulares. Atualmente há ${titulares}.`,
-          [
-            { text: 'Agora não', style: 'cancel' },
-            {
-              text: 'Preparar equipe',
-              onPress: () => setPartidaSelecionada(partida),
-            },
-          ]
-        );
-        return;
-      }
-      await atualizarStatusPartida(partida.id, 'AO_VIVO');
-      const partidaAoVivo: Partida = { ...partida, status: 'AO_VIVO' };
-      setPartidasGlobais((atuais) =>
-        atuais.map((item) => (item.id === partida.id ? partidaAoVivo : item))
-      );
-      setPartidaSelecionada(partidaAoVivo);
-    } catch {
-      Alert.alert(
-        'Erro',
-        'Não foi possível iniciar a partida. Tente novamente.'
-      );
-    } finally {
-      iniciando.current = false;
-      setIniciandoPartidaId(null);
+  const clubeId = clubeAtivo?.id;
+  useEffect(() => {
+    if (!clubeId || !podeGerenciar || consultaLocal !== null || revisao === 0) return;
+    let ativa = true;
+    const controller = new AbortController();
+    const consultar = async <T,>(endpoint: string): Promise<T> => {
+      const resposta = await apiFetch(endpoint, {
+        headers: { 'x-clube-id': String(clubeId) },
+        signal: controller.signal,
+      });
+      if (!resposta.ok) throw new Error('Falha ao consultar pendências.');
+      return resposta.json();
+    };
+    void Promise.allSettled([
+      fetchClubes(),
+      fetchCategorias(clubeId),
+      consultar<NonNullable<PendenciasHome['camisas']>>('/jogadores?resumo=true'),
+      consultar<NonNullable<PendenciasHome['propostas']>>('/partidas/solicitacoes'),
+    ]).then(([clubes, categorias, camisas, propostas]) => {
+      if (!ativa) return;
+      setPendencias({
+        clubeId,
+        acesso: clubes.status === 'fulfilled' ? clubes.value.find(clube => clube.id === clubeId) : undefined,
+        categorias: categorias.status === 'fulfilled' ? categorias.value : [],
+        camisas: camisas.status === 'fulfilled' ? camisas.value : null,
+        propostas: propostas.status === 'fulfilled' ? propostas.value : null,
+      });
+    });
+    return () => {
+      ativa = false;
+      controller.abort();
+    };
+  }, [clubeId, consultaLocal, podeGerenciar, revisao]);
+
+  const dadosGestao = pendencias?.clubeId === clubeId ? pendencias : null;
+  const temAcessoCategoria = (nome: string) => {
+    if (!nome || !podeGerenciar || consultaLocal !== null) return false;
+    return clubeAtivo?.papel === 'ADMIN' || !!dadosGestao?.acesso?.acessoTodasCategorias ||
+      !!dadosGestao?.acesso?.categoriasAcesso?.some(categoria => normalizarSub(categoria.nome) === normalizarSub(nome));
+  };
+  const abrirPartida = (partida: Partida) => {
+    const status = partida.status;
+    const opera = (partida.sumula_clube_id ?? partida.clube_origem_id) === clubeId;
+    const gerencia = temAcessoCategoria(partida.categoria?.nome ?? '');
+      if (gerencia && (['AGENDADA', 'PREPARADA'].includes(status) && (!partida.somente_leitura || partida.minha_equipe_pronta != null) ||
+        opera && (status === 'AO_VIVO' || (partida.gols_sem_autor ?? 0) > 0))) {
+      router.push({ pathname: '/partida-compartilhada/[id]', params: { id: String(partida.id) } });
+      return;
     }
-  }, []);
+    setPartidaSelecionada(partida);
+  };
 
   const handleTrocarFase = useCallback(
     (novaFase: 'INICIACAO' | 'BASE') => {
@@ -298,7 +332,7 @@ export default function Home() {
         />
       )}
       {!!erroCarregamento && !mudouClubeNaTela && (
-        <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
+        <View style={{ marginHorizontal: MARGEM_TELA, marginBottom: 12 }}>
           <ErroCarregamento
             compacto={partidasGlobais.length > 0}
             titulo={
@@ -311,7 +345,7 @@ export default function Home() {
                 ? 'Não conseguimos atualizar agora. Os dados exibidos podem estar desatualizados.'
                 : 'Confira sua conexão e tente atualizar novamente.'
             }
-            onTentarNovamente={() => void carregarDadosDoClube()}
+            onTentarNovamente={() => void carregarDadosDoClube(true)}
           />
         </View>
       )}
@@ -337,19 +371,24 @@ export default function Home() {
                 preparar
               >
                 <HomeCategoria
-                  ativa={index === subIndex && !partidaSelecionada}
+                  sub={sub.title}
+                  semPerfil={scoutHome?.clubeId === clubeId ? scoutHome?.contagens.get(sub.title) : undefined}
+                  pendencias={dadosGestao ? {
+                    semCamisa: dadosGestao.camisas
+                      ? dadosGestao.camisas.find(item => item.categoria_id === dadosGestao.categorias.find(categoria => normalizarSub(categoria.nome) === sub.title)?.id)?.semCamisa ?? 0
+                      : null,
+                    solicitacoes: dadosGestao.propostas?.filter(item => item.respondente_id === clubeId &&
+                      item.status === 'PENDENTE' && normalizarSub(item.categoria_nome ?? '') === sub.title).length ?? null,
+                  } : undefined}
                   carregando={carregando || mudouClubeNaTela}
                   atualizando={atualizando}
-                  revisao={revisao}
                   onAtualizar={atualizarHome}
                   proximoJogo={proximoJogo}
                   agenda={agenda}
                   historico={historico}
-                  podeGerenciar={podeGerenciar && consultaLocal === null}
+                  podeGerenciar={temAcessoCategoria(sub.title)}
                   consultaLocal={consultaLocal !== null}
-                  iniciandoPartidaId={iniciandoPartidaId}
-                  onVerDetalhes={setPartidaSelecionada}
-                  onIniciarPartida={handleIniciarPartida}
+                  onVerDetalhes={abrirPartida}
                 />
               </PaginaCategoria>
               </CategoryPageMotion>
@@ -368,8 +407,8 @@ export default function Home() {
           <DetalhesPartida
             partida={partidaSelecionada as PartidaDetalhes}
             isAdmin={
-              podeGerenciar &&
-              consultaLocal === null &&
+              temAcessoCategoria(partidaSelecionada.categoria?.nome ?? '') &&
+              partidaSelecionada.status !== 'AO_VIVO' &&
               !partidaSelecionada.somente_leitura
             }
             consultaLocal={consultaLocal !== null}

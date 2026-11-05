@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Icon, type IconName } from '@ludora/icons';
 import { Alert, View, Text, Image, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/src/contexts/ThemeContext';
@@ -13,6 +14,7 @@ import {
 } from '@/src/utils/identidadeHeader';
 
 interface HeaderProps {
+  rightAccessory?: ReactNode;
   title: string;
   btnVoltar?: IconName;
   btnNotificacao?: IconName;
@@ -28,6 +30,7 @@ interface HeaderProps {
 }
 
 export function Header({
+  rightAccessory,
   title,
   btnVoltar,
   btnNotificacao,
@@ -134,6 +137,7 @@ export function Header({
       </View>
 
       <View style={styles.rightContent}>
+        {rightAccessory}
         {btnNotificacao && (
           <TouchableOpacity
             style={styles.actionButton}

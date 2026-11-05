@@ -1,11 +1,15 @@
-import { memo, useMemo } from 'react';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
-import { Icon } from '@ludora/icons';
-import { useTheme } from '@/src/contexts/ThemeContext';
-import { createStyles } from '@/src/styles/jogosStyles';
-import { agoraAgenda, rotuloAgenda, type PartidaAgendaBase } from '@/src/utils/agendaJogos';
+import { memo, useState } from "react";
+import { Image, Text, TouchableOpacity, View } from "react-native";
+import { SinalAoVivo } from "./SinalAoVivo";
+import { Icon } from "@ludora/icons";
+import { useTheme } from "@/src/contexts/ThemeContext";
+import { createStyles } from "@/src/styles/jogosStyles";
+import { type PartidaAgendaBase } from "@/src/utils/agendaJogos";
+
+import { resultadoDoClube } from "@/src/utils/resumoPartidas";
 
 export interface PartidaJogo extends PartidaAgendaBase {
+  organizador_id?: number | null;
   somente_leitura?: boolean;
   mandante: { id: number; nome: string; escudo: string | null };
   visitante: { id: number; nome: string; escudo: string | null };
@@ -16,177 +20,189 @@ export interface PartidaJogo extends PartidaAgendaBase {
   categoria: { id: number; nome: string } | null;
 }
 
-export const CartaoJogo = memo(function CartaoJogo({ partida, agora, gestor, onPress }: {
+const formatarData = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "short",
+});
+const formatarSemana = new Intl.DateTimeFormat("pt-BR", { weekday: "short" });
+
+type Estilos = ReturnType<typeof createStyles>;
+
+function TimeJogo({
+  time,
+  destaque,
+  styles,
+}: {
+  time: PartidaJogo["mandante"];
+  destaque: boolean;
+  styles: Estilos;
+}) {
+  const [falhou, setFalhou] = useState<string | null>(null);
+  const escudo = time.escudo?.trim();
+  return (
+    <View style={styles.teamCol}>
+      <View style={[styles.fundoImg, destaque && styles.crestHighlight]}>
+        {escudo && falhou !== escudo ? (
+          <Image
+            source={{ uri: escudo }}
+            style={styles.teamLogo}
+            onError={() => setFalhou(escudo)}
+          />
+        ) : (
+          <Text style={styles.crestInitial}>
+            {Array.from(time.nome.trim())[0]?.toUpperCase() ?? "?"}
+          </Text>
+        )}
+      </View>
+      <Text style={styles.teamName} numberOfLines={2}>
+        {time.nome}
+      </Text>
+    </View>
+  );
+}
+
+export const CartaoJogo = memo(function CartaoJogo({
+  partida,
+  styles,
+  onPress,
+}: {
   partida: PartidaJogo;
-  agora: Date;
-  gestor: boolean;
-  onPress: () => void;
+  styles: Estilos;
+  onPress: (partida: PartidaJogo) => void;
 }) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const partidaEhHoje = partida.data.slice(0, 10) === agoraAgenda(agora).slice(0, 10);
-  const partidaAoVivo = partida.status === 'AO_VIVO';
-  const rotulo = rotuloAgenda(partida, agora, gestor);
+  const aoVivo = partida.status === "AO_VIVO";
+  const finalizada = partida.status === "FINALIZADA";
+  const resultado = finalizada ? resultadoDoClube(partida) : null;
+  const situacao = resultado
+    ? { V: "Vitória", E: "Empate", D: "Derrota" }[resultado]
+    : {
+        AGENDADA: "Agendada",
+        PREPARADA: "Preparada",
+        CANCELADA: "Cancelada",
+      }[partida.status];
+  const data = new Date(partida.data.slice(0, 10) + "T12:00:00");
+  const dia = formatarData
+    .format(data)
+    .replace(" de ", " ")
+    .replace(".", "")
+    .toUpperCase();
+  const diaSemana = formatarSemana.format(data).replace(".", "");
+  const acao = aoVivo
+    ? "Acompanhar ao vivo"
+    : finalizada
+      ? "Ver súmula"
+      : "Ver detalhes";
+
   return (
     <TouchableOpacity
-  key={partida.id}
-  style={[
-    styles.matchCard,
-    partidaEhHoje && styles.matchCardHoje,
-    partidaAoVivo && styles.matchCardAoVivo,
-  ]}
-  activeOpacity={0.85}
-  onPress={onPress}
->
-  {/* TOP CARD */}
-  <View style={styles.cardTop}>
-    <View style={styles.cardTopLeft}>
-      <Icon
-        name="clock-outline"
-        size={16}
-        color={colors.textoSecundario}
-      />
-      <Text style={styles.timeText}>
-        {partida.horario ?? '--:--'}
-      </Text>
-      <View style={styles.separator} />
-      <Text style={styles.catText}>
-        {partida.categoria?.nome
-          .replace('SUB', '')
-          .trim() ?? '?'}
-      </Text>
-      {partidaEhHoje && !partidaAoVivo && (
-        <View style={styles.todayBadge}>
-          <Text style={styles.todayBadgeText}>
-            HOJE
-          </Text>
+      style={[styles.matchCard, aoVivo && styles.matchCardAoVivo]}
+      activeOpacity={0.82}
+      accessibilityRole="button"
+      accessibilityHint={acao}
+      onPress={() => onPress(partida)}
+    >
+      <View style={styles.cardTop}>
+        <View style={styles.cardDateBlock}>
+          <View style={styles.cardTopLeft}>
+            <Text style={styles.cardDate}>{dia}</Text>
+            <Text style={styles.catText} numberOfLines={1}>
+              {partida.categoria?.nome.toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.cardTopLeft}>
+            <Text style={styles.weekdayText}>{diaSemana}</Text>
+            <Icon
+              name="clock-outline"
+              size={12}
+              color={colors.textoSecundario}
+            />
+            <Text style={styles.timeText}>
+              {partida.horario?.slice(0, 5) ?? "--:--"}
+            </Text>
+          </View>
         </View>
-      )}
-    </View>
-    <View style={styles.cardBadges}>
-      {partidaAoVivo && (
-        <View style={[styles.badge, styles.liveBadge]}>
-          <View style={styles.liveDot} accessible={false} />
-          <Text style={[styles.badgeText, styles.liveBadgeText]}>
-            AO VIVO
-          </Text>
+        <View style={styles.cardBadges}>
+          {aoVivo && (
+            <View accessible accessibilityLabel="Ao vivo">
+              <SinalAoVivo />
+            </View>
+          )}
+          {!!situacao && (
+            <Text
+              style={[
+                styles.cardStatusBadge,
+                partida.status === "PREPARADA" && styles.preparedBadge,
+                partida.status === "AGENDADA" && styles.scheduledBadge,
+                resultado === "V" && styles.winBadge,
+                resultado === "D" && styles.lossBadge,
+                resultado === "E" && styles.drawBadge,
+              ]}
+            >
+              {situacao}
+            </Text>
+          )}
+          <View style={styles.badge}>
+            <Icon
+              name={partida.emCasa ? "home-outline" : "bus"}
+              size={12}
+              color={colors.texto}
+            />
+            <Text style={styles.badgeText}>
+              {partida.emCasa ? "Casa" : "Fora"}
+            </Text>
+          </View>
         </View>
-      )}
-      <View
-        style={[
-          styles.badge,
-          !partida.emCasa && {
-            backgroundColor:
-              colors.cardSecundario,
-          },
-        ]}
-      >
-        <Icon
-          name={
-            partida.emCasa
-              ? 'home-outline'
-              : 'bus'
-          }
-          size={14}
-          color={
-            partida.emCasa
-              ? colors.textoSobrePrimaria
-              : colors.texto
-          }
+      </View>
+      <View style={styles.cardBody}>
+        <TimeJogo
+          time={partida.mandante}
+          destaque={partida.emCasa}
+          styles={styles}
         />
-        <Text
-          style={[
-            styles.badgeText,
-            {
-              color: partida.emCasa
-                ? colors.textoSobrePrimaria
-                : colors.texto,
-            },
-          ]}
-        >
-          {partida.emCasa ? 'CASA' : 'FORA'}
+        <View style={styles.placarCentral}>
+          {aoVivo || finalizada ? (
+            <View
+              style={styles.placarRow}
+              accessible
+              accessibilityLabel={`${partida.gols_mandante} a ${partida.gols_visitante}`}
+            >
+              <Text style={styles.placarText}>{partida.gols_mandante}</Text>
+              <View style={styles.scoreDot} />
+              <Text style={styles.placarText}>{partida.gols_visitante}</Text>
+            </View>
+          ) : (
+            <Text style={styles.vsText}>VS</Text>
+          )}
+        </View>
+        <TimeJogo
+          time={partida.visitante}
+          destaque={!partida.emCasa}
+          styles={styles}
+        />
+      </View>
+      <View style={styles.cardFooter}>
+        <Icon
+          name="map-marker-outline"
+          size={16}
+          color={colors.textoSecundario}
+        />
+        <Text style={styles.locationText} numberOfLines={2}>
+          {partida.local?.trim() || "Local não definido"}
         </Text>
       </View>
-    </View>
-  </View>
-   {rotulo && <Text style={styles.matchStatus}>{rotulo}</Text>}
-    {/* BODY CARD */}
-  <View style={styles.cardBody}>
-    <View style={styles.teamCol}>
-      {partida.mandante.escudo ? (
-        <Image
-          source={{
-            uri: partida.mandante.escudo,
-          }}
-          style={styles.teamLogo}
-        />
-      ) : (
-        <View style={styles.fundoImg}>
-          <Image
-            source={require('@/assets/images/SóPreto.png')}
-            style={styles.teamLogo}
-          />
-        </View>
-      )}
-      <Text
-        style={styles.teamName}
-        numberOfLines={2}
-      >
-        {partida.mandante.nome}
-      </Text>
-    </View>
-     <View style={styles.placarCentral}>
-      {partida.status === 'AGENDADA' ||
-      partida.status === 'PREPARADA' ||
-      partida.status === 'CANCELADA' ? (
-        <>
-          <Text style={styles.placarText}>-</Text>
-          <Text style={styles.vsText}>VS</Text>
-        </>
-      ) : (
-        <Text style={styles.placarText}>
-          {partida.gols_mandante} -{' '}
-          {partida.gols_visitante}
+      <View style={[styles.cardDetails, aoVivo && styles.cardDetailsLive]}>
+        <Text
+          style={[styles.cardDetailsText, aoVivo && styles.cardDetailsLiveText]}
+        >
+          {acao}
         </Text>
-      )}
-    </View>
-     <View style={styles.teamCol}>
-      {partida.visitante.escudo ? (
-        <Image
-          source={{
-            uri: partida.visitante.escudo,
-          }}
-          style={styles.teamLogo}
+        <Icon
+          name={aoVivo ? "live" : "chevron-right"}
+          size={16}
+          color={aoVivo ? colors.textoSobrePrimaria : colors.primaria}
         />
-      ) : (
-        <View style={styles.fundoImg}>
-          <Image
-            source={require('@/assets/images/SóPreto.png')}
-            style={styles.teamLogo}
-          />
-        </View>
-      )}
-      <Text
-        style={styles.teamName}
-        numberOfLines={2}
-      >
-        {partida.visitante.nome}
-      </Text>
-    </View>
-  </View>
-   {/* FOOTER CARD */}
-  <View style={styles.cardFooterDivider} />
-  <View style={styles.cardFooter}>
-    <Icon
-      name="map-marker-outline"
-      size={16}
-      color={colors.texto}
-    />
-    <Text style={styles.locationText}>
-      {partida.local ?? 'Local não definido'}
-    </Text>
-  </View>
-</TouchableOpacity>
+      </View>
+    </TouchableOpacity>
   );
 });
-

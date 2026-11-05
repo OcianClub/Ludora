@@ -1,264 +1,186 @@
-import { StyleSheet, Platform } from 'react-native';
-import { typography } from '@ludora/design-tokens';
-import type { ThemeColors } from '@/src/contexts/ThemeContext';
+import { StyleSheet } from "react-native";
+import { typography } from "@ludora/design-tokens";
+import type { ThemeColors } from "@/src/contexts/ThemeContext";
+import { MARGEM_TELA } from "./layout";
 
-export const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.fundo,
-  },
-  
-  // ── Header (Títulos) ──
-  headerContainer: {
-    paddingHorizontal: 24,
-    marginBottom: 24,
-  },
-  tituloMain: {
-    fontFamily: typography.fontFamily.titulo.bold,
-    fontSize: typography.fontSize.xl,
-    color: colors.texto,
-    marginBottom: 6,
-  },
-  subtituloMain: {
-    fontFamily: typography.fontFamily.corpo.regular,
-    fontSize: typography.fontSize.sm,
-    color: colors.textoSecundario,
-  },
-
-  // ── Input de Busca ──
-  searchContainer: {
-    paddingHorizontal: 24,
-    marginBottom: 32,
-  },
-  searchInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    height: 50,
-    borderWidth: 1,
-    borderColor: colors.borda,
-    gap: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: typography.fontFamily.corpo.regular,
-    fontSize: typography.fontSize.sm,
-    color: colors.texto,
-  },
-
-  // ── Seus Clubes (Carrossel Horizontal) ──
-  seusClubesContainer: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontFamily: typography.fontFamily.corpo.semiBold,
-    fontSize: typography.fontSize.xs,
-    color: colors.textoSecundario,
-    textTransform: 'uppercase',
-    marginBottom: 16,
-    paddingHorizontal: 24,
-  },
-  seusClubesScroll: {
-    paddingHorizontal: 24,
-    gap: 16,
-  },
-  clubeAtalhoContainer: {
-    alignItems: 'center',
-    width: 64,
-  },
-  clubeAtalhoEscudoWrap: {
-    position: 'relative',
-    marginBottom: 8,
-  },
-  clubeAtalhoGestorBadge: {
-    position: 'absolute',
-    right: -4,
-    bottom: -3,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.fundoAtencao,
-    borderWidth: 2,
-    borderColor: colors.fundo,
-  },
-  clubeAtalhoNome: {
-    fontFamily: typography.fontFamily.corpo.semiBold,
-    fontSize: 10,
-    color: colors.texto,
-    textAlign: 'center',
-  },
-  btnBuscarMais: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.textoSecundario,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-
-  // ── Lista de Clubes (Vertical) ──
-  listaContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 12,
-  },
-  locationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 6,
-  },
-  locationText: {
-    fontFamily: typography.fontFamily.corpo.semiBold,
-    fontSize: typography.fontSize.xs,
-    color: colors.textoSecundario,
-    textTransform: 'uppercase',
-  },
-  descobertaVazia: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  descobertaVaziaTxt: {
-    fontFamily: typography.fontFamily.corpo.medium,
-    fontSize: typography.fontSize.xs,
-    color: colors.textoSecundario,
-  },
-  
-  // ── Card do Clube ──
-  clubeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
-  },
-  clubeCardLogo: {
-    marginRight: 16,
-  },
- clubeCardInfo: {
-    flex: 1,
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  clubeCardNomeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-    gap: 2,
-  },
-  clubeCardNome: {
-    fontFamily: typography.fontFamily.corpo.semiBold,
-    fontSize: typography.fontSize.sm,
-    color: colors.texto,
-    flexShrink: 1,
-  },
-  gestaoSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
-  },
-  gestaoSectionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.fundoAtencao,
-  },
-  gestaoSectionTextos: {
-    flex: 1,
-  },
-  gestaoSectionTitle: {
-    fontFamily: typography.fontFamily.corpo.semiBold,
-    fontSize: typography.fontSize.xs,
-    color: colors.tituloAtencao,
-    textTransform: 'uppercase',
-  },
-  gestaoSectionSub: {
-    marginTop: 2,
-    fontFamily: typography.fontFamily.corpo.regular,
-    fontSize: 10,
-    color: colors.textoSecundario,
-  },
-  badgeTecnico: {
-    backgroundColor: colors.fundoAtencao,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 6,
-  },
-  badgeTecnicoTxt: {
-    fontFamily: typography.fontFamily.corpo.medium,
-    fontSize: 8.5,
-    color: colors.tituloAtencao,
-  },
-  gestaoAcesso: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingLeft: 8,
-  },
-  clubeCardSub: {
-    fontFamily: typography.fontFamily.corpo.regular,
-    fontSize: typography.fontSize.xs,
-    color: colors.textoSecundario,
-  },
-  
-  // ── Botões de Seguir ──
-  btnSeguir: {
-    backgroundColor: colors.primaria,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  txtBtnSeguir: {
-    fontFamily: typography.fontFamily.corpo.semiBold,
-    fontSize: typography.fontSize.xs,
-    color: colors.textoSobrePrimaria,
-  },
-  btnSeguindo: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.borda,
-  },
-  txtBtnSeguindo: {
-    color: colors.textoSecundario,
-  },
-
-  // ── Rodapé (Convite) ──
-  rodapeContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    paddingTop: 16,
-  },
-  linhaSeparadora: {
-    height: 1,
-    backgroundColor: colors.linha,
-    width: '100%',
-    marginBottom: 16,
-  },
-  linhaRodape: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textoCinzaRodape: {
-    color: colors.textoSecundario,
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.corpo.regular,
-  },
-  textoAzulRodape: {
-    color: colors.primaria,
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.corpo.medium,
-  },
-});
+export const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.fundo },
+    conteudo: {
+      padding: MARGEM_TELA,
+      paddingBottom: 28,
+      gap: 28,
+      width: "100%",
+      maxWidth: 760,
+      alignSelf: "center",
+    },
+    intro: { gap: 8, marginBottom: 2 },
+    tituloMain: {
+      fontFamily: typography.fontFamily.titulo.bold,
+      fontSize: 28,
+      lineHeight: 35,
+      color: colors.texto,
+    },
+    subtituloMain: {
+      fontFamily: typography.fontFamily.corpo.regular,
+      fontSize: 13,
+      lineHeight: 20,
+      color: colors.textoSecundario,
+    },
+    secao: { gap: 16 },
+    secaoHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
+    secaoTitulo: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 12,
+      letterSpacing: 1,
+      color: colors.textoSecundario,
+    },
+    quantidade: {
+      fontFamily: typography.fontFamily.corpo.regular,
+      fontSize: 11,
+      color: colors.textoSecundario,
+    },
+    cards: { gap: 10 },
+    clubeCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderRadius: 10,
+      paddingRight: 10,
+    },
+    acessar: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      padding: 12,
+      paddingRight: 6,
+      minHeight: 84,
+    },
+    escudo: {
+      width: 42,
+      height: 44,
+      padding: 6,
+      borderRadius: 9,
+      backgroundColor: colors.cardSecundario,
+      borderWidth: 1,
+      borderColor: colors.linha,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    escudoImagem: { width: "100%", height: "100%" },
+    escudoInicial: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      color: colors.texto,
+      fontSize: 19,
+    },
+    info: { flex: 1, minWidth: 0, gap: 6 },
+    nomeRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+    nome: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      color: colors.texto,
+      fontSize: 14,
+      lineHeight: 19,
+    },
+    atual: {
+      fontFamily: typography.fontFamily.corpo.regular,
+      color: colors.textoSecundario,
+      fontSize: 10,
+    },
+    detalhes: {
+      fontFamily: typography.fontFamily.corpo.regular,
+      color: colors.textoSecundario,
+      fontSize: 11,
+      lineHeight: 17,
+    },
+    tags: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    papel: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      backgroundColor: colors.fundoBotao,
+      paddingHorizontal: 5,
+      paddingVertical: 3,
+      borderRadius: 4,
+    },
+    papelText: {
+      fontFamily: typography.fontFamily.corpo.medium,
+      fontSize: 10,
+      color: colors.texto,
+    },
+    live: { flexDirection: "row", alignItems: "center", gap: 4 },
+    liveText: {
+      fontFamily: typography.fontFamily.corpo.medium,
+      fontSize: 10,
+      color: colors.texto,
+    },
+    seguir: {
+      minHeight: 44,
+      minWidth: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 7,
+    },
+    seguirDescoberta: {
+      minHeight: 34,
+      minWidth: 86,
+      paddingHorizontal: 10,
+      marginLeft: 2,
+      backgroundColor: colors.cardSecundario,
+    },
+    seguirAtivo: { backgroundColor: colors.primaria },
+    seguirText: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      color: colors.texto,
+      fontSize: 11,
+    },
+    seguirTextAtivo: { color: colors.textoSobrePrimaria },
+    searchInputRow: {
+      height: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+      paddingHorizontal: 12,
+      backgroundColor: colors.card,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.borda,
+    },
+    searchInput: {
+      flex: 1,
+      minWidth: 0,
+      height: "100%",
+      fontFamily: typography.fontFamily.corpo.regular,
+      fontSize: 13,
+      color: colors.texto,
+      paddingVertical: 0,
+    },
+    limparBusca: {
+      minWidth: 32,
+      height: 42,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    vazio: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      backgroundColor: colors.card,
+      borderRadius: 10,
+      padding: 16,
+    },
+    vazioText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.corpo.regular,
+      color: colors.textoSecundario,
+      fontSize: 13,
+      lineHeight: 21,
+    },
+  });

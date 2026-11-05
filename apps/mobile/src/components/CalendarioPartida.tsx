@@ -12,10 +12,14 @@ import { PainelOrganizarPartida } from './PainelOrganizarPartida';
 
 export function CalendarioPartida({
   data,
+  tituloPainel = 'Data da partida',
+  subtitulo = 'Você também pode digitar a data completa no formulário.',
   onSelecionar,
   onFechar,
 }: {
   data: string;
+  tituloPainel?: string;
+  subtitulo?: string;
   onSelecionar: (data: string) => void;
   onFechar: () => void;
 }) {
@@ -37,8 +41,8 @@ export function CalendarioPartida({
 
   return (
     <PainelOrganizarPartida
-      titulo="Data da partida"
-      subtitulo="Você também pode digitar a data completa no formulário."
+      titulo={tituloPainel}
+      subtitulo={subtitulo}
       onFechar={onFechar}
     >
       <ScrollView

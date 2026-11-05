@@ -47,6 +47,14 @@ export async function partida(tx: Banco, id: number, ctx: Contexto, editar = fal
 export async function auditar(tx: Banco, ctx: Contexto, id: number, acao: string, dados: Prisma.InputJsonValue = {}) {
   await tx.auditoriaPartida.create({ data: { partida_id: id, usuario_id: ctx.usuarioId, clube_id: ctx.clubeId, acao, dados } });
 }
+export async function podeCorrigirSumula(tx: Banco, p: PartidaCompleta, ctx: Contexto) {
+  if (p.sumula_clube_id === ctx.clubeId) return true;
+  if (p.status !== 'FINALIZADA' || !p.sumula_clube_id) return false;
+  return !!await tx.propostaPartida.findFirst({ where: {
+    partida_id: p.id, tipo: 'CORRECAO', status: 'ACEITA', origem_id: ctx.clubeId,
+    destino_id: p.sumula_clube_id, respondido_em: { gte: new Date(Date.now() - 30 * 60_000) },
+  }, select: { id: true } });
+}
 export async function tocar(tx: Banco, p: { id: number; versao: number }, versao?: unknown) {
   if (versao != null) exigir(inteiro(versao, 0) === p.versao, 'A partida mudou em outro dispositivo. Atualize antes de continuar.', 409);
   const updated = await tx.partida.updateMany({ where: { id: p.id, versao: p.versao }, data: { versao: { increment: 1 } } });
@@ -118,6 +126,7 @@ export async function validarEquipe(tx: Banco, p: PartidaCompleta, equipe: Parti
   const rows = await tx.escalacaoPartida.findMany({ where: { partida_id: p.id, time_id: equipe.time_id }, include: { jogador: true } });
   exigir(rows.filter(r => r.titular).length === p.titulares_necessarios, `Defina exatamente ${p.titulares_necessarios} titulares.`);
   exigir(rows.every(r => r.numCamisa >= 1 && r.numCamisa <= 99 && r.jogador.numCamisa != null && r.jogador.ativo && r.jogador.categoria_id === equipe.categoria_id), 'Todos os convocados devem estar ativos, na categoria correta e com camisa definida.');
+  exigir(rows.every(r => r.numCamisa === r.jogador.numCamisa) && new Set(rows.map(r => r.numCamisa)).size === rows.length, 'A numeração do elenco mudou. Atualize as camisas antes de confirmar a equipe.', 409);
   if (p.competicao?.exigir_inscricao) {
     const inscritos = await tx.competicaoJogador.count({ where: { competicao_id: p.competicao_id!, jogador_id: { in: rows.map(r => r.jogador_id) } } });
     exigir(inscritos === rows.length, 'Há convocados sem inscrição nesta competição.');

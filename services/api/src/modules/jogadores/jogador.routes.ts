@@ -182,6 +182,7 @@ router.get('/jogadores', exigirClubePublico, async (req, res) => {
         ativo: true,
       },
     });
+    if (req.query.convocacao === 'true') return res.json(jogadores.map(({ id, nome, posicao, numCamisa }) => ({ id, nome, posicao, numCamisa })));
     const participations = await contarParticipacoes(prisma, jogadores.map(player => player.id), clube_id);
     res.json(jogadores.map(player => ({ ...player, totalPartidas: participations.get(player.id) ?? 0 })));
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar jogadores' }); }

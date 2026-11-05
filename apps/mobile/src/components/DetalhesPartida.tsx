@@ -820,10 +820,14 @@ function DetalhesPartidaLocal({
           style={styles.headerBackBtn}
           onPress={onBack}
           disabled={salvandoPlacar}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar às partidas"
         >
-          <Icon name="arrow-left" size={24} color={colors.texto} />
+          <Icon name="close" size={19} color={colors.texto} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>DETALHES DA PARTIDA</Text>
+        <Text accessibilityRole="header" style={styles.headerTitle} numberOfLines={2}>
+          {partida.mandante?.nome || 'Mandante'} × {partida.visitante?.nome || 'Visitante'}
+        </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {isAdmin && partida.status === 'FINALIZADA' && (
             <TouchableOpacity
@@ -902,7 +906,7 @@ function DetalhesPartidaLocal({
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* HERO SECTION */}
-        <View style={styles.hero}>
+        <View style={[styles.hero, partida.status === 'AO_VIVO' && { borderColor: colors.primaria }]}>
           <View style={styles.heroCatRow}>
             <Text style={styles.heroCatText}>
               {partida.categoria?.nome ?? '—'}

@@ -4,11 +4,15 @@ export function criarAgrupadorConsultas(
   const pendentes = new Map<string, Promise<Response>>();
   let revisao = 0;
 
-  return async (url: string, opcoes: RequestInit = {}): Promise<Response> => {
+  const consultar = async (url: string, opcoes: RequestInit = {}): Promise<Response> => {
     const metodo = (opcoes.method ?? 'GET').toUpperCase();
     if (metodo !== 'GET') {
       revisao += 1;
-      return enviar(url, opcoes);
+      try {
+        return await enviar(url, opcoes);
+      } finally {
+        revisao += 1;
+      }
     }
     if (opcoes.signal || opcoes.body) return enviar(url, opcoes);
 
@@ -40,4 +44,5 @@ export function criarAgrupadorConsultas(
       if (pendentes.get(chave) === tarefa) pendentes.delete(chave);
     }
   };
+  return Object.assign(consultar, { invalidar: () => { revisao++; } });
 }

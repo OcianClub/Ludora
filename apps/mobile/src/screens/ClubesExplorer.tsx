@@ -1,491 +1,431 @@
-import { Icon } from '@ludora/icons';
-// Caminho sugerido: src/screens/ClubesExplorer.tsx
-//
-// Componente compartilhado entre:
-//  - app/clubes/index.tsx        (tela pós-login, fora das tabs, "modo=entrada")
-//  - app/(tabs)/clubes/clubes.tsx (aba "Clubes" dentro do app, "modo=trocar")
-//
-// Ele busca a lista real de clubes no backend (GET /clubes), separa em
-// "Seus clubes" (que o usuário já segue) e "Descobrir clubes" (os demais),
-// permite seguir/deixar de seguir, e ao "acessar" um clube grava o
-// clube ativo no SecureStore e navega para (tabs) — de onde tudo (Header,
-// Home, estatísticas etc.) passa a ler dinamicamente.
-
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Icon, type IconName } from "@ludora/icons";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Image,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
-import { createStyles } from '@/src/styles/clubesStyles';
-import { useTheme } from '@/src/contexts/ThemeContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as SecureStore from 'expo-secure-store';
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
-import { HeaderClube } from '@/src/components/HeaderClube';
-import { EscudoClube } from '@/src/components/EscudoClube';
+  View,
+} from "react-native";
+import * as SecureStore from "expo-secure-store";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "@/src/contexts/ThemeContext";
+import {
+  useClubeAtivo,
+  type PapelClube,
+} from "@/src/contexts/ClubeAtivoContext";
 import {
   fetchClubes,
   seguirClube,
   deixarDeSeguirClube,
-  ClubeListado,
-} from '@/src/services/api';
-import { ListSkeleton } from '@/src/components/Skeleton';
-import { ErroCarregamento } from '@/src/components/ErroCarregamento';
-import { useClubeAtivo, type PapelClube } from '@/src/contexts/ClubeAtivoContext';
+  type ClubeListado,
+} from "@/src/services/api";
+import { createStyles } from "@/src/styles/clubesStyles";
+import { agruparClubes, contextoAcessoClube } from "@/src/utils/clubesExplorer";
+import { HeaderClube } from "@/src/components/HeaderClube";
+import { ErroCarregamento } from "@/src/components/ErroCarregamento";
+import { SinalAoVivo } from "@/src/components/SinalAoVivo";
+import { ListSkeleton } from "@/src/components/Skeleton";
 
-// ==========================================
-// HELPERS DE CACHE LOCAL (userData no SecureStore)
-// ==========================================
-// O app guarda uma cópia de "meus clubes" em SecureStore (userData.clubes)
-// pra montar telas rápido sem depender de rede. Precisamos manter esse
-// cache em sincronia sempre que seguir/deixar de seguir um clube por aqui.
+const papeis: Partial<
+  Record<NonNullable<ClubeListado["papel"]>, { nome: string; icone: IconName }>
+> = {
+  ADMIN: { nome: "Administrador", icone: "shield-check" },
+  TECNICO: { nome: "Técnico", icone: "clipboard-text-outline" },
+  MESARIO: { nome: "Mesário", icone: "calendar" },
+  OLHEIRO: { nome: "Olheiro", icone: "eye-outline" },
+};
+function Escudo({ clube }: { clube: ClubeListado }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [falhou, setFalhou] = useState<string | null>(null);
+  const uri = clube.escudo?.trim();
+  return (
+    <View style={styles.escudo} accessible={false}>
+      {uri && falhou !== uri ? (
+        <Image
+          source={{ uri }}
+          style={styles.escudoImagem}
+          resizeMode="contain"
+          onError={() => setFalhou(uri)}
+        />
+      ) : (
+        <Text style={styles.escudoInicial}>
+          {Array.from(clube.nome.trim())[0]?.toUpperCase() || "?"}
+        </Text>
+      )}
+    </View>
+  );
+}
 
 async function upsertClubeNoCacheLocal(clube: ClubeListado, papel: string) {
   try {
-    const raw = await SecureStore.getItemAsync('userData');
+    const raw = await SecureStore.getItemAsync("userData");
     const userData = raw ? JSON.parse(raw) : { clubes: [] };
-    const clubesCache: any[] = Array.isArray(userData.clubes) ? userData.clubes : [];
-    const idx = clubesCache.findIndex((c) => String(c.clube_id) === String(clube.id));
-    const entrada = { clube_id: clube.id, nome: clube.nome, escudo: clube.escudo, papel };
+    const clubesCache: any[] = Array.isArray(userData.clubes)
+      ? userData.clubes
+      : [];
+    const idx = clubesCache.findIndex(
+      (c) => String(c.clube_id) === String(clube.id),
+    );
+    const entrada = {
+      clube_id: clube.id,
+      nome: clube.nome,
+      escudo: clube.escudo,
+      papel,
+    };
     if (idx >= 0) clubesCache[idx] = entrada;
     else clubesCache.push(entrada);
-    await SecureStore.setItemAsync('userData', JSON.stringify({ ...userData, clubes: clubesCache }));
+    await SecureStore.setItemAsync(
+      "userData",
+      JSON.stringify({ ...userData, clubes: clubesCache }),
+    );
   } catch (e) {
-    console.error('Erro ao atualizar cache local de clubes:', e);
+    console.error("Erro ao atualizar cache local de clubes:", e);
   }
 }
 
 async function removerClubeDoCacheLocal(clubeId: number) {
   try {
-    const raw = await SecureStore.getItemAsync('userData');
+    const raw = await SecureStore.getItemAsync("userData");
     if (!raw) return;
     const userData = JSON.parse(raw);
-    const clubesCache: any[] = Array.isArray(userData.clubes) ? userData.clubes : [];
-    const filtrados = clubesCache.filter((c) => String(c.clube_id) !== String(clubeId));
-    await SecureStore.setItemAsync('userData', JSON.stringify({ ...userData, clubes: filtrados }));
+    const clubesCache: any[] = Array.isArray(userData.clubes)
+      ? userData.clubes
+      : [];
+    const filtrados = clubesCache.filter(
+      (c) => String(c.clube_id) !== String(clubeId),
+    );
+    await SecureStore.setItemAsync(
+      "userData",
+      JSON.stringify({ ...userData, clubes: filtrados }),
+    );
   } catch (e) {
-    console.error('Erro ao remover clube do cache local:', e);
+    console.error("Erro ao remover clube do cache local:", e);
   }
 }
 
-// ==========================================
-// COMPONENTE
-// ==========================================
-
-interface ClubesExplorerProps {
-  // 'entrada' = primeira tela pós-login (fora das tabs, ainda sem clube ativo)
-  // 'trocar'  = aba "Clubes" dentro do app (já existe um clube ativo)
-  modo: 'entrada' | 'trocar';
-}
-
-// Espaçamento "de respiro" usado no lugar do Header quando a tela é
-// acessada em modo "entrada" (sem Header, sem navbar). O headerContainer
-// (clubesStyles.ts) não tem paddingTop nenhum, porque normalmente é o
-// próprio Header quem cuida da safe area + respiro do topo (ver
-// Header.tsx: paddingTop = insets.top + 20). Sem Header, replicamos o
-// mesmo cálculo aqui pra manter a mesma distância visual do topo nos
-// dois casos.
-const ESPACO_TOPO_SEM_HEADER = 20;
-
-function ehGestor(clube: ClubeListado): boolean {
-  return !!clube.papel && clube.papel !== 'TORCEDOR';
-}
-
-export default function ClubesExplorer({ modo }: ClubesExplorerProps) {
+export default function ClubesExplorer({
+  modo,
+}: {
+  modo: "entrada" | "trocar";
+}) {
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { clubeAtivo, definirClubeAtivo } = useClubeAtivo();
-  const clubeAtual = useRef(clubeAtivo);
-  clubeAtual.current = clubeAtivo;
-
-  const [busca, setBusca] = useState('');
+  const atual = useRef(clubeAtivo);
+  atual.current = clubeAtivo;
+  const [busca, setBusca] = useState("");
   const [clubes, setClubes] = useState<ClubeListado[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState('');
+  const [erro, setErro] = useState("");
   const [processandoId, setProcessandoId] = useState<number | null>(null);
-  const primeiraBusca = useRef(true);
-  const requestAtual = useRef(0);
-  const carregouUmaVez = useRef(false);
-
-  const [clubeAtivoId, setClubeAtivoId] = useState<string | null>(null);
-
-  const carregarClubes = useCallback(async (termo?: string) => {
-    const requestId = ++requestAtual.current;
+  const operando = useRef(false),
+    pedido = useRef(0),
+    carregou = useRef(false);
+  const carregar = useCallback(async () => {
+    const id = ++pedido.current;
+    setErro("");
     try {
-      setErro('');
-      const lista = await fetchClubes(termo);
-      if (requestId === requestAtual.current) setClubes(lista);
-    } catch (e: any) {
-      if (requestId === requestAtual.current) setErro(e.message || 'Erro ao carregar clubes');
+      const lista = await fetchClubes();
+      if (pedido.current === id) {
+        setClubes(lista);
+        carregou.current = true;
+      }
+    } catch {
+      if (pedido.current === id)
+        setErro("Não foi possível atualizar os clubes.");
     } finally {
-      if (requestId === requestAtual.current) setCarregando(false);
+      if (pedido.current === id) setCarregando(false);
     }
   }, []);
-
-  // Recarrega sempre que a tela ganha foco (ex: voltar de "seguir")
   useFocusEffect(
     useCallback(() => {
-      let ativo = true;
-      (async () => {
-        if (!carregouUmaVez.current) setCarregando(true);
-        const idAtivo = await SecureStore.getItemAsync('clubeAtivoId');
-        if (ativo) setClubeAtivoId(idAtivo);
-        await carregarClubes();
-        carregouUmaVez.current = true;
-      })();
+      if (!carregou.current) setCarregando(true);
+      void carregar();
       return () => {
-        ativo = false;
+        pedido.current++;
       };
-    }, [modo, carregarClubes])
+    }, [carregar]),
   );
-
-  // Busca com um pequeno debounce pra não disparar request a cada letra
-  useEffect(() => {
-    // O carregamento inicial já é feito pelo useFocusEffect.
-    if (primeiraBusca.current) {
-      primeiraBusca.current = false;
-      return;
-    }
-    const timer = setTimeout(() => {
-      setCarregando(true);
-      carregarClubes(busca.trim() || undefined);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [busca, carregarClubes]);
-
-  const meusClubes = clubes.filter((c) => c.isSeguindo);
-  const clubesGerenciados = meusClubes.filter(ehGestor);
-  const clubesSeguidos = meusClubes.filter((clube) => clube.papel === 'TORCEDOR');
-  const outrosClubes = clubes.filter((c) => !c.isSeguindo);
-  const buscaAtiva = busca.trim().length > 0;
-  const mostrarDescoberta = outrosClubes.length > 0 || buscaAtiva || meusClubes.length === 0;
-
-  const selecionarClube = async (clube: ClubeListado, papel = clube.papel) => {
-    await definirClubeAtivo({
-      id: clube.id,
-      nome: clube.nome || 'MEU CLUBE',
-      escudo: clube.escudo,
-      papel,
-    });
-    if (modo === 'trocar') router.navigate('/(tabs)');
-    else router.replace('/(tabs)');
-  };
-
-  const acessarClube = async (clube: ClubeListado) => selecionarClube(clube);
-
-  // Só segue (sem navegar) — usado pelo botão "SEGUIR"
-  const handleSeguir = async (clube: ClubeListado) => {
+  const grupos = useMemo(
+    () => agruparClubes(clubes, clubeAtivo?.id, busca),
+    [clubes, clubeAtivo?.id, busca],
+  );
+  async function acessar(clube: ClubeListado) {
+    if (operando.current) return;
+    operando.current = true;
     setProcessandoId(clube.id);
+    setErro("");
     try {
-      const vinculo = await seguirClube(clube.id);
-      await upsertClubeNoCacheLocal(clube, vinculo.papel);
-      if (clubeAtual.current?.id === clube.id) {
-        await definirClubeAtivo({ ...clubeAtual.current, papel: vinculo.papel as PapelClube });
-      }
-      setClubes((prev) =>
-        prev.map((c) =>
-          c.id === clube.id
-            ? { ...c, isSeguindo: true, papel: vinculo.papel as any, seguidores: c.seguidores + 1 }
-            : c
-        )
-      );
-    } catch (e: any) {
-      setErro(e.message || 'Erro ao seguir clube');
+      await definirClubeAtivo({
+        id: clube.id,
+        nome: clube.nome,
+        escudo: clube.escudo,
+        papel: clube.papel,
+      });
+      if (modo === "trocar") router.navigate("/(tabs)");
+      else router.replace("/(tabs)");
+    } catch {
+      setErro("Não foi possível acessar o clube. Tente novamente.");
     } finally {
+      operando.current = false;
       setProcessandoId(null);
     }
-  };
-
-  // Botão "DEIXAR DE SEGUIR" (só aparece pra vínculos TORCEDOR)
-  const handleDeixarDeSeguir = async (clube: ClubeListado) => {
+  }
+  async function acompanhar(clube: ClubeListado, seguir: boolean) {
+    if (operando.current || (clube.papel && clube.papel !== "TORCEDOR")) return;
+    operando.current = true;
     setProcessandoId(clube.id);
+    setErro("");
     try {
-      await deixarDeSeguirClube(clube.id);
-      await removerClubeDoCacheLocal(clube.id);
-      setClubes((prev) =>
-        prev.map((c) =>
+      const vinculo = seguir
+        ? await seguirClube(clube.id)
+        : await deixarDeSeguirClube(clube.id);
+      const papel =
+        seguir && "papel" in vinculo ? (vinculo.papel as PapelClube) : null;
+      if (seguir) await upsertClubeNoCacheLocal(clube, papel || "TORCEDOR");
+      else await removerClubeDoCacheLocal(clube.id);
+      if (atual.current?.id === clube.id)
+        await definirClubeAtivo({ ...atual.current, papel });
+      setClubes((lista) =>
+        lista.map((c) =>
           c.id === clube.id
-            ? { ...c, isSeguindo: false, papel: null, seguidores: Math.max(0, c.seguidores - 1) }
-            : c
-        )
+            ? {
+                ...c,
+                papel,
+                isSeguindo: seguir,
+                seguidores:
+                  vinculo.seguidores ??
+                  Math.max(0, c.seguidores + (seguir ? 1 : -1)),
+              }
+            : c,
+        ),
       );
-      if (clubeAtual.current?.id === clube.id) {
-        await definirClubeAtivo({ ...clubeAtual.current, papel: null });
-      }
-    } catch (e: any) {
-      setErro(e.message || 'Erro ao deixar de seguir clube');
+    } catch (e) {
+      setErro((e as Error).message || "Não foi possível atualizar o clube.");
     } finally {
+      operando.current = false;
       setProcessandoId(null);
     }
-  };
-
-  return (
-    <View style={styles.container}>
-      {modo === 'trocar' ? <HeaderClube /> : null}
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View
-          style={[
-            styles.headerContainer,
-            // Quando não existe Header acima (modo "entrada"), a tela fica
-            // colada na status bar/notch. Compensamos somando a safe area
-            // do dispositivo ao espaçamento que já existe no style. Quando
-            // existe Header, ele já cuida da safe area, então não
-            // duplicamos o espaço aqui.
-            modo === 'entrada' && { paddingTop: insets.top + ESPACO_TOPO_SEM_HEADER },
-          ]}
+  }
+  function card(clube: ClubeListado, descoberta = false) {
+    const papel =
+      clube.papel && clube.papel !== "TORCEDOR"
+        ? papeis[clube.papel]
+        : undefined;
+    const seguindo = Boolean(clube.isSeguindo || clube.papel);
+    const detalhes = papel
+      ? contextoAcessoClube(clube)
+      : [
+          [clube.cidade, clube.estado].filter(Boolean).join(", "),
+          `${clube.seguidores} ${clube.seguidores === 1 ? "seguidor" : "seguidores"}`,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+    return (
+      <View key={clube.id} style={styles.clubeCard}>
+        <TouchableOpacity
+          style={styles.acessar}
+          activeOpacity={0.8}
+          onPress={() => void acessar(clube)}
+          disabled={processandoId !== null}
+          accessibilityRole="button"
+          accessibilityLabel={`Acessar ${clube.nome}`}
         >
-          <Text style={styles.tituloMain}>
-            {modo === 'entrada' ? 'Escolha o seu clube' : 'Encontre o seu clube'}
-          </Text>
-          <Text style={styles.subtituloMain}>
-            {modo === 'entrada'
-              ? 'Toque em um clube para acessar partidas, histórico e informações.'
-              : 'Acesse qualquer clube. Seguir serve para deixar seus favoritos salvos aqui.'}
-          </Text>
-        </View>
-
-        {erro !== '' && (
-          <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-            <ErroCarregamento
-              compacto={clubes.length > 0}
-              titulo="Não foi possível atualizar clubes"
-              descricao={clubes.length > 0
-                ? 'Os clubes já exibidos continuam disponíveis. Tente atualizar novamente.'
-                : 'Confira sua conexão e tente carregar a lista novamente.'}
-              onTentarNovamente={() => void carregarClubes(busca.trim() || undefined)}
-            />
-          </View>
-        )}
-
-        {/* Busca */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchInputRow}>
-            <Icon name="magnify" size={20} color={colors.textoSecundario} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Buscar clube por nome..."
-              placeholderTextColor={colors.textoSecundario}
-              value={busca}
-              onChangeText={setBusca}
-            />
-          </View>
-        </View>
-
-        {carregando ? (
-          <ListSkeleton rows={5} />
-        ) : (
-          <>
-            {/* Seus clubes */}
-            {meusClubes.length > 0 && (
-              <View style={styles.seusClubesContainer}>
-                <Text style={styles.sectionTitle}>SEUS CLUBES</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.seusClubesScroll}
-                >
-                  {meusClubes.map((clube) => (
-                    <TouchableOpacity
-                      key={clube.id}
-                      style={styles.clubeAtalhoContainer}
-                      onPress={() => acessarClube(clube)}
-                      disabled={processandoId === clube.id}
-                    >
-                      <View style={styles.clubeAtalhoEscudoWrap}>
-                        <EscudoClube uri={clube.escudo} tamanho="lg" />
-                        {ehGestor(clube) && (
-                          <View style={styles.clubeAtalhoGestorBadge}>
-                            <Icon name="shield-star" size={12} color={colors.tituloAtencao} />
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.clubeAtalhoNome} numberOfLines={1}>
-                        {clube.nome}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* Gestão vem antes da descoberta: é uma responsabilidade, não só um clube seguido. */}
-            {clubesGerenciados.length > 0 && (
-              <View style={[styles.listaContainer, { marginBottom: 8 }]}>
-                <View style={styles.gestaoSectionHeader}>
-                  <View style={styles.gestaoSectionIcon}>
-                    <Icon name="shield-star" size={16} color={colors.tituloAtencao} />
-                  </View>
-                  <View style={styles.gestaoSectionTextos}>
-                    <Text style={styles.gestaoSectionTitle}>CLUBES QUE VOCÊ GERENCIA</Text>
-                    <Text style={styles.gestaoSectionSub}>Acesso às ferramentas de gestão do clube</Text>
-                  </View>
-                </View>
-
-                {clubesGerenciados.map((clube) => (
-                  <TouchableOpacity
-                    key={clube.id}
-                    style={styles.clubeCard}
-                    activeOpacity={0.8}
-                    onPress={() => acessarClube(clube)}
-                    disabled={processandoId === clube.id}
-                  >
-                    <EscudoClube
-                      uri={clube.escudo}
-                      tamanho="md"
-                      style={styles.clubeCardLogo}
+          <Escudo clube={clube} />
+          <View style={styles.info}>
+            <View style={styles.nomeRow}>
+              <Text style={styles.nome} numberOfLines={1} ellipsizeMode="tail">
+                {clube.nome}
+              </Text>
+              {clube.id === clubeAtivo?.id && (
+                <Text style={styles.atual}>Atual</Text>
+              )}
+            </View>
+            <Text style={styles.detalhes} numberOfLines={2}>
+              {detalhes}
+            </Text>
+            {(papel || !!clube.partidasAoVivo) && (
+              <View style={styles.tags}>
+                {papel && (
+                  <View style={styles.papel}>
+                    <Icon
+                      name={papel.icone}
+                      size={12}
+                      color={colors.primaria}
                     />
-
-                    <View style={styles.clubeCardInfo}>
-                      <View style={styles.clubeCardNomeRow}>
-                        <Text style={styles.clubeCardNome} numberOfLines={1}>
-                          {clube.nome}
-                        </Text>
-                        {String(clube.id) === clubeAtivoId && (
-                          <Icon name="check-decagram" size={16} color={colors.primaria} />
-                        )}
-                        {clube.papel && clube.papel !== 'TORCEDOR' && (
-                          <View style={styles.badgeTecnico}>
-                            <Text style={styles.badgeTecnicoTxt}>{clube.papel}</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.clubeCardSub}>{clube.seguidores} seguidores</Text>
-                    </View>
-
-                    <View style={styles.gestaoAcesso}>
-                      <Icon name="chevron-right" size={18} color={colors.textoSecundario} />
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Clubes acompanhados como torcedor */}
-            {modo === 'trocar' && clubesSeguidos.length > 0 && (
-              <View style={[styles.listaContainer, { marginTop: 8 }]}>
-                <View style={styles.locationHeader}>
-                  <Icon name="check-circle-outline" size={16} color={colors.textoSecundario} />
-                  <Text style={styles.locationText}>CLUBES QUE VOCÊ SEGUE</Text>
-                </View>
-
-                {clubesSeguidos.map((clube) => (
-                  <TouchableOpacity
-                    key={clube.id}
-                    style={styles.clubeCard}
-                    activeOpacity={0.8}
-                    onPress={() => acessarClube(clube)}
-                    disabled={processandoId === clube.id}
-                  >
-                    <EscudoClube
-                      uri={clube.escudo}
-                      tamanho="md"
-                      style={styles.clubeCardLogo}
-                    />
-
-                    <View style={styles.clubeCardInfo}>
-                      <View style={styles.clubeCardNomeRow}>
-                        <Text style={styles.clubeCardNome} numberOfLines={1}>
-                          {clube.nome}
-                        </Text>
-                        {String(clube.id) === clubeAtivoId && (
-                          <Icon name="check-decagram" size={16} color={colors.primaria} />
-                        )}
-                      </View>
-                      <Text style={styles.clubeCardSub}>{clube.seguidores} seguidores</Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={[styles.btnSeguir, styles.btnSeguindo]}
-                      activeOpacity={0.7}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        handleDeixarDeSeguir(clube);
-                      }}
-                      disabled={processandoId === clube.id}
-                    >
-                      {processandoId === clube.id ? (
-                        <ActivityIndicator size="small" color={colors.primaria} />
-                      ) : (
-                        <Text style={[styles.txtBtnSeguir, styles.txtBtnSeguindo]}>SEGUINDO</Text>
-                      )}
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Descoberta fica por último e some quando não há nada novo para mostrar. */}
-            {mostrarDescoberta && (
-              <View style={[styles.listaContainer, { marginTop: 8 }]}>
-                <View style={styles.locationHeader}>
-                  <Icon name="shield-search" size={16} color={colors.textoSecundario} />
-                  <Text style={styles.locationText}>
-                    {meusClubes.length > 0 ? 'DESCOBRIR CLUBES' : 'TODOS OS CLUBES'}
-                  </Text>
-                </View>
-
-                {outrosClubes.length === 0 && !carregando && (
-                  <View style={styles.descobertaVazia}>
-                    <Text style={styles.descobertaVaziaTxt}>
-                      {buscaAtiva ? 'Nenhum clube encontrado.' : 'Nenhum clube cadastrado.'}
-                    </Text>
+                    <Text style={styles.papelText}>{papel.nome}</Text>
                   </View>
                 )}
-
-                {outrosClubes.map((clube) => (
-                  <TouchableOpacity
-                    key={clube.id}
-                    style={styles.clubeCard}
-                    activeOpacity={0.8}
-                    onPress={() => acessarClube(clube)}
-                    disabled={processandoId === clube.id}
+                {!!clube.partidasAoVivo && (
+                  <View
+                    style={styles.live}
+                    accessibilityLabel={`${clube.partidasAoVivo} partidas ao vivo`}
                   >
-                    <EscudoClube
-                      uri={clube.escudo}
-                      tamanho="md"
-                      style={styles.clubeCardLogo}
-                    />
-
-                    <View style={styles.clubeCardInfo}>
-                      <View style={styles.clubeCardNomeRow}>
-                        <Text style={styles.clubeCardNome} numberOfLines={1}>
-                          {clube.nome}
-                        </Text>
-                      </View>
-                      <Text style={styles.clubeCardSub}>
-                        {[clube.cidade, clube.estado].filter(Boolean).join(' - ') || 'Local não informado'}
-                        {'   '}
-                        {clube.seguidores} seguidores
-                      </Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={styles.btnSeguir}
-                      activeOpacity={0.7}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        handleSeguir(clube);
-                      }}
-                      disabled={processandoId === clube.id}
-                    >
-                      {processandoId === clube.id ? (
-                        <ActivityIndicator size="small" color={colors.textoSobrePrimaria} />
-                      ) : (
-                        <Text style={styles.txtBtnSeguir}>SEGUIR</Text>
-                      )}
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                ))}
+                    <SinalAoVivo size={13} />
+                    <Text style={styles.liveText}>Ao vivo</Text>
+                  </View>
+                )}
               </View>
             )}
+          </View>
+          <Icon name="chevron-right" size={18} color={colors.textoSecundario} />
+        </TouchableOpacity>
+        {!papel && (
+          <TouchableOpacity
+            style={[
+              styles.seguir,
+              descoberta && styles.seguirDescoberta,
+              descoberta && !seguindo && styles.seguirAtivo,
+            ]}
+            disabled={processandoId !== null}
+            accessibilityRole="button"
+            accessibilityLabel={`${seguindo ? "Deixar de seguir" : "Seguir"} ${clube.nome}`}
+            onPress={() =>
+              seguindo
+                ? void acompanhar(clube, false)
+                : void acompanhar(clube, true)
+            }
+          >
+            {processandoId === clube.id ? (
+              <ActivityIndicator
+                size="small"
+                color={descoberta && !seguindo ? "#fff" : colors.primaria}
+              />
+            ) : descoberta ? (
+              <Text
+                style={[styles.seguirText, !seguindo && styles.seguirTextAtivo]}
+              >
+                {seguindo ? "Seguindo ✓" : "Seguir"}
+              </Text>
+            ) : (
+              <Icon name="star" size={22} color={colors.primaria} />
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+  function secao(titulo: string, lista: ClubeListado[]) {
+    return (
+      <View style={styles.secao}>
+        <View style={styles.secaoHeading}>
+          <Text style={styles.secaoTitulo}>{titulo}</Text>
+          <Text style={styles.quantidade}>{lista.length}</Text>
+        </View>
+        <View style={styles.cards}>{lista.map((c) => card(c))}</View>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.container}>
+      {modo === "trocar" && <HeaderClube />}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[
+          styles.conteudo,
+          modo === "entrada" && {
+            paddingTop: insets.top + 24,
+            paddingBottom: insets.bottom + 24,
+          },
+        ]}
+      >
+        <View style={styles.intro}>
+          <Text style={styles.tituloMain}>Encontre o seu clube</Text>
+          <Text style={styles.subtituloMain}>
+            Acesse qualquer clube. Seguir serve para deixar seus favoritos
+            salvos aqui.
+          </Text>
+        </View>
+        {!!erro && (
+          <ErroCarregamento
+            compacto={clubes.length > 0}
+            titulo="Não foi possível atualizar clubes"
+            descricao={
+              clubes.length
+                ? "Os clubes já exibidos continuam disponíveis."
+                : "Confira sua conexão e tente novamente."
+            }
+            onTentarNovamente={() => void carregar()}
+          />
+        )}
+        {carregando ? (
+          <ListSkeleton rows={4} />
+        ) : (
+          <>
+            {!grupos.buscaAtiva &&
+              grupos.comCargo.length > 0 &&
+              secao("COM CARGO", grupos.comCargo)}
+            {!grupos.buscaAtiva &&
+              grupos.seguindo.length > 0 &&
+              secao("QUE VOCÊ SEGUE", grupos.seguindo)}
+            <View style={styles.secao}>
+              <Text style={styles.secaoTitulo}>DESCOBRIR</Text>
+              <View style={styles.searchInputRow}>
+                <Icon name="magnify" size={19} color={colors.textoSecundario} />
+                <TextInput
+                  value={busca}
+                  onChangeText={setBusca}
+                  placeholder="Buscar clube por nome ou cidade..."
+                  accessibilityLabel="Buscar clube por nome ou cidade"
+                  placeholderTextColor={colors.textoSecundario}
+                  style={styles.searchInput}
+                  autoCorrect={false}
+                  returnKeyType="search"
+                />
+                {!!busca && (
+                  <TouchableOpacity
+                    onPress={() => setBusca("")}
+                    style={styles.limparBusca}
+                    accessibilityRole="button"
+                    accessibilityLabel="Limpar busca"
+                  >
+                    <Icon
+                      name="close"
+                      size={16}
+                      color={colors.textoSecundario}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+              {grupos.buscaAtiva && (
+                <Text style={styles.detalhes} accessibilityLiveRegion="polite">
+                  {grupos.descobrir.length}{" "}
+                  {grupos.descobrir.length === 1
+                    ? "clube encontrado"
+                    : "clubes encontrados"}
+                </Text>
+              )}
+              {grupos.descobrir.length > 0 ? (
+                <View style={styles.cards}>
+                  {grupos.descobrir.map((c) => card(c, true))}
+                </View>
+              ) : (
+                !erro && (
+                  <View style={styles.vazio}>
+                    <Icon
+                      name="shield-half"
+                      size={24}
+                      color={colors.textoSecundario}
+                    />
+                    <Text style={styles.vazioText}>
+                      {!clubes.length
+                        ? "Ainda não há clubes cadastrados no Ludora."
+                        : grupos.buscaAtiva
+                          ? "Nenhum clube encontrado. Tente outro nome ou cidade."
+                          : "Você já acompanha todos os clubes disponíveis. Novos clubes aparecerão aqui."}
+                    </Text>
+                  </View>
+                )
+              )}
+            </View>
           </>
         )}
       </ScrollView>

@@ -1,11 +1,10 @@
-import { Fragment, memo, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Fragment, memo, useMemo, useState } from 'react';
+import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Icon } from '@ludora/icons';
 import { darkColors } from '@ludora/design-tokens';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
-import { fetchEscalacaoPartida } from '@/src/services/api';
 import { acoesDaPartidaNaHome, resultadoDoClube } from '@/src/utils/resumoPartidas';
 import { createStyles } from '@/src/styles/homeCategoriaStyles';
 import { HomeSkeleton } from './Skeleton';
@@ -15,9 +14,10 @@ type Time = { id: number; nome: string; escudo: string | null };
 // Vermelho mais equilibrado para derrota: vivo no tema escuro e legível no claro.
 const VERMELHO_DERROTA = '#E5485D';
 
-function EscudoHome({ time, compacto = false, styles }: {
+function EscudoHome({ time, compacto = false, destaque = false, styles }: {
   time: Time;
   compacto?: boolean;
+  destaque?: boolean;
   styles: ReturnType<typeof createStyles>;
 }) {
   const uri = time.escudo?.trim() || null;
@@ -25,7 +25,7 @@ function EscudoHome({ time, compacto = false, styles }: {
   const inicial = Array.from(time.nome.trim())[0]?.toUpperCase() || '?';
 
   return (
-    <View style={compacto ? styles.historyCrestBox : styles.crestBox}>
+    <View style={[compacto ? styles.historyCrestBox : styles.crestBox, destaque && styles.crestHighlight]}>
       {uri && uri !== uriComErro ? (
         <Image
           key={uri}
@@ -44,6 +44,11 @@ function EscudoHome({ time, compacto = false, styles }: {
 
 export interface PartidaHome {
   clube_origem_id?: number;
+  sumula_clube_id?: number | null;
+  titulares_necessarios?: number;
+  titulares_definidos?: number;
+  minha_equipe_pronta?: boolean | null;
+  gols_sem_autor?: number;
   somente_leitura?: boolean;
   id: number;
   mandante: Time;
@@ -60,19 +65,18 @@ export interface PartidaHome {
 }
 
 interface Props {
-  ativa: boolean;
+  sub: string;
+  semPerfil?: number;
+  pendencias?: { semCamisa: number | null; solicitacoes: number | null };
   carregando: boolean;
   atualizando: boolean;
-  revisao: number;
   proximoJogo: PartidaHome | null;
   historico: PartidaHome[];
   agenda: PartidaHome[];
   podeGerenciar: boolean;
   consultaLocal?: boolean;
-  iniciandoPartidaId: number | null;
   onAtualizar: () => void;
   onVerDetalhes: (partida: PartidaHome) => void;
-  onIniciarPartida: (partida: PartidaHome) => void;
 }
 
 function dataCurta(data: string) {
@@ -87,43 +91,31 @@ function hoje(data: string) {
 }
 
 const HomeCategoria = memo(function HomeCategoria(props: Props) {
-  const { ativa, carregando, atualizando, revisao, proximoJogo: jogo, historico, agenda, podeGerenciar,
-    iniciandoPartidaId, onAtualizar, onVerDetalhes, onIniciarPartida, consultaLocal = false } = props;
+  const { sub, pendencias, semPerfil, carregando, atualizando, proximoJogo: jogo, historico, agenda, podeGerenciar,
+    onAtualizar, onVerDetalhes, consultaLocal = false } = props;
   const { colors, tema } = useTheme();
   const { clubeAtivo } = useClubeAtivo();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
-  const [preparacao, setPreparacao] = useState<{ id: number; titulares: number } | null>(null);
-  const [erroEscalacao, setErroEscalacao] = useState(false);
-  const [tentativa, setTentativa] = useState(0);
   const aoVivo = jogo?.status === 'AO_VIVO';
-  const { preparar, iniciar } = acoesDaPartidaNaHome(jogo, podeGerenciar);
-  const titulares = preparacao?.id === jogo?.id ? preparacao?.titulares : undefined;
-  const pronta = titulares === 5;
+  const operaSumula = podeGerenciar && (jogo?.sumula_clube_id ?? jogo?.clube_origem_id) === clubeAtivo?.id;
+  const prepararDestaque = acoesDaPartidaNaHome(jogo, podeGerenciar).preparar;
+  const preparar = [jogo, ...agenda].find(partida =>
+    partida && !partida.minha_equipe_pronta && acoesDaPartidaNaHome(partida, podeGerenciar).preparar
+  );
+  const titulares = preparar?.titulares_definidos;
+  const necessarios = preparar?.titulares_necessarios || 5;
+  const golsPendentes = [jogo, ...historico].find(partida =>
+    partida && (partida.sumula_clube_id ?? partida.clube_origem_id) === clubeAtivo?.id && (partida.gols_sem_autor ?? 0) > 0
+  );
   const ultimo = historico[0];
   const rotuloResultado = { V: 'Vitória', E: 'Empate', D: 'Derrota' };
   const contagem = historico.reduce((total, partida) => {
     total[resultadoDoClube(partida)]++;
     return total;
   }, { V: 0, E: 0, D: 0 });
-  const verJogos = () => router.push('/jogos/jogos');
-
-  // Só a categoria visível consulta a escalação; torcedores não fazem essa busca.
-  useEffect(() => {
-    if (!ativa || !preparar || !jogo) return;
-    let cancelada = false;
-    setPreparacao(atual => atual?.id === jogo.id ? atual : null);
-    setErroEscalacao(false);
-    void fetchEscalacaoPartida(jogo.id).then(escalacao => {
-      if (!cancelada) setPreparacao({ id: jogo.id, titulares: escalacao.filter(j => j.titular).length });
-    }).catch(() => { if (!cancelada) setErroEscalacao(true); });
-    return () => { cancelada = true; };
-  }, [ativa, preparar, jogo?.id, revisao, tentativa]);
-
-  const corResultado = (resultado: 'V' | 'E' | 'D') => resultado === 'V' ? colors.primaria
-    : resultado === 'D' ? VERMELHO_DERROTA : colors.textoSecundario;
-  const fundoResultado = (resultado: 'V' | 'E' | 'D') => resultado === 'V' ? colors.fundoBotao
-    : resultado === 'D' ? colors.fundoErro : colors.cardSecundario;
+  const verJogos = (status: 'TODOS' | 'AGENDADA' | 'FINALIZADA' = 'TODOS') =>
+    router.push({ pathname: '/jogos/jogos', params: { status, sub, ano: status === 'FINALIZADA' ? ultimo?.data.slice(0, 4) : undefined } });
   const amareloEmpate = tema === 'light' ? '#F4B942' : colors.amarelo;
 
   return (
@@ -166,15 +158,18 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
 
         {jogo ? <View style={[styles.mainCard, aoVivo && styles.mainCardAoVivo]}>
           <View style={styles.matchHeading}>
-            <Text style={styles.eyebrow} numberOfLines={2}>{jogo.competicao?.nome || 'Amistoso'}</Text>
+            <View style={[styles.locationRow, styles.flex]}>
+              <Icon name="trophy-outline" size={16} color={colors.textoSecundario} />
+              <Text style={styles.eyebrow} numberOfLines={2}>{jogo.competicao?.nome || 'Amistoso'}</Text>
+            </View>
             <View style={styles.venueBadge}>
-              <Icon name={jogo.emCasa ? 'home' : 'bus'} size={14} color={colors.primaria} />
+              <Icon name={jogo.emCasa ? 'home' : 'bus'} size={14} color={colors.texto} />
               <Text style={styles.venueText}>{jogo.emCasa ? 'Casa' : 'Fora'}</Text>
             </View>
           </View>
           <View style={styles.teamsRow}>
             {[jogo.mandante, jogo.visitante].map((time, index) => <Fragment key={`${time.id}-${index}`}><View style={styles.team}>
-              <EscudoHome time={time} styles={styles} />
+              <EscudoHome time={time} styles={styles} destaque={jogo.emCasa === (index === 0)} />
               <Text style={styles.teamName} numberOfLines={3}>{time.nome}</Text>
             </View>{index === 0 && <View style={styles.scoreCenter}>
               {aoVivo ? <View style={styles.scoreRow} accessible accessibilityLabel={`${jogo.gols_mandante} a ${jogo.gols_visitante}`}>
@@ -184,67 +179,122 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
               </View> : <Text style={styles.versus}>VS</Text>}
             </View>}</Fragment>)}
           </View>
+          {aoVivo && !consultaLocal && jogo.data.slice(0, 10) < new Date().toLocaleDateString('sv-SE') && (
+            <View style={[styles.locationRow, styles.staleNotice]}>
+              <Icon name="info" size={15} color={colors.textoSecundario} />
+              <Text style={[styles.secondaryText, styles.flex]}>Iniciada em {dataCurta(jogo.data)}. Confira se já terminou.</Text>
+            </View>
+          )}
           <View style={styles.matchMeta}>
             <View style={styles.dateTimeRow}>
               <View style={styles.metaItem}>
-                <Icon name="calendar" size={18} color={colors.textoSecundario} />
-                <View style={styles.metaText}>
-                  <Text style={styles.metaLabel}>Data</Text>
-                  <Text style={styles.metaStrong}>{dataCurta(jogo.data)}</Text>
-                </View>
+                <Icon name="calendar" size={17} color={colors.textoSecundario} />
+                <Text style={styles.metaStrong}>{dataCurta(jogo.data)}</Text>
               </View>
               <View style={styles.metaItem}>
-                <Icon name="clock" size={18} color={colors.textoSecundario} />
-                <View style={styles.metaText}>
-                  <Text style={styles.metaLabel}>Horário</Text>
-                  <Text style={styles.metaStrong}>{jogo.horario?.slice(0, 5) || 'A definir'}</Text>
-                </View>
+                <Icon name="clock" size={17} color={colors.textoSecundario} />
+                <Text style={styles.metaStrong}>{jogo.horario?.slice(0, 5) || 'A definir'}</Text>
               </View>
             </View>
-            <View style={styles.locationRow}>
+            {!!jogo.local && <View style={styles.locationRow}>
               <Icon name="location" size={16} color={colors.textoSecundario} />
-              <Text style={[styles.secondaryText, styles.flex]} numberOfLines={2}>{jogo.local || 'Local a definir'}</Text>
-            </View>
+              <Text style={[styles.secondaryText, styles.flex]} numberOfLines={2}>{jogo.local}</Text>
+            </View>}
           </View>
           <TouchableOpacity style={styles.primaryButton} activeOpacity={0.8} accessibilityRole="button"
-            disabled={iniciandoPartidaId === jogo.id}
-            onPress={() => iniciar ? onIniciarPartida(jogo) : onVerDetalhes(jogo)}>
-            {iniciandoPartidaId === jogo.id ? <ActivityIndicator color={colors.textoSobrePrimaria} />
-              : <View style={styles.primaryButtonContent}>
-                <Text style={styles.primaryButtonText}>{consultaLocal ? 'Ver último registro' : aoVivo ? 'Acompanhar ao vivo' : iniciar ? 'Iniciar partida' : 'Ver partida'}</Text>
-                {(aoVivo || iniciar) && <Icon name={aoVivo ? 'live' : 'play-circle'} size={20} color={colors.textoSobrePrimaria} />}
-              </View>}
+            onPress={() => onVerDetalhes(jogo)}>
+            <View style={styles.primaryButtonContent}>
+              <Text style={styles.primaryButtonText}>
+                {consultaLocal ? 'Ver último registro' : aoVivo ? operaSumula ? 'Operar súmula' : 'Acompanhar ao vivo' : prepararDestaque ? 'Preparar partida' : 'Ver partida'}
+              </Text>
+              {(aoVivo || prepararDestaque) && <Icon name={aoVivo ? 'live' : 'play-circle'} size={20} color={colors.textoSobrePrimaria} />}
+            </View>
           </TouchableOpacity>
-          {iniciar && <TouchableOpacity style={styles.textButton} onPress={() => onVerDetalhes(jogo)} accessibilityRole="button">
-            <Text style={styles.linkText}>Ver detalhes e escalação</Text>
-          </TouchableOpacity>}
         </View> : <View style={styles.emptyCard}>
           <Icon name="calendar-remove-outline" size={28} color={colors.textoSecundario} />
           <Text style={styles.cardTitle}>Sem partida marcada</Text>
           <Text style={styles.emptyDescription}>{podeGerenciar ? 'Organize os próximos jogos na aba Jogos.' : 'Assim que uma partida for marcada, ela aparece aqui.'}</Text>
-          <TouchableOpacity style={styles.textButton} onPress={verJogos} accessibilityRole="button"><Text style={styles.linkText}>Ir para jogos</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.textButton} onPress={() => verJogos()} accessibilityRole="button"><Text style={styles.linkText}>Ir para jogos</Text></TouchableOpacity>
         </View>}
 
-        {preparar && <View style={styles.preparationCard}>
-          <View style={styles.preparationHeading}>
-            <View style={styles.preparationIcon}><Icon name="trophy-outline" size={20} color={colors.primaria} /></View>
-            <View style={styles.flex}><Text style={styles.eyebrow}>ÁREA DO GESTOR</Text><Text style={styles.cardTitle}>{pronta ? 'Equipe pronta para entrar' : 'Prepare sua equipe'}</Text></View>
+        {podeGerenciar && <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Pendências</Text>
+            <Text style={styles.formLegend}>{sub}</Text>
           </View>
-          <Text style={styles.secondaryText}>{erroEscalacao ? 'Não foi possível consultar a escalação.' : titulares === undefined
-            ? 'Consultando os titulares…' : pronta ? 'Os 5 titulares estão definidos. Você pode revisar a escalação.'
-              : `${titulares} de 5 titulares definidos para a próxima partida.`}</Text>
-          {erroEscalacao
-            ? <TouchableOpacity style={styles.textButton} onPress={() => setTentativa(t => t + 1)} accessibilityRole="button"><Text style={styles.linkText}>Tentar novamente</Text></TouchableOpacity>
-            : <TouchableOpacity style={styles.secondaryButton} onPress={() => onVerDetalhes(jogo!)} accessibilityRole="button"><Text style={styles.linkText}>{pronta ? 'Revisar escalação' : 'Preparar escalação'}</Text></TouchableOpacity>}
-        </View>}
-
-        <View style={styles.momentCard}>
-          <View style={styles.momentHeading}>
-            <View style={styles.flex}>
-              <Text style={styles.sectionTitle}>Momento da categoria</Text>
-              <Text style={styles.secondaryText}>{historico.length ? `${historico.length === 1 ? 'Última partida' : `Últimas ${historico.length} partidas`} · toque para ver detalhes` : 'Resultados recentes'}</Text>
+          <View style={styles.preparationCard}>
+            <View style={styles.preparationHeading}>
+              <View style={styles.preparationIcon}><Icon name="info" size={22} color={colors.texto} /></View>
+              <View style={styles.flex}>
+                <Text style={styles.cardTitle}>O que precisa da sua atenção</Text>
+                <Text style={styles.secondaryText}>Resolva os próximos passos da sua equipe.</Text>
+              </View>
             </View>
+            {preparar && <TouchableOpacity style={styles.pendingRow} onPress={() => onVerDetalhes(preparar)} accessibilityRole="button">
+              <Icon name="account-group-outline" size={21} color={colors.texto} />
+              <View style={styles.flex}>
+                <Text style={styles.cardTitle}>{titulares === necessarios ? 'Confirmar sua equipe' : 'Preparar próximo jogo'}</Text>
+                <Text style={styles.secondaryText}>{titulares == null ? 'Confira a escalação' : `${titulares}/${necessarios} titulares · ${titulares === necessarios ? 'Revise a escalação' : 'Complete a escalação'}`}</Text>
+              </View>
+              <Icon name="chevron-right" size={16} color={colors.textoSecundario} />
+            </TouchableOpacity>}
+            {!!pendencias?.semCamisa && <View style={styles.pendingRow}>
+              <Icon name="tshirt-crew-outline" size={21} color={colors.texto} />
+              <View style={styles.flex}><Text style={styles.cardTitle}>Numeração do elenco</Text><Text style={styles.secondaryText}>Jogadores com camisa ainda não definida</Text></View>
+              <Text style={styles.pendingCount}>{pendencias.semCamisa}</Text>
+            </View>}
+            {!!pendencias?.solicitacoes && <TouchableOpacity style={styles.pendingRow} onPress={() => router.push('/solicitacoes-partidas')} accessibilityRole="button">
+              <Icon name="email-outline" size={21} color={colors.texto} />
+              <View style={styles.flex}><Text style={styles.cardTitle}>Solicitações de partida</Text><Text style={styles.secondaryText}>Aguardando sua resposta</Text></View>
+              <Text style={styles.pendingCount}>{pendencias.solicitacoes}</Text>
+              <Icon name="chevron-right" size={16} color={colors.textoSecundario} />
+            </TouchableOpacity>}
+            {golsPendentes && <TouchableOpacity style={styles.pendingRow} onPress={() => onVerDetalhes(golsPendentes)} accessibilityRole="button">
+              <Icon name="soccer" size={21} color={colors.texto} />
+              <View style={styles.flex}><Text style={styles.cardTitle}>Gols sem autor identificado</Text><Text style={styles.secondaryText}>Revise os registros da partida</Text></View>
+              <Text style={styles.pendingCount}>{golsPendentes.gols_sem_autor}</Text>
+              <Icon name="chevron-right" size={16} color={colors.textoSecundario} />
+            </TouchableOpacity>}
+            {!!semPerfil && (
+              <View style={styles.pendingNote}>
+                <Icon name="radar" size={15} color={colors.textoSecundario} />
+                <Text style={[styles.secondaryText, styles.flex]}>
+                  {semPerfil} {semPerfil === 1 ? 'atleta ainda sem perfil' : 'atletas ainda sem perfil'} de contribuição.
+                  {' '}<Text accessibilityRole="link" style={styles.linkText} onPress={() => router.push('/estatisticas/estatisticas')}>Consultar Scout</Text>
+                </Text>
+              </View>
+            )}
+            {!semPerfil && !preparar && !golsPendentes && !pendencias?.semCamisa && !pendencias?.solicitacoes && (
+              <Text style={styles.secondaryText}>{pendencias?.semCamisa == null || pendencias.solicitacoes == null ? 'Não foi possível conferir todas as pendências.' : 'Nenhuma ação pendente nesta categoria.'}</Text>
+            )}
           </View>
+        </View>}
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle} accessibilityRole="header">Na sequência</Text>
+          <TouchableOpacity onPress={() => verJogos('AGENDADA')} style={styles.sectionAction} accessibilityRole="button">
+            <Text style={styles.linkText}>Ver agenda</Text><Icon name="chevron-right" size={16} color={colors.primaria} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.preparationCard}>
+          {agenda.length ? agenda.map(partida => (
+            <View key={partida.id} style={styles.agendaGroup}>
+              <View style={styles.locationRow}><Icon name="calendar" size={15} color={colors.textoSecundario} /><Text style={styles.secondaryText}>{dataCurta(partida.data)}</Text></View>
+              <TouchableOpacity style={styles.pendingRow} onPress={() => onVerDetalhes(partida)} accessibilityRole="button">
+                <View style={styles.locationRow}><Icon name="clock" size={13} color={colors.textoSecundario} /><Text style={styles.dateText}>{partida.horario?.slice(0, 5) || 'A definir'}</Text></View>
+                <EscudoHome time={partida.emCasa ? partida.visitante : partida.mandante} compacto styles={styles} />
+                <View style={styles.flex}>
+                  <Text style={styles.cardTitle} numberOfLines={2}>{partida.emCasa ? partida.visitante.nome : partida.mandante.nome}</Text>
+                  <Text style={styles.secondaryText}>{partida.emCasa ? 'Em casa' : 'Fora de casa'} · {partida.status === 'PREPARADA' ? 'Preparada' : 'Agendada'}</Text>
+                </View>
+                <Icon name="chevron-right" size={16} color={colors.primaria} />
+              </TouchableOpacity>
+            </View>
+          )) : <Text style={styles.secondaryText}>Sem outros compromissos marcados para esta categoria.</Text>}
+        </View>
+
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle} accessibilityRole="header">Momento da categoria</Text></View>
+        <View style={styles.momentCard}>
           {ultimo ? <>
             <View style={styles.formRow}>{[...historico].reverse().map((partida, index) => {
               const resultado = resultadoDoClube(partida);
@@ -253,7 +303,7 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
                 accessibilityLabel={`${recente ? 'Mais recente. ' : ''}${rotuloResultado[resultado]} em ${dataCurta(partida.data)}. Ver partida.`}
                 style={styles.formItem}>
                 <View style={[styles.formPill, { backgroundColor: resultado === 'V' ? colors.primaria : resultado === 'E' ? amareloEmpate : VERMELHO_DERROTA }]}>
-                  <Text style={[styles.formLetter, { color: resultado === 'V' ? colors.textoSobrePrimaria : resultado === 'E' ? darkColors.fundo : colors.fundo }]}>{resultado}</Text>
+                  <Text style={[styles.formLetter, { color: resultado === 'V' ? colors.textoSobrePrimaria : resultado === 'E' ? darkColors.fundo : colors.textoSobrePrimaria }]}>{resultado}</Text>
                 </View>
                 <Text style={[styles.formDate, recente && styles.formDateRecent]}>{dataCurta(partida.data)}</Text>
               </TouchableOpacity>;
@@ -265,80 +315,48 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
           </> : <Text style={styles.secondaryText}>A sequência de resultados aparece após a primeira partida finalizada.</Text>}
         </View>
 
-        {agenda.length > 0 && <>
-          <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Na sequência</Text>
-            <TouchableOpacity onPress={verJogos} style={styles.sectionAction} accessibilityRole="button"><Text style={styles.linkText}>Ver agenda</Text></TouchableOpacity>
-          </View>
-          <View style={styles.agendaCard}>{agenda.map((partida, index) => <TouchableOpacity key={partida.id}
-            style={[styles.agendaRow, index > 0 && styles.agendaDivider]} onPress={() => onVerDetalhes(partida)} accessibilityRole="button">
-            <View style={styles.agendaDate}><Text style={styles.dateText}>{dataCurta(partida.data)}</Text><Text style={styles.secondaryText}>{partida.horario?.slice(0, 5) || 'A definir'}</Text></View>
-            <View style={styles.flex}><Text style={styles.cardTitle} numberOfLines={2}>{partida.emCasa ? partida.visitante.nome : partida.mandante.nome}</Text>
-              <Text style={styles.secondaryText} numberOfLines={2}>{partida.emCasa ? 'Em casa' : 'Fora de casa'} · {partida.competicao?.nome || 'Amistoso'}</Text></View>
-            <Text style={styles.linkText}>›</Text>
-          </TouchableOpacity>)}</View>
-        </>}
-
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {historico.length ? `${historico.length} últimas ${historico.length === 1 ? 'partida' : 'partidas'}` : 'Últimas partidas'}
-          </Text>
+          <Text style={styles.sectionTitle} accessibilityRole="header">Histórico de partidas</Text>
+          <Text style={styles.formLegend}>{sub}</Text>
         </View>
-        {historico.length > 0 ? <><View style={styles.historyList}>{historico.map(partida => {
-          const resultado = resultadoDoClube(partida);
-          const corHistorico = resultado === 'E' ? colors.tituloAtencao : corResultado(resultado);
-          const fundoHistorico = resultado === 'E' ? colors.fundoAtencao : fundoResultado(resultado);
-          return (
-          <TouchableOpacity
-            key={partida.id}
-            style={styles.historyMatch}
-            activeOpacity={0.8}
-            onPress={() => onVerDetalhes(partida)}
-            accessibilityRole="button"
-            accessibilityLabel={`${partida.mandante.nome} ${partida.gols_mandante} a ${partida.gols_visitante} ${partida.visitante.nome}, em ${dataCurta(partida.data)}. Ver detalhes.`}
-          >
-            <View style={styles.historyMeta}>
-              <View style={styles.historyDateGroup}>
-                <Icon name="calendar" size={14} color={colors.primaria} />
-                <Text style={styles.historyDate}>{dataCurta(partida.data)}</Text>
-              </View>
-              <Text style={styles.historyCompetition} numberOfLines={1}>{partida.competicao?.nome || 'Amistoso'}</Text>
-              <Text style={[styles.historyResult, { color: resultado === 'V' ? colors.textoSobrePrimaria : corHistorico, backgroundColor: resultado === 'V' ? colors.primaria : fundoHistorico }]}>{rotuloResultado[resultado]}</Text>
+        {historico.length > 0 ? <>
+          <View style={styles.historyList}>
+            <View style={[styles.historyRow, styles.historyHeader]} accessible accessibilityLabel="Data, confronto, placar e resultado">
+              <Text style={[styles.historyHeaderText, styles.historyDateCell]}>Data</Text>
+              <Text style={[styles.historyHeaderText, styles.historyConfronto]}>Confronto</Text>
+              <Text style={[styles.historyHeaderText, styles.historyScoreCell]}>Placar</Text>
+              <Text style={[styles.historyHeaderText, styles.historyResultCell]}>Resultado</Text>
             </View>
-            <View style={styles.historyTeams}>
-              {[partida.mandante, partida.visitante].map((time, timeIndex) => {
-                const gols = timeIndex === 0 ? partida.gols_mandante : partida.gols_visitante;
-                // Os IDs da partida pertencem ao time, não ao clube. A API já
-                // informa emCasa pela perspectiva do clube ativo; o nome cobre
-                // também respostas que tragam o time com o mesmo nome do clube.
-                const nomeDoClube = clubeAtivo?.nome.trim().toLocaleLowerCase('pt-BR');
-                const nomeDoTime = time.nome.trim().toLocaleLowerCase('pt-BR');
-                const clubeAtual = nomeDoClube === nomeDoTime
-                  || (timeIndex === 0 ? partida.emCasa : !partida.emCasa);
-                return <View key={`${time.id}-${timeIndex}`} style={[styles.historyTeamRow, clubeAtual && styles.historySelectedTeam]}>
-                  <EscudoHome time={time} compacto styles={styles} />
-                  <View style={styles.historyTeamInfo}>
-                    <Text style={[styles.historyTeamName, clubeAtual && styles.historyClubName]} numberOfLines={2}>{time.nome}</Text>
-                    {clubeAtual && <Text style={styles.historyClubLabel}>Seu clube</Text>}
-                  </View>
-                  <View style={styles.historyScoreBox}>
-                    <Text style={styles.historyGoals}>{gols}</Text>
-                  </View>
-                </View>;
-              })}
-            </View>
-            <View style={styles.historyFooter}>
-              <View style={styles.historyDateGroup}>
-                <Icon name={partida.emCasa ? 'home' : 'bus'} size={14} color={colors.textoSecundario} />
-                <Text style={styles.formLegend}>{partida.emCasa ? 'Em casa' : 'Fora de casa'} · Encerrada</Text>
-              </View>
-              <Text style={styles.historyDetails}>Ver partida ›</Text>
-            </View>
+            {historico.map(partida => {
+              const resultado = resultadoDoClube(partida);
+              return <TouchableOpacity key={partida.id} style={styles.historyRow} activeOpacity={0.75}
+                onPress={() => onVerDetalhes(partida)} accessibilityRole="button"
+                accessibilityLabel={`${dataCurta(partida.data)}. ${partida.mandante.nome} ${partida.gols_mandante} a ${partida.gols_visitante} ${partida.visitante.nome}. ${rotuloResultado[resultado]}. Ver partida.`}>
+                <Text style={[styles.historyDate, styles.historyDateCell]}>{dataCurta(partida.data)}</Text>
+                <View style={styles.historyConfronto}>
+                  {[partida.mandante, partida.visitante].map((time, index) => (
+                    <View key={index} style={styles.historyTeamRow}>
+                      <EscudoHome time={time} compacto styles={styles} />
+                      <Text style={[styles.historyTeamName, partida.emCasa === (index === 0) && styles.historyClubName, styles.flex]} numberOfLines={1} ellipsizeMode="tail">{time.nome}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.historyScoreCell}>
+                  <Text style={styles.historyGoals}>{partida.gols_mandante}</Text>
+                  <Text style={styles.historyGoals}>{partida.gols_visitante}</Text>
+                </View>
+                <View style={styles.historyResultCell}>
+                  <Text style={[styles.historyResult, { backgroundColor: resultado === 'V' ? colors.primaria : resultado === 'D' ? VERMELHO_DERROTA : amareloEmpate, color: resultado === 'E' ? darkColors.fundo : '#fff' }]}>{rotuloResultado[resultado]}</Text>
+                  <Icon name="chevron-right" size={14} color={colors.primaria} />
+                </View>
+              </TouchableOpacity>;
+            })}
+          </View>
+          <TouchableOpacity onPress={() => verJogos('FINALIZADA')} style={styles.historyAllButton} accessibilityRole="button">
+            <Text style={styles.historyAllText}>Ver histórico completo</Text>
+            <Icon name="chevron-right" size={16} color={colors.primaria} />
           </TouchableOpacity>
-        ); })}</View>
-        <TouchableOpacity onPress={verJogos} style={styles.historyAllButton} accessibilityRole="button">
-          <Text style={styles.historyAllText}>Ver histórico completo</Text>
-          <Icon name="arrow-right" size={16} color={colors.primaria} />
-        </TouchableOpacity></> : <Text style={styles.secondaryText}>Nenhuma partida finalizada neste Sub.</Text>}
+        </> : <Text style={styles.secondaryText}>Nenhuma partida finalizada neste sub.</Text>}
       </>}
     </ScrollView>
   );

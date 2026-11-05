@@ -87,6 +87,10 @@ import { SwapHorizontalIcon } from './icons/SwapHorizontalIcon';
 import { ShirtIcon } from './icons/ShirtIcon';
 import { ShirtOutlineIcon } from './icons/ShirtOutlineIcon';
 import { WifiOffIcon } from './icons/WifiOffIcon';
+import { ReturnArrowIcon } from './icons/ReturnArrowIcon';
+import { GripVerticalIcon } from './icons/GripVerticalIcon';
+import { ShareIcon } from './icons/ShareIcon';
+import { SlidersHorizontalIcon } from './icons/SlidersHorizontalIcon';
 import type { LudoraIconProps } from './types';
 
 const iconMap = {
@@ -203,6 +207,10 @@ const iconMap = {
   "tshirt-crew": ShirtIcon,
   "tshirt-crew-outline": ShirtOutlineIcon,
   "wifi-off": WifiOffIcon,
+  "undo": ReturnArrowIcon,
+  "grip-vertical": GripVerticalIcon,
+  "share": ShareIcon,
+  "sliders-horizontal": SlidersHorizontalIcon,
 } as const;
 
 export type IconName = keyof typeof iconMap;

@@ -600,7 +600,7 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
                             size={16}
                             color={
                               emCasa === opcao.valor
-                                ? colors.primaria
+                                ? colors.textoSobrePrimaria
                                 : colors.textoSecundario
                             }
                           />
@@ -616,6 +616,13 @@ const OrganizarPartidas = forwardRef<OrganizarPartidasRef, Props>(
                       ))}
                     </View>
                   </View>
+                </View>
+
+                <View style={[styles.categoryNotice, styles.venueNotice]}>
+                  <Icon name="info" size={17} color={colors.primaria} />
+                  <Text style={styles.categoryNoticeText}>
+                    {emCasa ? 'Seu clube é o mandante. O adversário joga como visitante.' : 'Seu clube é o visitante. O adversário joga como mandante.'}
+                  </Text>
                 </View>
 
                 <View

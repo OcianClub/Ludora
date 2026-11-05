@@ -13,7 +13,7 @@ export interface PropostaPartida {
   id: string; tipo: string; origem_id: number; destino_id: number; respondente_id: number; status: string; versao: number; partida_id?: number;
   categoria_nome?: string;
   origem: Clube; destino: Clube; criado_em: string; motivo?: string;
-  dados: { data: string; horario: string; local?: string; emCasa?: boolean; categoria_id?: number; sugestao?: { clube_id: number; motivo?: string; criada_em: string } };
+  dados: { novo_responsavel_id?: number; motivo?: string; data: string; horario: string; local?: string; emCasa?: boolean; categoria_id?: number; sugestao?: { clube_id: number; motivo?: string; criada_em: string } };
 }
 export const carregarGestao = (id: number) => requestJson<GestaoPartida>(`/partidas/${id}/gestao`);
 export const carregarPropostas = () => requestJson<PropostaPartida[]>('/partidas/solicitacoes');

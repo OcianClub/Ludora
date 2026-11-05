@@ -9,6 +9,7 @@ import { io, type Socket } from 'socket.io-client';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 import {
   BASE_URL,
+  invalidarConsultasRecentes,
   fetchNotificacoes,
   fetchClubes,
   fetchPreferenciaNotificacoes,
@@ -174,6 +175,7 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
     let jaConectou = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const atualizar = () => {
+      invalidarConsultasRecentes();
       clearTimeout(timer);
       timer = setTimeout(() => {
         if (!ativo) return;
@@ -195,6 +197,8 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
       });
 
       socket.on('notificacao_criada', atualizar);
+      socket.on('partida_atualizada', invalidarConsultasRecentes);
+      socket.on('placar_atualizado', invalidarConsultasRecentes);
       socket.on('connect', () => {
         if (jaConectou) atualizar();
         jaConectou = true;

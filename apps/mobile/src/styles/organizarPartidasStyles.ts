@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { typography } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
+import { MARGEM_TELA } from './layout';
 
 export const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
@@ -12,7 +13,7 @@ export const createStyles = (colors: ThemeColors) =>
       flex: 1,
     },
     content: {
-      paddingHorizontal: 20,
+      paddingHorizontal: MARGEM_TELA,
       paddingTop: 8,
       paddingBottom: 24,
     },
@@ -135,8 +136,8 @@ export const createStyles = (colors: ThemeColors) =>
       borderColor: 'transparent',
     },
     mandoOptionSelected: {
-      backgroundColor: colors.fundoBotao,
-      borderColor: colors.bordaBotao,
+      backgroundColor: colors.primaria,
+      borderColor: colors.primaria,
     },
     mandoText: {
       flexShrink: 1,
@@ -145,7 +146,7 @@ export const createStyles = (colors: ThemeColors) =>
       color: colors.textoSecundario,
     },
     mandoTextSelected: {
-      color: colors.primaria,
+      color: colors.textoSobrePrimaria,
     },
     listHint: {
       paddingBottom: 16,
@@ -231,6 +232,10 @@ export const createStyles = (colors: ThemeColors) =>
       padding: 12,
       borderRadius: 8,
       backgroundColor: colors.fundoBotao,
+    },
+    venueNotice: {
+      borderWidth: 1,
+      borderColor: colors.bordaBotao,
     },
     categoryNoticeText: {
       flex: 1,

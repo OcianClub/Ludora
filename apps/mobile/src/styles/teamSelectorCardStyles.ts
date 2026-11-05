@@ -6,18 +6,17 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     flex: 1,
     minWidth: 0,
-    minHeight: 160,
+    minHeight: 142,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.card,
     borderRadius: 12,
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: colors.borda,
   },
   cardSelecionado: {
-    backgroundColor: colors.fundoBotao,
     borderColor: colors.bordaBotao,
   },
   addIconCircle: {
@@ -45,7 +44,6 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.texto,
     fontSize: 13,
     textAlign: 'center',
-    textTransform: 'uppercase',
   },
   subTexto: {
     fontFamily: typography.fontFamily.corpo.regular,

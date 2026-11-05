@@ -1,5 +1,5 @@
-import { PositionLabel } from '@/src/components/PositionIcon';
-import { Icon, type IconName } from '@ludora/icons';
+import { PositionLabel } from "@/src/components/PositionIcon";
+import { Icon, type IconName } from "@ludora/icons";
 import React, {
   memo,
   useDeferredValue,
@@ -8,7 +8,7 @@ import React, {
   useRef,
   useMemo,
   useEffect,
-} from 'react';
+} from "react";
 import {
   AppState,
   View,
@@ -20,74 +20,81 @@ import {
   TextInput,
   Modal,
   RefreshControl,
-} from 'react-native';
-import { Redirect, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { CategoryPager, type CategoryPagerHandle } from '@/src/components/CategoryPager';
-import { CategoryPageMotion } from '@/src/components/CategoryPageMotion';
-import { useCategoryPagerMotion } from '@/src/hooks/useCategoryPagerMotion';
-
+} from "react-native";
+import { Redirect, useFocusEffect } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  obterPerfisJogadores,
-  Jogador,
-} from '@/src/services/mlService';
-import { Header } from '@/src/components/Header';
-import { HeaderClube } from '@/src/components/HeaderClube';
-import { PaginaCategoria } from '@/src/components/PaginaCategoria';
+  CategoryPager,
+  type CategoryPagerHandle,
+} from "@/src/components/CategoryPager";
+import { CategoryPageMotion } from "@/src/components/CategoryPageMotion";
+import { useCategoryPagerMotion } from "@/src/hooks/useCategoryPagerMotion";
+
+import { obterPerfisJogadores, Jogador } from "@/src/services/mlService";
+import { Header } from "@/src/components/Header";
+import { HeaderClube } from "@/src/components/HeaderClube";
+import { PaginaCategoria } from "@/src/components/PaginaCategoria";
 import {
   CarrosselSubs,
   SUBS_INICIACAO,
   SUBS_BASE,
-} from '@/src/components/CarrosselSubs';
-import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
-import { createStyles } from '@/src/styles/estatisticasStyles';
-import { CardsSkeleton } from '@/src/components/Skeleton';
-import { ErroCarregamento } from '@/src/components/ErroCarregamento';
-import { AvisoConsultaLocal } from '@/src/components/AvisoConsultaLocal';
-import { ContextoAtletaScout } from '@/src/components/ContextoAtletaScout';
-import { consultarComCopiaLocal } from '@/src/services/cacheConsultas';
-import { selecionarJogadoresLocais } from '@/src/utils/dadosConsultaLocal';
-import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
-import { criarControleRequisicoes } from '@/src/utils/request';
-import { iniciarMedicaoCarregamento } from '@/src/utils/desempenho';
+} from "@/src/components/CarrosselSubs";
+import { useTheme, type ThemeColors } from "@/src/contexts/ThemeContext";
+import { createStyles } from "@/src/styles/estatisticasStyles";
+import { CardsSkeleton } from "@/src/components/Skeleton";
+import { ErroCarregamento } from "@/src/components/ErroCarregamento";
+import { AvisoConsultaLocal } from "@/src/components/AvisoConsultaLocal";
+import {
+  ScoutHelp,
+  ScoutFilters,
+  ORDENS_SCOUT,
+  ScoutSortIndicator,
+  ScoutSheet,
+} from "@/src/components/ScoutControls";
+import { ContextoAtletaScout } from "@/src/components/ContextoAtletaScout";
+import { consultarComCopiaLocal } from "@/src/services/cacheConsultas";
+import { selecionarJogadoresLocais } from "@/src/utils/dadosConsultaLocal";
+import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
+import { permiteConsultaLocal } from "@/src/utils/request";
+import { criarControleRequisicoes } from "@/src/utils/request";
+import { iniciarMedicaoCarregamento } from "@/src/utils/desempenho";
 import {
   filtrarJogadoresScout,
   type PerfilScout,
   type OrdenacaoScout,
-} from '@/src/utils/filtrosScout';
+  type DirecaoScout,
+  type FiltrosScout,
+  FILTROS_SCOUT_INICIAIS,
+  proximaOrdenacaoScout,
+} from "@/src/utils/filtrosScout";
 import {
   criarCatalogoScout,
   chaveCategoriaScout,
   CATEGORIA_SCOUT_VAZIA,
   normalizarCategoriaScout as normalizarCategoria,
-} from '@/src/utils/catalogoScout';
+} from "@/src/utils/catalogoScout";
 
 // ── Cores por perfil ──────────────────────────────────────────────────────────
 const getCoresPerfil = (
   colors: ThemeColors,
-  escuro: boolean
+  escuro: boolean,
 ): Record<string, string> => ({
   Artilheiro: colors.primaria,
-  Paredão: escuro ? '#2DD4BF' : '#087F72',
-  Armador: escuro ? '#B69AFF' : '#703BD1',
-  'Sem dados': colors.textoSecundario,
+  Paredão: escuro ? "#2DD4BF" : "#087F72",
+  Armador: escuro ? "#B69AFF" : "#703BD1",
+  "Sem dados": colors.textoSecundario,
 });
 
 const PERFIS: { valor: PerfilScout; icone: IconName }[] = [
-  { valor: 'Todos', icone: 'account-outline' },
-  { valor: 'Artilheiro', icone: 'soccer' },
-  { valor: 'Armador', icone: 'handshake' },
-  { valor: 'Paredão', icone: 'shield-check' },
-  { valor: 'Misto', icone: 'account-outline' },
-  { valor: 'Sem dados', icone: 'information-outline' },
+  { valor: "Todos", icone: "account-outline" },
+  { valor: "Artilheiro", icone: "soccer" },
+  { valor: "Armador", icone: "handshake" },
+  { valor: "Paredão", icone: "shield-check" },
+  { valor: "Misto", icone: "account-outline" },
+  { valor: "Sem dados", icone: "information-outline" },
 ];
 
-const OPCOES_ORDENACAO: { label: string; value: OrdenacaoScout }[] = [
-  { label: 'Convocações', value: 'NOTA' },
-  { label: 'Gols', value: 'GOLS' },
-  { label: 'Assistências', value: 'ASSISTENCIAS' },
-  { label: 'Defesas', value: 'DEFESAS' },
-];
+const OPCOES_ORDENACAO = ORDENS_SCOUT;
 
 // ── Card da Lista ─────────────────────────────────────────────────────────────
 const CardJogador = memo(function CardJogador({
@@ -100,7 +107,7 @@ const CardJogador = memo(function CardJogador({
   const { colors, tema } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const corPerfil =
-    getCoresPerfil(colors, tema === 'dark')[jogador.perfil_ml] ??
+    getCoresPerfil(colors, tema === "dark")[jogador.perfil_ml] ??
     colors.textoSecundario;
   const idade = jogador.idade ?? null;
 
@@ -115,7 +122,7 @@ const CardJogador = memo(function CardJogador({
       <View style={styles.cardTopo}>
         <View style={styles.cardNumCamisa}>
           <Text style={styles.cardNumCamisaTxt}>
-            {jogador.numCamisa != null ? `#${jogador.numCamisa}` : '—'}
+            {jogador.numCamisa != null ? `#${jogador.numCamisa}` : "—"}
           </Text>
         </View>
 
@@ -123,21 +130,24 @@ const CardJogador = memo(function CardJogador({
           <Text style={styles.cardNome} numberOfLines={1}>
             {jogador.nome}
           </Text>
-          <PositionLabel position={jogador.posicao} textStyle={styles.cardSub} suffix={idade ? ` · ${idade} anos` : ''}/>
+          <PositionLabel
+            position={jogador.posicao}
+            textStyle={styles.cardSub}
+            suffix={idade ? ` · ${idade} anos` : ""}
+          />
         </View>
 
         <View style={styles.cardDireita}>
           <Text style={styles.cardNotaLabel}>CONVOCAÇÕES</Text>
-          <Text style={styles.cardNota}>{String(jogador.jogos_disputados)}</Text>
+          <Text style={[styles.cardNota, { color: corPerfil }]}>
+            {String(jogador.jogos_disputados)}
+          </Text>
         </View>
         <Icon name="chevron-right" size={18} color={colors.textoSecundario} />
       </View>
       <View style={styles.cardRodape}>
         <View
-          style={[
-            styles.cardBadgePerfil,
-            { backgroundColor: corPerfil + '18' },
-          ]}
+          style={[styles.cardBadgePerfil, { backgroundColor: "transparent" }]}
         >
           <View style={[styles.perfilDot, { backgroundColor: corPerfil }]} />
           <Text style={[styles.cardBadgePerfilTxt, { color: corPerfil }]}>
@@ -145,23 +155,21 @@ const CardJogador = memo(function CardJogador({
           </Text>
         </View>
         <View style={styles.cardStats}>
-          <Text style={styles.cardMetricText}>
-            {jogador.jogos_disputados} escalações
-          </Text>
-          <Icon name="soccer" size={13} color={colors.primaria} />
-          <Text style={styles.cardMetricText}>{jogador.gols}</Text>
-          <Icon
-            name={
-              jogador.perfil_ml === 'Paredão' ? 'shield-check' : 'handshake'
-            }
-            size={13}
-            color={corPerfil}
-          />
-          <Text style={styles.cardMetricText}>
-            {jogador.perfil_ml === 'Paredão'
-              ? jogador.defesas
-              : jogador.assistencias}
-          </Text>
+          {[
+            ["Convocações", jogador.jogos_disputados],
+            ["Gols", jogador.gols],
+            [
+              jogador.perfil_ml === "Paredão" ? "Defesas" : "Assistências",
+              jogador.perfil_ml === "Paredão"
+                ? jogador.defesas
+                : jogador.assistencias,
+            ],
+          ].map(([label, value]) => (
+            <View key={label} style={{ alignItems: "center", gap: 5 }}>
+              <Text style={styles.cardMetricValue}>{value}</Text>
+              <Text style={styles.cardMetricText}>{label}</Text>
+            </View>
+          ))}
         </View>
       </View>
     </TouchableOpacity>
@@ -183,22 +191,22 @@ function ModalScout({
   const { colors, tema } = useTheme();
   const styles = createStyles(colors);
   const corPerfil =
-    getCoresPerfil(colors, tema === 'dark')[jogador.perfil_ml] ??
+    getCoresPerfil(colors, tema === "dark")[jogador.perfil_ml] ??
     colors.textoSecundario;
   const idade = jogador.idade ?? null;
 
   const stats = [
     {
-      label: 'Convocações',
+      label: "Convocações",
       valor: jogador.jogos_disputados,
-      icone: 'soccer-field',
+      icone: "soccer-field",
     },
-    { label: 'Gols', valor: jogador.gols, icone: 'soccer' },
-    { label: 'Assist.', valor: jogador.assistencias, icone: 'handshake' },
-    { label: 'Defesas', valor: jogador.defesas, icone: 'shield-check' },
-    { label: 'Faltas', valor: jogador.faltas_cometidas, icone: 'whistle' },
-    { label: 'Amarelos', valor: jogador.cartoes_amarelos, icone: 'card' },
-    { label: 'Vermelhos', valor: jogador.cartoes_vermelhos, icone: 'card' },
+    { label: "Gols", valor: jogador.gols, icone: "soccer" },
+    { label: "Assist.", valor: jogador.assistencias, icone: "handshake" },
+    { label: "Defesas", valor: jogador.defesas, icone: "shield-check" },
+    { label: "Faltas", valor: jogador.faltas_cometidas, icone: "whistle" },
+    { label: "Amarelos", valor: jogador.cartoes_amarelos, icone: "card" },
+    { label: "Vermelhos", valor: jogador.cartoes_vermelhos, icone: "card" },
   ] as const;
 
   return (
@@ -210,7 +218,7 @@ function ModalScout({
     >
       <SafeAreaView
         style={styles.scoutContainer}
-        edges={['top', 'bottom', 'left', 'right']}
+        edges={["top", "bottom", "left", "right"]}
       >
         <Header
           title="Ficha do atleta"
@@ -225,39 +233,29 @@ function ModalScout({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scoutContent}
         >
-          <View style={[styles.scoutIdentidade, { borderColor: colors.borda }]}>
-            <View
-              style={[
-                styles.scoutAvatarNum,
-                { backgroundColor: colors.cardSecundario, borderColor: colors.borda },
-              ]}
-            >
-              <Text style={[styles.scoutAvatarNumTxt, { color: corPerfil }]}>
-                {jogador.numCamisa ?? '?'}
-              </Text>
+          <View style={styles.scoutIdentidade}>
+            <View style={styles.scoutAvatarNum}>
+              {jogador.numCamisa != null ? (
+                <Text style={styles.scoutAvatarNumTxt}>
+                  #{jogador.numCamisa}
+                </Text>
+              ) : (
+                <Icon
+                  name="tshirt-crew-outline"
+                  size={24}
+                  color={colors.texto}
+                />
+              )}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.scoutNome} numberOfLines={1}>
+            <View style={{ flex: 1, minWidth: 0, gap: 7 }}>
+              <Text style={styles.scoutNome} numberOfLines={2}>
                 {jogador.nome}
               </Text>
-              <PositionLabel position={jogador.posicao} textStyle={styles.scoutPosicao}/>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  gap: 8,
-                  marginTop: 6,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <View style={styles.scoutChip}>
-                  <Text style={styles.scoutChipTxt}>{jogador.categoria}</Text>
-                </View>
-                {idade && (
-                  <View style={styles.scoutChip}>
-                    <Text style={styles.scoutChipTxt}>{idade} anos</Text>
-                  </View>
-                )}
-              </View>
+              <PositionLabel
+                position={jogador.posicao}
+                textStyle={styles.scoutPosicao}
+                suffix={` · ${jogador.categoria.toUpperCase()}${idade != null ? ` · ${idade} anos` : ""}`}
+              />
             </View>
           </View>
 
@@ -268,29 +266,31 @@ function ModalScout({
             consultaLocal={consultaLocal}
           />
 
-          {consultaLocal && <>
-          <Text style={styles.scoutSecaoLabel}>TOTAIS REGISTRADOS</Text>
-          <Text style={styles.scoutRadarNota}>
-            Histórico geral do cadastro atual, somente partidas finalizadas. Não
-            corresponde apenas ao recorte recente acima.
-          </Text>
-          <View style={styles.scoutStatsGrid}>
-            {stats.map((s) => (
-              <View key={s.label} style={styles.scoutStatCard}>
-                <Icon
-                  name={s.icone}
-                  size={22}
-                  color={corPerfil}
-                  style={{ opacity: 0.8 }}
-                />
-                <Text style={styles.scoutStatValor}>{s.valor}</Text>
-                <Text style={styles.scoutStatLabel}>{s.label}</Text>
+          {consultaLocal && (
+            <>
+              <Text style={styles.scoutSecaoLabel}>TOTAIS REGISTRADOS</Text>
+              <Text style={styles.scoutRadarNota}>
+                Histórico geral do cadastro atual, somente partidas finalizadas.
+                Não corresponde apenas ao recorte recente acima.
+              </Text>
+              <View style={styles.scoutStatsGrid}>
+                {stats.map((s) => (
+                  <View key={s.label} style={styles.scoutStatCard}>
+                    <Icon
+                      name={s.icone}
+                      size={22}
+                      color={corPerfil}
+                      style={{ opacity: 0.8 }}
+                    />
+                    <Text style={styles.scoutStatValor}>{s.valor}</Text>
+                    <Text style={styles.scoutStatLabel}>{s.label}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
 
-          <View style={{ height: 60 }} />
-          </>}
+              <View style={{ height: 60 }} />
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -303,8 +303,8 @@ export default function Estatisticas() {
   const { colors, tema } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const coresPerfil = useMemo(
-    () => getCoresPerfil(colors, tema === 'dark'),
-    [colors, tema]
+    () => getCoresPerfil(colors, tema === "dark"),
+    [colors, tema],
   );
   const { clubeAtivo, podeGerenciar, carregandoClubeAtivo } = useClubeAtivo();
   const carregouUmaVez = useRef(false);
@@ -323,14 +323,29 @@ export default function Estatisticas() {
   const [consultaLocal, setConsultaLocal] = useState<number | null>(null);
   const consultaLocalRef = useRef(consultaLocal);
   consultaLocalRef.current = consultaLocal;
+  const cargaEmAndamento = useRef<{
+    pedido: number;
+    clubeId: number | undefined;
+  } | null>(null);
+  const jogadoresAtuais = useRef(jogadores);
+  jogadoresAtuais.current = jogadores;
+  const [falhaAtualizacao, setFalhaAtualizacao] = useState(false);
   const [consultandoServidor, setConsultandoServidor] = useState(false);
-  const [busca, setBusca] = useState('');
+  const [busca, setBusca] = useState("");
   const buscaAplicada = useDeferredValue(busca);
-  const [ordenacao, setOrdenacao] = useState<OrdenacaoScout>('NOTA');
-  const [perfilAtivo, setPerfilAtivo] = useState<PerfilScout>('Todos');
+  const [ordenacao, setOrdenacao] = useState<OrdenacaoScout>("NOTA");
+  const [empate, setEmpate] = useState<{
+    titulo: string;
+    jogadores: Jogador[];
+  } | null>(null);
+  const [direcao, setDirecao] = useState<DirecaoScout>("");
+  const [filtros, setFiltros] = useState<FiltrosScout>(FILTROS_SCOUT_INICIAIS);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [ajudaAberta, setAjudaAberta] = useState(false);
+  const [perfilAtivo, setPerfilAtivo] = useState<PerfilScout>("Todos");
   const [atualizando, setAtualizando] = useState(false);
   const [jogadorSelecionado, setJogadorSelecionado] = useState<Jogador | null>(
-    null
+    null,
   );
 
   useEffect(() => {
@@ -338,27 +353,39 @@ export default function Estatisticas() {
   }, [clubeAtivo?.id]);
 
   const [subIndex, setSubIndex] = useState(0);
-  const [tipoAtivo, setTipoAtivo] = useState<'INICIACAO' | 'BASE'>('INICIACAO');
+  const [tipoAtivo, setTipoAtivo] = useState<"INICIACAO" | "BASE">("INICIACAO");
 
-  const subsAtivos = tipoAtivo === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
-  const trocarSub = useCallback((index: number, velocity?: number) => {
-    pagerMotion.goTo(index, velocity);
-  }, [pagerMotion.goTo]);
+  const subsAtivos = tipoAtivo === "INICIACAO" ? SUBS_INICIACAO : SUBS_BASE;
+  const trocarSub = useCallback(
+    (index: number, velocity?: number) => {
+      pagerMotion.goTo(index, velocity);
+    },
+    [pagerMotion.goTo],
+  );
   const trocarTipo = useCallback(
-    (tipo: 'INICIACAO' | 'BASE') => {
+    (tipo: "INICIACAO" | "BASE") => {
       setTipoAtivo(tipo);
       setSubIndex(0);
       progressoPagina.value = 0;
       pagerMotion.origin.value = 0;
       pagerRef.current?.setPageWithoutAnimation(0);
     },
-    [progressoPagina]
+    [progressoPagina],
   );
 
   const carregarDados = useCallback(
-    async (silencioso = false) => {
-      medicaoTela.current = iniciarMedicaoCarregamento('scout:estado-pronto');
+    async (silencioso = false, revalidar = false) => {
+      const atual = cargaEmAndamento.current;
+      if (
+        atual?.clubeId === clubeAtivo?.id &&
+        atual &&
+        controle.atual(atual.pedido)
+      )
+        return;
+      medicaoTela.current = iniciarMedicaoCarregamento("scout:estado-pronto");
       const pedido = controle.iniciar();
+      cargaEmAndamento.current = { pedido, clubeId: clubeAtivo?.id };
+      setFalhaAtualizacao(false);
       setConsultandoServidor(true);
       const mudouClube = clubeCarregadoId.current !== clubeAtivo?.id;
       if (!silencioso || mudouClube) setCarregando(true);
@@ -372,7 +399,9 @@ export default function Estatisticas() {
         let ajustouCategoria = false;
         const exibir = (todos: Jogador[], salvoEm: number | null) => {
           if (!controle.atual(pedido)) return;
-          setJogadores(todos);
+          setJogadores((anteriores) =>
+            anteriores === todos ? anteriores : todos,
+          );
           setConsultaLocal(salvoEm);
           setCarregando(false);
           clubeCarregadoId.current = clubeAtivo.id;
@@ -382,14 +411,14 @@ export default function Estatisticas() {
             if (primeiro.categoria_tipo) setTipoAtivo(primeiro.categoria_tipo);
 
             const subsDoTipo =
-              primeiro.categoria_tipo === 'INICIACAO'
+              primeiro.categoria_tipo === "INICIACAO"
                 ? SUBS_INICIACAO
                 : SUBS_BASE;
 
             const idxSub = subsDoTipo.findIndex(
               (s) =>
                 normalizarCategoria(s.title) ===
-                normalizarCategoria(primeiro.categoria)
+                normalizarCategoria(primeiro.categoria),
             );
 
             if (idxSub >= 0) {
@@ -401,8 +430,9 @@ export default function Estatisticas() {
         };
         const resultado = await consultarComCopiaLocal<Jogador[]>({
           clubeId: clubeAtivo.id,
-          recurso: 'scout',
-          carregar: () => obterPerfisJogadores(undefined, clubeAtivo.id),
+          recurso: "scout",
+          carregar: () =>
+            obterPerfisJogadores(undefined, clubeAtivo.id, revalidar),
           selecionar: selecionarJogadoresLocais,
           onLocal: (local) => {
             if (mudouClube || !carregouUmaVez.current)
@@ -411,15 +441,25 @@ export default function Estatisticas() {
         });
         exibir(
           resultado.dados,
-          resultado.origem === 'local' ? resultado.salvoEm : null
+          resultado.origem === "local" ? resultado.salvoEm : null,
         );
       } catch (e: any) {
         if (controle.atual(pedido)) {
-          setJogadores([]);
-          setConsultaLocal(null);
-          setErro(e?.message ?? 'Erro na conexão');
+          if (
+            permiteConsultaLocal(e) &&
+            clubeCarregadoId.current === clubeAtivo?.id &&
+            jogadoresAtuais.current.length
+          ) {
+            setFalhaAtualizacao(true);
+          } else {
+            setJogadores([]);
+            setConsultaLocal(null);
+            setErro(e?.message ?? "Erro na conexão");
+          }
         }
       } finally {
+        if (cargaEmAndamento.current?.pedido === pedido)
+          cargaEmAndamento.current = null;
         if (controle.atual(pedido)) {
           carregouUmaVez.current = true;
           setCarregando(false);
@@ -427,12 +467,12 @@ export default function Estatisticas() {
         }
       }
     },
-    [clubeAtivo?.id, controle, progressoPagina]
+    [clubeAtivo?.id, controle, progressoPagina],
   );
 
   useEffect(() => {
     if (!carregando && medicaoTela.current) {
-      medicaoTela.current({ resultado: erro ? 'erro' : 'dados' });
+      medicaoTela.current({ resultado: erro ? "erro" : "dados" });
       medicaoTela.current = null;
     }
   }, [carregando, jogadores, erro]);
@@ -441,13 +481,13 @@ export default function Estatisticas() {
     useCallback(() => {
       if (carregandoClubeAtivo || !podeGerenciar) return;
       carregarDados(carregouUmaVez.current);
-      const appState = AppState.addEventListener('change', (estado) => {
-        if (estado === 'active') void carregarDados(true);
+      const appState = AppState.addEventListener("change", (estado) => {
+        if (estado === "active") void carregarDados(true, true);
       });
       const intervalo = setInterval(() => {
         if (
           consultaLocalRef.current !== null &&
-          AppState.currentState === 'active'
+          AppState.currentState === "active"
         )
           void carregarDados(true);
       }, 30_000);
@@ -456,23 +496,28 @@ export default function Estatisticas() {
         clearInterval(intervalo);
         controle.invalidar();
       };
-    }, [carregarDados, carregandoClubeAtivo, podeGerenciar])
+    }, [carregarDados, carregandoClubeAtivo, podeGerenciar]),
   );
   useEffect(() => {
     setJogadorSelecionado(null);
-    setBusca('');
-    setPerfilAtivo('Todos');
+    setBusca("");
+    setPerfilAtivo("Todos");
+    setFiltros(FILTROS_SCOUT_INICIAIS);
+    setDirecao("");
+    setOrdenacao("NOTA");
+    setFiltrosAbertos(false);
+    setAjudaAberta(false);
   }, [clubeAtivo?.id]);
   useEffect(() => {
     Object.values(paginasScroll.current).forEach((scroll) =>
-      scroll?.scrollToOffset({ offset: 0, animated: false })
+      scroll?.scrollToOffset({ offset: 0, animated: false }),
     );
-  }, [perfilAtivo, buscaAplicada, ordenacao, tipoAtivo]);
+  }, [perfilAtivo, buscaAplicada, ordenacao, direcao, filtros, tipoAtivo]);
 
   const atualizarScout = useCallback(async () => {
     setAtualizando(true);
     try {
-      await carregarDados(true);
+      await carregarDados(true, true);
     } finally {
       setAtualizando(false);
     }
@@ -492,7 +537,7 @@ export default function Estatisticas() {
           contagens: dados.contagens,
         };
       }),
-    [subsAtivos, catalogo, tipoAtivo]
+    [subsAtivos, catalogo, tipoAtivo],
   );
   const paginas = useMemo(
     () =>
@@ -502,16 +547,18 @@ export default function Estatisticas() {
           categoria.jogadoresDaCategoria,
           buscaAplicada,
           perfilAtivo,
-          ordenacao
+          ordenacao,
+          direcao,
+          filtros,
         ),
       })),
-    [categorias, buscaAplicada, perfilAtivo, ordenacao]
+    [categorias, buscaAplicada, perfilAtivo, ordenacao, direcao, filtros],
   );
   const renderizarJogador = useCallback(
     ({ item }: { item: Jogador }) => (
       <CardJogador jogador={item} onSelecionar={setJogadorSelecionado} />
     ),
-    []
+    [],
   );
 
   if (carregandoClubeAtivo) {
@@ -535,9 +582,37 @@ export default function Estatisticas() {
         onTrocarTipo={trocarTipo}
         indexAtual={subIndex}
         onChangeIndex={trocarSub}
-        progressoPagina={progressoPagina} originPagina={pagerMotion.origin} settlingPagina={pagerMotion.settling}
+        progressoPagina={progressoPagina}
+        originPagina={pagerMotion.origin}
+        settlingPagina={pagerMotion.settling}
       />
 
+      {falhaAtualizacao && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            padding: 12,
+          }}
+          accessibilityRole="alert"
+        >
+          <Icon name="wifi-off" size={16} color={colors.textoSecundario} />
+          <Text style={[styles.contextNote, { flex: 1, margin: 0 }]}>
+            Não foi possível atualizar. Seus últimos dados continuam visíveis.
+          </Text>
+          <TouchableOpacity
+            onPress={() => void atualizarScout()}
+            accessibilityRole="button"
+            accessibilityLabel="Atualizar Scout"
+            style={{ padding: 8 }}
+          >
+            <Text style={{ color: colors.primaria, fontSize: 12 }}>
+              Atualizar
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
       {consultaLocal !== null && (
         <AvisoConsultaLocal
           salvoEm={consultaLocal}
@@ -551,7 +626,10 @@ export default function Estatisticas() {
         style={{ flex: 1 }}
         initialPage={subIndex}
         onPageSelected={({ nativeEvent }) => setSubIndex(nativeEvent.position)}
-        progress={progressoPagina} origin={pagerMotion.origin} settling={pagerMotion.settling} onSettled={pagerMotion.onSettled}
+        progress={progressoPagina}
+        origin={pagerMotion.origin}
+        settling={pagerMotion.settling}
+        onSettled={pagerMotion.onSettled}
         keyboardDismissMode="on-drag"
       >
         {paginas.map(
@@ -563,363 +641,420 @@ export default function Estatisticas() {
               resumo,
               contagens,
             },
-            indexPagina
+            indexPagina,
           ) => (
             <View
               key={`pagina-${indexPagina}`}
               style={{ flex: 1 }}
               collapsable={false}
             >
-              <CategoryPageMotion index={indexPagina} progress={progressoPagina} origin={pagerMotion.origin} settling={pagerMotion.settling}>
-              <PaginaCategoria
-                grupo={`${clubeAtivo?.id}-${tipoAtivo}`}
-                preparar
+              <CategoryPageMotion
+                index={indexPagina}
+                progress={progressoPagina}
+                origin={pagerMotion.origin}
+                settling={pagerMotion.settling}
               >
-                {carregando ? (
-                  <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.listaContent}
-                  >
-                    <CardsSkeleton rows={5} />
-                  </ScrollView>
-                ) : erro ? (
-                  <View style={styles.centralizado}>
-                    <ErroCarregamento
-                      titulo="Não foi possível carregar as estatísticas"
-                      descricao="Confira sua conexão e tente atualizar os dados dos jogadores novamente."
-                      onTentarNovamente={() => void carregarDados()}
-                    />
-                  </View>
-                ) : (
-                  <FlatList<Jogador>
-                    ref={(ref) => {
-                      paginasScroll.current[indexPagina] = ref;
-                    }}
-                    data={jogadoresFiltrados}
-                    keyExtractor={(jogador) => String(jogador.id_jogador)}
-                    initialNumToRender={6}
-                    maxToRenderPerBatch={6}
-                    windowSize={3}
-                    renderItem={renderizarJogador}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.telaContent}
-                    keyboardShouldPersistTaps="handled"
-                    keyboardDismissMode="on-drag"
-                    refreshControl={
-                      <RefreshControl
-                        refreshing={atualizando}
-                        onRefresh={atualizarScout}
-                        tintColor={colors.primaria}
-                        colors={[colors.primaria]}
+                <PaginaCategoria
+                  grupo={`${clubeAtivo?.id}-${tipoAtivo}`}
+                  preparar
+                >
+                  {carregando ? (
+                    <ScrollView
+                      showsVerticalScrollIndicator={false}
+                      contentContainerStyle={styles.listaContent}
+                    >
+                      <Text
+                        style={styles.contextNote}
+                        accessibilityLiveRegion="polite"
+                      >
+                        Carregando atletas da categoria…
+                      </Text>
+                      <CardsSkeleton rows={3} />
+                    </ScrollView>
+                  ) : erro ? (
+                    <View style={styles.centralizado}>
+                      <ErroCarregamento
+                        titulo="Não foi possível carregar as estatísticas"
+                        descricao="Confira sua conexão e tente atualizar os dados dos jogadores novamente."
+                        onTentarNovamente={() =>
+                          void carregarDados(false, true)
+                        }
                       />
-                    }
-                    ListHeaderComponent={
-                      <>
-                        <View style={styles.filtrosContainer}>
-                          <View style={styles.buscaContainer}>
-                            <Icon
-                              name="magnify"
-                              size={19}
-                              color={colors.textoSecundario}
-                            />
-                            <TextInput
-                              style={styles.buscaInput}
-                              placeholder="Buscar nome ou posição"
-                              placeholderTextColor={colors.textoSecundario}
-                              value={busca}
-                              onChangeText={setBusca}
-                              autoCorrect={false}
-                              returnKeyType="search"
-                              accessibilityLabel="Buscar atleta por nome ou posição"
-                            />
-                            {!!busca && (
-                              <TouchableOpacity
-                                style={styles.limparBusca}
-                                onPress={() => setBusca('')}
-                                accessibilityRole="button"
-                                accessibilityLabel="Limpar busca"
-                              >
+                    </View>
+                  ) : (
+                    <FlatList<Jogador>
+                      ref={(ref) => {
+                        paginasScroll.current[indexPagina] = ref;
+                      }}
+                      data={jogadoresFiltrados}
+                      keyExtractor={(jogador) => String(jogador.id_jogador)}
+                      initialNumToRender={6}
+                      maxToRenderPerBatch={6}
+                      windowSize={3}
+                      renderItem={renderizarJogador}
+                      showsVerticalScrollIndicator={false}
+                      contentContainerStyle={styles.telaContent}
+                      keyboardShouldPersistTaps="handled"
+                      keyboardDismissMode="on-drag"
+                      refreshControl={
+                        <RefreshControl
+                          refreshing={atualizando}
+                          onRefresh={atualizarScout}
+                          tintColor={colors.primaria}
+                          colors={[colors.primaria]}
+                        />
+                      }
+                      ListHeaderComponent={
+                        <>
+                          {!!jogadoresDaCategoria.length && (
+                            <View style={styles.resumoCards}>
+                              {(
+                                [
+                                  {
+                                    label: "Mais gols",
+                                    field: "gols",
+                                    value: resumo.artilheiro?.gols ?? 0,
+                                  },
+                                  {
+                                    label: "Assistências",
+                                    field: "assistencias",
+                                    value: resumo.assistente?.assistencias ?? 0,
+                                  },
+                                  {
+                                    label: "Convocações",
+                                    field: "jogos_disputados",
+                                    value: resumo.lider?.pontos ?? 0,
+                                  },
+                                ] as const
+                              ).map((h) => {
+                                const lideres =
+                                  h.value > 0
+                                    ? jogadoresDaCategoria.filter(
+                                        (j) => j[h.field] === h.value,
+                                      )
+                                    : [];
+                                return (
+                                  <TouchableOpacity
+                                    key={h.label}
+                                    style={styles.resumoCard}
+                                    activeOpacity={0.8}
+                                    disabled={!lideres.length}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`${h.label}: ${h.value}${lideres.length > 1 ? `, ${lideres.length} atletas empatados` : lideres[0] ? `, ${lideres[0].nome}` : ", sem registros"}`}
+                                    onPress={() =>
+                                      lideres.length > 1
+                                        ? setEmpate({
+                                            titulo: h.label,
+                                            jogadores: lideres,
+                                          })
+                                        : setJogadorSelecionado(lideres[0])
+                                    }
+                                  >
+                                    <View style={styles.highlightHeading}>
+                                      <Text
+                                        style={styles.resumoCardLabel}
+                                        numberOfLines={1}
+                                      >
+                                        {h.label}
+                                      </Text>
+                                      <Text style={styles.resumoCardValor}>
+                                        {h.value}
+                                      </Text>
+                                    </View>
+                                    <Text
+                                      style={styles.resumoCardNome}
+                                      numberOfLines={2}
+                                    >
+                                      {lideres[0]?.nome || "Sem registros"}
+                                    </Text>
+                                    {lideres.length > 1 && (
+                                      <Text style={styles.highlightTies}>
+                                        +{lideres.length - 1}{" "}
+                                        {lideres.length === 2
+                                          ? "empatado"
+                                          : "empatados"}
+                                      </Text>
+                                    )}
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          )}
+                          <View style={styles.filtrosContainer}>
+                            <View style={styles.searchRow}>
+                              <View style={styles.buscaContainer}>
                                 <Icon
-                                  name="close"
-                                  size={18}
+                                  name="magnify"
+                                  size={19}
                                   color={colors.textoSecundario}
                                 />
+                                <TextInput
+                                  style={styles.buscaInput}
+                                  placeholder="Nome, camisa ou posição"
+                                  placeholderTextColor={colors.textoSecundario}
+                                  value={busca}
+                                  onChangeText={setBusca}
+                                  autoCorrect={false}
+                                  returnKeyType="search"
+                                  accessibilityLabel="Buscar atleta por nome, camisa ou posição"
+                                />
+                                {!!busca && (
+                                  <TouchableOpacity
+                                    style={styles.limparBusca}
+                                    onPress={() => setBusca("")}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Limpar busca"
+                                  >
+                                    <Icon
+                                      name="close"
+                                      size={18}
+                                      color={colors.textoSecundario}
+                                    />
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                              <TouchableOpacity
+                                style={styles.filterButton}
+                                accessibilityRole="button"
+                                accessibilityLabel="Mais filtros de atletas"
+                                accessibilityState={{
+                                  expanded: filtrosAbertos,
+                                }}
+                                onPress={() => setFiltrosAbertos(true)}
+                              >
+                                <Icon
+                                  name="sliders-horizontal"
+                                  size={19}
+                                  color={colors.textoSecundario}
+                                />
+                                {(!!filtros.posicao ||
+                                  filtros.participacao !== "todos" ||
+                                  filtros.perfil !== "todos") && (
+                                  <View style={styles.filterDot} />
+                                )}
                               </TouchableOpacity>
-                            )}
+                            </View>
+                            <ScrollView
+                              horizontal
+                              showsHorizontalScrollIndicator={false}
+                              contentContainerStyle={styles.perfisContent}
+                              keyboardShouldPersistTaps="handled"
+                            >
+                              {PERFIS.map(({ valor, icone }) => {
+                                const ativo = perfilAtivo === valor;
+                                const corAtiva = "#fff";
+                                const quantidade = contagens[valor];
+                                return (
+                                  <TouchableOpacity
+                                    key={valor}
+                                    style={[
+                                      styles.perfilFiltro,
+                                      ativo && {
+                                        backgroundColor: colors.primaria,
+                                        borderColor: colors.primaria,
+                                      },
+                                    ]}
+                                    onPress={() => setPerfilAtivo(valor)}
+                                    activeOpacity={0.8}
+                                    accessibilityRole="button"
+                                    accessibilityState={{ selected: ativo }}
+                                    accessibilityLabel={`${valor}, ${quantidade} atletas`}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.perfilFiltroTexto,
+                                        ativo && { color: corAtiva },
+                                      ]}
+                                    >
+                                      {valor === "Sem dados"
+                                        ? "Não avaliados"
+                                        : valor}
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.perfilQuantidade,
+                                        ativo && { color: corAtiva },
+                                      ]}
+                                    >
+                                      {quantidade}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </ScrollView>
                           </View>
+                          <TouchableOpacity
+                            onPress={() => setAjudaAberta(true)}
+                            style={styles.helpButton}
+                            accessibilityRole="button"
+                          >
+                            <Icon
+                              name="information-outline"
+                              size={15}
+                              color={colors.textoSecundario}
+                            />
+                            <Text style={styles.helpText}>
+                              Como interpretar o Scout
+                            </Text>
+                          </TouchableOpacity>
+
+                          <View style={styles.listaHeader}>
+                            <Text style={styles.listaTitulo}>
+                              {perfilAtivo === "Todos"
+                                ? "Atletas"
+                                : perfilAtivo}
+                            </Text>
+                            <Text style={styles.listaContador}>
+                              {jogadoresFiltrados.length} de{" "}
+                              {jogadoresDaCategoria.length} · {categoriaAtual}
+                            </Text>
+                          </View>
+
                           <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={styles.perfisContent}
+                            contentContainerStyle={styles.ordenacaoContent}
                             keyboardShouldPersistTaps="handled"
                           >
-                            {PERFIS.map(({ valor, icone }) => {
-                              const ativo = perfilAtivo === valor;
-                              const cor = coresPerfil[valor] ?? colors.primaria;
-                              const corAtiva =
-                                valor === 'Sem dados'
-                                  ? colors.texto
-                                  : colors.textoSobrePrimaria;
-                              const quantidade = contagens[valor];
-                              return (
-                                <TouchableOpacity
-                                  key={valor}
-                                  style={[
-                                    styles.perfilFiltro,
-                                    ativo && {
-                                      backgroundColor:
-                                        valor === 'Sem dados'
-                                          ? colors.cardSecundario
-                                          : cor,
-                                      borderColor: cor,
-                                    },
-                                  ]}
-                                  onPress={() => setPerfilAtivo(valor)}
-                                  activeOpacity={0.8}
-                                  accessibilityRole="button"
-                                  accessibilityState={{ selected: ativo }}
-                                  accessibilityLabel={`${valor}, ${quantidade} atletas`}
-                                >
-                                  <Icon
-                                    name={icone}
-                                    size={16}
-                                    color={ativo ? corAtiva : cor}
-                                  />
-                                  <Text
-                                    style={[
-                                      styles.perfilFiltroTexto,
-                                      ativo && { color: corAtiva },
-                                    ]}
-                                  >
-                                    {valor}
-                                  </Text>
-                                  <Text
-                                    style={[
-                                      styles.perfilQuantidade,
-                                      ativo && { color: corAtiva },
-                                    ]}
-                                  >
-                                    {quantidade}
-                                  </Text>
-                                </TouchableOpacity>
-                              );
-                            })}
-                          </ScrollView>
-                        </View>
-                        {jogadoresDaCategoria.length > 0 && (
-                          <View style={styles.resumoContainer}>
-                            <View style={styles.resumoHeader}>
-                              <Text style={styles.resumoTitulo}>
-                                Visão da categoria
-                              </Text>
-                              <Text style={styles.resumoSub}>
-                                {categoriaAtual}
-                              </Text>
-                            </View>
-                            <View style={styles.resumoCards}>
-                              <View style={styles.resumoCard}>
-                                <View
-                                  style={[
-                                    styles.resumoIcone,
-                                    { backgroundColor: colors.primaria + '18' },
-                                  ]}
-                                >
-                                  <Icon
-                                    name="soccer"
-                                    size={18}
-                                    color={colors.primaria}
-                                  />
-                                </View>
-                                <Text style={styles.resumoCardLabel}>
-                                  MAIS GOLS
-                                </Text>
-                                <Text style={styles.resumoCardValor}>
-                                  {resumo.artilheiro?.gols || '—'}
-                                </Text>
-                                <Text
-                                  style={styles.resumoCardNome}
-                                  numberOfLines={2}
-                                >
-                                  {resumo.artilheiro?.gols
-                                    ? resumo.artilheiro.nome
-                                    : 'Sem gols registrados'}
-                                </Text>
-                              </View>
-                              <View style={styles.resumoCard}>
-                                <View
-                                  style={[
-                                    styles.resumoIcone,
-                                    {
-                                      backgroundColor:
-                                        coresPerfil.Armador + '18',
-                                    },
-                                  ]}
-                                >
-                                  <Icon
-                                    name="handshake"
-                                    size={18}
-                                    color={coresPerfil.Armador}
-                                  />
-                                </View>
-                                <Text style={styles.resumoCardLabel}>
-                                  ASSISTÊNCIAS
-                                </Text>
-                                <Text style={styles.resumoCardValor}>
-                                  {resumo.assistente?.assistencias || '—'}
-                                </Text>
-                                <Text
-                                  style={styles.resumoCardNome}
-                                  numberOfLines={2}
-                                >
-                                  {resumo.assistente?.assistencias
-                                    ? resumo.assistente.nome
-                                    : 'Sem assistências'}
-                                </Text>
-                              </View>
-                              <View style={styles.resumoCard}>
-                                <View
-                                  style={[
-                                    styles.resumoIcone,
-                                    {
-                                      backgroundColor:
-                                        coresPerfil['Paredão'] + '18',
-                                    },
-                                  ]}
-                                >
-                                  <Icon
-                                    name="radar"
-                                    size={18}
-                                    color={coresPerfil['Paredão']}
-                                  />
-                                </View>
-                                <Text style={styles.resumoCardLabel}>
-                                  CONVOCAÇÕES
-                                </Text>
-                                <Text style={styles.resumoCardValor}>
-                                  {resumo.lider?.pontos || '—'}
-                                </Text>
-                                <Text
-                                  style={styles.resumoCardNome}
-                                  numberOfLines={2}
-                                >
-                                  {resumo.lider?.pontos
-                                    ? resumo.lider.nome
-                                    : 'Em análise'}
-                                </Text>
-                              </View>
-                            </View>
-                          </View>
-                        )}
-
-                        <View style={styles.listaHeader}>
-                          <Text style={styles.listaTitulo}>
-                            {perfilAtivo === 'Todos' ? 'Atletas' : perfilAtivo}
-                          </Text>
-                          <Text style={styles.listaContador}>
-                            {jogadoresFiltrados.length} de{' '}
-                            {jogadoresDaCategoria.length} atletas
-                          </Text>
-                        </View>
-
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.ordenacaoContent}
-                          keyboardShouldPersistTaps="handled"
-                        >
-                          {OPCOES_ORDENACAO.map((opcao) => (
-                            <TouchableOpacity
-                              key={opcao.value}
-                              style={[
-                                styles.ordenacaoPill,
-                                ordenacao === opcao.value &&
-                                  styles.ordenacaoPillAtiva,
-                              ]}
-                              onPress={() => setOrdenacao(opcao.value)}
-                              activeOpacity={0.75}
-                              accessibilityRole="button"
-                              accessibilityLabel={`Ordenar por ${opcao.label}`}
-                              accessibilityState={{
-                                selected: ordenacao === opcao.value,
-                              }}
-                            >
-                              <Text
+                            {OPCOES_ORDENACAO.map((opcao) => (
+                              <TouchableOpacity
+                                key={opcao.value}
+                                hitSlop={{ top: 5, bottom: 5 }}
                                 style={[
-                                  styles.ordenacaoTxt,
+                                  styles.ordenacaoPill,
                                   ordenacao === opcao.value &&
-                                    styles.ordenacaoTxtAtiva,
+                                    styles.ordenacaoPillAtiva,
                                 ]}
+                                onPress={() => {
+                                  const next = proximaOrdenacaoScout(
+                                    ordenacao,
+                                    opcao.value,
+                                    direcao,
+                                  );
+                                  setOrdenacao(next.ordenacao);
+                                  setDirecao(next.direcao);
+                                }}
+                                activeOpacity={0.75}
+                                accessibilityRole="button"
+                                accessibilityLabel={`${opcao.label}: ${ordenacao === opcao.value && direcao ? (direcao === "asc" ? "crescente" : "decrescente") : "padrão"}`}
+                                accessibilityHint="Toque para alternar a direção ou voltar ao padrão"
+                                accessibilityState={{
+                                  selected: ordenacao === opcao.value,
+                                }}
                               >
-                                {opcao.label}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                      </>
-                    }
-                    ListEmptyComponent={
-                      <View style={styles.listaVazia}>
-                        <View style={styles.estadoIcone}>
-                          <Icon
-                            name="account-off-outline"
-                            size={28}
-                            color={colors.textoSecundario}
-                          />
+                                <Text
+                                  style={[
+                                    styles.ordenacaoTxt,
+                                    ordenacao === opcao.value &&
+                                      styles.ordenacaoTxtAtiva,
+                                  ]}
+                                >
+                                  {opcao.label}
+                                </Text>
+                                <ScoutSortIndicator
+                                  direction={
+                                    ordenacao === opcao.value ? direcao : ""
+                                  }
+                                />
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                          <Text style={styles.contextNote}>
+                            Partidas finalizadas · convocações não confirmam
+                            minutos em campo. Abra a ficha para filtrar por
+                            campeonato ou partida.
+                          </Text>
+                        </>
+                      }
+                      ListEmptyComponent={
+                        <View style={styles.listaVazia}>
+                          <View style={styles.estadoIcone}>
+                            <Icon
+                              name="account-off-outline"
+                              size={28}
+                              color={colors.textoSecundario}
+                            />
+                          </View>
+                          <Text style={styles.vazioTitulo}>
+                            {jogadoresDaCategoria.length === 0
+                              ? "Categoria sem atletas"
+                              : "Nenhum atleta neste filtro"}
+                          </Text>
+                          <Text style={styles.txtErro}>
+                            {jogadoresDaCategoria.length === 0
+                              ? "Os atletas cadastrados nesta categoria aparecerão aqui."
+                              : busca.trim()
+                                ? "Tente outro nome ou posição, ou escolha Todos os perfis."
+                                : perfilAtivo === "Sem dados"
+                                  ? "Todos os atletas desta categoria já possuem um perfil."
+                                  : `Ainda não há atletas com perfil ${perfilAtivo} nesta categoria.`}
+                          </Text>
+                          {jogadoresDaCategoria.length > 0 &&
+                            (busca.trim() || perfilAtivo !== "Todos") && (
+                              <TouchableOpacity
+                                style={styles.btnRetry}
+                                onPress={() => {
+                                  setBusca("");
+                                  setPerfilAtivo("Todos");
+                                }}
+                                accessibilityRole="button"
+                              >
+                                <Text style={styles.txtBtnRetry}>
+                                  Limpar filtros
+                                </Text>
+                              </TouchableOpacity>
+                            )}
                         </View>
-                        <Text style={styles.vazioTitulo}>
-                          {jogadoresDaCategoria.length === 0
-                            ? 'Categoria sem atletas'
-                            : 'Nenhum atleta neste filtro'}
-                        </Text>
-                        <Text style={styles.txtErro}>
-                          {jogadoresDaCategoria.length === 0
-                            ? 'Os atletas cadastrados nesta categoria aparecerão aqui.'
-                            : busca.trim()
-                              ? 'Tente outro nome ou posição, ou escolha Todos os perfis.'
-                              : perfilAtivo === 'Sem dados'
-                                ? 'Todos os atletas desta categoria já possuem um perfil.'
-                                : `Ainda não há atletas com perfil ${perfilAtivo} nesta categoria.`}
-                        </Text>
-                        {jogadoresDaCategoria.length > 0 &&
-                          (busca.trim() || perfilAtivo !== 'Todos') && (
-                            <TouchableOpacity
-                              style={styles.btnRetry}
-                              onPress={() => {
-                                setBusca('');
-                                setPerfilAtivo('Todos');
-                              }}
-                              accessibilityRole="button"
-                            >
-                              <Text style={styles.txtBtnRetry}>
-                                Limpar filtros
-                              </Text>
-                            </TouchableOpacity>
-                          )}
-                      </View>
-                    }
-                    ListFooterComponent={
-                      <View style={styles.infoAnalise}>
-                        <Icon
-                          name="information-outline"
-                          size={16}
-                          color={colors.primaria}
-                        />
-                        <Text style={styles.infoAnaliseTxt}>
-                          Os destaques consideram toda a categoria. Perfis e
-                          índices são comparativos e dependem das partidas
-                          registradas e do processamento do Scout.
-                        </Text>
-                      </View>
-                    }
-                  />
-                )}
-              </PaginaCategoria>
+                      }
+                    />
+                  )}
+                </PaginaCategoria>
               </CategoryPageMotion>
             </View>
-          )
+          ),
         )}
       </CategoryPager>
 
+      {empate && (
+        <ScoutSheet
+          title={`${empate.titulo} · atletas empatados`}
+          onClose={() => setEmpate(null)}
+        >
+          <Text style={styles.contextNote}>
+            Atletas com o mesmo resultado nesta categoria. Selecione um para ver
+            sua ficha.
+          </Text>
+          {empate.jogadores.map((j) => (
+            <TouchableOpacity
+              key={j.id_jogador}
+              style={styles.tieRow}
+              accessibilityRole="button"
+              accessibilityLabel={`Ver ficha de ${j.nome}`}
+              onPress={() => {
+                setEmpate(null);
+                setJogadorSelecionado(j);
+              }}
+            >
+              <Text style={[styles.cardNome, { flex: 1 }]}>{j.nome}</Text>
+              <Icon name="chevron-right" size={18} color={colors.texto} />
+            </TouchableOpacity>
+          ))}
+        </ScoutSheet>
+      )}
+      {ajudaAberta && <ScoutHelp onClose={() => setAjudaAberta(false)} />}
+      {filtrosAbertos && (
+        <ScoutFilters
+          initial={filtros}
+          order={ordenacao}
+          direction={direcao}
+          onClose={() => setFiltrosAbertos(false)}
+          onApply={(f, o, d) => {
+            setFiltros(f);
+            setOrdenacao(o);
+            setDirecao(d);
+          }}
+        />
+      )}
       {jogadorSelecionado &&
         clubeAtivo?.id &&
         clubeCarregadoId.current === clubeAtivo.id && (

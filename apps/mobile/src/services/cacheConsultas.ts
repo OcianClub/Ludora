@@ -13,6 +13,7 @@ import {
 } from '../utils/consultaComCache';
 export type { ResultadoConsulta } from '../utils/consultaComCache';
 import { iniciarMedicaoCarregamento } from '../utils/desempenho';
+import { invalidarConsultasRecentes } from './api';
 
 const CHAVE_SESSAO = 'cacheConsultasSessao';
 const memoria = new Map<string, string>();
@@ -104,6 +105,7 @@ async function identificarSessao(identidade: string) {
 }
 
 export function limparCacheConsultas() {
+  invalidarConsultasRecentes();
   if (limpandoSessao) return limpandoSessao;
   const limpeza = cache.limpar();
   const inicializacaoAnterior = iniciandoSessao;

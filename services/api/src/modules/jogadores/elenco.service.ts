@@ -51,24 +51,26 @@ function lerCamisa(valor: unknown): number | null {
 
 export async function salvarAluno(clubeId: number, usuarioId: number, entrada: any, id?: number) {
   return transacaoElenco(async tx => {
-    const atual = id ? await tx.jogador.findFirst({ where: { id, categoria: { clube_id: clubeId } } }) : null;
+    const atual = id ? await tx.jogador.findFirst({ where: { id, categoria: { clube_id: clubeId } }, include: { categoria: true } }) : null;
     if (id && !atual) throw new ErroElenco(404, 'Jogador não encontrado neste clube.');
     if (atual) await exigirCategoria(tx, usuarioId, clubeId, atual.categoria_id);
     if (atual && entrada.cpf !== undefined && entrada.cpf !== atual.cpf) throw new ErroElenco(400, 'O CPF não pode ser alterado.');
     if (entrada.foto !== undefined && !fotoValida(entrada.foto)) throw new ErroElenco(400, 'Use uma imagem JPEG, PNG ou WebP de até 130 KB.');
-    const nome = entrada.nome === undefined ? atual?.nome : typeof entrada.nome === 'string' ? entrada.nome.trim() : '';
-    if (!nome || !/\p{L}/u.test(nome) || /[\uFE0F\u20E3]/u.test(nome) || !/^[\p{L}\p{M} '\u2019-]+$/u.test(nome) || nome.length > 120) throw new ErroElenco(400, 'Informe um nome válido, sem emojis ou símbolos.');
-    const nascimento = entrada.dtNasc ?? atual?.dtNasc.toISOString().slice(0, 10);
+    const nome = entrada.nome === undefined ? atual?.nome ?? '' : typeof entrada.nome === 'string' ? entrada.nome.trim() : '';
+    if ((!atual || entrada.nome !== undefined) && (!nome || !/\p{L}/u.test(nome) || /[\uFE0F\u20E3]/u.test(nome) || !/^[\p{L}\p{M} '\u2019-]+$/u.test(nome) || nome.length > 120)) throw new ErroElenco(400, 'Informe um nome válido, sem emojis ou símbolos.');
+    const nascimento = entrada.dtNasc === undefined ? atual?.dtNasc.toISOString().slice(0, 10) : entrada.dtNasc;
     if (typeof nascimento !== 'string') throw new ErroElenco(400, 'Data de nascimento obrigatória.');
-    const categoria = await categoriaCalculada(tx, clubeId, nascimento);
-    await exigirCategoria(tx, usuarioId, clubeId, categoria.id);
+    // Um PATCH de camisa não deve recategorizar nem revalidar dados antigos do atleta.
+    const categoria = atual && entrada.dtNasc === undefined ? atual.categoria : await categoriaCalculada(tx, clubeId, nascimento);
+    if (!atual || categoria.id !== atual.categoria_id) await exigirCategoria(tx, usuarioId, clubeId, categoria.id);
     if (!atual && (typeof entrada.cpf !== 'string' || !/^[0-9.\-\s]+$/.test(entrada.cpf))) throw new ErroElenco(400, 'CPF deve conter somente números e a pontuação da máscara.');
     const cpf = atual?.cpf ?? (typeof entrada.cpf === 'string' ? entrada.cpf.replace(/\D/g, '') : '');
     if (!atual && cpf.length !== 11) throw new ErroElenco(400, 'Informe os 11 dígitos do CPF.');
     if (!atual && await tx.jogador.findUnique({ where: { cpf } })) throw new ErroElenco(409, 'Este CPF já está cadastrado');
     const camisa = entrada.numCamisa === undefined ? atual?.numCamisa ?? null : lerCamisa(entrada.numCamisa);
     const anterior = atual?.categoria_id === categoria.id ? atual.numCamisa : null;
-    const conflito = camisa === null ? null : await tx.jogador.findFirst({
+    const verificarCamisa = !atual || entrada.numCamisa !== undefined || categoria.id !== atual.categoria_id;
+    const conflito = camisa === null || !verificarCamisa ? null : await tx.jogador.findFirst({
       where: { categoria_id: categoria.id, ativo: true, numCamisa: camisa, ...(id ? { id: { not: id } } : {}) }, orderBy: { id: 'asc' },
     });
     if (conflito) {
@@ -85,8 +87,8 @@ export async function salvarAluno(clubeId: number, usuarioId: number, entrada: a
       await tx.jogador.update({ where: { id: conflito.id }, data: { numCamisa: anterior } });
     }
     const informada = entrada.posicao === undefined ? atual?.posicao ?? 'Alas' : entrada.posicao;
-    const posicao = ['Ala', 'Ala Direito', 'Ala Esquerdo'].includes(informada) ? 'Alas' : informada;
-    if (typeof posicao !== 'string' || !['Goleiro', 'Fixo', 'Pivô', 'Alas'].includes(posicao)) throw new ErroElenco(400, 'Posição inválida.');
+    const posicao = atual && entrada.posicao === undefined ? atual.posicao : ['Ala', 'Ala Direito', 'Ala Esquerdo'].includes(informada) ? 'Alas' : informada;
+    if ((!atual || entrada.posicao !== undefined) && (typeof posicao !== 'string' || !['Goleiro', 'Fixo', 'Pivô', 'Alas'].includes(posicao))) throw new ErroElenco(400, 'Posição inválida.');
     const data = { nome, dtNasc: new Date(`${nascimento}T00:00:00Z`), posicao, numCamisa: camisa, categoria_id: categoria.id, ...(entrada.foto !== undefined ? { foto: entrada.foto as string | null } : {}) };
     return atual ? tx.jogador.update({ where: { id: atual.id }, data, include: { categoria: true } }) :
       tx.jogador.create({ data: { ...data, cpf, perfil_ml: 'Sem dados' }, include: { categoria: true } });

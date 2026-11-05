@@ -4,6 +4,7 @@ import { ErroConsulta, fetchComTimeout } from '../utils/request';
 import type { Placar, MudancaPlacar } from '../utils/placarPartida';
 import { headersClubeNotificacoes } from '../utils/escopoNotificacoes';
 import { criarAgrupadorConsultas } from '../utils/consultasEmAndamento';
+import { criarCacheConsultasRecentes } from '../utils/consultasRecentes';
 import { iniciarMedicaoCarregamento } from '../utils/desempenho';
 
 // No celular físico, configure o IP da sua máquina em apps/mobile/.env.
@@ -21,13 +22,24 @@ async function getToken() {
 }
 
 const enviarConsulta = criarAgrupadorConsultas(fetchComTimeout);
+const consultasRecentes = criarCacheConsultasRecentes(enviarConsulta);
+export function invalidarConsultasRecentes() {
+  consultasRecentes.invalidar();
+  enviarConsulta.invalidar();
+}
+
+/** Muda após escritas, notificações em tempo real, logout ou recusa de acesso. */
+export const revisaoConsultasRecentes = () => consultasRecentes.geracao();
+
+type OpcoesApi = RequestInit & { revalidar?: boolean };
 
 /**
  * Função unificada que substitui o `fetch` padrão.
  * Ela automaticamente injeta o Token de Autenticação e o `x-clube-id`
  * em TODAS as requisições que saem do aplicativo.
  */
-export async function apiFetch(endpoint: string, options: RequestInit = {}) {
+export async function apiFetch(endpoint: string, options: OpcoesApi = {}) {
+  const { revalidar = false, ...opcoesFetch } = options;
   const caminho = endpoint.split('?')[0];
   const recurso =
     ['/partidas', '/jogadores', '/clubes', '/notificacoes', '/usuarios'].find(
@@ -66,10 +78,13 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   }
 
   try {
-    const resposta = await enviarConsulta(`${BASE_URL}${endpoint}`, {
-      ...options,
+    const leituraRapida = ['/partidas/home', '/partidas/agenda', '/jogadores/perfis', '/clubes', '/categorias', '/partidas/solicitacoes'].includes(caminho) ||
+      /^\/jogadores\/\d+\/scout-contexto$/.test(caminho) ||
+      (caminho === '/jogadores' && new URLSearchParams(endpoint.split('?')[1]).get('resumo') === 'true');
+    const resposta = await consultasRecentes.consultar(`${BASE_URL}${endpoint}`, {
+      ...opcoesFetch,
       headers,
-    });
+    }, leituraRapida ? 15_000 : 0, revalidar);
     finalizar({ status: resposta.status });
     return resposta;
   } catch (erro) {
@@ -89,7 +104,10 @@ export interface ClubeListado {
   cidade: string | null;
   estado: string | null;
   seguidores: number;
+  partidasAoVivo?: number;
   isSeguindo: boolean;
+  acessoTodasCategorias?: boolean;
+  categoriasAcesso?: { id: number; nome: string }[];
   papel: 'ADMIN' | 'MESARIO' | 'TECNICO' | 'TORCEDOR' | 'OLHEIRO' | null;
 }
 
@@ -105,6 +123,7 @@ export async function seguirClube(id: number): Promise<{
   nome: string;
   escudo: string | null;
   papel: string;
+  seguidores?: number;
 }> {
   const res = await apiFetch(`/clubes/${id}/seguir`, { method: 'POST' });
   if (!res.ok) {
@@ -114,12 +133,13 @@ export async function seguirClube(id: number): Promise<{
   return res.json();
 }
 
-export async function deixarDeSeguirClube(id: number): Promise<void> {
+export async function deixarDeSeguirClube(id: number): Promise<{ ok: boolean; seguidores?: number }> {
   const res = await apiFetch(`/clubes/${id}/seguir`, { method: 'DELETE' });
   if (!res.ok) {
     const e = await res.json().catch(() => ({}));
     throw new Error(e.error || 'Erro ao deixar de seguir clube');
   }
+  return res.json();
 }
 
 // ==========================================
@@ -256,8 +276,8 @@ export async function excluirNotificacao(id: number, clubeId: number) {
   if (!res.ok) throw new Error('Erro ao excluir notificação');
 }
 
-export async function limparNotificacoesLidas(clubeId: number) {
-  const res = await apiFetch('/notificacoes/lidas', {
+export async function limparNotificacoes(clubeId: number, somenteLidas: boolean) {
+  const res = await apiFetch(somenteLidas ? '/notificacoes/lidas' : '/notificacoes', {
     method: 'DELETE',
     headers: headersClubeNotificacoes(clubeId),
   });
@@ -508,10 +528,11 @@ export async function salvarElencoCompeticao(
 // ROTAS DE PARTIDAS
 // ==========================================
 
-export async function fetchHome(clubeId: number) {
+export async function fetchHome(clubeId: number, revalidar = false) {
   const agora = new Date();
   const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
   const res = await apiFetch(`/partidas/home?hoje=${hoje}`, {
+    revalidar,
     headers: { 'x-clube-id': String(clubeId) },
   });
   if (!res.ok)
@@ -534,23 +555,34 @@ export async function fetchAgenda(
     mes?: number;
     status?: string;
     agora: string;
+    busca?: string;
+    organizadas?: boolean;
+    por_situacao?: boolean;
+    todos_periodos?: boolean;
+    periodo?: string;
+    de?: string;
+    ate?: string;
+    preparacao?: string;
+    mando?: string;
     grupo?: string;
     categoria_nome?: string;
     apos?: number;
   },
-  clubeId: number
+  clubeId: number,
+  revalidar = false,
 ) {
   const query = new URLSearchParams();
   for (const [chave, valor] of Object.entries(params)) {
     if (valor !== undefined) query.set(chave, String(valor));
   }
   const res = await apiFetch(`/partidas/agenda?${query}`, {
+    revalidar,
     headers: { 'x-clube-id': String(clubeId) },
   });
   if (!res.ok) throw new ErroConsulta(res.status, 'Não foi possível carregar a agenda.');
   const dados = await res.json().catch(() => null);
   if (!Array.isArray(dados) || dados.some((partida) =>
-    !partida || !['ao_vivo', 'agenda', 'pendentes', 'historico'].includes(partida.grupo_agenda) ||
+    !partida || !['ao_vivo', 'agenda', 'pendentes', 'historico', 'finalizadas', 'canceladas'].includes(partida.grupo_agenda) ||
     !Number.isSafeInteger(partida.posicao) || !Number.isSafeInteger(partida.total_grupo)
   )) throw new ErroConsulta(502, 'Não foi possível confirmar os dados da agenda.');
   return dados;

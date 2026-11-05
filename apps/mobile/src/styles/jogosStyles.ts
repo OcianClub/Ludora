@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { typography, liveBadgeColors } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
+import { MARGEM_TELA } from './layout';
 
 export const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
@@ -11,44 +12,144 @@ export const createStyles = (colors: ThemeColors) =>
 
     // ── FILTRO PRINCIPAL (TELA JOGOS) ──
     filtersContainer: {
-      paddingHorizontal: 20,
+      paddingHorizontal: MARGEM_TELA,
       paddingBottom: 10,
       gap: 16,
     },
     filterBarContainer: {
+      paddingHorizontal: MARGEM_TELA,
+      flexDirection: 'row',
+      gap: 8,
       paddingBottom: 10,
     },
-    filterSummary: {
-      flex: 1,
-      gap: 3,
+    periodChip: {
+      alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8,
+      marginHorizontal: MARGEM_TELA, marginBottom: 8, paddingHorizontal: 10, minHeight: 36,
+      borderRadius: 7, backgroundColor: colors.cardSecundario,
     },
-    filterStatusText: {
-      fontFamily: typography.fontFamily.corpo.regular,
-      color: colors.textoSecundario,
-      fontSize: 12,
+    statusTabScroll: { flexGrow: 0, marginHorizontal: MARGEM_TELA, marginBottom: 12 },
+    statusTabs: {
+      flexDirection: 'row',
+      gap: 10,
+      paddingRight: 4,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.linha,
     },
-    singleFilterBtn: {
+    statusTab: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.card,
-      borderRadius: 10,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      gap: 12,
-      borderWidth: 1,
-      borderColor: colors.linha,
+      justifyContent: 'center',
+      minHeight: 44,
+      gap: 7,
+      paddingHorizontal: 10,
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
     },
-    filterBtnText: {
+    statusTabSelected: {
+      borderBottomColor: colors.primaria,
+    },
+    statusTabLabel: {
+      color: colors.textoSecundario,
       fontFamily: typography.fontFamily.corpo.medium,
+      fontSize: 12,
+    },
+    statusTabLabelSelected: {
       color: colors.texto,
-      fontSize: typography.fontSize.sm,
+      fontFamily: typography.fontFamily.corpo.semiBold,
+    },
+    statusLiveDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: liveBadgeColors.indicador,
+    },
+    moreFiltersButton: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.card,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: colors.borda,
+    },
+    requestsBadge: { position: 'absolute', top: -5, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: colors.primaria, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.fundo },
+    requestsBadgeText: { color: '#fff', fontSize: 10, fontWeight: '600' },
+    searchField: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      backgroundColor: colors.card,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: colors.borda,
+    },
+    searchInput: {
+      flex: 1,
+      minWidth: 0,
+      color: colors.texto,
+      fontSize: 14,
+      fontFamily: typography.fontFamily.corpo.regular,
     },
 
     // ── LISTA DE PARTIDAS ──
     content: {
-      paddingHorizontal: 20,
+      paddingHorizontal: 12,
       paddingBottom: 56,
     },
+    accordionHeader: {
+      minHeight: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      marginTop: 12,
+      marginBottom: 8,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.linha,
+      backgroundColor: colors.card,
+    },
+    accordionOpen: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 },
+    accordionItem: { paddingHorizontal: 8, borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.linha },
+    accordionFirstItem: { paddingTop: 8 },
+    accordionLastItem: { borderBottomWidth: 1, borderBottomLeftRadius: 10, borderBottomRightRadius: 10 },
+    accordionTitle: { color: colors.texto, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 14 },
+    accordionCount: { color: colors.textoSecundario, backgroundColor: colors.cardSecundario, fontSize: 11, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
+    cardDateBlock: { flexShrink: 1, gap: 4 },
+    cardDate: { fontFamily: typography.fontFamily.titulo.bold, fontSize: 22, color: colors.texto },
+    cardStatusBadge: {
+      fontFamily: typography.fontFamily.corpo.semiBold,
+      fontSize: 10,
+      color: colors.texto,
+      backgroundColor: colors.cardSecundario,
+      paddingHorizontal: 6,
+      paddingVertical: 5,
+      borderRadius: 5,
+      overflow: 'hidden',
+    },
+    preparedBadge: { color: '#63DECD', backgroundColor: '#203338' },
+    scheduledBadge: { color: '#D4BFFF', backgroundColor: '#302B40' },
+    winBadge: { color: '#FFFFFF', backgroundColor: colors.primaria },
+    lossBadge: { color: '#FFFFFF', backgroundColor: '#C82947' },
+    drawBadge: { color: '#241A0C', backgroundColor: '#F0B84E' },
+    cardDetails: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      minHeight: 42,
+      borderWidth: 1,
+      borderColor: colors.borda,
+      borderRadius: 8,
+    },
+    cardDetailsLive: { backgroundColor: colors.primaria, borderColor: colors.primaria },
+    cardDetailsText: { color: colors.primaria, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 13 },
+    cardDetailsLiveText: { color: colors.textoSobrePrimaria },
     agendaHeading: {
       marginTop: 20,
       marginBottom: 12,
@@ -114,163 +215,46 @@ export const createStyles = (colors: ThemeColors) =>
       color: colors.primaria,
     },
 
-    // ── CARD DA PARTIDA ──
     matchCard: {
       backgroundColor: colors.card,
-      borderRadius: 10,
+      borderRadius: 12,
       borderWidth: 1,
-      borderColor: 'transparent',
-      marginBottom: 16,
-      padding: 16,
-    },
-    matchCardHoje: {
-      borderColor: colors.primaria,
-    },
-    matchCardAoVivo: {
-      borderColor: colors.bordaBotao,
-    },
-    cardTop: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 20,
-    },
-    cardTopLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      flex: 1,
-      minWidth: 0,
-    },
-    cardBadges: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      flexShrink: 0,
-    },
-    timeText: {
-      fontFamily: typography.fontFamily.corpo.regular,
-      color: colors.texto,
-      fontSize: typography.fontSize.sm,
-    },
-    separator: {
-      width: 1,
-      height: 12,
-      backgroundColor: colors.borda,
-    },
-    catText: {
-      fontFamily: typography.fontFamily.corpo.regular,
-      color: colors.texto,
-      fontSize: typography.fontSize.sm,
-    },
-    todayBadge: {
-      backgroundColor: colors.fundoBotao,
-      borderRadius: 4,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-    },
-    todayBadgeText: {
-      color: colors.primaria,
-      fontFamily: typography.fontFamily.corpo.semiBold,
-      fontSize: 9,
-    },
-    liveBadge: {
-      backgroundColor: liveBadgeColors.fundo,
-      borderWidth: 1,
-      borderColor: liveBadgeColors.borda,
-      borderRadius: 9,
-    },
-    liveBadgeText: {
-      color: liveBadgeColors.texto,
-    },
-    liveDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: liveBadgeColors.indicador,
-    },
-    badge: {
-      width: 70,
-      minHeight: 22,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.cardSecundario ,
-      paddingHorizontal: 6,
-      paddingVertical: 4,
-      borderRadius: 6,
-      gap: 6,
-    },
-    badgeText: {
-      fontFamily: typography.fontFamily.corpo.semiBold,
-      color: colors.textoSobrePrimaria,
-      fontSize: 10,
-      letterSpacing: 0.5,
-    },
-
-    // CORPO DO CARD (TIMES E PLACAR)
-    cardBody: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 20,
-      paddingHorizontal: 10,
-    },
-    teamCol: {
-      flex: 1,
-      alignItems: 'center',
-      gap: 10,
-    },
-    teamLogo: {
-      width: 46,
-      height: 46,
-      resizeMode: 'contain',
-    },
-    fundoImg: {
-      backgroundColor: colors.cardSecundario,
-      borderRadius: 10,
-      padding: 4,
-    },
-    teamName: {
-      fontFamily: typography.fontFamily.corpo.semiBold,
-      color: colors.texto,
-      fontSize: typography.fontSize.sm,
-      textAlign: 'center',
-      textTransform: 'uppercase',
-    },
-    placarCentral: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 60,
-    },
-    placarText: {
-      fontFamily: typography.fontFamily.corpo.semiBold,
-      color: colors.texto,
-      fontSize: typography.fontSize.xl,
-    },
-    vsText: {
-      fontFamily: typography.fontFamily.corpo.semiBold,
-      color: colors.textoSecundario,
-      fontSize: typography.fontSize.sm,
-    },
-
-    // RODAPÉ DO CARD
-    cardFooterDivider: {
-      height: 1,
-      backgroundColor: colors.linha,
+      borderColor: colors.linha,
       marginBottom: 12,
-      marginHorizontal: -16,
+      padding: 12,
     },
+    matchCardAoVivo: { borderColor: colors.primaria },
+    cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 },
+    cardTopLeft: { flexDirection: 'row', alignItems: 'center', gap: 5, minWidth: 0 },
+    cardBadges: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 0, paddingTop: 1 },
+    timeText: { fontFamily: typography.fontFamily.corpo.semiBold, color: colors.texto, fontSize: 12 },
+    weekdayText: { color: colors.texto, fontSize: 12, textTransform: 'capitalize' },
+    catText: { flexShrink: 1, color: colors.textoSecundario, fontSize: 10 },
+    badge: {
+      minHeight: 24, flexDirection: 'row', alignItems: 'center', gap: 4,
+      backgroundColor: colors.cardSecundario, paddingHorizontal: 7, borderRadius: 5,
+    },
+    badgeText: { fontFamily: typography.fontFamily.corpo.semiBold, color: colors.texto, fontSize: 10 },
+    cardBody: { flexDirection: 'row', alignItems: 'center', minHeight: 110, paddingVertical: 14, marginBottom: 8 },
+    teamCol: { flex: 1, minWidth: 0, alignItems: 'center', gap: 6 },
+    teamLogo: { width: 40, height: 40, resizeMode: 'contain' },
+    fundoImg: {
+      width: 52, height: 52, borderRadius: 9, backgroundColor: colors.cardSecundario,
+      alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent',
+    },
+    crestHighlight: { borderColor: colors.primaria },
+    crestInitial: { fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 14, color: colors.texto },
+    teamName: { fontFamily: typography.fontFamily.corpo.semiBold, color: colors.texto, fontSize: 12, lineHeight: 16, height: 32, textAlign: 'center' },
+    placarCentral: { minWidth: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+    placarText: { fontFamily: typography.fontFamily.titulo.bold, color: colors.texto, fontSize: 31, lineHeight: 38, includeFontPadding: false, fontVariant: ['tabular-nums'] },
+    placarRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+    scoreDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.textoSecundario },
+    vsText: { fontFamily: typography.fontFamily.corpo.semiBold, color: colors.textoSecundario, fontSize: 13 },
     cardFooter: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
+      minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8,
+      borderTopWidth: 1, borderTopColor: colors.linha,
     },
-    locationText: {
-      fontFamily: typography.fontFamily.corpo.regular,
-      color: colors.texto,
-      fontSize: typography.fontSize.xs,
-    },
+    locationText: { flex: 1, fontFamily: typography.fontFamily.corpo.regular, color: colors.texto, fontSize: 12 },
 
     // FAB
     fab: {

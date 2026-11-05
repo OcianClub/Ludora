@@ -49,10 +49,11 @@ function banco(t, inicial = []) {
     categoria: { findFirst: async ({ where }) => categorias.find(c => c.clube_id === where.clube_id && c.nome === where.nome.equals), findMany: async () => categorias },
     usuarioClube: { findUnique: async () => ({ papel: 'TECNICO', acesso_todas_categorias: false, categorias: allowed.map(categoria_id => ({ categoria_id })) }) },
     jogador: {
-      findFirst: async ({ where }) => rows.find(r => (typeof where.id === 'number' ? r.id === where.id : r.id !== where.id?.not) &&
+      findFirst: async ({ where, include }) => { const row = rows.find(r => (typeof where.id === 'number' ? r.id === where.id : r.id !== where.id?.not) &&
         (!where.categoria || categorias.some(c => c.id === r.categoria_id && c.clube_id === where.categoria.clube_id)) &&
         (where.categoria_id === undefined || r.categoria_id === where.categoria_id) &&
-        (where.numCamisa === undefined || r.numCamisa === where.numCamisa) && (where.ativo === undefined || r.ativo === where.ativo)),
+        (where.numCamisa === undefined || r.numCamisa === where.numCamisa) && (where.ativo === undefined || r.ativo === where.ativo));
+        return row && include?.categoria ? { ...row, categoria: categorias.find(c => c.id === row.categoria_id) } : row; },
       findUnique: async ({ where }) => rows.find(r => r.cpf === where.cpf),
       findMany: async () => rows.filter(r => r.ativo),
       count: async ({ where }) => rows.filter(r => r.ativo && r.categoria_id === where.categoria_id && !where.id.notIn.includes(r.id) && where.numCamisa.in.includes(r.numCamisa)).length,
@@ -95,6 +96,37 @@ test('edição troca duas camisas atomicamente e PATCH sem camisa preserva o val
   assert.equal(db.rows()[0].numCamisa, 7);
   assert.equal(db.rows()[1].numCamisa, 10);
   await salvarAluno(1, 7, { nome: 'Alex Updated' }, 3);
+  assert.equal(db.rows()[1].numCamisa, 10);
+});
+
+test('editar somente a camisa aceita 1 e 01 e preserva nome, posição e categoria antigos', async t => {
+  const legado = { ...residente, nome: 'James Walker (sub-12)', categoria_id: 12 };
+  const db = banco(t, [legado]);
+  db.allow([12]);
+  for (const numCamisa of ['1', '01', 1]) {
+    await salvarAluno(1, 7, { numCamisa }, legado.id);
+    const salvo = db.rows()[0];
+    assert.equal(salvo.numCamisa, 1);
+    assert.equal(salvo.nome, legado.nome);
+    assert.equal(salvo.posicao, legado.posicao);
+    assert.equal(salvo.categoria_id, 12);
+    assert.equal(salvo.dtNasc.toISOString(), legado.dtNasc.toISOString());
+  }
+  await assert.rejects(salvarAluno(1, 7, { nome: 'James ⚽' }, legado.id), /nome válido/);
+  await assert.rejects(salvarAluno(1, 7, { numCamisa: '00' }, legado.id), /1 a 99/);
+  assert.equal(db.rows()[0].numCamisa, 1);
+});
+
+test('troca de camisa funciona com nomes antigos e confirmação obsoleta não altera ninguém', async t => {
+  const db = banco(t, [
+    { ...residente, nome: 'James Walker (sub-14)' },
+    { ...residente, id: 3, nome: 'Alex Carter (sub-14)', cpf: '12345678901', numCamisa: null },
+  ]);
+  await assert.rejects(salvarAluno(1, 7, { numCamisa: '10' }, 3), e => e.status === 409 && e.detalhes.conflito_camisa.jogador_id === 2);
+  await assert.rejects(salvarAluno(1, 7, { numCamisa: '10', confirmar_camisa: { jogador_id: 2, camisa_anterior: 7 } }, 3), e => e.status === 409);
+  assert.equal(db.rows()[0].numCamisa, 10);
+  await salvarAluno(1, 7, { numCamisa: '10', confirmar_camisa: { jogador_id: 2, camisa_anterior: null } }, 3);
+  assert.equal(db.rows()[0].numCamisa, null);
   assert.equal(db.rows()[1].numCamisa, 10);
 });
 test('falha de cadastro desfaz a retirada da camisa do outro jogador', async t => {

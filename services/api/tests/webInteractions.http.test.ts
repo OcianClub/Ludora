@@ -57,7 +57,8 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
   replace(prisma.jogador,'findFirst',async(args:any)=>args.where.id===404?null:{id:7,nome:'James Walker',foto:null,dtNasc:new Date('2014-10-28'),posicao:'Fixo',categoria_id:9,categoria:{id:9,nome:'sub-12',tipo:'BASE'}});
   replace(prisma.jogador,'findUnique',async()=>({cpf:'12345678901'}));
   replace(prisma,'$transaction',async(args:any)=>typeof args==='function'?args(prisma):Promise.all(args));
-  replace(prisma,'$queryRaw',async()=>[{jogador_id:7,total:5n}]);
+  let consultasParticipacoes = 0;
+  replace(prisma,'$queryRaw',async()=>{ consultasParticipacoes++; return [{jogador_id:7,total:5n}]; });
   replace(prisma.jogador,'findMany',async(args:any)=>{reads.push(args);return [{id:7,nome:'James Walker',categoria_id:9}];});
   replace(prisma.jogador,'groupBy',async(args:any)=>{reads.push(args);return [{categoria_id:9,_count:{_all:12,numCamisa:10}}];});
   const app=express();app.use(express.json());app.use(criarPartidaRoutes({to:()=>({emit:()=>{}})} as any),jogadores,locais,perfis,clubes);
@@ -124,6 +125,17 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
     role='TECNICO';await send('GET','/locais/sugestoes?q=Harbor');assert.deepEqual(reads.at(-1).where.categoria_id,{in:[9]});
     role='TORCEDOR';assert.equal((await send('GET','/locais/sugestoes?q=Harbor')).status,403);
     assert.equal((await fetch(base+'/locais/sugestoes')).status,401);role='ADMIN';
+  });
+  await t.test('convocação consulta somente o elenco e não calcula estatísticas de participação', async () => {
+    const antes = consultasParticipacoes;
+    const response = await send('GET', '/jogadores?categoria_id=9&convocacao=true');
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), [{ id: 7, nome: 'James Walker' }]);
+    assert.equal(consultasParticipacoes, antes);
+    assert.equal(reads.at(-1).where.categoria_id, 9);
+    role = 'TECNICO';
+    assert.equal((await send('GET', '/jogadores?categoria_id=77&convocacao=true')).status, 403);
+    role = 'ADMIN';
   });
   await t.test('perfil só envia CPF a admin/técnico autorizado; visitantes não recebem o campo',async()=>{
     for(const current of ['ADMIN','TECNICO','MESARIO','TORCEDOR','OLHEIRO']) {

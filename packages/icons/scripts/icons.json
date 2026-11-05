@@ -86,5 +86,9 @@
   { "source": "mdi-swap-horizontal.svg", "component": "SwapHorizontalIcon", "name": "swap-horizontal" },
   { "source": "mdi-tshirt-crew.svg", "component": "ShirtIcon", "name": "tshirt-crew" },
   { "source": "mdi-tshirt-crew-outline.svg", "component": "ShirtOutlineIcon", "name": "tshirt-crew-outline" },
-  { "source": "mdi-wifi-off.svg", "component": "WifiOffIcon", "name": "wifi-off" }
+  { "source": "mdi-wifi-off.svg", "component": "WifiOffIcon", "name": "wifi-off" },
+  { "source": "return-arrow.svg", "component": "ReturnArrowIcon", "name": "undo" },
+  { "source": "grip-vertical.svg", "component": "GripVerticalIcon", "name": "grip-vertical" },
+  { "source": "share.svg", "component": "ShareIcon", "name": "share" },
+  { "source": "sliders-horizontal.svg", "component": "SlidersHorizontalIcon", "name": "sliders-horizontal" }
 ]

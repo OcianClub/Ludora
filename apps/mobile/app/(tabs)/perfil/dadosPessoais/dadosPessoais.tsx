@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Icon, type IconName } from '@ludora/icons';
 import {
   View,
@@ -29,6 +30,8 @@ import {
 } from "@/src/services/api";
 
 interface DadosPessoaisProps {
+  embutido?: boolean;
+  children?: ReactNode;
   onFechar?: () => void;
   noModal?: boolean;
   onAlteracoesPendentes?: (pendentes: boolean) => void;
@@ -36,6 +39,7 @@ interface DadosPessoaisProps {
 }
 
 interface CampoProps {
+  simples?: boolean;
   label: string;
   valor: string;
   icone: IconName;
@@ -50,6 +54,7 @@ interface CampoProps {
 }
 
 function Campo({
+  simples,
   label,
   valor,
   icone,
@@ -96,20 +101,20 @@ function Campo({
   }
 
   return (
-    <View style={styles.editField}>
-      <Text style={styles.editLabel}>
+    <View style={[styles.editField, simples && styles.embeddedField]}>
+      <Text style={[styles.editLabel, simples && styles.embeddedLabel]}>
         {label}
       </Text>
 
-      <View style={[styles.inputWrapper, focado && styles.inputFocused]}>
-        <Icon
+      <View style={[styles.inputWrapper, simples && styles.embeddedInput, focado && styles.inputFocused]}>
+        {!simples && <Icon
           name={icone}
           size={19}
           color={colors.primaria}
-        />
+        />}
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, simples && styles.embeddedInputText]}
           value={valor}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -152,6 +157,8 @@ function Campo({
 }
 
 export default function DadosPessoais({
+  embutido = false,
+  children,
   onFechar,
   noModal,
   onAlteracoesPendentes,
@@ -167,7 +174,7 @@ export default function DadosPessoais({
 
   const [membroDesde, setMembroDesde] = useState("");
 
-  const [editando, setEditando] = useState(false);
+  const [editando, setEditando] = useState(embutido);
   const [mostrarSenha, setMostrarSenha] =
     useState(false);
 
@@ -263,7 +270,7 @@ export default function DadosPessoais({
 
       setSenha("");
       setMostrarSenha(false);
-      setEditando(false);
+      setEditando(embutido);
       setSucesso(true);
 
       if (timerSucesso.current) clearTimeout(timerSucesso.current);
@@ -284,7 +291,7 @@ export default function DadosPessoais({
 
     setSenha("");
     setMostrarSenha(false);
-    setEditando(false);
+    setEditando(embutido);
   };
 
   const excluirConta = async () => {
@@ -299,7 +306,7 @@ export default function DadosPessoais({
 
       setModalExcluir(false);
 
-      fechar();
+      if (!embutido) fechar();
 
       router.replace("/(auth)/login");
     } catch (err: any) {
@@ -323,29 +330,17 @@ export default function DadosPessoais({
     ]);
   };
 
-  return (
-    <SafeAreaView style={styles.container} edges={noModal ? ['top', 'bottom', 'left', 'right'] : ['top', 'left', 'right']}>
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Header
-        title="Dados pessoais"
-        showLogo={false}
-        showProfile={false}
-        btnVoltar="arrow-left"
-        onBtnVoltar={solicitarFechamento}
-        semSafeArea
-      />
-
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-      >
+  const formulario = (
+    <View style={embutido && styles.embeddedCard}>
+      {embutido && <View style={styles.embeddedIntro}>
+        <Text style={styles.embeddedTitle} accessibilityRole="header">Dados pessoais</Text>
+        <Text style={styles.sectionDescription}>Mantenha seu nome e seus dados de acesso atualizados.</Text>
+      </View>}
         {/* PERFIL */}
-        <View style={styles.profileHeader}>
+        <View style={[styles.profileHeader, embutido && styles.embeddedIdentity]}>
           <View style={styles.avatarWrapper}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarLetra}>
+            <View style={[styles.avatar, embutido && styles.embeddedAvatar]}>
+              <Text style={[styles.avatarLetra, embutido && { color: colors.textoSobrePrimaria }]}>
                 {nome
                   ? nome.charAt(0).toUpperCase()
                   : "?"}
@@ -359,6 +354,7 @@ export default function DadosPessoais({
             {originais.nome || "Sua conta"}
           </Text>
 
+          {embutido && !!originais.email && <Text style={styles.membroDesde}>{originais.email}</Text>}
           {membroDesde ? (
             <Text style={styles.membroDesde}>
               Membro desde {membroDesde}
@@ -368,48 +364,51 @@ export default function DadosPessoais({
         </View>
 
         {/* INFORMAÇÕES */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+        <View style={[styles.section, embutido && styles.embeddedSection]}>
+          {!embutido && <><View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
               {editando ? 'EDITAR INFORMAÇÕES' : 'INFORMAÇÕES DA CONTA'}
             </Text>
           </View>
-          <Text style={styles.sectionDescription}>{editando ? 'Atualize seus dados. A nova senha é opcional.' : 'Seus dados de acesso ao Ludora.'}</Text>
+          <Text style={styles.sectionDescription}>{editando ? 'Atualize seus dados. A nova senha é opcional.' : 'Seus dados de acesso ao Ludora.'}</Text></>}
           {carregando && <ActivityIndicator style={{ paddingVertical: 12 }} color={colors.primaria} />}
 
-          <View style={styles.infoCard}>
+          <View style={[styles.infoCard, embutido && styles.embeddedFields]}>
             <Campo
-              label="Nome completo"
+              simples={embutido}
+              label={embutido ? "Nome" : "Nome completo"}
               valor={nome}
               icone="account-outline"
               editando={editando}
               onChangeText={setNome}
-              disabled={salvando}
+              disabled={salvando || carregando || excluindo}
             />
 
-            <View style={styles.divider} />
+            {!embutido && <View style={styles.divider} />}
 
             <Campo
+              simples={embutido}
               label="E-mail"
               valor={email}
               icone="email-outline"
               editando={editando}
               onChangeText={setEmail}
               keyboardType="email-address"
-              disabled={salvando}
+              disabled={salvando || carregando || excluindo}
             />
 
-            <View style={styles.divider} />
+            {!embutido && <View style={styles.divider} />}
 
             <Campo
+              simples={embutido}
               label={editando ? 'Nova senha (opcional)' : 'Senha'}
               valor={editando ? senha : ''}
-              placeholder={editando ? 'Deixe em branco para manter a atual' : '••••••••'}
+              placeholder={editando ? embutido ? 'Mínimo de 8 caracteres' : 'Deixe em branco para manter a atual' : '••••••••'}
               icone="lock-outline"
               editando={editando}
               onChangeText={setSenha}
               secureTextEntry={!mostrarSenha}
-              disabled={salvando}
+              disabled={salvando || carregando || excluindo}
               mostrarSenha={mostrarSenha}
               onToggleSenha={() =>
                 setMostrarSenha(
@@ -418,7 +417,7 @@ export default function DadosPessoais({
               }
             />
           </View>
-          {editando && <Text style={styles.fieldHint}>Use pelo menos 8 caracteres para trocar a senha.</Text>}
+          {editando && <Text style={styles.fieldHint}>{embutido ? 'Deixe a senha em branco para manter a atual.' : 'Use pelo menos 8 caracteres para trocar a senha.'}</Text>}
         </View>
 
         {/* AÇÕES */}
@@ -446,42 +445,47 @@ export default function DadosPessoais({
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={salvar}
-                disabled={salvando || !pendentes}
-                style={[styles.saveButton, !pendentes && styles.disabledButton]}
+                disabled={carregando || salvando || excluindo || !pendentes}
+                style={[styles.saveButton, embutido && styles.embeddedSave, !pendentes && styles.disabledButton]}
               >
                 {salvando ? (
                   <ActivityIndicator color={colors.textoSobrePrimaria} />
                 ) : (
                   <>
-                    <Icon
+                    {!embutido && <Icon
                       name="check"
                       size={20}
                       color={colors.textoSobrePrimaria}
-                    />
+                    />}
 
                     <Text style={styles.saveButtonText}>
-                      SALVAR ALTERAÇÕES
+                      {embutido ? 'Salvar alterações' : 'SALVAR ALTERAÇÕES'}
                     </Text>
                   </>
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity
+              {!embutido && <TouchableOpacity
                 style={styles.cancelButton}
                 activeOpacity={0.7}
                 onPress={cancelarEdicao}
-                disabled={salvando}
+                disabled={salvando || carregando || excluindo}
               >
                 <Text style={styles.cancelButtonText}>
                   CANCELAR
                 </Text>
-              </TouchableOpacity>
+              </TouchableOpacity>}
             </>
           )}
         </View>
 
+      {children}
+    </View>
+  );
+  const extras = (
+    <>
         {/* ZONA DE PERIGO */}
-        {!editando && (
+        {(!editando || embutido) && (
           <View style={styles.dangerSection}>
             <Text style={styles.sectionTitle}>GERENCIAR CONTA</Text>
 
@@ -519,11 +523,9 @@ export default function DadosPessoais({
           </View>
         )}
 
-      </ScrollView>
-
       {/* SUCESSO */}
       {sucesso && (
-        <View style={styles.successToast}>
+        <View style={embutido ? styles.embeddedSuccess : styles.successToast} accessibilityRole="alert">
           <Icon
             name="check-circle"
             size={20}
@@ -549,6 +551,32 @@ export default function DadosPessoais({
         onConfirmar={() => void excluirConta()}
         onFechar={() => setModalExcluir(false)}
       />
+    </>
+  );
+
+  if (embutido) return <>{formulario}{extras}</>;
+
+  return (
+    <SafeAreaView style={styles.container} edges={noModal ? ['top', 'bottom', 'left', 'right'] : ['top', 'left', 'right']}>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Header
+        title="Dados pessoais"
+        showLogo={false}
+        showProfile={false}
+        btnVoltar="arrow-left"
+        onBtnVoltar={solicitarFechamento}
+        semSafeArea
+      />
+
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
+        {formulario}
+        {extras}
+      </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

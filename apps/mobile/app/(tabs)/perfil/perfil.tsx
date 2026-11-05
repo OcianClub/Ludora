@@ -1,36 +1,38 @@
+import Svg, { Path } from 'react-native-svg';
 import { Icon, type IconName } from '@ludora/icons';
 import {
-  Modal,
   View,
   Text,
   TouchableOpacity,
-  Pressable,
   Switch,
   Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
 } from "react-native";
-import { useState, useEffect, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { createStyles } from "../../../src/styles/perfilStyles";
-import { Header } from "@/src/components/Header";
+import { HeaderClube } from "@/src/components/HeaderClube";
 import { ConfirmacaoConta } from '@/src/components/ConfirmacaoConta';
 import { PreferenciasNotificacoes } from '@/src/components/PreferenciasNotificacoes';
 import { useTheme } from '@/src/contexts/ThemeContext';
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { limparCacheConsultas } from '@/src/services/cacheConsultas';
 import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
 import { useNotificacoes } from '@/src/contexts/NotificacoesContext';
-import { desvincularDispositivoPush } from '@/src/services/api';
+import { desvincularDispositivoPush, fetchClubes, type ClubeListado } from '@/src/services/api';
 import type { PreferenciaTema } from '@/src/utils/tema';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import DadosPessoais from "./dadosPessoais/dadosPessoais";
 
 const SECOES = [
-  { id: 'dados', label: 'Dados pessoais' },
-  { id: 'preferencias', label: 'Preferências' },
-  { id: 'conta', label: 'Conta' },
+  { id: 'conta', label: 'Conta', icon: 'account' },
+  { id: 'preferencias', label: 'Preferências', icon: null },
+  { id: 'clubes', label: 'Meus clubes', icon: 'shield-outline' },
 ] as const;
+const ROTULOS_CLUBE = { ADMIN: 'Administrador', TECNICO: 'Técnico', MESARIO: 'Mesário', OLHEIRO: 'Olheiro', TORCEDOR: 'Visitante' };
 type SecaoPerfil = typeof SECOES[number]['id'];
 
 interface CardMenuProps {
@@ -85,11 +87,9 @@ function CardMenu({
 }
 
 export default function Perfil() {
-  const [secao, setSecao] = useState<SecaoPerfil>('dados');
+  const [secao, setSecao] = useState<SecaoPerfil>('conta');
   const scrollRef = useRef<ScrollView>(null);
   const { colors, preferenciaTema, carregandoTema, definirPreferenciaTema } = useTheme();
-  const insets = useSafeAreaInsets();
-  const [modalTema, setModalTema] = useState(false);
   const [modalNotificacoes, setModalNotificacoes] = useState(false);
   const [salvandoTema, setSalvandoTema] = useState(false);
   const styles = createStyles(colors);
@@ -99,49 +99,40 @@ export default function Perfil() {
     carregandoPreferencia,
     alterarNotificacoes,
   } = useNotificacoes();
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState('');
-  const [membroDesde, setMembroDesde] = useState("");
   const [modalSair, setModalSair] = useState(false);
   const [saindo, setSaindo] = useState(false);
-  const [modalDadosPessoais, setModalDadosPessoais] =
-    useState(false);
   const [dadosPendentes, setDadosPendentes] = useState(false);
   const [dadosEmOperacao, setDadosEmOperacao] = useState(false);
+  const [clubes, setClubes] = useState<ClubeListado[] | null>(null);
+  const [erroClubes, setErroClubes] = useState(false);
+  const [revisaoClubes, setRevisaoClubes] = useState(0);
 
-  useEffect(() => {
-    carregarDados();
-  }, []);
+  useFocusEffect(useCallback(() => {
+    if (secao !== 'clubes') return;
+    let ativo = true;
+    setErroClubes(false);
+    void fetchClubes().then(lista => {
+      if (ativo) setClubes(lista);
+    }).catch(() => {
+      if (ativo) setErroClubes(true);
+    });
+    return () => { ativo = false; };
+  }, [secao, revisaoClubes]));
 
-  const carregarDados = async () => {
-    const [nomeUsuario, emailUsuario, dataCriacao] = await Promise.all([
-      SecureStore.getItemAsync('userName'),
-      SecureStore.getItemAsync('userEmail'),
-      SecureStore.getItemAsync('userCriadoEm'),
+  const meusClubes = clubes?.filter(clube => clube.isSeguindo || clube.papel || clube.id === clubeAtivo?.id)
+    .sort((a, b) => Number(b.id === clubeAtivo?.id) - Number(a.id === clubeAtivo?.id) ||
+      Number(!!b.papel && b.papel !== 'TORCEDOR') - Number(!!a.papel && a.papel !== 'TORCEDOR'));
+
+  const navegarSemPerderDados = (acao: () => void) => {
+    if (dadosEmOperacao) return;
+    if (!dadosPendentes) { acao(); return; }
+    Alert.alert('Descartar alterações?', 'Suas alterações ainda não foram salvas.', [
+      { text: 'Continuar editando', style: 'cancel' },
+      { text: 'Descartar', style: 'destructive', onPress: () => {
+        setDadosPendentes(false);
+        acao();
+      } },
     ]);
-    setEmail(emailUsuario ?? '');
-
-    if (nomeUsuario) {
-      setNome(nomeUsuario);
-    }
-
-    if (dataCriacao) {
-      const data = new Date(dataCriacao);
-
-      const formatada = data.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-
-      setMembroDesde(formatada.replace(".", ""));
-    }
-
-  };
-
-  const fecharDadosPessoais = async () => {
-    setModalDadosPessoais(false);
-    await carregarDados();
   };
 
   const deslogar = async () => {
@@ -177,11 +168,10 @@ export default function Perfil() {
 
   const escolherTema = async (preferencia: PreferenciaTema) => {
     if (carregandoTema || salvandoTema) return;
-    if (preferencia === preferenciaTema) { setModalTema(false); return; }
+    if (preferencia === preferenciaTema) return;
     setSalvandoTema(true);
     try {
       await definirPreferenciaTema(preferencia);
-      setModalTema(false);
     } catch {
       Alert.alert('Não foi possível salvar o tema', 'Tente novamente. Sua preferência anterior foi mantida.');
     } finally {
@@ -190,90 +180,66 @@ export default function Perfil() {
   };
 
   return (
-    <View style={styles.container}>
-      <Header
-        title="Meu perfil"
-        showLogo={false}
-        showProfile={false}
-        btnVoltar="arrow-left"
-        papelUsuario={clubeAtivo?.papel ?? undefined}
-      />
-
-      <View style={styles.sectionTabs} accessibilityRole="tablist">
-        {SECOES.map(item => (
-          <TouchableOpacity
-            key={item.id}
-            style={[styles.sectionTab, secao === item.id && styles.sectionTabActive]}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: secao === item.id }}
-            activeOpacity={0.75}
-            onPress={() => {
-              setSecao(item.id);
-              scrollRef.current?.scrollTo({ y: 0, animated: false });
-            }}
-          >
-            <Text style={[styles.sectionTabText, secao === item.id && styles.sectionTabTextActive]}>{item.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <HeaderClube />
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
-        {secao === 'dados' && <>
-        <View style={styles.sectionIntro}>
-          <Text style={styles.pageSectionTitle} accessibilityRole="header">Dados pessoais</Text>
-          <Text style={styles.sectionDescription}>Suas informações de identificação e acesso.</Text>
+        <View style={styles.profileTitleRow}>
+          <Text style={styles.profileTitle} accessibilityRole="header">Meu perfil</Text>
+          <TouchableOpacity style={styles.outlineAction} accessibilityRole="button"
+            onPress={() => navegarSemPerderDados(() => router.navigate('/'))}>
+            <Icon name="chevron-left" size={17} color={colors.textoSecundario} />
+            <Text style={styles.outlineActionText}>Voltar ao clube</Text>
+          </TouchableOpacity>
         </View>
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarWrapper}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarLetra}>
-                {nome
-                  ? nome.charAt(0).toUpperCase()
-                  : "?"}
-              </Text>
-            </View>
-
-          </View>
-          <View style={styles.profileIdentity}>
-          <Text style={styles.nomeUsuario}>
-            {nome || "Usuário"}
-          </Text>
-
-          {membroDesde ? (
-            <Text style={styles.dataMembro}>
-              Membro desde {membroDesde}
-            </Text>
-          ) : null}
-          </View>
+        <View style={styles.sectionTabs} accessibilityRole="tablist">
+          {SECOES.map(item => (
+            <TouchableOpacity key={item.id}
+              style={[styles.sectionTab, secao === item.id && styles.sectionTabActive]}
+              accessibilityRole="tab" accessibilityState={{ selected: secao === item.id }}
+              onPress={() => navegarSemPerderDados(() => {
+                setSecao(item.id);
+                scrollRef.current?.scrollTo({ y: 0, animated: false });
+              })}>
+              {item.icon ? (
+                <Icon name={item.icon} size={19} color={secao === item.id ? colors.primaria : colors.textoSecundario} />
+              ) : (
+                <Svg width={19} height={19} viewBox="0 0 24 24" accessible={false}>
+                  <Path
+                    d="M4 6h7m4 0h5M4 12h3m4 0h9M4 18h11m4 0h1M11 4v4M7 10v4m8 2v4"
+                    stroke={secao === item.id ? colors.primaria : colors.textoSecundario}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                  />
+                </Svg>
+              )}
+              <Text style={[styles.sectionTabText, secao === item.id && styles.sectionTabTextActive]}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.menu}>
-            <View style={styles.personalInfoRow}>
-              <Text style={styles.personalInfoLabel}>Nome</Text>
-              <Text style={styles.personalInfoValue} selectable>{nome || 'Não informado'}</Text>
+        {secao === 'conta' && (
+          <DadosPessoais embutido onAlteracoesPendentes={setDadosPendentes} onOperacaoEmAndamento={setDadosEmOperacao}>
+            <View style={styles.sessionBlock}>
+              <View style={styles.sessionHeading}>
+                <Icon name="logout" size={20} color={colors.textoSecundario} />
+                <View style={styles.menuContent}>
+                  <Text style={styles.menuTitulo}>Sair da conta</Text>
+                  <Text style={styles.menuSubtitulo}>Encerra sua sessão neste dispositivo.</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.outlineAction} accessibilityRole="button"
+                onPress={() => navegarSemPerderDados(() => setModalSair(true))}>
+                <Text style={styles.outlineActionText}>Sair da conta</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.personalInfoRow}>
-              <Text style={styles.personalInfoLabel}>E-mail</Text>
-              <Text style={styles.personalInfoValue} selectable>{email || 'Não informado'}</Text>
-            </View>
-            <CardMenu
-              titulo="Editar meus dados"
-              subtitulo="Nome, e-mail e senha"
-              icone="pencil-outline"
-              action={() =>
-                setModalDadosPessoais(true)
-              }
-              ultimo
-            />
-          </View>
-        </View>
-        </>}
+          </DadosPessoais>
+        )}
 
         {secao === 'preferencias' && <>
         <View style={styles.sectionIntro}>
@@ -337,104 +303,64 @@ export default function Perfil() {
           </View>
         </View>
         <View style={styles.section}>
-          <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>APARÊNCIA</Text></View>
-          <View style={styles.menu}>
-            <TouchableOpacity
-              style={styles.themeSettingRow}
-              onPress={() => setModalTema(true)}
-              disabled={carregandoTema}
-              activeOpacity={0.75}
-              accessibilityRole="button"
-              accessibilityLabel={`Tema: ${preferenciaTema === 'system' ? 'Sistema' : preferenciaTema === 'light' ? 'Claro' : 'Escuro'}`}
-              accessibilityHint="Abre as opções de aparência"
-            >
-              <View style={styles.themePreviewWrapper} accessible={false}><View style={styles.themePreview}><View style={styles.themePreviewHalf} /></View></View>
-              <Text style={[styles.menuTitulo, styles.themeSettingTitle]}>Tema</Text>
-              <Text style={styles.themeCurrentValue}>{preferenciaTema === 'system' ? 'Sistema' : preferenciaTema === 'light' ? 'Claro' : 'Escuro'}</Text>
-              <Icon name="chevron-right" size={20} color={colors.textoSecundario} />
+          <View style={[styles.menu, styles.themeSettingRow]}>
+            <View style={styles.themeDescription}>
+              <Text style={styles.menuTitulo}>Aparência</Text>
+              <Text style={styles.sectionDescription}>Escolha entre o tema do dispositivo, claro ou escuro.</Text>
+            </View>
+            <View style={styles.themeControl} accessibilityRole="radiogroup" accessibilityLabel="Tema">
+              {([
+                { valor: 'system', label: 'Sistema', desenho: 'M9 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 15h2' },
+                { valor: 'light', label: 'Claro', desenho: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M19 5l-1.5 1.5m-11 11L5 19' },
+                { valor: 'dark', label: 'Escuro', desenho: 'M20.8 13.3A8.8 8.8 0 1 1 10.7 3.2 7.4 7.4 0 0 0 20.8 13.3Z' },
+              ] as const).map(({ valor, label, desenho }) => {
+                const selecionado = preferenciaTema === valor;
+                const bloqueado = carregandoTema || salvandoTema;
+                return (
+                  <TouchableOpacity key={valor} style={[styles.themeOption, selecionado && styles.themeOptionActive]}
+                    accessibilityRole="radio" accessibilityLabel={label}
+                    accessibilityState={{ checked: selecionado, disabled: bloqueado }}
+                    disabled={bloqueado} onPress={() => void escolherTema(valor)}>
+                    <Svg width={18} height={18} viewBox="0 0 24 24" accessible={false}>
+                      <Path d={desenho} fill="none" stroke={selecionado ? colors.primaria : colors.textoSecundario}
+                        strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+        </>}
+
+        {secao === 'clubes' && (
+          <View style={styles.clubCard}>
+            <Text style={styles.pageSectionTitle} accessibilityRole="header">Meus clubes</Text>
+            <Text style={styles.sectionDescription}>Seus acessos e clubes que você segue.</Text>
+            {erroClubes && <CardMenu titulo="Tentar novamente" subtitulo="Não foi possível carregar seus clubes." icone="alert-circle-outline" action={() => setRevisaoClubes(valor => valor + 1)} />}
+            {!clubes && !erroClubes && <Text style={styles.sectionDescription}>Carregando clubes…</Text>}
+            {meusClubes?.length === 0 && <Text style={styles.sectionDescription}>Você ainda não tem clubes vinculados.</Text>}
+            {meusClubes?.map(clube => (
+                <View key={clube.id} style={styles.sessionHeading}>
+                  <View style={styles.clubCrest}>
+                    {clube.escudo ? <Image source={{ uri: clube.escudo }} style={styles.clubImage} resizeMode="contain" /> :
+                      <Text style={styles.menuTitulo}>{clube.nome.charAt(0).toUpperCase()}</Text>}
+                  </View>
+                  <View style={styles.menuContent}>
+                    <Text style={styles.menuTitulo}>{clube.nome}</Text>
+                    <Text style={styles.menuSubtitulo}>{[clube.id === clubeAtivo?.id && 'Clube atual', clube.papel && ROTULOS_CLUBE[clube.papel], clube.isSeguindo && 'Seguindo'].filter(Boolean).join(' · ')}</Text>
+                  </View>
+                </View>
+              ))}
+            <TouchableOpacity style={styles.outlineAction} accessibilityRole="button" onPress={() => router.navigate('/clubes/clubes')}>
+              <Text style={styles.outlineActionText}>Explorar clubes</Text>
             </TouchableOpacity>
           </View>
-        </View>
-        </>}
-
-        {secao === 'conta' && <>
-        <View style={styles.sectionIntro}>
-          <Text style={styles.pageSectionTitle} accessibilityRole="header">Conta</Text>
-          <Text style={styles.sectionDescription}>Gerencie seus dados de acesso e sua sessão neste aparelho.</Text>
-        </View>
-        <View style={styles.section}>
-          <View style={styles.menu}>
-            <CardMenu
-              titulo="Gerenciar conta"
-              subtitulo="Segurança, acesso e exclusão da conta"
-              icone="lock-outline"
-              action={() => setModalDadosPessoais(true)}
-              ultimo
-            />
-          </View>
-        </View>
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.logoutButton}
-            activeOpacity={0.75}
-            onPress={() => setModalSair(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Sair da conta"
-          >
-            <View style={styles.logoutIcon}>
-              <Icon
-                name="logout"
-                size={20}
-                color={colors.tituloErro}
-              />
-            </View>
-
-            <View style={styles.logoutContent}>
-              <Text style={styles.logoutTitle}>
-                Sair da conta
-              </Text>
-
-            </View>
-
-            <Icon
-              name="chevron-right"
-              size={22}
-              color={colors.tituloErro}
-            />
-          </TouchableOpacity>
-        </View>
-        </>}
+        )}
       </ScrollView>
 
       {modalNotificacoes && <PreferenciasNotificacoes onFechar={() => setModalNotificacoes(false)} />}
 
-      <Modal visible={modalTema} transparent animationType="slide" onRequestClose={() => setModalTema(false)}>
-        <View style={styles.themeSheetOverlay}>
-          <Pressable style={styles.themeBackdrop} onPress={() => setModalTema(false)} accessibilityRole="button" accessibilityLabel="Fechar opções de tema" />
-          <View style={[styles.themeSheet, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]} accessibilityViewIsModal>
-            <View style={styles.themeSheetHeader}>
-              <Text style={styles.themeSheetTitle}>Tema</Text>
-              <TouchableOpacity style={styles.themeCloseButton} onPress={() => setModalTema(false)} accessibilityRole="button" accessibilityLabel="Fechar">
-                <Icon name="close" size={22} color={colors.textoSecundario} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.themeSheetList} showsVerticalScrollIndicator={false}>
-              {([
-                { valor: 'system', label: 'Usar tema do sistema' },
-                { valor: 'light', label: 'Claro' },
-                { valor: 'dark', label: 'Escuro' },
-              ] as const).map(({ valor, label }) => (
-                <TouchableOpacity key={valor} style={styles.themeChoice} onPress={() => void escolherTema(valor)} disabled={carregandoTema || salvandoTema} accessibilityRole="radio" accessibilityState={{ checked: preferenciaTema === valor, disabled: carregandoTema || salvandoTema }} activeOpacity={0.7}>
-                  <Text style={[styles.themeChoiceText, preferenciaTema === valor && styles.themeChoiceTextSelected]}>{label}</Text>
-                  <View style={[styles.themeRadio, preferenciaTema === valor && styles.themeRadioSelected]}>
-                    {preferenciaTema === valor && <View style={styles.themeRadioDot} />}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
 
       {/* MODAL SAIR */}
       <ConfirmacaoConta
@@ -449,28 +375,6 @@ export default function Perfil() {
         onFechar={() => setModalSair(false)}
       />
 
-      {/* DADOS PESSOAIS */}
-      <Modal
-        visible={modalDadosPessoais}
-        transparent={false}
-        animationType="slide"
-        onRequestClose={() => {
-          if (dadosEmOperacao) return;
-          if (!dadosPendentes) { void fecharDadosPessoais(); return; }
-          Alert.alert('Descartar alterações?', 'Suas alterações ainda não foram salvas.', [
-            { text: 'Continuar editando', style: 'cancel' },
-            { text: 'Descartar', style: 'destructive', onPress: () => void fecharDadosPessoais() },
-          ]);
-        }}
-      >
-        {modalDadosPessoais && <DadosPessoais
-          noModal={true}
-          onFechar={fecharDadosPessoais}
-          onAlteracoesPendentes={setDadosPendentes}
-          onOperacaoEmAndamento={setDadosEmOperacao}
-        />}
-      </Modal>
-
-    </View>
+    </KeyboardAvoidingView>
   );
 }

@@ -2,7 +2,9 @@ import { StyleSheet } from "react-native";
 import { typography } from "@ludora/design-tokens";
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
-const MARGEM = 20;
+import { MARGEM_TELA } from './layout';
+
+const MARGEM = MARGEM_TELA;
 
 export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
@@ -18,26 +20,68 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 24,
   },
+  profileTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  profileTitle: {
+    color: colors.texto,
+    fontFamily: typography.fontFamily.titulo.bold,
+    fontSize: 27,
+  },
+  outlineAction: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderWidth: 1,
+    borderColor: colors.borda,
+    borderRadius: 7,
+    paddingHorizontal: 13,
+  },
+  outlineActionText: {
+    color: colors.textoSecundario,
+    fontFamily: typography.fontFamily.corpo.semiBold,
+    fontSize: 13,
+  },
+  sessionBlock: {
+    borderTopWidth: 1,
+    borderTopColor: colors.linha,
+    paddingTop: 16,
+    gap: 14,
+  },
+  sessionHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  clubCard: { backgroundColor: colors.card, borderColor: colors.borda, borderWidth: 1, borderRadius: 10, padding: 16, gap: 14 },
+  clubCrest: { width: 38, height: 38, borderRadius: 8, backgroundColor: colors.cardSecundario, alignItems: 'center', justifyContent: 'center' },
+  clubImage: { width: 29, height: 29 },
   sectionTabs: {
     flexDirection: 'row',
-    gap: 4,
-    marginHorizontal: MARGEM,
-    marginBottom: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.linha,
     padding: 4,
     borderRadius: 10,
     backgroundColor: colors.card,
   },
   sectionTab: {
     flex: 1,
+    minWidth: 0,
     minHeight: 48,
+    flexDirection: 'row',
+    gap: 5,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 5,
+    paddingHorizontal: 3,
     paddingVertical: 8,
     borderRadius: 7,
   },
   sectionTabActive: {
-    backgroundColor: colors.fundoBotao,
+    backgroundColor: colors.cardSecundario,
   },
   sectionTabText: {
     fontFamily: typography.fontFamily.corpo.medium,
@@ -48,7 +92,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   sectionTabTextActive: {
     fontFamily: typography.fontFamily.corpo.semiBold,
-    color: colors.primaria,
+    color: colors.texto,
   },
   sectionIntro: {
     gap: 6,
@@ -207,25 +251,17 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.cardSecundario,
     borderRadius: 10,
   },
-  themeSettingRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12 },
-  themePreviewWrapper: { width: 36, height: 36, backgroundColor: colors.cardSecundario, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
-  themeSettingTitle: { flex: 1, minWidth: 0 },
-  themeCurrentValue: { flexShrink: 1, fontFamily: typography.fontFamily.corpo.regular, fontSize: 13, color: colors.textoSecundario },
-  themePreview: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: colors.textoSecundario, overflow: 'hidden', backgroundColor: colors.card },
-  themePreviewHalf: { width: '50%', height: '100%', backgroundColor: colors.textoSecundario },
-  themeSheetOverlay: { flex: 1, justifyContent: 'flex-end' },
-  themeBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.5)' },
-  themeSheet: { backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 12, maxHeight: '85%' },
-  themeSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  themeSheetTitle: { flex: 1, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 18, color: colors.texto },
-  themeCloseButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  themeSheetList: { flexShrink: 1 },
-  themeChoice: { minHeight: 56, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 16 },
-  themeChoiceText: { flex: 1, fontFamily: typography.fontFamily.corpo.regular, fontSize: 15, color: colors.texto },
-  themeChoiceTextSelected: { fontFamily: typography.fontFamily.corpo.semiBold },
-  themeRadio: { width: 21, height: 21, borderRadius: 11, borderWidth: 1.5, borderColor: colors.textoSecundario, alignItems: 'center', justifyContent: 'center' },
-  themeRadioSelected: { borderColor: colors.primaria },
-  themeRadioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: colors.primaria },
+  themeSettingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+    padding: 14,
+  },
+  themeDescription: { flex: 1, minWidth: 106, gap: 4 },
+  themeControl: { flexDirection: 'row', gap: 2, padding: 3, backgroundColor: colors.fundo, borderRadius: 9 },
+  themeOption: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 7 },
+  themeOptionActive: { backgroundColor: colors.cardSecundario },
   menuContent: {
     flex: 1,
     minWidth: 0,

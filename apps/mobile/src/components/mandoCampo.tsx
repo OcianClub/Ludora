@@ -29,7 +29,7 @@ export default function MandoCampo({ emCasa, onChange }: MandoCampoProps) {
           <Icon
             name={opt.icon} 
             size={18} 
-            color={emCasa === opt.value ? colors.primaria : colors.textoSecundario} 
+            color={emCasa === opt.value ? colors.textoSobrePrimaria : colors.textoSecundario}
           />
           <Text style={[styles.txt, emCasa === opt.value && styles.txtAtivo]}>
             {opt.label}

@@ -2,9 +2,39 @@ import { StyleSheet } from "react-native";
 import { typography } from "@ludora/design-tokens";
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
-const MARGEM = 20;
+import { MARGEM_TELA } from './layout';
+
+const MARGEM = MARGEM_TELA;
 
 export const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  embeddedCard: {
+    padding: 18,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.borda,
+    borderRadius: 10,
+  },
+  embeddedIntro: { gap: 4 },
+  embeddedTitle: {
+    fontFamily: typography.fontFamily.titulo.bold,
+    fontSize: 20,
+    color: colors.texto,
+  },
+  embeddedIdentity: {
+    marginBottom: 18,
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.linha,
+  },
+  embeddedAvatar: { width: 56, height: 56, borderRadius: 28, borderWidth: 0, backgroundColor: colors.primaria },
+  embeddedFields: { paddingHorizontal: 0, borderWidth: 0, gap: 12 },
+  embeddedField: { paddingVertical: 0, gap: 5 },
+  embeddedInput: { minHeight: 44, borderRadius: 7, backgroundColor: colors.card },
+  embeddedInputText: { paddingVertical: 9 },
+  embeddedLabel: { color: colors.texto },
+  embeddedSuccess: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primaria, padding: 12, borderRadius: 8, marginVertical: 12 },
+  embeddedSection: { marginBottom: 12 },
+  embeddedSave: { minHeight: 44, borderRadius: 7, paddingHorizontal: 18, alignSelf: 'flex-start' },
   container: {
     flex: 1,
     backgroundColor: colors.fundo,

@@ -22,15 +22,14 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   btnAtivo: {
     borderColor: colors.primaria,
-    backgroundColor: colors.fundoBotao,
+    backgroundColor: colors.primaria,
   },
   txt: {
     fontFamily: typography.fontFamily.corpo.semiBold,
     color: colors.textoSecundario,
     fontSize: 11,
-    textTransform: 'uppercase',
   },
   txtAtivo: {
-    color: colors.primaria,
+    color: colors.textoSobrePrimaria,
   }
 });

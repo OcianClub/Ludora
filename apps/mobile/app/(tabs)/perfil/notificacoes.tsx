@@ -1,53 +1,78 @@
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from "expo-router";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
   FlatList,
+  Modal,
+  useWindowDimensions,
   PanResponder,
+  Pressable,
   RefreshControl,
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { Icon, type IconName } from '@ludora/icons';
-import { Header } from '@/src/components/Header';
-import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
-import { useNotificacoes } from '@/src/contexts/NotificacoesContext';
-import { useTheme } from '@/src/contexts/ThemeContext';
+} from "react-native";
+import { Icon, type IconName } from "@ludora/icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
+import { useNotificacoes } from "@/src/contexts/NotificacoesContext";
+import { useTheme } from "@/src/contexts/ThemeContext";
 import {
   excluirNotificacao,
   fetchNotificacoes,
-  limparNotificacoesLidas,
+  limparNotificacoes,
   marcarNotificacaoComoLida,
   marcarTodasNotificacoesComoLidas,
   type Notificacao,
-} from '@/src/services/api';
-import { createStyles } from '@/src/styles/notificacoesStyles';
-import { criarEscopoNotificacoes } from '@/src/utils/escopoNotificacoes';
+} from "@/src/services/api";
+import { createStyles } from "@/src/styles/notificacoesStyles";
+import { criarEscopoNotificacoes } from "@/src/utils/escopoNotificacoes";
 
 function grupoData(data: string) {
   const dia = new Date(data);
   const hoje = new Date();
   const ontem = new Date();
   ontem.setDate(hoje.getDate() - 1);
-  if (dia.toDateString() === hoje.toDateString()) return 'Hoje';
-  if (dia.toDateString() === ontem.toDateString()) return 'Ontem';
-  return dia.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
+  if (dia.toDateString() === hoje.toDateString()) return "Hoje";
+  if (dia.toDateString() === ontem.toDateString()) return "Ontem";
+  const inicioSemana = new Date(
+    hoje.getFullYear(),
+    hoje.getMonth(),
+    hoje.getDate() - ((hoje.getDay() + 6) % 7),
+  );
+  const semanaPassada = new Date(inicioSemana);
+  semanaPassada.setDate(inicioSemana.getDate() - 7);
+  if (dia >= inicioSemana) return "Esta semana";
+  if (dia >= semanaPassada) return "Semana passada";
+  return "Mais antigas";
 }
 
-const tipos: Record<Notificacao['tipo'], { icone: IconName; nome: string }> = {
-  PARTIDA_AGENDADA: { icone: 'calendar-outline', nome: 'Agenda' },
-  GOL_PARTIDA: { icone: 'soccer', nome: 'Gol' },
-  RESULTADO_PARTIDA: { icone: 'trophy', nome: 'Resultado' },
+const tipos: Record<Notificacao["tipo"], { icone: IconName; nome: string }> = {
+  PARTIDA_AGENDADA: { icone: "calendar-outline", nome: "Agenda" },
+  GOL_PARTIDA: { icone: "soccer", nome: "Gol" },
+  RESULTADO_PARTIDA: { icone: "trophy", nome: "Resultado" },
 };
 
-function CartaoNotificacao({
+const formatarHora = new Intl.DateTimeFormat("pt-BR", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const formatarDia = new Intl.DateTimeFormat("pt-BR", {
+  day: "numeric",
+  month: "short",
+});
+
+const tipoNotificacao = (item: Notificacao) =>
+  item.dados?.solicitacaoId ? "solicitacao" : item.tipo;
+const filtrosTipo = [
+  { id: "todos", label: "Todos os tipos" },
+  ...Object.entries(tipos).map(([id, tipo]) => ({ id, label: tipo.nome })),
+  { id: "solicitacao", label: "Solicitação" },
+];
+
+const CartaoNotificacao = memo(function CartaoNotificacao({
   item,
   ocupado,
   onLer,
@@ -55,14 +80,14 @@ function CartaoNotificacao({
 }: {
   item: Notificacao;
   ocupado: boolean;
-  onLer: () => void;
-  onExcluir: () => void;
+  onLer: (item: Notificacao) => void;
+  onExcluir: (item: Notificacao) => void;
 }) {
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const deslocamento = useRef(new Animated.Value(0)).current;
-  const acoes = useRef({ ocupado, onExcluir });
-  acoes.current = { ocupado, onExcluir };
+  const acoes = useRef({ ocupado, onExcluir, item });
+  acoes.current = { ocupado, onExcluir, item };
   const voltar = () =>
     Animated.spring(deslocamento, {
       toValue: 0,
@@ -76,13 +101,18 @@ function CartaoNotificacao({
       onPanResponderMove: (_, { dx }) =>
         deslocamento.setValue(Math.max(-140, Math.min(0, dx))),
       onPanResponderRelease: (_, { dx }) => {
-        if (dx < -100 && !acoes.current.ocupado) acoes.current.onExcluir();
+        if (dx < -100 && !acoes.current.ocupado)
+          acoes.current.onExcluir(acoes.current.item);
         voltar();
       },
       onPanResponderTerminate: voltar,
-    })
+    }),
   ).current;
-  const tipo = tipos[item.tipo];
+  const tipo =
+    tipoNotificacao(item) === "solicitacao"
+      ? { icone: "email-outline" as const, nome: "Solicitação" }
+      : tipos[item.tipo];
+  const data = new Date(item.criada_em);
   return (
     <View style={styles.swipeContainer}>
       <View
@@ -104,31 +134,29 @@ function CartaoNotificacao({
         >
           <TouchableOpacity
             style={styles.cardMain}
-            onPress={onLer}
-            disabled={ocupado || (item.lida && !item.dados?.solicitacaoId && !item.partida_id)}
+            onPress={() => onLer(item)}
+            disabled={
+              ocupado ||
+              (item.lida && !item.dados?.solicitacaoId && !item.partida_id)
+            }
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={`${item.lida ? 'Lida' : 'Não lida'}. ${item.titulo}. ${item.corpo}`}
+            accessibilityLabel={`${item.lida ? "Lida" : "Não lida"}. ${item.titulo}. ${item.corpo}`}
             accessibilityHint="Toque para marcar como lida"
           >
             <View style={styles.notificationIcon}>
-              <Icon
-                name={tipo.icone}
-                size={22}
-                color={
-                  item.tipo === 'GOL_PARTIDA' ? colors.amarelo : colors.primaria
-                }
-              />
+              <Icon name={tipo.icone} size={18} color={colors.texto} />
             </View>
             <View style={styles.notificationContent}>
               <View style={styles.notificationTopLine}>
                 {!item.lida && <View style={styles.unreadDot} />}
                 <Text style={styles.typeText}>{tipo.nome}</Text>
                 <Text style={styles.notificationTime}>
-                  {new Date(item.criada_em).toLocaleTimeString('pt-BR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {grupoData(item.criada_em) !== "Hoje" &&
+                  grupoData(item.criada_em) !== "Ontem"
+                    ? formatarDia.format(data).replace(".", "") + " · "
+                    : ""}
+                  {formatarHora.format(data)}
                 </Text>
               </View>
               <Text style={styles.notificationTitle}>{item.titulo}</Text>
@@ -137,7 +165,7 @@ function CartaoNotificacao({
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.deleteButton}
-            onPress={onExcluir}
+            onPress={() => onExcluir(item)}
             disabled={ocupado}
             accessibilityRole="button"
             accessibilityLabel={`Excluir notificação: ${item.titulo}`}
@@ -152,12 +180,25 @@ function CartaoNotificacao({
       </Animated.View>
     </View>
   );
-}
+});
 
 export default function Notificacoes() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const seletorTipos = useRef<View>(null);
+  const [ancoraTipos, setAncoraTipos] = useState({ x: 16, y: 0, width: 168 });
+  function abrirTipos() {
+    seletorTipos.current?.measureInWindow((x, y, largura, altura) => {
+      setAncoraTipos({ x, y: y + altura + 6, width: Math.max(168, largura) });
+      setPainel("tipos");
+    });
+  }
+  useEffect(() => setPainel(null), [width, height]);
+  const [tipoAtivo, setTipoAtivo] = useState("todos");
+  const [painel, setPainel] = useState<"opcoes" | "tipos" | null>(null);
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { clubeAtivo } = useClubeAtivo();
   const { atualizarNaoLidas, versaoNotificacoes } = useNotificacoes();
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
@@ -168,8 +209,8 @@ export default function Notificacoes() {
   const [excluindo, setExcluindo] = useState<number[]>([]);
   const pendentes = useRef(new Set<number>());
   const requisicao = useRef(0);
-  const [filtro, setFiltro] = useState<'todas' | 'naoLidas'>('todas');
-  const [erro, setErro] = useState('');
+  const [filtro, setFiltro] = useState<"todas" | "naoLidas">("todas");
+  const [erro, setErro] = useState("");
   const escopo = useRef(criarEscopoNotificacoes()).current;
   escopo.definirClube(clubeAtivo?.papel ? clubeAtivo.id : null);
 
@@ -183,19 +224,19 @@ export default function Notificacoes() {
         return;
       }
       if (refresh) setAtualizando(true);
-      setErro('');
+      setErro("");
       try {
         const resposta = await fetchNotificacoes(100, clubeAtivo.id);
         if (atual !== requisicao.current) return;
         setNotificacoes(
           resposta.notificacoes.filter(
-            (item) => !pendentes.current.has(item.id)
-          )
+            (item) => !pendentes.current.has(item.id),
+          ),
         );
         setTotalNaoLidas(resposta.totalNaoLidas);
       } catch {
         if (atual === requisicao.current)
-          setErro('Não foi possível atualizar os avisos. Tente novamente.');
+          setErro("Não foi possível atualizar os avisos. Tente novamente.");
       } finally {
         if (atual === requisicao.current) {
           setCarregando(false);
@@ -203,7 +244,7 @@ export default function Notificacoes() {
         }
       }
     },
-    [clubeAtivo?.id, clubeAtivo?.papel]
+    [clubeAtivo?.id, clubeAtivo?.papel],
   );
 
   useEffect(() => {
@@ -221,7 +262,7 @@ export default function Notificacoes() {
     () => () => {
       escopo.definirClube(null);
     },
-    [escopo]
+    [escopo],
   );
   useEffect(() => {
     void carregar();
@@ -235,8 +276,10 @@ export default function Notificacoes() {
 
   const ler = async (item: Notificacao) => {
     if (ocupado || pendentes.current.has(item.id)) return;
-    if (item.dados?.solicitacaoId) router.push('/solicitacoes-partidas' as never);
-    else if (item.partida_id) router.push(`/partida-compartilhada/${item.partida_id}` as never);
+    if (item.dados?.solicitacaoId)
+      router.push("/solicitacoes-partidas" as never);
+    else if (item.partida_id)
+      router.push(`/partida-compartilhada/${item.partida_id}` as never);
     if (item.lida) return;
     const operacao = escopo.iniciar();
     if (!operacao) return;
@@ -251,7 +294,7 @@ export default function Notificacoes() {
     } catch {
       if (operacao.atual())
         setErro(
-          'Não foi possível marcar o aviso como lido. Atualize para conferir o estado salvo.'
+          "Não foi possível marcar o aviso como lido. Atualize para conferir o estado salvo.",
         );
     } finally {
       if (operacao.concluir()) setOcupado(false);
@@ -273,13 +316,13 @@ export default function Notificacoes() {
       await excluirNotificacao(item.id, operacao.clubeId);
       if (!operacao.atual()) return;
       setNotificacoes((atuais) =>
-        atuais.filter((aviso) => aviso.id !== item.id)
+        atuais.filter((aviso) => aviso.id !== item.id),
       );
       await atualizar();
     } catch {
       if (operacao.atual())
         setErro(
-          'Não foi possível confirmar a exclusão. Atualize para conferir o estado salvo.'
+          "Não foi possível confirmar a exclusão. Atualize para conferir o estado salvo.",
         );
     } finally {
       if (operacao.concluir()) {
@@ -291,8 +334,8 @@ export default function Notificacoes() {
   };
 
   const acaoEmLote = async (
-    limpar: boolean,
-    clubeEsperado = clubeAtivo?.id
+    acao: "ler" | "excluir-lidas" | "excluir-todas",
+    clubeEsperado = clubeAtivo?.id,
   ) => {
     if (ocupado || pendentes.current.size) return;
     const operacao = escopo.iniciar();
@@ -303,50 +346,95 @@ export default function Notificacoes() {
     }
     setOcupado(true);
     try {
-      if (limpar) await limparNotificacoesLidas(operacao.clubeId);
-      else await marcarTodasNotificacoesComoLidas(operacao.clubeId);
+      if (acao === "ler")
+        await marcarTodasNotificacoesComoLidas(operacao.clubeId);
+      else await limparNotificacoes(operacao.clubeId, acao === "excluir-lidas");
       if (operacao.atual()) await atualizar();
     } catch {
       if (operacao.atual())
         setErro(
-          'Não foi possível confirmar a ação. Atualize para conferir o estado salvo.'
+          "Não foi possível confirmar a ação. Atualize para conferir o estado salvo.",
         );
     } finally {
       if (operacao.concluir()) setOcupado(false);
     }
   };
 
-  const visiveis = notificacoes.filter(
-    (item) => filtro === 'todas' || !item.lida
+  const acoesCartao = useRef({ ler, excluir });
+  acoesCartao.current = { ler, excluir };
+  const lerCartao = useCallback((item: Notificacao) => {
+    void acoesCartao.current.ler(item);
+  }, []);
+  const excluirCartao = useCallback((item: Notificacao) => {
+    void acoesCartao.current.excluir(item);
+  }, []);
+
+  const visiveis = useMemo(
+    () =>
+      notificacoes.filter(
+        (item) =>
+          (filtro === "todas" || !item.lida) &&
+          (tipoAtivo === "todos" || tipoNotificacao(item) === tipoAtivo),
+      ),
+    [notificacoes, filtro, tipoAtivo],
   );
   const bloqueado = ocupado || excluindo.length > 0;
   const possuiLidas = notificacoes.some((item) => item.lida);
-  const confirmarLimpeza = () => {
+  const confirmarLimpeza = (todas = false) => {
+    setPainel(null);
     const contexto = escopo.capturar();
     Alert.alert(
-      'Limpar avisos lidos?',
-      'Os avisos já lidos deste clube serão excluídos do seu histórico. Os não lidos serão mantidos.',
+      todas ? "Excluir todas as notificações?" : "Limpar avisos lidos?",
+      todas
+        ? "Todos os avisos deste clube serão excluídos do seu histórico, incluindo os não lidos."
+        : "Os avisos já lidos deste clube serão excluídos do seu histórico. Os não lidos serão mantidos.",
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: "Cancelar", style: "cancel" },
         {
-          text: 'Limpar lidas',
-          style: 'destructive',
+          text: todas ? "Excluir todas" : "Limpar lidas",
+          style: "destructive",
           onPress: () => {
-            if (contexto.atual()) void acaoEmLote(true, clubeAtivo?.id);
+            if (contexto.atual())
+              void acaoEmLote(
+                todas ? "excluir-todas" : "excluir-lidas",
+                clubeAtivo?.id,
+              );
           },
         },
-      ]
+      ],
     );
   };
 
   return (
     <View style={styles.container}>
-      <Header
-        title="Notificações"
-        btnVoltar="arrow-left"
-        showProfile={false}
-        papelUsuario={clubeAtivo?.papel ?? undefined}
-      />
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity
+          style={[styles.headerAction, styles.backAction]}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.navigate("/")
+          }
+        >
+          <Icon name="arrow-left" size={19} color={colors.texto} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle} accessibilityRole="header">
+          Notificações
+        </Text>
+        <TouchableOpacity
+          style={styles.headerAction}
+          accessibilityRole="button"
+          accessibilityLabel="Mais opções"
+          accessibilityState={{ expanded: painel === "opcoes" }}
+          onPress={() => setPainel(painel === "opcoes" ? null : "opcoes")}
+        >
+          <Icon
+            name="dots-horizontal"
+            size={21}
+            color={colors.textoSecundario}
+          />
+        </TouchableOpacity>
+      </View>
       {carregando ? (
         <View style={styles.emptyState}>
           <ActivityIndicator size="large" color={colors.primaria} />
@@ -357,6 +445,10 @@ export default function Notificacoes() {
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={8}
+          maxToRenderPerBatch={6}
+          windowSize={5}
+          onScrollBeginDrag={() => setPainel(null)}
           refreshControl={
             <RefreshControl
               refreshing={atualizando}
@@ -368,37 +460,61 @@ export default function Notificacoes() {
           ListHeaderComponent={
             <View style={styles.listHeader}>
               <Text style={styles.clubName}>
-                {clubeAtivo?.nome ?? 'Seu clube'}
+                {clubeAtivo?.nome
+                  ? `Avisos do ${clubeAtivo.nome}`
+                  : "Avisos do clube"}
               </Text>
-              <Text style={styles.listDescription}>
-                {!clubeAtivo?.papel
-                  ? 'Siga este clube para receber e guardar os avisos dele.'
-                  : totalNaoLidas
-                    ? `${totalNaoLidas} ${totalNaoLidas === 1 ? 'aviso não lido' : 'avisos não lidos'}`
-                    : 'Você está em dia com os avisos do clube.'}
-              </Text>
-              <View style={styles.filters}>
-                {(['todas', 'naoLidas'] as const).map((valor) => (
-                  <TouchableOpacity
-                    key={valor}
-                    style={[
-                      styles.filterButton,
-                      filtro === valor && styles.filterActive,
-                    ]}
-                    onPress={() => setFiltro(valor)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: filtro === valor }}
-                  >
-                    <Text
+              <View style={styles.filterRow}>
+                <View style={styles.filters}>
+                  {(["todas", "naoLidas"] as const).map((valor) => (
+                    <TouchableOpacity
+                      key={valor}
                       style={[
-                        styles.filterText,
-                        filtro === valor && styles.filterTextActive,
+                        styles.filterButton,
+                        filtro === valor && styles.filterActive,
                       ]}
+                      onPress={() => setFiltro(valor)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: filtro === valor }}
                     >
-                      {valor === 'todas' ? 'Todas' : 'Não lidas'}
+                      <Text
+                        style={[
+                          styles.filterText,
+                          filtro === valor && styles.filterTextActive,
+                        ]}
+                      >
+                        {valor === "todas" ? "Todas" : "Não lidas"}
+                      </Text>
+                      {valor === "naoLidas" && totalNaoLidas > 0 && (
+                        <Text style={styles.count}>{totalNaoLidas}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View
+                  ref={seletorTipos}
+                  collapsable={false}
+                  style={styles.typeAnchor}
+                >
+                  <TouchableOpacity
+                    style={styles.typeTrigger}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Tipo de notificação: ${filtrosTipo.find((tipo) => tipo.id === tipoAtivo)?.label}`}
+                    accessibilityState={{ expanded: painel === "tipos" }}
+                    onPress={abrirTipos}
+                  >
+                    <Text style={styles.typeTriggerText} numberOfLines={1}>
+                      {filtrosTipo.find((tipo) => tipo.id === tipoAtivo)?.label}
                     </Text>
+                    <View style={styles.chevron}>
+                      <Icon
+                        name="chevron-down"
+                        size={15}
+                        color={colors.textoSecundario}
+                      />
+                    </View>
                   </TouchableOpacity>
-                ))}
+                </View>
               </View>
               {notificacoes.length > 0 && (
                 <>
@@ -406,7 +522,7 @@ export default function Notificacoes() {
                     <TouchableOpacity
                       style={styles.actionButton}
                       disabled={bloqueado || !totalNaoLidas}
-                      onPress={() => void acaoEmLote(false)}
+                      onPress={() => void acaoEmLote("ler")}
                       accessibilityRole="button"
                     >
                       <Icon
@@ -433,7 +549,7 @@ export default function Notificacoes() {
                         (!possuiLidas || bloqueado) && styles.disabledAction,
                       ]}
                       disabled={bloqueado || !possuiLidas}
-                      onPress={confirmarLimpeza}
+                      onPress={() => confirmarLimpeza()}
                       accessibilityRole="button"
                     >
                       <Icon
@@ -446,9 +562,6 @@ export default function Notificacoes() {
                       </Text>
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.hint}>
-                    Deslize para a esquerda para excluir um aviso.
-                  </Text>
                 </>
               )}
               {!!erro && (
@@ -471,17 +584,21 @@ export default function Notificacoes() {
               </View>
               <Text style={styles.emptyTitle}>
                 {erro
-                  ? 'Não conseguimos carregar'
-                  : filtro === 'naoLidas'
-                    ? 'Tudo lido por aqui'
-                    : 'Nenhum aviso por enquanto'}
+                  ? "Não conseguimos carregar"
+                  : tipoAtivo !== "todos"
+                    ? "Nenhum aviso com este filtro"
+                    : filtro === "naoLidas"
+                      ? "Tudo lido por aqui"
+                      : "Nenhum aviso por enquanto"}
               </Text>
               <Text style={styles.emptyText}>
                 {erro
-                  ? 'Confira sua conexão e tente novamente.'
-                  : filtro === 'naoLidas'
-                    ? 'Seus avisos anteriores continuam na aba Todas.'
-                    : 'Novas partidas, gols e resultados do clube aparecerão aqui.'}
+                  ? "Confira sua conexão e tente novamente."
+                  : tipoAtivo !== "todos"
+                    ? "Selecione outro tipo para ver mais avisos."
+                    : filtro === "naoLidas"
+                      ? "Seus avisos anteriores continuam na aba Todas."
+                      : "Novas partidas, gols e resultados do clube aparecerão aqui."}
               </Text>
             </View>
           }
@@ -497,8 +614,8 @@ export default function Notificacoes() {
               <CartaoNotificacao
                 item={item}
                 ocupado={ocupado || excluindo.includes(item.id)}
-                onLer={() => void ler(item)}
-                onExcluir={() => void excluir(item)}
+                onLer={lerCartao}
+                onExcluir={excluirCartao}
               />
             </>
           )}
@@ -510,6 +627,116 @@ export default function Notificacoes() {
             ) : null
           }
         />
+      )}
+      <Modal
+        visible={painel === "tipos"}
+        transparent
+        statusBarTranslucent
+        animationType="fade"
+        onRequestClose={() => setPainel(null)}
+      >
+        <View style={styles.menuOverlay}>
+          <Pressable
+            style={styles.menuBackdrop}
+            onPress={() => setPainel(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Fechar tipos de notificação"
+          />
+          <View
+            style={[
+              styles.typeOptions,
+              {
+                width: Math.min(ancoraTipos.width, width - 32),
+                left: Math.max(
+                  16,
+                  Math.min(ancoraTipos.x, width - ancoraTipos.width - 16),
+                ),
+                top: Math.max(
+                  insets.top + 8,
+                  Math.min(
+                    ancoraTipos.y,
+                    height - insets.bottom - filtrosTipo.length * 42 - 18,
+                  ),
+                ),
+              },
+            ]}
+            accessibilityViewIsModal
+            accessibilityRole="radiogroup"
+            accessibilityLabel="Tipos de notificação"
+          >
+            {filtrosTipo.map((tipo) => (
+              <TouchableOpacity
+                key={tipo.id}
+                style={[
+                  styles.typeOption,
+                  tipoAtivo === tipo.id && styles.typeOptionSelected,
+                ]}
+                accessibilityRole="radio"
+                accessibilityLabel={tipo.label}
+                accessibilityState={{ checked: tipoAtivo === tipo.id }}
+                aria-checked={tipoAtivo === tipo.id}
+                onPress={() => {
+                  setTipoAtivo(tipo.id);
+                  setPainel(null);
+                }}
+              >
+                <Text style={styles.menuActionText}>{tipo.label}</Text>
+                {tipoAtivo === tipo.id && (
+                  <Icon name="check" size={16} color={colors.primaria} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
+      {painel === "opcoes" && (
+        <View style={styles.menuOverlay}>
+          <Pressable
+            style={styles.menuBackdrop}
+            onPress={() => setPainel(null)}
+            accessible={false}
+            importantForAccessibility="no"
+          />
+          <View
+            style={[
+              styles.options,
+              styles.floatingOptions,
+              { top: insets.top + 62 },
+            ]}
+            accessibilityViewIsModal
+          >
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                !possuiLidas && styles.disabledAction,
+              ]}
+              accessibilityRole="button"
+              disabled={bloqueado || !possuiLidas}
+              onPress={() => confirmarLimpeza()}
+            >
+              <Icon
+                name="clipboard-text-outline"
+                size={17}
+                color={colors.texto}
+              />
+              <Text style={styles.menuActionText}>Excluir avisos lidos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                notificacoes.length === 0 && styles.disabledAction,
+              ]}
+              accessibilityRole="button"
+              disabled={bloqueado || notificacoes.length === 0}
+              onPress={() => confirmarLimpeza(true)}
+            >
+              <Icon name="trash" size={17} color={colors.tituloErro} />
+              <Text style={[styles.menuActionText, styles.menuDangerText]}>
+                Excluir todas as notificações
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
     </View>
   );

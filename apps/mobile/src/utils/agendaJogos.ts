@@ -1,4 +1,4 @@
-export type GrupoAgenda = 'ao_vivo' | 'agenda' | 'pendentes' | 'historico';
+export type GrupoAgenda = 'ao_vivo' | 'agenda' | 'pendentes' | 'historico' | 'finalizadas' | 'canceladas';
 
 export type PartidaAgendaBase = {
   id: number;
@@ -15,6 +15,7 @@ export type SecaoAgenda<T> = {
   key: string;
   titulo: string;
   descricao: string;
+  total?: number;
   data: T[];
   mais?: { grupo: GrupoAgenda; apos: number };
 };
@@ -27,9 +28,9 @@ export function agoraAgenda(agora = new Date()) {
   return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}T${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
 }
 
-export function secoesAgenda<T extends PartidaAgendaBase>(partidas: T[]): SecaoAgenda<T>[] {
+export function secoesAgenda<T extends PartidaAgendaBase>(partidas: T[], porSituacao = false): SecaoAgenda<T>[] {
   const grupos: Record<GrupoAgenda, T[]> = {
-    ao_vivo: [], agenda: [], pendentes: [], historico: [],
+    ao_vivo: [], agenda: [], pendentes: [], historico: [], finalizadas: [], canceladas: [],
   };
   for (const partida of partidas) grupos[partida.grupo_agenda].push(partida);
   for (const lista of Object.values(grupos)) lista.sort((a, b) => a.posicao - b.posicao || a.id - b.id);
@@ -39,9 +40,17 @@ export function secoesAgenda<T extends PartidaAgendaBase>(partidas: T[]): SecaoA
     if (!data.length) return;
     const apos = Math.max(...data.map((partida) => partida.posicao));
     const mais = apos < data[0].total_grupo ? { grupo, apos } : undefined;
-    secoes.push({ key: grupo, titulo, descricao, data, mais });
+    secoes.push({ key: grupo, titulo, descricao, data, mais, ...(porSituacao && { total: data[0].total_grupo }) });
   };
   adicionar('ao_vivo', 'Ao vivo', 'Partidas em andamento');
+  if (porSituacao) {
+    adicionar('agenda', 'Próximas', 'Partidas agendadas e preparadas');
+    adicionar('pendentes', 'Aguardando atualização', 'Partidas sem resultado registrado');
+    adicionar('finalizadas', 'Finalizadas', 'Mais recentes primeiro');
+    adicionar('canceladas', 'Canceladas', 'Mais recentes primeiro');
+    adicionar('historico', 'Partidas anteriores', 'Mais recentes primeiro');
+    return secoes;
+  }
   if (grupos.agenda.length) {
     secoes.push({ key: 'a_seguir', titulo: 'A seguir', descricao: 'Próxima partida agendada', data: [grupos.agenda[0]] });
     const restantes = grupos.agenda.slice(1);
@@ -60,6 +69,15 @@ export function unirPaginasAgenda<T extends { id: number }>(atuais: T[], novas: 
   const mapa = new Map(atuais.map((partida) => [partida.id, partida]));
   for (const partida of novas) mapa.set(partida.id, partida);
   return [...mapa.values()];
+}
+
+export function reutilizarPartidasAgenda<T extends { id: number }>(atuais: T[], novas: T[]): T[] {
+  const anteriores = new Map(atuais.map(partida => [partida.id, partida]));
+  const resultado = novas.map(partida => {
+    const anterior = anteriores.get(partida.id);
+    return anterior && JSON.stringify(anterior) === JSON.stringify(partida) ? anterior : partida;
+  });
+  return resultado.length === atuais.length && resultado.every((partida, index) => partida === atuais[index]) ? atuais : resultado;
 }
 
 export function rotuloAgenda(partida: PartidaAgendaBase, agora: Date, gestor: boolean) {

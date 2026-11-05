@@ -82,7 +82,9 @@ export default function TabsLayout() {
         name="perfil/perfil"
         options={{
           title: 'Perfil',
-          href: null,
+          tabBarIcon: ({ color, focused }) => (
+            <IconeAba nome="account" cor={color} selecionado={focused} />
+          ),
         }}
       />
       <Tabs.Screen
