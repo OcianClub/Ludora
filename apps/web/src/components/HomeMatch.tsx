@@ -79,9 +79,9 @@ export function HomeHistoryTable({ partidas }: { partidas: HomePartida[] }) {
             <th scope="col" className="history-competition">Competição</th>
             <th scope="col" className="history-confrontation">Confronto</th>
             <th scope="col" className="history-score-cell">Placar</th>
-            <th scope="col">Resultado</th>
+            <th scope="col" className="history-result-cell">Resultado</th>
             <th scope="col" className="history-venue">Mando</th>
-            <th scope="col"><span className="history-sr-only">Detalhes</span></th>
+            <th scope="col" className="history-action-cell"><span className="history-sr-only">Detalhes</span></th>
           </tr>
         </thead>
         <tbody>
@@ -100,9 +100,9 @@ export function HomeHistoryTable({ partidas }: { partidas: HomePartida[] }) {
                   </div>
                 </td>
                 <td className="history-score-cell"><div className="history-table-score" aria-label={`${partida.gols_mandante} a ${partida.gols_visitante}`}><strong>{partida.gols_mandante}</strong><strong>{partida.gols_visitante}</strong></div></td>
-                <td><span className={`home-result-tag result-${result}`}>{RESULTADOS[result]}</span></td>
+                <td className="history-result-cell"><span className={`home-result-tag result-${result}`}>{RESULTADOS[result]}</span></td>
                 <td className="history-venue"><span><Icon name={partida.emCasa ? 'home' : 'bus'} size={16} />{partida.emCasa ? 'Em casa' : 'Fora'}</span></td>
-                <td><Link className="history-table-link" to={`/partidas/${partida.id}`} aria-label={`Ver partida: ${home} contra ${away}, ${dataHome(partida.data, true)}`}><span>Ver partida</span><Icon name="chevronRight" size={17} /></Link></td>
+                <td className="history-action-cell"><Link className="history-table-link" to={`/partidas/${partida.id}`} aria-label={`Ver partida: ${home} contra ${away}, ${dataHome(partida.data, true)}`}><span>Ver partida</span><Icon name="chevronRight" size={17} /></Link></td>
               </tr>
             );
           })}

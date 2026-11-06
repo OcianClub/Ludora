@@ -59,16 +59,17 @@ button:disabled { cursor: not-allowed; }
 .text-vermelho { color: var(--vermelho); }
 .font-titulo { font-family: var(--font-titulo); }
 
-@media (max-width: 760px) and (pointer: coarse) {
-  /* Impede o zoom automático de foco no Safari sem aumentar a altura dos campos. */
+@media (max-width: 760px) {
+  :root { --mobile-input-font-size: 13px; }
+  /* Mesmo tamanho no celular com toque e na prévia responsiva, inclusive autofill. */
   input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]),
   select,
   textarea {
-    font-size: 16px !important;
+    font-size: var(--mobile-input-font-size) !important;
   }
   input::placeholder,
   textarea::placeholder {
-    font-size: 13px;
+    font-size: inherit !important;
   }
 }
 

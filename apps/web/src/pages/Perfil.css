@@ -1,8 +1,8 @@
 .perfil-page { max-width: 980px; }
 .perfil-settings-layout {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 .perfil-settings-content {
@@ -12,8 +12,8 @@
   display: none;
 }
 .perfil-atalhos {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 90px), 1fr));
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--linha);
@@ -22,8 +22,10 @@
 }
 .perfil-atalhos button {
   display: flex;
+  min-width: 0;
   min-height: 48px;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   padding: 8px 12px;
   border: 0;
@@ -32,6 +34,7 @@
   color: var(--texto-sec);
   font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
 }
 @media (hover: hover) and (pointer: fine) {
   .perfil-atalhos button:hover {
@@ -234,17 +237,56 @@
   color: var(--texto-sec);
   font-size: 11px;
 }
+.perfil-exclusao {
+  margin-top: 24px;
+  border: 1px solid var(--linha);
+  border-radius: 10px;
+  background: var(--fundo-card);
+  color: var(--texto-sec);
+}
+.perfil-exclusao summary {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  list-style: none;
+}
+.perfil-exclusao summary::-webkit-details-marker { display: none; }
+.perfil-exclusao-label { min-width: 0; overflow-wrap: anywhere; }
+.perfil-exclusao summary > .icon { flex: none; }
+.perfil-exclusao[open] summary > :last-child { transform: rotate(90deg); }
+.perfil-exclusao-content {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  padding: 0 14px 16px;
+}
+.perfil-exclusao-content p {
+  max-width: 65ch;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.perfil-exclusao-content strong { color: var(--texto); }
 @media (max-width: 760px) {
   .perfil-settings-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
-  .perfil-atalhos {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .perfil-atalhos button {
-    font-size: 13px;
+    min-height: 44px;
+    gap: 6px;
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+  .perfil-atalhos .icon {
+    width: 16px !important;
+    height: 16px !important;
   }
   .perfil-settings-content .card {
     padding: 18px;
@@ -349,6 +391,10 @@
   font-size: 13px;
 }
 @media (max-width: 400px) {
+  .perfil-atalhos button {
+    font-size: 11px;
+    gap: 5px;
+  }
   .perfil-preferencia {
     column-gap: 8px;
     padding: 12px;
@@ -366,8 +412,20 @@
   .perfil-settings-layout {
     grid-template-columns: minmax(0, 1fr);
   }
-  .perfil-atalhos {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .perfil-atalhos button {
+    min-height: 44px;
+    gap: 6px;
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+  .perfil-atalhos .icon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+}
+@container workspace (max-width: 380px) {
+  .perfil-atalhos button {
+    font-size: 11px;
+    gap: 5px;
   }
 }

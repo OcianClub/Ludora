@@ -67,9 +67,10 @@ function endpointConvite(credencial: string, token: boolean) {
   return endpoint;
 }
 
-export async function consultarConvite(credencial: string, token = false) {
+export async function consultarConvite(credencial: string, token = false, signal?: AbortSignal) {
   const resultado = await authRequest<{ convite: Convite }>(
     `${BASE_URL}${endpointConvite(credencial, token)}`,
+    { signal },
   );
   if (!resultado.convite?.clube?.id ||
       typeof resultado.convite.clube.nome !== 'string' ||

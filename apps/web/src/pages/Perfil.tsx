@@ -5,6 +5,7 @@ import { Icon } from '../components/Icon';
 import { ThemeOptions } from '../components/ThemeOptions';
 import '../components/ThemeToggle.css';
 import { LogoutButton } from '../components/LogoutButton';
+import { DeleteAccount } from '../components/DeleteAccount';
 import { useAuth } from '../contexts/AuthContext';
 import { atualizarPreferenciaNotificacoes, atualizarPreferenciasPush, buscarPreferenciasPush, fetchMeuPerfil, type PerfilUsuario, type PreferenciasPushClube } from '../services/api';
 import './Perfil.css';
@@ -196,6 +197,7 @@ export default function PerfilPage() {
             <LogoutButton />
           </div>
         </Card>
+        <DeleteAccount />
       </section>
       <section id="perfil-panel-clubes" role="tabpanel" aria-labelledby="perfil-tab-clubes" hidden={secao !== 'clubes'} tabIndex={0}>
         <Card className="perfil-clubes-card">

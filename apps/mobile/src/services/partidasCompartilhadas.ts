@@ -1,4 +1,5 @@
 import { apiFetch } from './api';
+import { lerJsonMedido } from '../utils/desempenho';
 import { ErroConsulta } from '../utils/request';
 export interface EquipePartida {
   id: number; clube_id: number; categoria_id: number; time_id: number; pronta: boolean; publicada_em: string | null;
@@ -25,7 +26,7 @@ export interface PropostaPartida {
 }
 export async function requisicaoPartida<T = unknown>(endpoint: string, clubeId: number, dados?: unknown, method = 'POST'): Promise<T> {
   const response = await apiFetch(endpoint, { method: dados === undefined ? 'GET' : method, headers: { 'x-clube-id': String(clubeId), 'Content-Type': 'application/json' }, ...(dados === undefined ? {} : { body: JSON.stringify(dados) }) });
-  const body = await response.json();
+  const body = await lerJsonMedido<T & { error?: string }>(response, 'partida');
   if (!response.ok) throw new ErroConsulta(response.status, body.error || 'Não foi possível concluir. Confira sua conexão e tente novamente.');
   return body;
 }

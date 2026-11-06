@@ -1,4 +1,5 @@
 .auth-page {
+  --auth-input-font-size: 15px;
   min-height: 100vh;
   min-height: 100dvh;
   display: grid;
@@ -7,7 +8,7 @@
 .auth-story {
   display: flex;
   flex-direction: column;
-  padding: 40px clamp(28px, 5vw, 80px);
+  padding: 40px clamp(36px, 6vw, 112px);
   border-right: 1px solid var(--linha);
   background: var(--fundo-card);
   min-width: 0;
@@ -108,11 +109,11 @@
   align-items: center;
   justify-content: center;
   min-width: 0;
-  padding: 32px clamp(24px, 5vw, 72px);
+  padding: 32px clamp(32px, 6vw, 104px);
 }
 .auth-card {
   width: 100%;
-  max-width: 440px;
+  max-width: 480px;
   min-width: 0;
 }
 .auth-card--footer {
@@ -194,6 +195,7 @@
   letter-spacing: .5px;
 }
 .access-input-row {
+  --access-input-surface: var(--fundo-card);
   display: flex;
   align-items: center;
   gap: 11px;
@@ -201,7 +203,7 @@
   min-height: 56px;
   border: 1px solid var(--borda);
   border-radius: 12px;
-  background: var(--fundo-card);
+  background: var(--access-input-surface);
   color: var(--texto-sec);
   transition: border-color .15s, background .15s;
 }
@@ -209,6 +211,7 @@
   flex-shrink: 0;
 }
 .access-input-row:focus-within {
+  --access-input-surface: var(--fundo-botao);
   border-color: var(--primaria);
   background: var(--fundo-botao);
   color: var(--primaria);
@@ -223,14 +226,30 @@
   border: 0;
   background: transparent;
   color: var(--texto);
-  font-size: 15px;
+  font-size: var(--auth-input-font-size);
   line-height: 24px;
   padding: 15px 0;
   outline: none;
 }
 .access-input-row input::placeholder {
+  font-size: inherit;
   color: var(--texto-sec);
   opacity: .85;
+}
+/* O autofill deve acompanhar a superfície do campo, inclusive ícones e foco. */
+.access-input-row input:autofill {
+  box-shadow: 0 0 0 1000px var(--access-input-surface) inset;
+  -webkit-text-fill-color: var(--texto);
+  color: var(--texto);
+  caret-color: var(--texto);
+  filter: none;
+  transition: box-shadow .15s;
+}
+.access-input-row input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--access-input-surface) inset;
+  -webkit-text-fill-color: var(--texto);
+  caret-color: var(--texto);
+  transition: box-shadow .15s;
 }
 .access-eye {
   display: grid;
@@ -335,7 +354,7 @@
   display: block;
   margin-top: 4px;
   color: var(--texto-sec);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.5;
 }
 .access-invite-icon {
@@ -350,6 +369,8 @@
   color: var(--primaria);
 }
 .access-invite > svg {
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
   color: var(--texto-sec);
 }
@@ -502,12 +523,19 @@
   color: var(--texto-sec);
   font-size: 13px;
 }
+.access-loading-fields { display: grid; gap: 20px; }
+.access-loading-label { width: 64px; height: 11px; margin-bottom: 3px; }
+.access-loading-password-label { min-height: 36px; }
+.access-loading-icon { width: 18px; height: 18px; border-radius: 4px; }
+.access-loading-button { width: 100%; height: 52px; border-radius: 12px; }
+.access-loading-link { width: 48%; height: 12px; margin: 24px auto 0; }
+.access-loading-steps > .loading-skeleton-line { width: 80px; }
 @media (min-width: 1600px) {
   .auth-page {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
   .auth-panel {
-    padding: 48px 80px;
+    padding: 48px clamp(96px, 6vw, 144px);
   }
 }
 @media (max-width: 1000px) {
@@ -515,16 +543,17 @@
     grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr);
   }
   .auth-story {
-    padding: 32px 28px;
+    padding: 32px 36px;
   }
   .auth-story h2 {
     font-size: 44px;
   }
   .auth-panel {
-    padding: 28px;
+    padding: 28px 36px;
   }
 }
 @media (max-width: 760px) {
+  .auth-page { --auth-input-font-size: 13px; }
   .auth-card--footer {
     padding-bottom: calc(var(--auth-footer-height, 130px) + 20px);
   }
@@ -537,7 +566,7 @@
     inset-inline: 0;
     bottom: 0;
     margin-top: 0;
-    padding: 12px max(24px, calc((100vw - 460px) / 2)) max(12px, env(safe-area-inset-bottom));
+    padding: 12px max(28px, calc((100vw - 480px) / 2)) max(12px, env(safe-area-inset-bottom));
     border-top: 1px solid var(--linha);
     background: var(--fundo);
   }
@@ -558,37 +587,16 @@
     border-top: 0;
     font-size: 12px;
   }
-  .auth-footer > .access-invite {
-    order: 0;
-    justify-content: center;
-    gap: 10px;
-    min-height: 46px;
-    margin-top: 10px;
-    padding: 8px 12px;
+  .auth-card--footer > .access-invite {
+    min-height: 80px;
+    padding: 14px;
+    margin-top: 24px;
+    gap: 12px;
+  }
+  .auth-card--footer > .access-invite .access-invite-icon {
+    width: 40px;
+    height: 40px;
     border-radius: 10px;
-  }
-  .auth-footer .access-invite > span:nth-child(2) {
-    flex: initial;
-  }
-  .auth-footer .access-invite-icon {
-    width: 24px;
-    height: 24px;
-    border: 0;
-    background: transparent;
-  }
-  .auth-footer .access-invite small,
-  .auth-footer .access-invite-full-title {
-    display: none;
-  }
-  .auth-footer .access-invite-short-title {
-    display: inline;
-  }
-  .auth-footer .access-invite strong {
-    font-size: 12px;
-  }
-  .auth-footer .access-invite > svg {
-    width: 16px;
-    color: var(--primaria);
   }
   .auth-page {
     grid-template-columns: minmax(0, 1fr);
@@ -598,7 +606,7 @@
   }
   .auth-panel {
     align-items: flex-start;
-    padding: 24px;
+    padding: max(40px, env(safe-area-inset-top)) 28px 28px;
   }
   .access-mobile-brand {
     display: block;
@@ -606,14 +614,29 @@
     grid-column: 1;
     grid-row: 1;
   }
+  .access-mobile-brand .brand {
+    gap: 8px;
+    font-size: 20px;
+  }
+  .access-mobile-brand .brand img {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+  }
+  .access-mobile-brand .brand small {
+    font-size: 7px;
+    letter-spacing: 1.2px;
+  }
   .auth-card {
-    max-width: 460px;
+    max-width: 480px;
   }
   .access-topbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    margin-bottom: 24px;
+    row-gap: 32px;
+    margin-bottom: 40px;
   }
+  .access-topbar:not(.has-navigation) { margin-bottom: 60px; }
   .access-topbar > span:empty {
     display: none;
   }
@@ -685,33 +708,37 @@
     font-weight: 600;
   }
   .auth-heading {
-    margin-bottom: 20px;
+    margin-bottom: 28px;
   }
   .auth-heading h1 {
-    font-size: 25px;
+    font-size: 22px;
   }
   .auth-heading p {
-    font-size: 13px;
+    font-size: 11.5px;
   }
   .auth-form, .access-fields {
-    gap: 16px;
+    gap: 24px;
   }
   .access-field {
     gap: 6px;
   }
   .access-input-row {
-    min-height: 48px;
+    min-height: 52px;
     padding-inline: 12px;
     gap: 9px;
   }
   .access-input-row input {
-    font-size: 16px;
+    font-size: var(--auth-input-font-size);
     line-height: 22px;
-    padding-block: 12px;
+    padding-block: 14px;
   }
   .access-input-row input::placeholder {
-    font-size: 14px;
+    font-size: inherit;
   }
+  .access-loading-fields { gap: 24px; }
+  .access-loading-button { height: 48px; }
+  .auth-card > .access-invite strong { font-size: 12px; }
+  .auth-card > .access-invite small { font-size: 10.5px; }
   .access-input-row > svg, .access-input-row > .icon {
     width: 18px;
     height: 18px;
@@ -732,10 +759,10 @@
 }
 @media (max-width: 380px) {
   .auth-footer {
-    padding-inline: 16px;
+    padding-inline: 20px;
   }
   .auth-panel {
-    padding: 20px 16px 28px;
+    padding: max(32px, env(safe-area-inset-top)) 20px 28px;
   }
   .access-invite {
     padding: 12px;
@@ -749,7 +776,7 @@
     flex-wrap: wrap;
   }
   .access-topbar {
-    gap: 6px;
+    column-gap: 6px;
   }
 }
 @media (max-height: 740px) and (min-width: 761px) {

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  criarIndiceAlteracoes,
+  indexarEstatisticasJogadores,
+  ESTATISTICAS_VAZIAS,
   disciplinaTempo,
   descreverAlteracao,
   estatisticasJogador,
@@ -119,5 +122,66 @@ test("compartilhamento só inclui nomes após opção explícita e mantém link 
   assert.match(
     mensagemResultado(data, true, "https://local/partidas/1"),
     /Gol contra: Pedro/,
+  );
+});
+
+test("índice de estatísticas preserva gols contra, tempo, ausência de autor e eventos desconhecidos", () => {
+  const eventos = [
+    ...data.eventos,
+    { id: 6, tipo: "DESCONHECIDO", jogador_id: 2, periodo: 1 },
+  ];
+  const original = JSON.stringify(eventos);
+  const todas = indexarEstatisticasJogadores(eventos);
+  assert.deepEqual(todas.get(2), {
+    ...ESTATISTICAS_VAZIAS,
+    faltas: 1,
+    amarelos: 1,
+  });
+  assert.equal(todas.get(1)?.gols, 1);
+  assert.equal(indexarEstatisticasJogadores(eventos, 2).size, 0);
+  assert.equal(indexarEstatisticasJogadores(eventos, 1).get(2)?.amarelos, 1);
+  assert.equal(JSON.stringify(eventos), original);
+  assert.equal(ESTATISTICAS_VAZIAS.gols, 0);
+});
+
+test("índice do histórico mantém autoria de eventos removidos e preferência do evento atual", () => {
+  const jogo = {
+    ...data,
+    partida: {
+      ...data.partida,
+      mandante: { ...data.partida.mandante, id: 10 },
+      visitante: { ...data.partida.visitante, id: 20 },
+    },
+    auditoria: [
+      {
+        id: 2,
+        acao: "EVENTO_REMOVIDO",
+        criado_em: "",
+        dados: { evento: { ...data.eventos[0], id: 99 } },
+      },
+      {
+        id: 1,
+        acao: "EVENTO_REGISTRADO",
+        criado_em: "",
+        dados: { evento_id: 99 },
+      },
+    ],
+  } as GestaoPartida;
+  const indice = criarIndiceAlteracoes(jogo);
+  const descricao = descreverAlteracao(jogo.auditoria![1], jogo, indice);
+  assert.equal(descricao.titulo, "Gol registrado");
+  assert.match(descricao.detalhes, /Ocian.*Daniel.*1º tempo/);
+  assert.equal(
+    descreverAlteracao(
+      {
+        id: 3,
+        acao: "EVENTO_REGISTRADO",
+        criado_em: "",
+        dados: { evento_id: 3 },
+      },
+      jogo,
+      indice,
+    ).titulo,
+    "Falta registrada",
   );
 });

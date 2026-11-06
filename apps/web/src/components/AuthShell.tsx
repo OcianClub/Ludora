@@ -3,7 +3,8 @@ import { Brand } from './Brand';
 import { Icon } from './Icon';
 import { ThemeOptions } from './ThemeOptions';
 
-export function AuthShell({ title, subtitle, children, back, progress, footer, navigation }: {
+export function AuthShell({ title, subtitle, children, back, progress, footer, navigation, intent }: {
+  intent?: "login" | "register";
   title: string;
   subtitle: string;
   children: ReactNode;
@@ -12,6 +13,19 @@ export function AuthShell({ title, subtitle, children, back, progress, footer, n
   footer?: ReactNode;
   navigation?: ReactNode;
 }) {
+  const story = intent === 'register' ? {
+    eyebrow: 'SEU PRÓXIMO PASSO NO FUTSAL',
+    lines: ['Entre no jogo.', 'Faça parte.', 'Viva o Ludora.'],
+    description: 'Crie sua conta e conecte-se ao seu clube. Acompanhe partidas e participe da equipe com o acesso que receber.',
+  } : intent === 'login' ? {
+    eyebrow: 'SEU CLUBE, DENTRO E FORA DA QUADRA',
+    lines: ['Seu clube.', 'Seu jogo.', 'Tudo conectado.'],
+    description: 'Acesse seu clube para organizar a rotina, acompanhar partidas e consultar o Scout dos atletas.',
+  } : {
+    eyebrow: 'GESTÃO ESPORTIVA PARA CLUBES',
+    lines: ['Seu clube.', 'Seu jogo.', 'Mais conectado.'],
+    description: 'Organize seu clube, acompanhe as partidas e descubra o desempenho de cada atleta em um só lugar.',
+  };
   const heading = useRef<HTMLHeadingElement>(null);
   const shell = useRef<HTMLElement>(null);
   const footerElement = useRef<HTMLDivElement>(null);
@@ -37,9 +51,14 @@ export function AuthShell({ title, subtitle, children, back, progress, footer, n
         const editing = editable || (wasEditing && keyboardVisible);
         if (!editing) restingHeight = window.innerHeight;
         wasEditing = editing;
-        if (shell.current) shell.current.dataset.authEditing = String(editing);
-        shell.current?.style.setProperty('--auth-keyboard-inset', `${inset}px`);
-        shell.current?.style.setProperty('--auth-footer-height', `${footerElement.current?.offsetHeight || 130}px`);
+        // Leia a altura antes de alterar estilos, e evite reescrevê-los em cada scroll.
+        const footerHeight = `${footerElement.current?.offsetHeight || 130}px`;
+        const element = shell.current;
+        if (element) {
+          if (element.dataset.authEditing !== String(editing)) element.dataset.authEditing = String(editing);
+          if (element.style.getPropertyValue('--auth-keyboard-inset') !== `${inset}px`) element.style.setProperty('--auth-keyboard-inset', `${inset}px`);
+          if (element.style.getPropertyValue('--auth-footer-height') !== footerHeight) element.style.setProperty('--auth-footer-height', footerHeight);
+        }
         if (editable && window.matchMedia('(max-width: 760px)').matches) {
           const rect = focused.getBoundingClientRect();
           const visibleTop = viewport?.offsetTop ?? 0;
@@ -72,9 +91,9 @@ export function AuthShell({ title, subtitle, children, back, progress, footer, n
     <section className="auth-story" aria-label="Ludora">
       <Brand />
       <div className="auth-story-content">
-        <span className="eyebrow">GESTÃO ESPORTIVA PARA CLUBES</span>
-        <h2>Seu clube.<br />Seu jogo.<br /><span>Mais conectado.</span></h2>
-        <p>Organize seu clube, acompanhe as partidas e descubra o desempenho de cada atleta em um só lugar.</p>
+        <span className="eyebrow">{story.eyebrow}</span>
+        <h2>{story.lines[0]}<br />{story.lines[1]}<br /><span>{story.lines[2]}</span></h2>
+        <p>{story.description}</p>
         <div className="auth-pitch" aria-hidden="true"><span className="pitch-circle" /><span className="pitch-goal left" /><span className="pitch-goal right" /><span className="pitch-ball"><Icon name="ball" size={28} /></span></div>
         <div className="auth-story-features" aria-label="Recursos do Ludora"><span>Gestão do clube</span><span>Partidas</span><span>Scout de atletas</span></div>
       </div>
@@ -82,7 +101,7 @@ export function AuthShell({ title, subtitle, children, back, progress, footer, n
     </section>
     <section className="auth-panel">
       <div className={`auth-card${hasFooter ? ' auth-card--footer' : ''}`}>
-        <div className="access-topbar">
+        <div className={`access-topbar${back || navigation ? ' has-navigation' : ''}`}>
           <div className="access-mobile-brand"><Brand /></div>
           {back || <span />}
           {navigation}

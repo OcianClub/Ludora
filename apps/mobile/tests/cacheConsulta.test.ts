@@ -458,3 +458,41 @@ test('carrega cópia durante a espera, mas nunca substitui resposta remota rápi
   assert.deepEqual((await atraso).dados, [3]);
   assert.deepEqual(locais, [[1]]);
 });
+
+
+test('validação lenta da persistência não bloqueia dados remotos já prontos', async () => {
+  let validar!: (atual: boolean) => void;
+  let gravou = false;
+  const resultado = await operacao(async () => [42], {
+    contextoAtual: () => new Promise<boolean>(resolve => { validar = resolve; }),
+    salvar: async () => { gravou = true; },
+  });
+  assert.deepEqual(resultado.dados, [42]);
+  assert.equal(gravou, false);
+  validar(true);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(gravou, true);
+});
+
+test('contexto invalidado não salva cache mesmo quando a resposta remota já foi entregue', async () => {
+  let validar!: (atual: boolean) => void;
+  let gravou = false;
+  await operacao(async () => [42], {
+    contextoAtual: () => new Promise<boolean>(resolve => { validar = resolve; }),
+    salvar: async () => { gravou = true; },
+  });
+  validar(false);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(gravou, false);
+});
+
+test('falha ao validar persistência não transforma resposta HTTP válida em erro', async () => {
+  let gravou = false;
+  const resultado = await operacao(async () => [42], {
+    contextoAtual: async () => { throw new Error('Armazenamento indisponível'); },
+    salvar: async () => { gravou = true; },
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(resultado.dados, [42]);
+  assert.equal(gravou, false);
+});

@@ -46,6 +46,7 @@ function banco(t, inicial = []) {
   let retries = 0;
   let allowed = [12, 14, 18];
   const tx = {
+    escalacaoPartida: { findMany: async () => [] },
     categoria: { findFirst: async ({ where }) => categorias.find(c => c.clube_id === where.clube_id && c.nome === where.nome.equals), findMany: async () => categorias },
     usuarioClube: { findUnique: async () => ({ papel: 'TECNICO', acesso_todas_categorias: false, categorias: allowed.map(categoria_id => ({ categoria_id })) }) },
     jogador: {
@@ -69,7 +70,7 @@ function banco(t, inicial = []) {
     try { return await fn(tx); } catch (e) { rows = snapshot; throw e; }
   };
   t.after(() => { prisma.$transaction = original; });
-  return { rows: () => rows, fail: () => { failCreate = true; }, retry: n => { retries = n; }, allow: cats => { allowed = cats; } };
+  return { tx, rows: () => rows, fail: () => { failCreate = true; }, retry: n => { retries = n; }, allow: cats => { allowed = cats; } };
 }
 const ano = anoTemporada();
 const dados = { nome: 'Alex Carter', cpf: '12345678901', dtNasc: `${ano - 13}-06-10`, numCamisa: 10 };
@@ -134,6 +135,27 @@ test('falha de cadastro desfaz a retirada da camisa do outro jogador', async t =
   await assert.rejects(salvarAluno(1, 7, { ...dados, confirmar_camisa: { jogador_id: 2, camisa_anterior: null } }), /Injected/);
   assert.equal(db.rows()[0].numCamisa, 10);
 });
+
+test('troca e atualização da escalação pertencem à mesma transação; falha desfaz ambas as camisas', async t => {
+  const db = banco(t, [residente, { ...residente, id: 3, nome: 'Alex (sub-14)', cpf: '12345678901', numCamisa: null }]);
+  db.tx.escalacaoPartida.findMany = async ({ where }) => {
+    assert.deepEqual(where.jogador_id.in, [2, 3]);
+    assert.equal(db.rows()[0].numCamisa, null);
+    assert.equal(db.rows()[1].numCamisa, 10);
+    throw Error('Injected lineup failure');
+  };
+  await assert.rejects(salvarAluno(1, 7, { numCamisa: '10', confirmar_camisa: { jogador_id: 2, camisa_anterior: null } }, 3), /Injected lineup/);
+  assert.equal(db.rows()[0].numCamisa, 10);
+  assert.equal(db.rows()[1].numCamisa, null);
+});
+
+test('camisa rejeita valores fora do intervalo, decimais, expoentes e emojis com erro de camisa', async t => {
+  const db = banco(t, [residente]);
+  for (const value of [0, 100, -1, 1.5, '00', '100', '1e1', '1⚽', '1️⃣', true]) {
+    await assert.rejects(salvarAluno(1, 7, { numCamisa: value }, 2), e => e.status === 400 && /camisa/i.test(e.message) && !/nome/.test(e.message));
+    assert.equal(db.rows()[0].numCamisa, 10);
+  }
+});
 test('recusa confirmação obsoleta, clube alheio, categoria sem permissão e camisa inválida', async t => {
   const db = banco(t, [residente]);
   await assert.rejects(salvarAluno(1, 7, { ...dados, confirmar_camisa: { jogador_id: 99, camisa_anterior: null } }), e => e.status === 409);
@@ -147,6 +169,12 @@ test('recupera conflito serializável e limita tentativas concorrentes', async t
   assert.equal(await transacaoElenco(async () => 42), 42);
   db.retry(3);
   await assert.rejects(transacaoElenco(async () => 42), e => e.status === 409);
+});
+
+test('conflito de unicidade de camisa não retorna erro de CPF', async () => {
+  await assert.rejects(transacaoElenco(async () => {
+    throw Object.assign(Error('unique'), { code: 'P2002', meta: { target: ['partida_id', 'time_id', 'numCamisa'] } });
+  }), e => e.status === 409 && /numeração/.test(e.message) && !/CPF/.test(e.message));
 });
 test('atualização é idempotente e não toca registros de jogos', async t => {
   const db = banco(t, [aluno(1, 2013, 12, 21), aluno(2, 2012, 14, 21)]);

@@ -178,7 +178,7 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
       invalidarConsultasRecentes();
       clearTimeout(timer);
       timer = setTimeout(() => {
-        if (!ativo) return;
+        if (!ativo || AppState.currentState !== 'active') return;
         setVersaoNotificacoes((versao) => versao + 1);
         void atualizarNaoLidas().catch(() => undefined);
       }, 250);

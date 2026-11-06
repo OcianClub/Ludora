@@ -16,10 +16,25 @@
       "environment": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "developmentClient": false,
+      "autoIncrement": true,
+      "node": "22.14.0",
+      "corepack": false,
+      "pnpm": "11.20.0",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ludora-pgho.onrender.com"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "environment": "production",
+      "node": "22.14.0",
+      "corepack": false,
+      "pnpm": "11.20.0",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ludora-pgho.onrender.com"
+      }
     }
   },
   "submit": {

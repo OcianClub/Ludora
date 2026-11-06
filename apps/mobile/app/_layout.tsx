@@ -4,17 +4,13 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-} from '@expo-google-fonts/inter';
-
-import {
-  Oswald_500Medium,
-  Oswald_600SemiBold,
-  Oswald_700Bold,
-} from '@expo-google-fonts/oswald';
+// Importar apenas as variantes usadas evita incluir todas as fontes no bundle.
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Oswald_500Medium } from '@expo-google-fonts/oswald/500Medium';
+import { Oswald_600SemiBold } from '@expo-google-fonts/oswald/600SemiBold';
+import { Oswald_700Bold } from '@expo-google-fonts/oswald/700Bold';
 
 import { ClubeAtivoProvider } from '@/src/contexts/ClubeAtivoContext';
 import { ThemeProvider } from '@/src/contexts/ThemeContext';

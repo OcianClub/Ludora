@@ -105,7 +105,7 @@ function LayoutContent() {
     };
   }, []);
   return (
-    <div className="layout" data-sidebar-expanded={expanded} ref={layoutRef}>
+    <div className="layout" data-sidebar-expanded={expanded} data-mobile-header={location.pathname === '/partidas/solicitacoes' ? 'requests' : undefined} ref={layoutRef}>
       <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
       
       <aside className="sidebar" data-tooltip-disabled>

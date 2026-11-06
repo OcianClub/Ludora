@@ -62,6 +62,7 @@ export default function RegistrarPage() {
 
   return (
     <AuthShell
+      intent="register"
       title={step === 1 ? 'Crie sua conta' : step === 2 ? 'Proteja sua conta' : 'Confirme seu e-mail'}
       subtitle={step === 1 ? 'Vamos começar pelo seu nome e e-mail.' : step === 2 ? 'Escolha uma senha para acessar o Ludora.' : 'Informe os 8 caracteres recebidos por e-mail. O código vale por 15 minutos.'}
       back={step > 1
@@ -73,7 +74,6 @@ export default function RegistrarPage() {
         <button className="btn btn-primary auth-btn" type="submit" form="register-form" disabled={access.busy} aria-busy={access.busy}>
           {access.busy ? 'Aguarde…' : step === 1 ? 'Continuar' : step === 2 ? 'Enviar código de confirmação' : 'Confirmar e criar conta'}
         </button>
-        {step === 1 && <InviteCard />}
         <p className="auth-link">Já tem conta? <Link to="/login">Entrar</Link></p>
       </>}
     >
@@ -108,6 +108,7 @@ export default function RegistrarPage() {
             error={access.feedback('codigo', codigoValido(codigo) ? '' : 'Informe os 8 caracteres do código recebido por e-mail.')} />}
         </fieldset>
       </form>
+      {step === 1 && <InviteCard />}
       {step === 3 && <button type="button" className="access-resend" disabled={access.busy || resend.seconds > 0} onClick={() => void access.run(sendCode)}>
         {resend.seconds ? `Reenviar código em ${resend.seconds}s` : 'Não recebeu? Reenviar código'}
       </button>}

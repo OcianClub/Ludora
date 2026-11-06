@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { criarControleRequisicoes, fetchComTimeout } from '../src/utils/request';
+import { criarControleRequisicoes, fetchComTimeout, ErroConexao } from '../src/utils/request';
 import { dataPartidaISO, horarioPartidaValido, erroFormularioPartida } from '../src/utils/validarPartida';
 import { resumirPartidas } from '../src/utils/resumoPartidas';
 
@@ -67,7 +67,7 @@ test('timeout: interrompe uma conexão pendurada', async t => {
     sinal = options.signal!;
     sinal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
   }));
-  await assert.rejects(fetchComTimeout('https://api.invalid', {}, 15), /demorou demais/);
+  await assert.rejects(fetchComTimeout('https://api.invalid', {}, 15), erro => erro instanceof ErroConexao && erro.motivo === 'timeout' && /demorou demais/.test(erro.message));
   assert.equal(sinal?.aborted, true);
 });
 test('cancelamento explícito não é apresentado como falta de internet', async t => {

@@ -1,3 +1,4 @@
+import { IconButton } from "@/src/components/ui/Controls";
 import { Icon } from "@ludora/icons";
 import { Header } from "@/src/components/Header";
 import { FiltrosSolicitacoes } from "@/src/components/FiltrosSolicitacoes";
@@ -208,25 +209,14 @@ export default function SolicitacoesPartidas() {
             : router.replace("/(tabs)/jogos/jogos")
         }
         rightAccessory={
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={`Filtrar solicitações, ${filtrosAtivos} filtros ativos`}
-            accessibilityState={{ expanded: filtrosAbertos }}
+          <IconButton
+            icon="sliders-horizontal"
+            variant="ghost"
+            label={`Filtrar solicitações, ${filtrosAtivos} filtros ativos`}
+            state={{ expanded: filtrosAbertos }}
             onPress={() => setFiltrosAbertos(true)}
-            style={[styles.filterButton, { backgroundColor: colors.card }]}
-          >
-            <Icon name="filter" size={20} color={colors.texto} />
-            {filtrosAtivos > 0 && (
-              <View
-                style={[
-                  styles.filterBadge,
-                  { backgroundColor: colors.primaria },
-                ]}
-              >
-                <Text style={styles.filterBadgeText}>{filtrosAtivos}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+            dot={filtrosAtivos > 0}
+          />
         }
       />
       <ScrollView

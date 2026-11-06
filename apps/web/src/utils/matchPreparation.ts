@@ -10,6 +10,7 @@ export function resolvePreparationStep(data: GestaoPartida, stored: string | nul
   const mine = data.equipes.find(team => team.id === data.minhaEquipeId);
   const lineup = mine?.escalacao || [];
   const valid = lineup.filter(player => player.titular).length === data.partida.titulares_necessarios
+    && new Set(lineup.map(player => player.numCamisa)).size === lineup.length
     && lineup.every(player => Number.isInteger(player.numCamisa) && player.numCamisa >= 1 && player.numCamisa <= 99);
   const step = stored === null ? (valid ? 2 : lineup.length ? 1 : 0) : Number(stored);
   if (![0, 1, 2].includes(step)) return mine?.pronta && valid ? 2 : 0;

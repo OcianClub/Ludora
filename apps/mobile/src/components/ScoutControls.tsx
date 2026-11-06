@@ -1,14 +1,9 @@
+import { AppSheet } from "./ui/AppSheet";
+import { AppButton } from "./ui/Controls";
+import { createFilterStyles } from "./ui/styles";
 import Svg, { Polygon } from "react-native-svg";
 import { useMemo, useState, type ReactNode } from "react";
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Text, TouchableOpacity, View } from "react-native";
 import { Icon } from "@ludora/icons";
 import { useTheme } from "@/src/contexts/ThemeContext";
 import { createStyles } from "@/src/styles/contextoAtletaScoutStyles";
@@ -38,50 +33,10 @@ export function ScoutSheet({
   children: ReactNode;
   footer?: ReactNode;
 }) {
-  const { colors } = useTheme();
-  const s = useMemo(() => createStyles(colors), [colors]);
   return (
-    <Modal
-      visible
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <View style={s.backdrop}>
-        <Pressable
-          style={s.dismiss}
-          onPress={onClose}
-          accessibilityLabel="Fechar janela"
-        />
-        <SafeAreaView
-          edges={["bottom"]}
-          style={s.sheet}
-          accessibilityViewIsModal
-        >
-          <View style={s.sheetHeader}>
-            <Text style={s.titulo} accessibilityRole="header">
-              {title}
-            </Text>
-            <TouchableOpacity
-              onPress={onClose}
-              style={s.iconButton}
-              accessibilityRole="button"
-              accessibilityLabel="Fechar janela"
-            >
-              <Icon name="close" size={21} color={colors.textoSecundario} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={s.sheetBody}
-          >
-            {children}
-          </ScrollView>
-          {!!footer && <View style={s.sheetFooter}>{footer}</View>}
-        </SafeAreaView>
-      </View>
-    </Modal>
+    <AppSheet title={title} onClose={onClose} footer={footer}>
+      {children}
+    </AppSheet>
   );
 }
 export function ScoutSelect({
@@ -156,15 +111,7 @@ export function ScoutHelp({ onClose }: { onClose: () => void }) {
     <ScoutSheet
       title="Como interpretar o Scout"
       onClose={onClose}
-      footer={
-        <TouchableOpacity
-          style={s.primary}
-          onPress={onClose}
-          accessibilityRole="button"
-        >
-          <Text style={s.white}>Entendi</Text>
-        </TouchableOpacity>
-      }
+      footer={<AppButton label="Entendi" variant="primary" onPress={onClose} />}
     >
       {[
         [
@@ -210,7 +157,7 @@ export function ScoutFilters({
   onClose: () => void;
 }) {
   const { colors } = useTheme();
-  const s = createStyles(colors);
+  const f = useMemo(() => createFilterStyles(colors), [colors]);
   const [filters, setFilters] = useState(initial);
   const [sort, setSort] = useState(`${order}:${direction}`);
   function chips(
@@ -220,13 +167,13 @@ export function ScoutFilters({
   ) {
     return (
       <View style={{ gap: 9 }}>
-        <Text style={s.subtitulo}>{label}</Text>
-        <View style={s.chips}>
+        <Text style={f.label}>{label}</Text>
+        <View style={f.chipRow}>
           {choices.map(([value, text]) => (
             <TouchableOpacity
               key={value}
               style={[
-                s.chip,
+                f.chip,
                 filters[key] === value && {
                   backgroundColor: colors.primaria,
                   borderColor: colors.primaria,
@@ -238,7 +185,7 @@ export function ScoutFilters({
             >
               <Text
                 style={[
-                  s.chipText,
+                  f.optionText,
                   filters[key] === value && { color: "#fff" },
                 ]}
               >
@@ -256,27 +203,23 @@ export function ScoutFilters({
       onClose={onClose}
       footer={
         <>
-          <TouchableOpacity
-            style={s.botao}
+          <AppButton
+            label="Limpar filtros"
+            variant="ghost"
             onPress={() => {
               setFilters(FILTROS_SCOUT_INICIAIS);
               setSort("NOTA:");
             }}
-            accessibilityRole="button"
-          >
-            <Text style={s.descricao}>Limpar filtros</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={s.primary}
+          />
+          <AppButton
+            label="Aplicar filtros"
+            variant="primary"
             onPress={() => {
               const [o, d] = sort.split(":");
               onApply(filters, o as OrdenacaoScout, d as DirecaoScout);
               onClose();
             }}
-            accessibilityRole="button"
-          >
-            <Text style={s.white}>Aplicar filtros</Text>
-          </TouchableOpacity>
+          />
         </>
       }
     >

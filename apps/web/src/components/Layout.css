@@ -493,6 +493,10 @@
     display: block;
     border-bottom: 0;
   }
+  .layout[data-mobile-header="requests"] .workspace-header,
+  .layout:has(.partida-detalhe[data-preparation="true"]) .workspace-header {
+    display: none;
+  }
   .workspace-header-inner {
     min-height: 72px;
     padding: 12px var(--workspace-gutter) 8px;

@@ -139,35 +139,58 @@ export async function consultarComCopiaLocal<T>({
 }): Promise<ResultadoConsulta<T>> {
   const finalizar = iniciarMedicaoCarregamento(`consulta:${recurso}`);
   const geracao = cache.geracao();
-  const token = await SecureStore.getItemAsync('userToken').catch(() => null);
-  const validoAte = token ? expiracaoTokenCache(token) : null;
-  const identidade = token ? identidadeSessaoCache(token) : null;
-  const sessao =
-    identidade && validoAte && validoAte > Date.now()
-      ? await identificarSessao(identidade)
-      : null;
-  const escopo: EscopoCache | null =
-    sessao && validoAte ? { sessao, clubeId, validoAte, geracao } : null;
-  const contextoAtual = async () =>
-    geracao === cache.geracao() &&
-    token !== null &&
-    identidade !== null &&
-    !identidadesRecusadas.has(identidade) &&
-    validoAte !== null &&
-    validoAte > Date.now() &&
-    token === (await SecureStore.getItemAsync('userToken').catch(() => null));
+  // A consulta remota começa junto com a preparação da cópia offline.
+  // SecureStore e inicialização do disco não devem atrasar o pedido HTTP.
+  const contexto = (async () => {
+    const medirContexto = iniciarMedicaoCarregamento(`cache:${recurso}:contexto`);
+    try {
+      const token = await SecureStore.getItemAsync('userToken').catch(() => null);
+      const validoAte = token ? expiracaoTokenCache(token) : null;
+      const identidade = token ? identidadeSessaoCache(token) : null;
+      const sessao =
+        identidade && validoAte && validoAte > Date.now()
+          ? await identificarSessao(identidade)
+          : null;
+      const escopo: EscopoCache | null =
+        sessao && validoAte ? { sessao, clubeId, validoAte, geracao } : null;
+      return { token, validoAte, identidade, escopo };
+    } finally {
+      medirContexto();
+    }
+  })();
+  const contextoAtual = async () => {
+    const { token, validoAte, identidade } = await contexto;
+    return geracao === cache.geracao() &&
+      token !== null &&
+      identidade !== null &&
+      !identidadesRecusadas.has(identidade) &&
+      validoAte !== null &&
+      validoAte > Date.now() &&
+      token === (await SecureStore.getItemAsync('userToken').catch(() => null));
+  };
   try {
     const resultado = await executarConsultaComCache({
-      carregar,
-      lerLocal: () =>
-        escopo ? cache.ler(escopo, recurso, selecionar) : Promise.resolve(null),
+      carregar: async () => {
+        const medirServidor = iniciarMedicaoCarregamento(`consulta:${recurso}:dados-servidor`);
+        try {
+          return await carregar();
+        } finally {
+          medirServidor();
+        }
+      },
+      lerLocal: async () => {
+        const { escopo } = await contexto;
+        return escopo ? cache.ler(escopo, recurso, selecionar) : null;
+      },
       contextoAtual,
       salvar: async (dados) => {
+        const { escopo } = await contexto;
         const selecionados = selecionar(dados);
         if (escopo && selecionados !== null)
           await cache.gravar(escopo, recurso, selecionados);
       },
       descartar: async (status) => {
+        const { token, identidade, escopo } = await contexto;
         if (
           status === 401 &&
           identidade &&

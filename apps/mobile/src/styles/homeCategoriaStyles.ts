@@ -106,7 +106,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   historyHeaderText: { color: colors.textoSecundario, fontSize: 10 },
   historyDateCell: { width: 44, paddingRight: 6 },
   historyConfronto: { flex: 1, minWidth: 0, paddingLeft: 2, paddingRight: 6 },
-  historyScoreCell: { width: 40, alignItems: 'center', justifyContent: 'center', textAlign: 'center' },
-  historyResultCell: { width: 70, paddingLeft: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  historyScoreCell: { width: 44, flexShrink: 0, alignItems: 'center', justifyContent: 'center', textAlign: 'center' },
+  historyResultCell: { width: 86, flexShrink: 0, paddingLeft: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateText: { color: colors.texto, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 12 },
 });

@@ -91,7 +91,7 @@ export default function TabsLayout() {
         name="organizarPartidas/organizarPartidas"
         options={{
           href: null,
-          title: 'Detalhes',
+          title: 'Jogos',
         }}
       />
       <Tabs.Screen

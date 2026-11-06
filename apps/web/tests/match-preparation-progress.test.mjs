@@ -25,3 +25,11 @@ test('separa o progresso por usuário, clube e partida', () => {
   const keys = [preparationStorageKey(1, 2, '3'), preparationStorageKey(1, 4, '3'), preparationStorageKey(2, 2, '3'), preparationStorageKey(1, 2, '4')];
   assert.equal(new Set(keys).size, 4);
 });
+
+test('camisa ausente ou duplicada impede restaurar a etapa de revisão', () => {
+  for (const numCamisa of [0, 1]) {
+    const state = data();
+    state.equipes[0].escalacao[5].numCamisa = numCamisa;
+    assert.equal(resolvePreparationStep(state, '2'), 1);
+  }
+});

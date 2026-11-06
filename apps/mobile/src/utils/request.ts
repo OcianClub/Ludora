@@ -1,4 +1,8 @@
-export class ErroConexao extends Error {}
+export class ErroConexao extends Error {
+  constructor(mensagem: string, public motivo: 'timeout' | 'rede' = 'rede') {
+    super(mensagem);
+  }
+}
 export class ErroConsulta extends Error {
   constructor(public status: number, mensagem: string) { super(mensagem); }
 }
@@ -19,7 +23,7 @@ export async function fetchComTimeout(url: string, options: RequestInit = {}, ti
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
     if (options.signal?.aborted) throw error;
-    if (expirou) throw new ErroConexao('A conexão demorou demais. Confira sua internet e tente novamente.');
+    if (expirou) throw new ErroConexao('A conexão demorou demais. Confira sua internet e tente novamente.', 'timeout');
     throw new ErroConexao('Não foi possível conectar ao servidor. Confira sua conexão e tente novamente.');
   } finally {
     clearTimeout(timer);

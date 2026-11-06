@@ -25,12 +25,11 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthShell title="Bem-vindo de volta" subtitle="Entre para acompanhar seus clubes, partidas e estatísticas."
+    <AuthShell intent="login" title="Bem-vindo de volta" subtitle="Acesse sua conta para continuar com seu clube."
       footer={<>
         <button className="btn btn-primary auth-btn" type="submit" form="login-form" disabled={access.busy} aria-busy={access.busy}>
           {access.busy ? 'Entrando…' : 'Entrar'}
         </button>
-        <InviteCard />
         <p className="auth-link">Não tem conta? <Link to="/registrar" state={{ convite: state?.convite, conviteAberto: state?.conviteAberto }}>Criar conta</Link></p>
       </>}>
       <AccessFeedback message={access.error} />
@@ -47,6 +46,7 @@ export default function LoginPage() {
             action={<Link className="access-text-link" to="/recuperar-senha" state={{ email, convite: state?.convite }}>Esqueceu sua senha?</Link>} />
         </fieldset>
       </form>
+      <InviteCard />
     </AuthShell>
   );
 }

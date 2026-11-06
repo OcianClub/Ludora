@@ -262,8 +262,13 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   dangerSection: {
     marginBottom: 20,
     gap: 12,
-    marginTop: 8,
+    marginTop: 28,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.linha,
   },
+  dangerToggle: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 10 },
+  dangerToggleText: { flex: 1, color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.medium, fontSize: 13 },
   dangerIndicator: {
     width: 4,
     height: 19,

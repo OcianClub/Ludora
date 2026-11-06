@@ -180,6 +180,7 @@ export default function DadosPessoais({
 
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
+  const [perigoAberto, setPerigoAberto] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [originais, setOriginais] = useState({ nome: '', email: '' });
@@ -487,7 +488,15 @@ export default function DadosPessoais({
         {/* ZONA DE PERIGO */}
         {(!editando || embutido) && (
           <View style={styles.dangerSection}>
-            <Text style={styles.sectionTitle}>GERENCIAR CONTA</Text>
+            <TouchableOpacity style={styles.dangerToggle} accessibilityRole="button"
+              accessibilityLabel="Exclusão permanente da conta" accessibilityState={{ expanded: perigoAberto }}
+              onPress={() => setPerigoAberto(aberto => !aberto)}>
+              <Icon name="alert-circle-outline" size={18} color={colors.textoSecundario} />
+              <Text style={styles.dangerToggleText}>Exclusão permanente da conta</Text>
+              <Icon name={perigoAberto ? "chevron-up" : "chevron-down"} size={18} color={colors.textoSecundario} />
+            </TouchableOpacity>
+            {perigoAberto && <>
+            <Text style={styles.deleteSubtitle}>A exclusão remove sua conta permanentemente. Para apenas encerrar a sessão, use Sair da conta no perfil.</Text>
 
             <TouchableOpacity
               style={styles.deleteButton}
@@ -520,6 +529,7 @@ export default function DadosPessoais({
                 color={colors.tituloErro}
               />
             </TouchableOpacity>
+            </>}
           </View>
         )}
 

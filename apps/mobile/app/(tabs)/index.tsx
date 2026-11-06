@@ -276,42 +276,140 @@ export default function Home() {
   }, [clubeId, consultaLocal, podeGerenciar, revisao]);
 
   const dadosGestao = pendencias?.clubeId === clubeId ? pendencias : null;
-  const temAcessoCategoria = (nome: string) => {
-    if (!nome || !podeGerenciar || consultaLocal !== null) return false;
-    return clubeAtivo?.papel === 'ADMIN' || !!dadosGestao?.acesso?.acessoTodasCategorias ||
-      !!dadosGestao?.acesso?.categoriasAcesso?.some(categoria => normalizarSub(categoria.nome) === normalizarSub(nome));
-  };
-  const abrirPartida = (partida: Partida) => {
-    const status = partida.status;
-    const opera = (partida.sumula_clube_id ?? partida.clube_origem_id) === clubeId;
-    const gerencia = temAcessoCategoria(partida.categoria?.nome ?? '');
-      if (gerencia && (['AGENDADA', 'PREPARADA'].includes(status) && (!partida.somente_leitura || partida.minha_equipe_pronta != null) ||
-        opera && (status === 'AO_VIVO' || (partida.gols_sem_autor ?? 0) > 0))) {
-      router.push({ pathname: '/partida-compartilhada/[id]', params: { id: String(partida.id) } });
-      return;
-    }
-    setPartidaSelecionada(partida);
-  };
-
-  const handleTrocarFase = useCallback(
-    (novaFase: 'INICIACAO' | 'BASE') => {
-      setFaseAtiva(novaFase);
-      setSubIndex(0);
-      progressoPagina.value = 0;
-      pagerMotion.origin.value = 0;
-      pagerRef.current?.setPageWithoutAnimation(0);
+  const temAcessoCategoria = useCallback(
+    (nome: string) => {
+      if (!nome || !podeGerenciar || consultaLocal !== null) return false;
+      return (
+        clubeAtivo?.papel === "ADMIN" ||
+        !!dadosGestao?.acesso?.acessoTodasCategorias ||
+        !!dadosGestao?.acesso?.categoriasAcesso?.some(
+          (categoria) => normalizarSub(categoria.nome) === normalizarSub(nome),
+        )
+      );
     },
-    [progressoPagina]
+    [podeGerenciar, consultaLocal, clubeAtivo?.papel, dadosGestao],
   );
+  const abrirPartida = useCallback(
+    (partida: Partida) => {
+      const status = partida.status;
+      const opera =
+        (partida.sumula_clube_id ?? partida.clube_origem_id) === clubeId;
+      const gerencia = temAcessoCategoria(partida.categoria?.nome ?? "");
+      if (
+        gerencia &&
+        ((["AGENDADA", "PREPARADA"].includes(status) &&
+          (!partida.somente_leitura || partida.minha_equipe_pronta != null)) ||
+          (opera && (status === "AO_VIVO" || (partida.gols_sem_autor ?? 0) > 0)))
+      ) {
+        router.push({
+          pathname: "/partida-compartilhada/[id]",
+          params: { id: String(partida.id) },
+        });
+        return;
+      }
+      setPartidaSelecionada(partida);
+    },
+    [clubeId, temAcessoCategoria, router],
+  );
+
+  const handleTrocarFase = useCallback((novaFase: "INICIACAO" | "BASE") => {
+    setFaseAtiva(novaFase);
+    setSubIndex(0);
+  }, []);
 
   const handleSubChange = useCallback((index: number, velocity?: number) => {
     pagerMotion.goTo(index, velocity);
   }, [pagerMotion.goTo]);
 
-  const onPageSelected = (e: any) => {
-    const index = e.nativeEvent.position;
-    if (index !== subIndex) setSubIndex(index);
-  };
+  const onPageSelected = useCallback(
+    (event: { nativeEvent: { position: number } }) => {
+      setSubIndex(event.nativeEvent.position);
+    },
+    [],
+  );
+
+  const conteudoPaginas = useMemo(
+    () =>
+      resumos.map(({ sub, proximoJogo, historico, agenda }, index) => {
+        return (
+          <View
+            key={`${clubeAtivo?.id}-pagina-${index}`}
+            style={styles.pageContainer}
+            collapsable={false}
+          >
+            <CategoryPageMotion
+              index={index}
+              progress={progressoPagina}
+              origin={pagerMotion.origin}
+              settling={pagerMotion.settling}
+            >
+              <PaginaCategoria grupo={`${clubeAtivo?.id}-${faseAtiva}`} preparar>
+                <HomeCategoria
+                  sub={sub.title}
+                  semPerfil={
+                    scoutHome?.clubeId === clubeId
+                      ? scoutHome?.contagens.get(sub.title)
+                      : undefined
+                  }
+                  pendencias={
+                    dadosGestao
+                      ? {
+                          semCamisa: dadosGestao.camisas
+                            ? (dadosGestao.camisas.find(
+                                (item) =>
+                                  item.categoria_id ===
+                                  dadosGestao.categorias.find(
+                                    (categoria) =>
+                                      normalizarSub(categoria.nome) === sub.title,
+                                  )?.id,
+                              )?.semCamisa ?? 0)
+                            : null,
+                          solicitacoes:
+                            dadosGestao.propostas?.filter(
+                              (item) =>
+                                item.respondente_id === clubeId &&
+                                item.status === "PENDENTE" &&
+                                normalizarSub(item.categoria_nome ?? "") ===
+                                  sub.title,
+                            ).length ?? null,
+                        }
+                      : undefined
+                  }
+                  carregando={carregando || mudouClubeNaTela}
+                  atualizando={atualizando}
+                  onAtualizar={atualizarHome}
+                  proximoJogo={proximoJogo}
+                  agenda={agenda}
+                  historico={historico}
+                  podeGerenciar={temAcessoCategoria(sub.title)}
+                  consultaLocal={consultaLocal !== null}
+                  onVerDetalhes={abrirPartida}
+                />
+              </PaginaCategoria>
+            </CategoryPageMotion>
+          </View>
+        );
+      }),
+    [
+      resumos,
+      styles,
+      progressoPagina,
+      pagerMotion.origin,
+      pagerMotion.settling,
+      clubeAtivo?.id,
+      faseAtiva,
+      scoutHome,
+      clubeId,
+      dadosGestao,
+      carregando,
+      mudouClubeNaTela,
+      atualizando,
+      atualizarHome,
+      temAcessoCategoria,
+      consultaLocal,
+      abrirPartida,
+    ],
+  );
 
   return (
     <View style={styles.container}>
@@ -351,50 +449,15 @@ export default function Home() {
       )}
 
       <CategoryPager
+        key={`${clubeAtivo?.id}-${faseAtiva}`}
         ref={pagerRef}
         style={styles.pagerView}
-        initialPage={0}
+        initialPage={subIndex}
         onPageSelected={onPageSelected}
         progress={progressoPagina} origin={pagerMotion.origin} settling={pagerMotion.settling} onSettled={pagerMotion.onSettled}
         scrollEnabled={true}
       >
-        {resumos.map(({ sub, proximoJogo, historico, agenda }, index) => {
-          return (
-            <View
-              key={`${clubeAtivo?.id}-pagina-${index}`}
-              style={styles.pageContainer}
-              collapsable={false}
-            >
-              <CategoryPageMotion index={index} progress={progressoPagina} origin={pagerMotion.origin} settling={pagerMotion.settling}>
-              <PaginaCategoria
-                grupo={`${clubeAtivo?.id}-${faseAtiva}`}
-                preparar
-              >
-                <HomeCategoria
-                  sub={sub.title}
-                  semPerfil={scoutHome?.clubeId === clubeId ? scoutHome?.contagens.get(sub.title) : undefined}
-                  pendencias={dadosGestao ? {
-                    semCamisa: dadosGestao.camisas
-                      ? dadosGestao.camisas.find(item => item.categoria_id === dadosGestao.categorias.find(categoria => normalizarSub(categoria.nome) === sub.title)?.id)?.semCamisa ?? 0
-                      : null,
-                    solicitacoes: dadosGestao.propostas?.filter(item => item.respondente_id === clubeId &&
-                      item.status === 'PENDENTE' && normalizarSub(item.categoria_nome ?? '') === sub.title).length ?? null,
-                  } : undefined}
-                  carregando={carregando || mudouClubeNaTela}
-                  atualizando={atualizando}
-                  onAtualizar={atualizarHome}
-                  proximoJogo={proximoJogo}
-                  agenda={agenda}
-                  historico={historico}
-                  podeGerenciar={temAcessoCategoria(sub.title)}
-                  consultaLocal={consultaLocal !== null}
-                  onVerDetalhes={abrirPartida}
-                />
-              </PaginaCategoria>
-              </CategoryPageMotion>
-            </View>
-          );
-        })}
+        {conteudoPaginas}
       </CategoryPager>
 
       {partidaSelecionada && (

@@ -31,12 +31,14 @@ function SkeletonPulse({ children, style }: { children: React.ReactNode; style?:
           duration: 720,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
+          isInteraction: false,
         }),
         Animated.timing(opacity, {
           toValue: 0.48,
           duration: 720,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
+          isInteraction: false,
         }),
       ]),
     );
@@ -47,11 +49,11 @@ function SkeletonPulse({ children, style }: { children: React.ReactNode; style?:
   return <Animated.View style={[style, { opacity }]}>{children}</Animated.View>;
 }
 
-export function ListSkeleton({ rows = 4 }: { rows?: number }) {
+export function ListSkeleton({ rows = 4, inset = 24 }: { rows?: number; inset?: number }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   return (
-    <SkeletonPulse style={styles.list}>
+    <SkeletonPulse style={[styles.list, { paddingHorizontal: inset }]}>
       {Array.from({ length: rows }, (_, index) => (
         <View key={index} style={styles.row}>
           <Skeleton width={48} height={48} radius={24} />
@@ -135,6 +137,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     overflow: 'hidden'
   },
   list: { 
+    width: "100%",
+    alignSelf: "stretch",
     paddingHorizontal: 24,
     gap: 12 
   },

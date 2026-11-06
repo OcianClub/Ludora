@@ -63,38 +63,6 @@ export const createStyles = (colors: ThemeColors) =>
       borderRadius: 3,
       backgroundColor: liveBadgeColors.indicador,
     },
-    moreFiltersButton: {
-      width: 44,
-      height: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.card,
-      borderRadius: 9,
-      borderWidth: 1,
-      borderColor: colors.borda,
-    },
-    requestsBadge: { position: 'absolute', top: -5, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: colors.primaria, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.fundo },
-    requestsBadgeText: { color: '#fff', fontSize: 10, fontWeight: '600' },
-    searchField: {
-      flex: 1,
-      minWidth: 0,
-      minHeight: 44,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 12,
-      backgroundColor: colors.card,
-      borderRadius: 9,
-      borderWidth: 1,
-      borderColor: colors.borda,
-    },
-    searchInput: {
-      flex: 1,
-      minWidth: 0,
-      color: colors.texto,
-      fontSize: 14,
-      fontFamily: typography.fontFamily.corpo.regular,
-    },
 
     // ── LISTA DE PARTIDAS ──
     content: {
@@ -256,22 +224,4 @@ export const createStyles = (colors: ThemeColors) =>
     },
     locationText: { flex: 1, fontFamily: typography.fontFamily.corpo.regular, color: colors.texto, fontSize: 12 },
 
-    // FAB
-    fab: {
-      position: 'absolute',
-      bottom: 24,
-      right: 24,
-      shadowColor: colors.primaria,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 8,
-    },
-    fabGradient: {
-      width: 54,
-      height: 54,
-      borderRadius: 10,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
   });

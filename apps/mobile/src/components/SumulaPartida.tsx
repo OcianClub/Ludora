@@ -1,3 +1,7 @@
+import { enviarComConfirmacao } from "../utils/confirmacaoPublicacao";
+import { ErroConexao } from "../utils/request";
+import { SearchField, IconButton, AppButton } from "./ui/Controls";
+import { ModalHeader } from "./ui/AppSheet";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -39,8 +43,10 @@ import {
 } from "../utils/filaPublicacao";
 import {
   descreverAlteracao,
+  criarIndiceAlteracoes,
+  indexarEstatisticasJogadores,
+  ESTATISTICAS_VAZIAS,
   disciplinaTempo,
-  estatisticasJogador,
   eventosSemJogador,
   mensagemResultado,
   NOMES_EVENTOS,
@@ -224,10 +230,10 @@ function Publicacao({
       {item.status === "erro" && (
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel={`Tentar publicar ${item.dados.titulo}`}
+          accessibilityLabel={`Verificar envio de ${item.dados.titulo}`}
           onPress={tentar}
         >
-          <Text style={styles.link}>Tentar</Text>
+          <Text style={styles.link}>Verificar</Text>
         </TouchableOpacity>
       )}
       {item.status !== "enviando" && (
@@ -314,19 +320,29 @@ export default function SumulaPartida({
               "A partida foi encerrada. Cancele este envio e registre a correção com justificativa.",
             );
           try {
-            await requisicaoPartida(
-              item.dados.endpoint,
-              clubeId,
-              {
-                ...item.dados.payload,
-                versao: atual.partida.versao,
-                request_id: item.id,
+            const confirmado = await enviarComConfirmacao(
+              item.id,
+              () => requisicaoPartida(
+                item.dados.endpoint,
+                clubeId,
+                {
+                  ...item.dados.payload,
+                  versao: atual.partida.versao,
+                  request_id: item.id,
+                },
+                item.dados.method,
+              ),
+              async () => {
+                const recente = await refreshAtual.current();
+                if (recente) ultimo.current = recente;
+                return recente;
               },
-              item.dados.method,
             );
+            if (confirmado) return;
           } catch (e) {
-            const recente = await refreshAtual.current().catch(() => undefined);
-            if (recente) ultimo.current = recente;
+            if (e instanceof ErroConexao) {
+              throw new Error("Envio sem confirmação. Confira a súmula ou toque em Verificar.");
+            }
             throw e;
           }
           try {
@@ -412,7 +428,23 @@ export default function SumulaPartida({
     () => placaresEventos(data),
     [data.eventos, p.gols_mandante, p.gols_visitante],
   );
-  const semJogador = eventosSemJogador(data);
+  const semJogador = useMemo(
+    () => eventosSemJogador(data),
+    [data.eventos, data.equipes],
+  );
+  const periodoEstatisticas =
+    (finalizada || consultandoTempo) && tempo ? tempo : undefined;
+  const estatisticas = useMemo(
+    () => indexarEstatisticasJogadores(data.eventos, periodoEstatisticas),
+    [data.eventos, periodoEstatisticas],
+  );
+  const historico = useMemo(() => {
+    const indice = criarIndiceAlteracoes(data);
+    return (data.auditoria || []).map((registro) => ({
+      ...registro,
+      descricao: descreverAlteracao(registro, data, indice),
+    }));
+  }, [data]);
   const equipeVisivel =
     data.equipes.find((e) => e.time_id === equipeAtiva) ||
     minha ||
@@ -442,7 +474,10 @@ export default function SumulaPartida({
         ? p.mandante_id
         : p.visitante_id;
   const link = `${(process.env.EXPO_PUBLIC_WEB_URL || "https://ludora-nine.vercel.app").replace(/\/$/, "")}/partidas/${p.id}`;
-  const mensagem = mensagemResultado(data, incluirNomes, link);
+  const mensagem = useMemo(
+    () => mensagemResultado(data, incluirNomes, link),
+    [data, incluirNomes, link],
+  );
 
   async function executar(
     endpoint: string,
@@ -623,36 +658,17 @@ export default function SumulaPartida({
     icon?: IconName,
   ) {
     return (
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityState={{ disabled: disabled || ocupado }}
-        disabled={disabled || ocupado}
+      <AppButton
+        label={label}
         onPress={press}
-        style={[
-          styles.button,
-          primary && styles.primary,
-          (disabled || ocupado) && styles.disabled,
-        ]}
-      >
-        {icon && (
-          <Icon
-            name={icon}
-            size={16}
-            color={primary ? "#fff" : colors.textoSecundario}
-          />
-        )}
-        <Text style={[styles.buttonText, primary && { color: "#fff" }]}>
-          {label}
-        </Text>
-      </TouchableOpacity>
+        icon={icon}
+        variant={primary ? "primary" : "secondary"}
+        disabled={disabled || ocupado}
+      />
     );
   }
   function jogadorLinha(j: EquipePartida["escalacao"][number]) {
-    const stats = estatisticasJogador(
-      data.eventos,
-      j.jogador_id,
-      (finalizada || consultandoTempo) && tempo ? tempo : undefined,
-    );
+    const stats = estatisticas.get(j.jogador_id) || ESTATISTICAS_VAZIAS;
     const extras = stats.vermelhos + stats.azuis + stats.defesas;
     return (
       <View
@@ -741,14 +757,12 @@ export default function SumulaPartida({
       edges={["top", "bottom", "left", "right"]}
     >
       <View style={styles.header}>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Voltar às partidas"
+        <IconButton
+          icon="close"
+          label="Voltar às partidas"
           onPress={() => sairAtual.current()}
-          style={[styles.iconButton, styles.close]}
-        >
-          <Icon name="close" size={19} color={colors.textoSecundario} />
-        </TouchableOpacity>
+          variant="filled"
+        />
         <Text numberOfLines={1} style={styles.headerTitle}>
           {p.mandante.nome} × {p.visitante.nome}
         </Text>
@@ -1273,7 +1287,7 @@ export default function SumulaPartida({
                   <Text style={styles.heading}>Histórico de alterações</Text>
                   <Text numberOfLines={1} style={styles.tiny}>
                     {data.auditoria?.length
-                      ? `Última: ${descreverAlteracao(data.auditoria[0], data).titulo}`
+                      ? `Última: ${historico[0].descricao.titulo}`
                       : "Registros da operação da súmula"}
                   </Text>
                 </View>
@@ -1288,7 +1302,7 @@ export default function SumulaPartida({
               (!data.auditoria?.length ? (
                 <Text style={styles.muted}>Nenhuma alteração disponível.</Text>
               ) : (
-                data.auditoria.map((a) => (
+                historico.map((a) => (
                   <View
                     key={a.id}
                     style={{
@@ -1298,13 +1312,9 @@ export default function SumulaPartida({
                       borderTopColor: colors.linha,
                     }}
                   >
-                    <Text style={styles.name}>
-                      {descreverAlteracao(a, data).titulo}
-                    </Text>
-                    {!!descreverAlteracao(a, data).detalhes && (
-                      <Text style={styles.muted}>
-                        {descreverAlteracao(a, data).detalhes}
-                      </Text>
+                    <Text style={styles.name}>{a.descricao.titulo}</Text>
+                    {!!a.descricao.detalhes && (
+                      <Text style={styles.muted}>{a.descricao.detalhes}</Text>
                     )}
                     <Text style={styles.tiny}>
                       {new Date(a.criado_em).toLocaleString("pt-BR")}
@@ -1562,23 +1572,11 @@ export default function SumulaPartida({
             style={styles.sheetWrap}
           >
             <View accessibilityViewIsModal style={styles.sheet}>
-              <View style={styles.sheetHeader}>
-                <Text
-                  accessibilityRole="header"
-                  style={[styles.title, styles.flex]}
-                >
-                  {dialogo ? nomesDialogo[dialogo] : ""}
-                </Text>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel="Fechar janela"
-                  disabled={ocupado}
-                  onPress={() => setDialogo(null)}
-                  style={styles.iconButton}
-                >
-                  <Icon name="close" size={19} color={colors.textoSecundario} />
-                </TouchableOpacity>
-              </View>
+              <ModalHeader
+                title={dialogo ? nomesDialogo[dialogo] : ""}
+                disabled={ocupado}
+                onClose={() => setDialogo(null)}
+              />
               {dialogo === "evento" && form ? (
                 <>
                   <View style={styles.sheetBody}>
@@ -1664,21 +1662,13 @@ export default function SumulaPartida({
                           : "Equipe externa ao Ludora. O registro será vinculado apenas à equipe."}
                     </Text>
                     {!!equipeAutor && (
-                      <View style={styles.search}>
-                        <Icon
-                          name="search"
-                          size={16}
-                          color={colors.textoSecundario}
-                        />
-                        <TextInput
-                          accessibilityLabel="Buscar autor por nome ou camisa"
-                          placeholder="Nome ou camisa"
-                          placeholderTextColor={colors.textoSecundario}
-                          value={busca}
-                          onChangeText={setBusca}
-                          style={styles.input}
-                        />
-                      </View>
+                      <SearchField
+                        accessibilityLabel="Buscar autor por nome ou camisa"
+                        placeholder="Nome ou camisa"
+                        value={busca}
+                        onChangeText={setBusca}
+                        containerStyle={{ flex: 0 }}
+                      />
                     )}
                     <FlatList
                       style={styles.pickerList}

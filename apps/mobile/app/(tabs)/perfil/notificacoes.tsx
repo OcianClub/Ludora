@@ -1,3 +1,4 @@
+import { IconButton } from "@/src/components/ui/Controls";
 import { useRouter } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -408,16 +409,14 @@ export default function Notificacoes() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity
-          style={[styles.headerAction, styles.backAction]}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
+        <IconButton
+          icon="arrow-left"
+          label="Voltar"
+          variant="filled"
           onPress={() =>
             router.canGoBack() ? router.back() : router.navigate("/")
           }
-        >
-          <Icon name="arrow-left" size={19} color={colors.texto} />
-        </TouchableOpacity>
+        />
         <Text style={styles.headerTitle} accessibilityRole="header">
           Notificações
         </Text>

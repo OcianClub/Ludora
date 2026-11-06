@@ -6,7 +6,8 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5187';
 async function checkOverlayKeyboard(page) {
   const footer = page.locator('.auth-footer');
   for (const input of await page.locator('.auth-form input:not([type="checkbox"])').all()) {
-    assert.ok(await input.evaluate(el => parseFloat(getComputedStyle(el).fontSize) >= 16), 'Campo evita zoom automático no iPhone');
+    assert.equal(await input.evaluate(el => getComputedStyle(el).fontSize), '13px', 'Texto digitado usa o tamanho comum do formulário');
+    assert.equal(await input.evaluate(el => getComputedStyle(el, '::placeholder').fontSize), '13px', 'Placeholder acompanha o texto digitado');
     await input.focus();
     await page.evaluate(() => {
       Object.defineProperty(visualViewport, 'height', { value: 420, configurable: true });
@@ -37,11 +38,12 @@ async function checkOverlayKeyboard(page) {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
     for (const width of [320, 390, 760, 1440]) {
-      const page = await browser.newPage({ viewport: { width, height: 844 } });
+      const page = await browser.newPage({ viewport: { width, height: 844 }, hasTouch: width <= 760, isMobile: width <= 760 });
       await page.route('**/*', route => ['fetch', 'xhr'].includes(route.request().resourceType())
         ? route.abort() : route.continue());
       for (const path of ['/login', '/registrar']) {
         await page.goto(base + path);
+        await page.locator('.auth-form').waitFor();
         const footer = page.locator('.auth-footer');
         await footer.waitFor();
         assert.equal(await footer.evaluate(el => getComputedStyle(el).position), width <= 760 ? 'fixed' : 'static');
@@ -50,6 +52,11 @@ async function checkOverlayKeyboard(page) {
         if (width <= 760) {
           assert.ok(Math.abs((await footer.boundingBox()).y + (await footer.boundingBox()).height - 844) < 2);
           const inputs = page.locator('.auth-form input:not([type="checkbox"])');
+          const invite = page.locator('.access-invite');
+          assert.equal(await invite.evaluate(el => el.parentElement.classList.contains('auth-card')), true, 'Convite fica no conteúdo, fora do rodapé');
+          assert.ok((await invite.boundingBox()).y >= (await inputs.last().boundingBox()).y + (await inputs.last().boundingBox()).height, 'Convite fica abaixo dos campos');
+          assert.ok(await invite.locator('small').isVisible(), 'Convite mantém descrição do app');
+          assert.ok((await invite.boundingBox()).height >= 80, 'Convite usa o card completo');
           await checkOverlayKeyboard(page);
           await page.setViewportSize({ width, height: 420 });
           await inputs.last().focus();

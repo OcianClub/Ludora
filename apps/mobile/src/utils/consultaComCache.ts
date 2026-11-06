@@ -49,8 +49,12 @@ export async function executarConsultaComCache<T>({
     .catch(() => undefined);
   const resultado = await remoto;
   if (resultado.ok) {
-    if (await contextoAtual())
-      void salvar(resultado.dados).catch(() => undefined);
+    // A validação protege a persistência, não precisa bloquear o dado remoto.
+    // Mantém a checagem antes de gravar e captura também falhas no armazenamento.
+    void Promise.resolve()
+      .then(contextoAtual)
+      .then((atual) => atual ? salvar(resultado.dados) : undefined)
+      .catch(() => undefined);
     return { dados: resultado.dados, salvoEm: agora(), origem: 'servidor' };
   }
   if (

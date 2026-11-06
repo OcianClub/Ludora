@@ -1,17 +1,22 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { ErroConsulta, fetchComTimeout } from '../utils/request';
+import { ErroConexao, ErroConsulta, fetchComTimeout } from '../utils/request';
 import type { Placar, MudancaPlacar } from '../utils/placarPartida';
 import { headersClubeNotificacoes } from '../utils/escopoNotificacoes';
 import { criarAgrupadorConsultas } from '../utils/consultasEmAndamento';
 import { criarCacheConsultasRecentes } from '../utils/consultasRecentes';
-import { iniciarMedicaoCarregamento } from '../utils/desempenho';
+import { iniciarMedicaoCarregamento, temposServidor, lerJsonMedido, destinoApi } from '../utils/desempenho';
 
 // No celular físico, configure o IP da sua máquina em apps/mobile/.env.
 export const BASE_URL = (
   process.env.EXPO_PUBLIC_API_URL?.trim() ||
   (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000')
 ).replace(/\/+$/, '');
+
+const destino = destinoApi(BASE_URL);
+if ((globalThis as { __DEV__?: boolean }).__DEV__ === true) {
+  console.info('[desempenho]', JSON.stringify({ etapa: 'api:destino', ...destino }));
+}
 
 // ==========================================
 // CENTRAL DE REQUISIÇÕES (API FETCH)
@@ -21,7 +26,19 @@ async function getToken() {
   return await SecureStore.getItemAsync('userToken');
 }
 
-const enviarConsulta = criarAgrupadorConsultas(fetchComTimeout);
+// Esta medição ocorre só no transporte físico, não em acertos do cache.
+const enviarConsulta = criarAgrupadorConsultas(async (url, opcoes) => {
+  const finalizar = iniciarMedicaoCarregamento('http:transporte');
+  const recurso = new URL(url).pathname.replace(/\/\d+(?=\/|$)/g, '/:id');
+  try {
+    const resposta = await fetchComTimeout(url, opcoes);
+    finalizar({ ...destino, recurso, status: resposta.status, ...temposServidor(resposta.headers.get('server-timing')) });
+    return resposta;
+  } catch (erro) {
+    finalizar({ ...destino, recurso, status: opcoes?.signal?.aborted ? 'cancelada' : 'falha', motivo: erro instanceof ErroConexao ? erro.motivo : 'outro' });
+    throw erro;
+  }
+});
 const consultasRecentes = criarCacheConsultasRecentes(enviarConsulta);
 export function invalidarConsultasRecentes() {
   consultasRecentes.invalidar();
@@ -62,15 +79,18 @@ export async function apiFetch(endpoint: string, options: OpcoesApi = {}) {
   }
 
   // Injeta o Token JWT
-  // SecureStore cruza a ponte nativa. Ler as duas chaves em paralelo reduz
-  // a latência adicionada a toda chamada da API.
+  // Só cruza a ponte nativa para os dados ainda não informados pelo chamador.
+  // Não mantém credenciais em cache: logout e troca de clube continuam imediatos.
+  const inicioCredenciais = Date.now();
   const [token, clubeId] = await Promise.all([
-    getToken(),
-    SecureStore.getItemAsync('clubeAtivoId'),
+    headers.has('Authorization') ? null : getToken(),
+    headers.has('x-clube-id') ? null : SecureStore.getItemAsync('clubeAtivoId'),
   ]);
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
+
+  const credenciaisMs = Date.now() - inicioCredenciais;
 
   // INJETA O CLUBE ATIVO (Multi-tenant)
   if (clubeId && !headers.has('x-clube-id')) {
@@ -85,10 +105,10 @@ export async function apiFetch(endpoint: string, options: OpcoesApi = {}) {
       ...opcoesFetch,
       headers,
     }, leituraRapida ? 15_000 : 0, revalidar);
-    finalizar({ status: resposta.status });
+    finalizar({ ...destino, status: resposta.status, credenciaisMs });
     return resposta;
   } catch (erro) {
-    finalizar({ status: 'falha' });
+    finalizar({ ...destino, status: opcoesFetch.signal?.aborted ? 'cancelada' : 'falha', credenciaisMs });
     throw erro;
   }
 }
@@ -540,7 +560,7 @@ export async function fetchHome(clubeId: number, revalidar = false) {
       res.status,
       'Não foi possível carregar o resumo do clube.'
     );
-  const dados = await res.json().catch(() => null);
+  const dados = await lerJsonMedido<unknown>(res, 'home').catch(() => null);
   if (!Array.isArray(dados))
     throw new ErroConsulta(
       502,
@@ -580,7 +600,7 @@ export async function fetchAgenda(
     headers: { 'x-clube-id': String(clubeId) },
   });
   if (!res.ok) throw new ErroConsulta(res.status, 'Não foi possível carregar a agenda.');
-  const dados = await res.json().catch(() => null);
+  const dados = await lerJsonMedido<unknown>(res, 'agenda').catch(() => null);
   if (!Array.isArray(dados) || dados.some((partida) =>
     !partida || !['ao_vivo', 'agenda', 'pendentes', 'historico', 'finalizadas', 'canceladas'].includes(partida.grupo_agenda) ||
     !Number.isSafeInteger(partida.posicao) || !Number.isSafeInteger(partida.total_grupo)
@@ -641,35 +661,6 @@ export async function fetchPartidasPorCompeticao(
   if (categoria_id) query.append('categoria_id', String(categoria_id));
   const res = await apiFetch(`/partidas?${query}`);
   if (!res.ok) throw new Error('Erro ao buscar partidas da competição');
-  return res.json();
-}
-
-export async function criarPartida(
-  dados: {
-    mandante_id: number;
-    visitante_id: number;
-    data: string;
-    horario: string;
-    local: string;
-    emCasa: boolean;
-    categoria_id: number;
-    competicao_id?: number;
-    rodada?: number;
-    grupo?: string;
-  },
-  clubeId?: number
-) {
-  const res = await apiFetch('/partidas', {
-    method: 'POST',
-    ...(clubeId ? { headers: { 'x-clube-id': String(clubeId) } } : {}),
-    body: JSON.stringify(dados),
-  });
-  if (!res.ok) {
-    const erro = await res.json().catch(() => null);
-    throw new Error(
-      erro?.error || 'Não foi possível criar a partida. Tente novamente.'
-    );
-  }
   return res.json();
 }
 

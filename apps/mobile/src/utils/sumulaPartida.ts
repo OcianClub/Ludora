@@ -22,18 +22,32 @@ export const NOMES_EVENTOS: Record<string, string> = {
   DEFESA: "Defesa",
   ASSISTENCIA: "Assistência",
 };
+/** Índices reutilizados ao descrever o histórico inteiro (inclusive lances removidos). */
+export function criarIndiceAlteracoes(data: GestaoPartida) {
+  const eventos = new Map(data.eventos.map((e) => [e.id, e]));
+  const removidos = new Map<number, Partial<EventoPartida>>();
+  for (const registro of data.auditoria || []) {
+    const evento = registro.dados?.evento as Partial<EventoPartida> | undefined;
+    if (typeof evento?.id === "number" && !removidos.has(evento.id))
+      removidos.set(evento.id, evento);
+  }
+  const jogadores = new Map<number, string>();
+  for (const equipe of data.equipes || [])
+    for (const jogador of equipe.escalacao || [])
+      if (!jogadores.has(jogador.jogador_id))
+        jogadores.set(jogador.jogador_id, jogador.jogador?.nome || "Jogador");
+  return { eventos, removidos, jogadores };
+}
 export function descreverAlteracao(
   registro: NonNullable<GestaoPartida["auditoria"]>[number],
   data: GestaoPartida,
+  indice = criarIndiceAlteracoes(data),
 ) {
   const dados = registro.dados || {};
   const evento =
     (dados.evento as Partial<EventoPartida> | undefined) ||
-    data.eventos.find((e) => e.id === dados.evento_id) ||
-    (data.auditoria?.find(
-      (a) =>
-        (a.dados?.evento as EventoPartida | undefined)?.id === dados.evento_id,
-    )?.dados?.evento as Partial<EventoPartida> | undefined);
+    indice.eventos.get(dados.evento_id as number) ||
+    indice.removidos.get(dados.evento_id as number);
   const tipo = String(dados.tipo || evento?.tipo || "");
   const timeId = Number(dados.time_id || evento?.time_id);
   const time = [data.partida.mandante, data.partida.visitante].find(
@@ -62,8 +76,7 @@ export function descreverAlteracao(
     CORRECAO_AUTORIZADA: "Edição da súmula autorizada",
   };
   const porJogador = (id: unknown) =>
-    data.equipes.flatMap((e) => e.escalacao).find((j) => j.jogador_id === id)
-      ?.jogador?.nome || "Jogador";
+    indice.jogadores.get(id as number) || "Jogador";
   const complemento =
     registro.acao === "SUBSTITUICAO"
       ? `${porJogador(dados.sai)} → ${porJogador(dados.entra)}`
@@ -113,27 +126,69 @@ export function disciplinaTempo(
     azuis: contar("CARTAO_AZUL"),
   };
 }
+type EstatisticasJogador = {
+  gols: number;
+  assistencias: number;
+  faltas: number;
+  amarelos: number;
+  vermelhos: number;
+  azuis: number;
+  defesas: number;
+};
+export const ESTATISTICAS_VAZIAS: Readonly<EstatisticasJogador> = Object.freeze(
+  {
+    gols: 0,
+    assistencias: 0,
+    faltas: 0,
+    amarelos: 0,
+    vermelhos: 0,
+    azuis: 0,
+    defesas: 0,
+  },
+);
+const CAMPO_EVENTO = {
+  GOL: "gols",
+  ASSISTENCIA: "assistencias",
+  FALTA: "faltas",
+  CARTAO_AMARELO: "amarelos",
+  CARTAO_VERMELHO: "vermelhos",
+  CARTAO_AZUL: "azuis",
+  DEFESA: "defesas",
+} as const;
+/** Uma passagem pelos eventos para todas as linhas da escalação. */
+export function indexarEstatisticasJogadores(
+  eventos: EventoPartida[],
+  periodo?: number,
+) {
+  const indice = new Map<number, EstatisticasJogador>();
+  for (const evento of eventos) {
+    if (
+      evento.jogador_id == null ||
+      (periodo != null && evento.periodo !== periodo)
+    )
+      continue;
+    const campo = CAMPO_EVENTO[evento.tipo as keyof typeof CAMPO_EVENTO];
+    if (!campo || (evento.tipo === "GOL" && evento.gol_contra)) continue;
+    let stats = indice.get(evento.jogador_id);
+    if (!stats) {
+      stats = { ...ESTATISTICAS_VAZIAS };
+      indice.set(evento.jogador_id, stats);
+    }
+    // O objeto pertence exclusivamente a este índice; a constante vazia nunca muda.
+    stats[campo]++;
+  }
+  return indice;
+}
 export function estatisticasJogador(
   eventos: EventoPartida[],
   jogadorId: number,
   periodo?: number,
 ) {
-  const atuais = eventos.filter(
-    (e) =>
-      e.jogador_id === jogadorId && (periodo == null || e.periodo === periodo),
+  return (
+    indexarEstatisticasJogadores(eventos, periodo).get(jogadorId) || {
+      ...ESTATISTICAS_VAZIAS,
+    }
   );
-  const contar = (tipo: string) =>
-    atuais.filter((e) => e.tipo === tipo && !(tipo === "GOL" && e.gol_contra))
-      .length;
-  return {
-    gols: contar("GOL"),
-    assistencias: contar("ASSISTENCIA"),
-    faltas: contar("FALTA"),
-    amarelos: contar("CARTAO_AMARELO"),
-    vermelhos: contar("CARTAO_VERMELHO"),
-    azuis: contar("CARTAO_AZUL"),
-    defesas: contar("DEFESA"),
-  };
 }
 export function placaresEventos(data: GestaoPartida) {
   let casa = data.partida.gols_mandante,

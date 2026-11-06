@@ -20,6 +20,8 @@ btnVoltar: {
   height: 42,
   borderRadius: 10,
   backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.borda,
   alignItems: 'center',
   justifyContent: 'center',
 },

@@ -1,18 +1,16 @@
-import { useMemo, type ReactNode } from 'react';
+import { ModalHeader } from "./ui/AppSheet";
+import { useMemo, type ReactNode } from "react";
 import {
   Modal,
   Pressable,
-  Text,
-  TouchableOpacity,
   View,
   KeyboardAvoidingView,
   Platform,
   useWindowDimensions,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon } from '@ludora/icons';
-import { useTheme } from '@/src/contexts/ThemeContext';
-import { createStyles } from '@/src/styles/organizarPartidasStyles';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "@/src/contexts/ThemeContext";
+import { createStyles } from "@/src/styles/organizarPartidasStyles";
 
 export function PainelOrganizarPartida({
   titulo,
@@ -38,7 +36,7 @@ export function PainelOrganizarPartida({
     <Modal visible transparent animationType="slide" onRequestClose={fechar}>
       <KeyboardAvoidingView
         style={styles.scroll}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={[styles.sheetOverlay, { paddingTop: insets.top + 16 }]}>
           <Pressable
@@ -58,24 +56,13 @@ export function PainelOrganizarPartida({
             ]}
             accessibilityViewIsModal
           >
-            <View style={styles.sheetHeader}>
-              <View style={styles.sheetHeading}>
-                <Text style={styles.sheetTitle} accessibilityRole="header">
-                  {titulo}
-                </Text>
-                {!!subtitulo && <Text style={styles.muted}>{subtitulo}</Text>}
-              </View>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={fechar}
-                disabled={bloqueado}
-                accessibilityState={{ disabled: bloqueado }}
-                accessibilityRole="button"
-                accessibilityLabel="Fechar seleção"
-              >
-                <Icon name="close" size={22} color={colors.textoSecundario} />
-              </TouchableOpacity>
-            </View>
+            <ModalHeader
+              title={titulo}
+              subtitle={subtitulo}
+              onClose={fechar}
+              disabled={bloqueado}
+              closeLabel="Fechar seleção"
+            />
             <View style={styles.sheetBody}>{children}</View>
           </View>
         </View>

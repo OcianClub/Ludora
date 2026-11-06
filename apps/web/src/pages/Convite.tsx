@@ -31,6 +31,7 @@ export default function ConvitePage() {
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     setConvite(null);
     setAccepted(null);
     setSenha('');
@@ -39,7 +40,7 @@ export default function ConvitePage() {
     access.reset();
     if (!credential) { setLoading(false); return; }
     setLoading(true);
-    consultarConvite(credential, byToken)
+    consultarConvite(credential, byToken, controller.signal)
       .then(result => {
         if (!active) return;
         setConvite(result);
@@ -49,7 +50,7 @@ export default function ConvitePage() {
       })
       .catch(error => { if (active) setLoadError(error.message); })
       .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [credential, byToken, version, location.search]);
 
   function finish(result: ResultadoConvite) {

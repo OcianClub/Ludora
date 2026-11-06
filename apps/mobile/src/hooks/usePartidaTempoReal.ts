@@ -54,7 +54,7 @@ export function usePartidaTempoReal<T>(
       if ((dados?.partida_id ?? dados?.id) !== partidaId) return;
       clearTimeout(debounce);
       debounce = setTimeout(() => {
-        void sincronizador.atualizar();
+        if (AppState.currentState === 'active') void sincronizador.atualizar();
       }, 150);
     };
     let origemAtual = clubeOrigemId;

@@ -30,6 +30,9 @@
 .selecionar-header .account-trigger:hover,
 .selecionar-header .account-trigger[aria-expanded="true"] { background: var(--fundo-card-sec); }
 .selecionar-body { padding-top: 40px; padding-bottom: 64px; }
+.club-picker-loading { margin-top: 30px; }
+.club-picker-loading > .loading-skeleton-line { width: 100px; height: 12px; margin-bottom: 14px; }
+.club-picker-loading .loading-skeleton-item { min-height: 104px; border-color: transparent; border-radius: 10px; }
 .selecionar-intro h1 { color: var(--texto); font-family: var(--font-titulo); font-size: clamp(28px, 3vw, 36px); line-height: 1.2; }
 .selecionar-intro p { margin-top: 10px; color: var(--texto-sec); font-size: 15px; line-height: 1.6; }
 .selecionar-header .notifications-trigger.profile-link {

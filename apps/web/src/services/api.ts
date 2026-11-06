@@ -14,6 +14,10 @@ export async function requestJson<T>(endpoint: string, options: RequestInit = {}
   return body;
 }
 
+export function excluirMinhaConta(): Promise<{ mensagem: string }> {
+  return requestJson('/usuarios/me', { method: 'DELETE' });
+}
+
 // ── Auth token (localStorage para web) ──
 export function getToken(): string | null {
   try { return localStorage.getItem('ludora_token'); }

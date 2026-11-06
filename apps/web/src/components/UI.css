@@ -144,20 +144,51 @@ select.field-input option { background: var(--fundo-card-sec); }
   overflow-wrap: anywhere;
   overscroll-behavior: contain;
 }
-.logout-dialog .modal-close {
+.account-confirm-dialog {
+  max-width: 440px;
+}
+.account-confirm-dialog .modal-close {
   min-width: 44px;
   min-height: 44px;
 }
-.logout-dialog p {
+.account-confirm-dialog p {
   color: var(--texto-sec);
   line-height: 1.6;
 }
-.logout-dialog .collection-dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
+.account-confirm-dialog .modal-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--linha);
+}
+.account-confirm-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 8px;
+}
+.account-confirm-actions .btn {
+  min-width: 0;
+  min-height: 44px;
+  white-space: normal;
+  line-height: 1.4;
+  padding: 10px 12px;
+}
+@media (max-width: 560px) {
+  .account-confirm-dialog .modal-header {
+    padding: 14px 16px;
+    gap: 8px;
+  }
+  .account-confirm-dialog .modal-body {
+    padding: 18px 16px;
+  }
+  .account-confirm-dialog p {
+    font-size: 13px;
+  }
+  .account-confirm-dialog .modal-footer {
+    padding: 16px;
+  }
+  .account-confirm-actions {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
 }
 
 /* ── Spinner ── */

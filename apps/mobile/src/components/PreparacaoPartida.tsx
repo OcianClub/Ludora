@@ -1,3 +1,5 @@
+import { SearchField, IconButton, AppButton } from "./ui/Controls";
+import { ModalHeader } from "./ui/AppSheet";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
@@ -738,31 +740,15 @@ export default function PreparacaoPartida({
     icon?: IconName,
   ) {
     return (
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityState={{ disabled: disabled || ocupado || restaurando }}
-        disabled={disabled || ocupado || restaurando}
+      <AppButton
+        label={label}
         onPress={onPress}
-        style={[
-          styles.button,
-          primary && styles.primaryButton,
-          (disabled || ocupado) && styles.disabled,
-        ]}
-      >
-        <Text style={[styles.buttonText, primary && styles.primaryText]}>
-          {label}
-        </Text>
-        {icon && (
-          <Icon
-            name={icon}
-            size={16}
-            color={primary ? "#fff" : colors.textoSecundario}
-          />
-        )}
-      </TouchableOpacity>
+        icon={icon}
+        variant={primary ? "primary" : "secondary"}
+        disabled={disabled || ocupado || restaurando}
+      />
     );
   }
-
   function linhaConvocado(item: Convocado, ordem: number) {
     const jogador = jogadoresPorId.get(item.jogador_id);
     return (
@@ -927,14 +913,12 @@ export default function PreparacaoPartida({
           setMenuTop(y + height + 6);
         }}
       >
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Sair da preparação"
+        <IconButton
+          icon="close"
+          label="Sair da preparação"
           onPress={sair}
-          style={[styles.iconButton, styles.closeButton]}
-        >
-          <Icon name="close" size={19} color={colors.textoSecundario} />
-        </TouchableOpacity>
+          variant="filled"
+        />
         <Text
           accessibilityRole="header"
           numberOfLines={1}
@@ -1282,22 +1266,14 @@ export default function PreparacaoPartida({
                   </View>
                   <Text style={styles.muted}>{elenco.length} disponíveis</Text>
                 </View>
-                <View style={styles.search}>
-                  <Icon
-                    name="search"
-                    size={17}
-                    color={colors.textoSecundario}
-                  />
-                  <TextInput
-                    ref={elencoInput}
-                    accessibilityLabel="Buscar jogador por nome, camisa ou posição"
-                    value={busca}
-                    onChangeText={setBusca}
-                    placeholder="Buscar nome, camisa ou posição"
-                    placeholderTextColor={colors.textoSecundario}
-                    style={styles.searchInput}
-                  />
-                </View>
+                <SearchField
+                  ref={elencoInput}
+                  value={busca}
+                  onChangeText={setBusca}
+                  containerStyle={{ flex: 0 }}
+                  accessibilityLabel="Buscar jogador por nome, camisa ou posição"
+                  placeholder="Buscar nome, camisa ou posição"
+                />
                 <Text style={styles.muted}>
                   Os primeiros {quantidadeTitulares} convocados são titulares.
                   Os demais entram como reservas.
@@ -1578,12 +1554,9 @@ export default function PreparacaoPartida({
                 dialogoVisivel === "camisa" && styles.sheetCentered,
               ]}
             >
-              <View style={styles.sheetHeader}>
-                <Text
-                  accessibilityRole="header"
-                  style={[styles.heading, styles.flex]}
-                >
-                  {dialogoVisivel === "camisa"
+              <ModalHeader
+                title={
+                  dialogoVisivel === "camisa"
                     ? conflito
                       ? "Confirmar troca de camisas"
                       : "Número da camisa"
@@ -1593,18 +1566,11 @@ export default function PreparacaoPartida({
                         ? `Escalação do ${adversario?.clube.nome}`
                         : dialogoVisivel === "responsavel"
                           ? "Responsável pela súmula"
-                          : "Editar partida"}
-                </Text>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel="Fechar janela"
-                  disabled={ocupado}
-                  onPress={fecharDialogo}
-                  style={styles.iconButton}
-                >
-                  <Icon name="close" size={19} color={colors.textoSecundario} />
-                </TouchableOpacity>
-              </View>
+                          : "Editar partida"
+                }
+                onClose={fecharDialogo}
+                disabled={ocupado}
+              />
               <ScrollView
                 style={styles.sheetBody}
                 keyboardShouldPersistTaps="handled"

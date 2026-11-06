@@ -26,6 +26,7 @@ import './SharedMatches.css';
 import { MatchPreparationHeader, MatchLineupReview, LineupSwapHelp } from '../components/MatchPreparation';
 import { validTimeInput } from '../utils/timeInput';
 import { preparationStorageKey, readPreparationStep, rememberPreparationStep } from '../utils/matchPreparation';
+import { validShirtNumber, reconcileLineupShirts } from '../utils/lineupShirts';
 
 const STATUS_NEXT: Record<string, string> = { AGENDADA: 'PREPARADA', PREPARADA: 'AO_VIVO', AO_VIVO: 'FINALIZADA' };
 const ETAPAS = [
@@ -63,6 +64,7 @@ export default function PartidaDetalhePage() {
   const [transferError, setTransferError] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
   const [savingLineup, setSavingLineup] = useState(false);
+  const [syncingShirt, setSyncingShirt] = useState(false);
   const [lineupDirty, setLineupDirty] = useState(false);
   const dirtyRef = useRef(false);
   dirtyRef.current = lineupDirty;
@@ -208,9 +210,10 @@ export default function PartidaDetalhePage() {
   }
 
   async function salvarEscalacaoAtual() {
-    if (savingLineup || !podeGerenciar) return false;
+    if (savingLineup || syncingShirt || !podeGerenciar) return false;
     if (!lineupDirty) return true;
-    if (escalacao.some(item => !Number.isInteger(item.numCamisa) || item.numCamisa < 1)) { setActionError('Defina o número da camisa de todos os convocados antes de salvar.'); return false; }
+    if (escalacao.some(item => !validShirtNumber(item.numCamisa))) { setActionError('Defina uma camisa de 01 a 99 para todos os titulares e reservas antes de salvar.'); return false; }
+    if (new Set(escalacao.map(item => item.numCamisa)).size !== escalacao.length) { setActionError('Dois convocados estão com a mesma camisa. Atualize os números antes de salvar.'); return false; }
     setSavingLineup(true); setActionError(''); setNotice('');
     try {
       await comandoPartida(Number(id), 'escalacao', { jogadores: escalacao.map(e => ({ jogador_id: e.jogador_id, numCamisa: e.numCamisa, titular: e.titular })), versao: gestao?.partida.versao }, 'PUT');
@@ -225,19 +228,24 @@ export default function PartidaDetalhePage() {
 
   function toggleJogador(jogadorId: number) {
     const jogador = jogadores.find(item => item.id === jogadorId);
-    if (!podeGerenciar || savingLineup || savingStatus) return;
-    if (!escalacao.some(item => item.jogador_id === jogadorId) && (!jogador?.numCamisa || jogador.numCamisa < 1)) {
+    if (!podeGerenciar || savingLineup || savingStatus || syncingShirt) return;
+    if (!escalacao.some(item => item.jogador_id === jogadorId) && !validShirtNumber(jogador?.numCamisa)) {
       setActionError('Defina o número da camisa do jogador antes de convocá-lo.');
       return;
     }
+    if (!escalacao.some(item => item.jogador_id === jogadorId) && escalacao.some(item => item.numCamisa === jogador?.numCamisa)) {
+      setActionError('Esta camisa já está em uso por outro convocado. Atualize os números antes de adicionar o jogador.');
+      return;
+    }
     setActionError('');
+    dirtyRef.current = true;
     setLineupDirty(true);
     setEscalacao(previous => {
       const exists = previous.some(item => item.jogador_id === jogadorId);
-      const remaining = exists ? previous.filter(item => item.jogador_id !== jogadorId) : [...previous, {
-        jogador_id: jogadorId, numCamisa: jogador!.numCamisa!, titular: false,
-      }];
-      return remaining.map((item, index) => ({ ...item, titular: index < (gestao?.partida.titulares_necessarios || 5) }));
+      if (exists) return previous.filter(item => item.jogador_id !== jogadorId);
+      const titular = previous.filter(item => item.titular).length < (gestao?.partida.titulares_necessarios || 5);
+      const added = { jogador_id: jogadorId, numCamisa: jogador!.numCamisa!, titular };
+      return titular ? [...previous.filter(item => item.titular), added, ...previous.filter(item => !item.titular)] : [...previous, added];
     });
   }
 
@@ -261,14 +269,15 @@ export default function PartidaDetalhePage() {
   const titulares = escalacao.filter(item => item.titular);
   const reservas = escalacao.filter(item => !item.titular);
 
-  const busy = savingStatus || savingLineup;
-  const escalaValida = titulares.length === necessarios && escalacao.every(item => Number.isInteger(item.numCamisa) && item.numCamisa >= 1 && item.numCamisa <= 99);
+  const busy = savingStatus || savingLineup || syncingShirt;
+  const camisasUnicas = new Set(escalacao.map(item => item.numCamisa)).size === escalacao.length;
+  const escalaValida = titulares.length === necessarios && camisasUnicas && escalacao.every(item => validShirtNumber(item.numCamisa));
   const dadosValidos = Boolean(partida.data && partida.horario && validTimeInput(partida.horario));
   const adversario = gestao?.equipes.find(equipe => equipe.id !== gestao.minhaEquipeId);
   const equipesProntas = Boolean(gestao?.equipes.length && gestao.equipes.every(equipe => equipe.pronta)) && !lineupDirty;
   const responsavelSumula = gestao?.equipes.find(equipe => equipe.clube_id === gestao.partida.sumula_clube_id)?.clube.nome || gestao?.organizador.nome;
   const faltamTitulares = Math.max(0, necessarios - titulares.length);
-  const pendenciaEscalacao = faltamTitulares ? `Falta selecionar ${faltamTitulares} ${faltamTitulares === 1 ? 'titular' : 'titulares'}.` : 'Defina uma camisa válida para todos os convocados antes de continuar.';
+  const pendenciaEscalacao = faltamTitulares ? `Falta selecionar ${faltamTitulares} ${faltamTitulares === 1 ? 'titular' : 'titulares'}.` : !camisasUnicas ? 'Atualize as camisas duplicadas antes de continuar.' : 'Defina uma camisa válida para todos os convocados antes de continuar.';
   const equipeConfirmada = Boolean(minhaEquipe?.pronta && !lineupDirty);
   const podeIniciar = gestao?.podeSumula && equipesProntas && partida.status === 'PREPARADA';
   let resumoEtapa = { titulo: 'Próximo passo: montar sua equipe', descricao: 'Você pode sair e continuar depois.' };
@@ -323,10 +332,11 @@ export default function PartidaDetalhePage() {
   }
 
   function trocarConvocados(origem: number, destino: number) {
-    if (!podeGerenciar || savingLineup || savingStatus || origem === destino) return;
+    if (!podeGerenciar || busy || origem === destino) return;
     const primeiro = escalacao.find(item => item.jogador_id === origem);
     const segundo = escalacao.find(item => item.jogador_id === destino);
     if (!primeiro || !segundo) return;
+    dirtyRef.current = true;
     setEscalacao(previous => previous.map(item => item.jogador_id === origem
       ? { ...segundo, titular: primeiro.titular }
       : item.jogador_id === destino ? { ...primeiro, titular: segundo.titular } : item));
@@ -359,7 +369,7 @@ export default function PartidaDetalhePage() {
         </button> : <span className="lineup-shirt">{item.numCamisa > 0 ? String(item.numCamisa).padStart(2, '0') : '—'}</span>}
         <div className="lineup-player"><strong data-tooltip={nome} data-tooltip-overflow>{nome}</strong>{jogador?.posicao && <span className="lineup-position"><PositionIcon decorative tooltip={false} position={jogador.posicao} />{jogador.posicao}</span>}</div>
         {podeGerenciar && <>
-          <button type="button" className="lineup-swap" aria-label={`${swapSource != null && swapSource !== item.jogador_id ? 'Trocar com' : 'Trocar'} ${nome}`} aria-pressed={swapSource === item.jogador_id} disabled={savingLineup || savingStatus}
+          <button type="button" className="lineup-swap" aria-label={`${swapSource != null && swapSource !== item.jogador_id ? 'Trocar com' : 'Trocar'} ${nome}`} aria-pressed={swapSource === item.jogador_id} disabled={busy}
             data-tooltip="Trocar jogador"
             onPointerDown={event => {
               if (event.button !== 0) return;
@@ -386,7 +396,7 @@ export default function PartidaDetalhePage() {
               else if (swapSource === item.jogador_id) setSwapSource(null);
               else trocarConvocados(swapSource, item.jogador_id);
             }}><Icon name="switchClub" size={17} /></button>
-          <button type="button" className="lineup-remove" aria-label={`Remover ${nome} da escalação`} disabled={savingLineup || savingStatus} onClick={() => { setSwapSource(null); toggleJogador(item.jogador_id); }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
+          <button type="button" className="lineup-remove" aria-label={`Remover ${nome} da escalação`} disabled={busy} onClick={() => { setSwapSource(null); toggleJogador(item.jogador_id); }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
         </>}
       </div>;
     });
@@ -402,14 +412,27 @@ export default function PartidaDetalhePage() {
       ? updated.numCamisa
       : playerId === swapped?.jogador_id ? swapped.camisa_anterior ?? undefined : current;
     setJogadores(previous => previous.map(player => ({ ...player, numCamisa: numberFor(player.id, player.numCamisa) })));
-    const next = escalacao.map(item => ({ ...item, numCamisa: numberFor(item.jogador_id, item.numCamisa) ?? 0 }));
-    if (next.some((item, index) => item.numCamisa !== escalacao[index].numCamisa)) {
-      setEscalacao(next);
+    const changes = new Map<number, number | undefined>([[updated.id, updated.numCamisa]]);
+    if (swapped) changes.set(swapped.jogador_id, swapped.camisa_anterior ?? undefined);
+    const result = reconcileLineupShirts(escalacao, changes);
+    if (result.changed) {
+      dirtyRef.current = true;
+      setEscalacao(result.lineup);
       setLineupDirty(true);
     }
+    setSwapSource(null);
+    setDraggedId(null);
+    setDropTarget(null);
+    drag.current = null;
     setShirtPlayer(null);
-    setActionError(next.some(item => !item.numCamisa) ? 'Um convocado ficou sem camisa após a troca. Defina o número dele antes de continuar.' : '');
-    setNotice('Número da camisa atualizado.');
+    setActionError('');
+    const removedNames = result.removed.map(playerId => jogadores.find(player => player.id === playerId)?.nome || 'Jogador').join(', ');
+    setNotice(removedNames ? `${removedNames} foi removido da escalação por ficar sem camisa. Defina um novo número para convocá-lo novamente.` : 'Número da camisa atualizado.');
+    refreshVersion.current++;
+    setSyncingShirt(true);
+    void atualizarDados(true)
+      .catch(() => setSyncError('A camisa foi salva. Atualize a partida para sincronizar a preparação.'))
+      .finally(() => setSyncingShirt(false));
   }
 
   function onEdited(updated: Partida) {
@@ -429,7 +452,7 @@ export default function PartidaDetalhePage() {
   </section>;
 
   return (
-    <div className="partida-detalhe">
+    <div className="partida-detalhe" data-preparation={preparando ? 'true' : undefined}>
       <header className="match-detail-header">
         <button type="button" className="match-detail-close" aria-label="Voltar para partidas" onClick={() => { if (!lineupDirty || confirm('Sair sem salvar as alterações da escalação?')) navigate('/partidas'); }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
         <h1>{partidaEmAndamento ? <><span className="match-detail-desktop-title">{partida.status === 'FINALIZADA' ? 'Resumo da partida' : 'Detalhes da partida'}</span><span className="match-detail-mobile-title">{partida.mandante?.nome} × {partida.visitante?.nome}</span></> : 'Preparação da partida'}</h1>

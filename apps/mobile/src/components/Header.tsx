@@ -1,17 +1,18 @@
-import type { ReactNode } from 'react';
-import { Icon, type IconName } from '@ludora/icons';
-import { Alert, View, Text, Image, TouchableOpacity } from 'react-native';
-import { useTheme } from '@/src/contexts/ThemeContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { createStyles } from '@/src/styles/headerStyles';
-import { useNotificacoes } from '@/src/contexts/NotificacoesContext';
+import { IconButton } from "./ui/Controls";
+import type { ReactNode } from "react";
+import { Icon, type IconName } from "@ludora/icons";
+import { Alert, View, Text, Image, TouchableOpacity } from "react-native";
+import { useTheme } from "@/src/contexts/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { useMemo, useState } from "react";
+import { createStyles } from "@/src/styles/headerStyles";
+import { useNotificacoes } from "@/src/contexts/NotificacoesContext";
 import {
   inicialHeader,
   NOMES_PAPEIS_HEADER,
   type PapelHeader,
-} from '@/src/utils/identidadeHeader';
+} from "@/src/utils/identidadeHeader";
 
 interface HeaderProps {
   rightAccessory?: ReactNode;
@@ -53,9 +54,9 @@ export function Header({
   const [escudoComErro, setEscudoComErro] = useState<string | null>(null);
   const mostrarIdentidade = () =>
     Alert.alert(
-      'Clube atual',
-      `${title}${papelUsuario ? `\n\nSeu papel: ${NOMES_PAPEIS_HEADER[papelUsuario]}` : '\n\nVisualização pública'}`,
-      [{ text: 'Fechar' }]
+      "Clube atual",
+      `${title}${papelUsuario ? `\n\nSeu papel: ${NOMES_PAPEIS_HEADER[papelUsuario]}` : "\n\nVisualização pública"}`,
+      [{ text: "Fechar" }],
     );
 
   return (
@@ -67,15 +68,12 @@ export function Header({
     >
       <View style={styles.leftContent}>
         {btnVoltar && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            activeOpacity={0.7}
+          <IconButton
+            icon={btnVoltar}
+            label="Voltar"
+            variant="filled"
             onPress={() => (onBtnVoltar ? onBtnVoltar() : router.back())}
-            accessibilityRole="button"
-            accessibilityLabel="Voltar"
-          >
-            <Icon name={btnVoltar} size={24} color={colors.texto} />
-          </TouchableOpacity>
+          />
         )}
         {showLogo && (
           <View
@@ -106,14 +104,14 @@ export function Header({
           disabled={!showLogo}
           activeOpacity={0.75}
           accessible={!!showLogo}
-          accessibilityRole={showLogo ? 'button' : undefined}
+          accessibilityRole={showLogo ? "button" : undefined}
           accessibilityLabel={
             showLogo
-              ? `${title}${papelUsuario ? `, ${NOMES_PAPEIS_HEADER[papelUsuario]}` : ''}`
+              ? `${title}${papelUsuario ? `, ${NOMES_PAPEIS_HEADER[papelUsuario]}` : ""}`
               : undefined
           }
           accessibilityHint={
-            showLogo ? 'Exibe o nome completo do clube e seu papel' : undefined
+            showLogo ? "Exibe o nome completo do clube e seu papel" : undefined
           }
         >
           <Text
@@ -144,13 +142,13 @@ export function Header({
             activeOpacity={0.7}
             onPress={
               onPressNotificacao ??
-              (() => router.push('/(tabs)/perfil/notificacoes'))
+              (() => router.push("/(tabs)/perfil/notificacoes"))
             }
             accessibilityRole="button"
             accessibilityLabel={
               totalNaoLidas > 0
-                ? `Notificações, ${totalNaoLidas} ${totalNaoLidas === 1 ? 'aviso não lido' : 'avisos não lidos'}`
-                : 'Notificações, nenhum aviso não lido'
+                ? `Notificações, ${totalNaoLidas} ${totalNaoLidas === 1 ? "aviso não lido" : "avisos não lidos"}`
+                : "Notificações, nenhum aviso não lido"
             }
           >
             <Icon name={btnNotificacao} size={24} color={colors.texto} />
@@ -167,7 +165,7 @@ export function Header({
           <TouchableOpacity
             style={styles.profileButton}
             activeOpacity={0.7}
-            onPress={() => router.push('perfil/perfil')}
+            onPress={() => router.push("perfil/perfil")}
           >
             <Icon name="account" size={24} color={colors.primaria} />
           </TouchableOpacity>

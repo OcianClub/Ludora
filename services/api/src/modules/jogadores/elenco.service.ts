@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { categoriaPorNascimento, planejarTemporada } from './elenco.rules';
 import { fotoValida } from '../../utils/foto';
+import { sincronizarCamisasPreparacao } from './camisas-escalacao.service';
 
 export class ErroElenco extends Error {
   constructor(public status: number, mensagem: string, public detalhes: object = {}) { super(mensagem); }
@@ -16,7 +17,12 @@ export async function transacaoElenco<T>(operacao: (tx: Prisma.TransactionClient
         if (tentativa < 2) continue;
         throw new ErroElenco(409, 'O elenco mudou durante a operação. Tente novamente.');
       }
-      if (erro.code === 'P2002') throw new ErroElenco(409, 'Este CPF já está cadastrado');
+      if (erro.code === 'P2002') {
+        if (JSON.stringify(erro.meta?.target || '').includes('numCamisa')) {
+          throw new ErroElenco(409, 'A numeração da escalação mudou. Atualize a partida e confira as camisas antes de tentar novamente.');
+        }
+        throw new ErroElenco(409, 'Este CPF já está cadastrado');
+      }
       throw erro;
     }
   }
@@ -70,6 +76,7 @@ export async function salvarAluno(clubeId: number, usuarioId: number, entrada: a
     const camisa = entrada.numCamisa === undefined ? atual?.numCamisa ?? null : lerCamisa(entrada.numCamisa);
     const anterior = atual?.categoria_id === categoria.id ? atual.numCamisa : null;
     const verificarCamisa = !atual || entrada.numCamisa !== undefined || categoria.id !== atual.categoria_id;
+    const camisasAlteradas: { id: number; numCamisa: number | null }[] = [];
     const conflito = camisa === null || !verificarCamisa ? null : await tx.jogador.findFirst({
       where: { categoria_id: categoria.id, ativo: true, numCamisa: camisa, ...(id ? { id: { not: id } } : {}) }, orderBy: { id: 'asc' },
     });
@@ -85,13 +92,19 @@ export async function salvarAluno(clubeId: number, usuarioId: number, entrada: a
         id: { notIn: [conflito.id, ...(id ? [id] : [])] }, numCamisa: { in: [camisa!, ...(anterior === null ? [] : [anterior])] } } });
       if (outros) throw new ErroElenco(409, 'Existem camisas duplicadas no elenco. Resolva os números antes da troca.');
       await tx.jogador.update({ where: { id: conflito.id }, data: { numCamisa: anterior } });
+      camisasAlteradas.push({ id: conflito.id, numCamisa: anterior });
     }
     const informada = entrada.posicao === undefined ? atual?.posicao ?? 'Alas' : entrada.posicao;
     const posicao = atual && entrada.posicao === undefined ? atual.posicao : ['Ala', 'Ala Direito', 'Ala Esquerdo'].includes(informada) ? 'Alas' : informada;
     if ((!atual || entrada.posicao !== undefined) && (typeof posicao !== 'string' || !['Goleiro', 'Fixo', 'Pivô', 'Alas'].includes(posicao))) throw new ErroElenco(400, 'Posição inválida.');
     const data = { nome, dtNasc: new Date(`${nascimento}T00:00:00Z`), posicao, numCamisa: camisa, categoria_id: categoria.id, ...(entrada.foto !== undefined ? { foto: entrada.foto as string | null } : {}) };
-    return atual ? tx.jogador.update({ where: { id: atual.id }, data, include: { categoria: true } }) :
-      tx.jogador.create({ data: { ...data, cpf, perfil_ml: 'Sem dados' }, include: { categoria: true } });
+    // Edição de camisa não regrava nome, nascimento ou posição de cadastros antigos.
+    const apenasCamisa = atual && Object.keys(entrada).every(chave => ['numCamisa', 'confirmar_camisa'].includes(chave));
+    const salvo = atual ? await tx.jogador.update({ where: { id: atual.id }, data: apenasCamisa ? { numCamisa: camisa } : data, include: { categoria: true } }) :
+      await tx.jogador.create({ data: { ...data, cpf, perfil_ml: 'Sem dados' }, include: { categoria: true } });
+    if (atual && atual.numCamisa !== camisa) camisasAlteradas.push({ id: atual.id, numCamisa: camisa });
+    const escalacoesAtualizadas = await sincronizarCamisasPreparacao(tx, camisasAlteradas, { clubeId, usuarioId });
+    return { ...salvo, escalacoes_atualizadas: escalacoesAtualizadas };
   });
 }
 

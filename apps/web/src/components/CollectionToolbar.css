@@ -265,7 +265,7 @@
 @media (max-width: 760px) {
   :root {
     --collection-control-height: 40px;
-    --collection-control-font-size: 12px;
+    --collection-control-font-size: var(--mobile-input-font-size, 13px);
   }
 
   .collection-control.collection-mode-toggle button {

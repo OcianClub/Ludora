@@ -2,6 +2,7 @@ import * as SecureStore from "expo-secure-store";
 import { apiFetch, revisaoConsultasRecentes } from "./api";
 import { criarCacheDadosScout } from "../utils/cacheDadosScout";
 import { ErroConsulta } from "../utils/request";
+import { iniciarMedicaoCarregamento, lerJsonMedido } from "../utils/desempenho";
 import {
   contextoScoutValido,
   type ContextoScout,
@@ -10,16 +11,22 @@ import {
 const cacheContextos = criarCacheDadosScout<ContextoScout>();
 const cachePerfis = criarCacheDadosScout<Jogador[]>();
 async function escopoScout(clubeId?: number) {
-  const [token, clube] = await Promise.all([
-    SecureStore.getItemAsync("userToken"),
-    clubeId
-      ? Promise.resolve(String(clubeId))
-      : SecureStore.getItemAsync("clubeAtivoId"),
-  ]);
-  return {
-    chave: JSON.stringify([token, clube, revisaoConsultasRecentes()]),
-    identidade: JSON.stringify([token, clube]),
-  };
+  const finalizar = iniciarMedicaoCarregamento('scout:credenciais');
+  try {
+    const [token, clube] = await Promise.all([
+      SecureStore.getItemAsync("userToken"),
+      clubeId
+        ? Promise.resolve(String(clubeId))
+        : SecureStore.getItemAsync("clubeAtivoId"),
+    ]);
+    return {
+      token,
+      chave: JSON.stringify([token, clube, revisaoConsultasRecentes()]),
+      identidade: JSON.stringify([token, clube]),
+    };
+  } finally {
+    finalizar();
+  }
 }
 export async function obterContextoScout(
   jogadorId: number,
@@ -46,7 +53,10 @@ export async function obterContextoScout(
       const resposta = await apiFetch(
         `/jogadores/${jogadorId}/scout-contexto${query ? `?${query}` : ""}`,
         {
-          headers: { "x-clube-id": String(clubeId) },
+          headers: {
+            "x-clube-id": String(clubeId),
+            ...(escopo.token ? { Authorization: `Bearer ${escopo.token}` } : {}),
+          },
           revalidar,
         },
       );
@@ -57,7 +67,7 @@ export async function obterContextoScout(
             ? "Este atleta não está disponível neste clube ou na sua categoria de acesso."
             : "Não foi possível carregar o histórico do atleta. Tente novamente.",
         );
-      const dados: unknown = await resposta.json().catch(() => null);
+      const dados: unknown = await lerJsonMedido(resposta, "scout-contexto").catch(() => null);
       if (!contextoScoutValido(dados, jogadorId))
         throw new ErroConsulta(
           502,
@@ -126,14 +136,17 @@ export const obterPerfisJogadores = async (
       const query = categoria_id ? `?categoria_id=${categoria_id}` : "";
       const resposta = await apiFetch(`/jogadores/perfis${query}`, {
         revalidar,
-        ...(clubeId ? { headers: { "x-clube-id": String(clubeId) } } : {}),
+        headers: {
+          ...(clubeId ? { "x-clube-id": String(clubeId) } : {}),
+          ...(escopo.token ? { Authorization: `Bearer ${escopo.token}` } : {}),
+        },
       });
       if (!resposta.ok)
         throw new ErroConsulta(
           resposta.status,
           "Não foi possível carregar as estatísticas.",
         );
-      const dados: Jogador[] = await resposta.json().catch(() => null);
+      const dados = await lerJsonMedido<Jogador[]>(resposta, "scout-perfis").catch(() => null);
       if (!Array.isArray(dados))
         throw new ErroConsulta(
           502,

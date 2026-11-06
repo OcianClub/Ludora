@@ -1,3 +1,4 @@
+import { SearchField, IconButton } from "@/src/components/ui/Controls";
 import { PositionLabel } from "@/src/components/PositionIcon";
 import { Icon, type IconName } from "@ludora/icons";
 import React, {
@@ -17,7 +18,6 @@ import {
   TouchableOpacity,
   ScrollView,
   FlatList,
-  TextInput,
   Modal,
   RefreshControl,
 } from "react-native";
@@ -362,16 +362,10 @@ export default function Estatisticas() {
     },
     [pagerMotion.goTo],
   );
-  const trocarTipo = useCallback(
-    (tipo: "INICIACAO" | "BASE") => {
-      setTipoAtivo(tipo);
-      setSubIndex(0);
-      progressoPagina.value = 0;
-      pagerMotion.origin.value = 0;
-      pagerRef.current?.setPageWithoutAnimation(0);
-    },
-    [progressoPagina],
-  );
+  const trocarTipo = useCallback((tipo: "INICIACAO" | "BASE") => {
+    setTipoAtivo(tipo);
+    setSubIndex(0);
+  }, []);
 
   const carregarDados = useCallback(
     async (silencioso = false, revalidar = false) => {
@@ -561,6 +555,358 @@ export default function Estatisticas() {
     [],
   );
 
+  const conteudoPaginas = useMemo(
+    () =>
+      paginas.map(
+        (
+          {
+            categoriaAtual,
+            jogadoresDaCategoria,
+            jogadoresFiltrados,
+            resumo,
+            contagens,
+          },
+          indexPagina,
+        ) => (
+          <View
+            key={`pagina-${indexPagina}`}
+            style={{ flex: 1 }}
+            collapsable={false}
+          >
+            <CategoryPageMotion
+              index={indexPagina}
+              progress={progressoPagina}
+              origin={pagerMotion.origin}
+              settling={pagerMotion.settling}
+            >
+              <PaginaCategoria grupo={`${clubeAtivo?.id}-${tipoAtivo}`} preparar>
+                {carregando ? (
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.listaContent}
+                  >
+                    <Text
+                      style={styles.contextNote}
+                      accessibilityLiveRegion="polite"
+                    >
+                      Carregando atletas da categoria…
+                    </Text>
+                    <CardsSkeleton rows={3} />
+                  </ScrollView>
+                ) : erro ? (
+                  <View style={styles.centralizado}>
+                    <ErroCarregamento
+                      titulo="Não foi possível carregar as estatísticas"
+                      descricao="Confira sua conexão e tente atualizar os dados dos jogadores novamente."
+                      onTentarNovamente={() => void carregarDados(false, true)}
+                    />
+                  </View>
+                ) : (
+                  <FlatList<Jogador>
+                    ref={(ref) => {
+                      paginasScroll.current[indexPagina] = ref;
+                    }}
+                    data={jogadoresFiltrados}
+                    keyExtractor={(jogador) => String(jogador.id_jogador)}
+                    initialNumToRender={6}
+                    maxToRenderPerBatch={6}
+                    windowSize={3}
+                    renderItem={renderizarJogador}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.telaContent}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                    refreshControl={
+                      <RefreshControl
+                        refreshing={atualizando}
+                        onRefresh={atualizarScout}
+                        tintColor={colors.primaria}
+                        colors={[colors.primaria]}
+                      />
+                    }
+                    ListHeaderComponent={
+                      <>
+                        {!!jogadoresDaCategoria.length && (
+                          <View style={styles.resumoCards}>
+                            {(
+                              [
+                                {
+                                  label: "Mais gols",
+                                  field: "gols",
+                                  value: resumo.artilheiro?.gols ?? 0,
+                                },
+                                {
+                                  label: "Assistências",
+                                  field: "assistencias",
+                                  value: resumo.assistente?.assistencias ?? 0,
+                                },
+                                {
+                                  label: "Convocações",
+                                  field: "jogos_disputados",
+                                  value: resumo.lider?.pontos ?? 0,
+                                },
+                              ] as const
+                            ).map((h) => {
+                              const lideres =
+                                h.value > 0
+                                  ? jogadoresDaCategoria.filter(
+                                      (j) => j[h.field] === h.value,
+                                    )
+                                  : [];
+                              return (
+                                <TouchableOpacity
+                                  key={h.label}
+                                  style={styles.resumoCard}
+                                  activeOpacity={0.8}
+                                  disabled={!lideres.length}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`${h.label}: ${h.value}${lideres.length > 1 ? `, ${lideres.length} atletas empatados` : lideres[0] ? `, ${lideres[0].nome}` : ", sem registros"}`}
+                                  onPress={() =>
+                                    lideres.length > 1
+                                      ? setEmpate({
+                                          titulo: h.label,
+                                          jogadores: lideres,
+                                        })
+                                      : setJogadorSelecionado(lideres[0])
+                                  }
+                                >
+                                  <View style={styles.highlightHeading}>
+                                    <Text
+                                      style={styles.resumoCardLabel}
+                                      numberOfLines={1}
+                                    >
+                                      {h.label}
+                                    </Text>
+                                    <Text style={styles.resumoCardValor}>
+                                      {h.value}
+                                    </Text>
+                                  </View>
+                                  <Text
+                                    style={styles.resumoCardNome}
+                                    numberOfLines={2}
+                                  >
+                                    {lideres[0]?.nome || "Sem registros"}
+                                  </Text>
+                                  {lideres.length > 1 && (
+                                    <Text style={styles.highlightTies}>
+                                      +{lideres.length - 1}{" "}
+                                      {lideres.length === 2
+                                        ? "empatado"
+                                        : "empatados"}
+                                    </Text>
+                                  )}
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        )}
+                        <View style={styles.filtrosContainer}>
+                          <View style={styles.searchRow}>
+                            <SearchField
+                              placeholder="Nome, camisa ou posição"
+                              value={busca}
+                              onChangeText={setBusca}
+                              accessibilityLabel="Buscar atleta por nome, camisa ou posição"
+                            />
+                            <IconButton
+                              icon="sliders-horizontal"
+                              label="Mais filtros de atletas"
+                              state={{ expanded: filtrosAbertos }}
+                              onPress={() => setFiltrosAbertos(true)}
+                              dot={
+                                !!filtros.posicao ||
+                                filtros.participacao !== "todos" ||
+                                filtros.perfil !== "todos"
+                              }
+                            />
+                          </View>
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.perfisContent}
+                            keyboardShouldPersistTaps="handled"
+                          >
+                            {PERFIS.map(({ valor, icone }) => {
+                              const ativo = perfilAtivo === valor;
+                              const corAtiva = "#fff";
+                              const quantidade = contagens[valor];
+                              return (
+                                <TouchableOpacity
+                                  key={valor}
+                                  style={[
+                                    styles.perfilFiltro,
+                                    ativo && {
+                                      backgroundColor: colors.primaria,
+                                      borderColor: colors.primaria,
+                                    },
+                                  ]}
+                                  onPress={() => setPerfilAtivo(valor)}
+                                  activeOpacity={0.8}
+                                  accessibilityRole="button"
+                                  accessibilityState={{ selected: ativo }}
+                                  accessibilityLabel={`${valor}, ${quantidade} atletas`}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.perfilFiltroTexto,
+                                      ativo && { color: corAtiva },
+                                    ]}
+                                  >
+                                    {valor === "Sem dados"
+                                      ? "Não avaliados"
+                                      : valor}
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      styles.perfilQuantidade,
+                                      ativo && { color: corAtiva },
+                                    ]}
+                                  >
+                                    {quantidade}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </ScrollView>
+                        </View>
+                        <View style={styles.listaHeader}>
+                          <Text style={styles.listaTitulo}>
+                            {perfilAtivo === "Todos" ? "Atletas" : perfilAtivo}
+                          </Text>
+                          <View style={styles.listaHeaderActions}>
+                            <Text style={styles.listaContador}>
+                              {jogadoresFiltrados.length} de {jogadoresDaCategoria.length}
+                            </Text>
+                            <IconButton icon="information-outline" label="Como interpretar o Scout"
+                              variant="ghost" onPress={() => setAjudaAberta(true)} />
+                          </View>
+                        </View>
+
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.ordenacaoContent}
+                          keyboardShouldPersistTaps="handled"
+                        >
+                          {OPCOES_ORDENACAO.map((opcao) => (
+                            <TouchableOpacity
+                              key={opcao.value}
+                              hitSlop={{ top: 5, bottom: 5 }}
+                              style={[
+                                styles.ordenacaoPill,
+                                ordenacao === opcao.value &&
+                                  styles.ordenacaoPillAtiva,
+                              ]}
+                              onPress={() => {
+                                const next = proximaOrdenacaoScout(
+                                  ordenacao,
+                                  opcao.value,
+                                  direcao,
+                                );
+                                setOrdenacao(next.ordenacao);
+                                setDirecao(next.direcao);
+                              }}
+                              activeOpacity={0.75}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${opcao.label}: ${ordenacao === opcao.value && direcao ? (direcao === "asc" ? "crescente" : "decrescente") : "padrão"}`}
+                              accessibilityHint="Toque para alternar a direção ou voltar ao padrão"
+                              accessibilityState={{
+                                selected: ordenacao === opcao.value,
+                              }}
+                            >
+                              <Text
+                                style={[
+                                  styles.ordenacaoTxt,
+                                  ordenacao === opcao.value &&
+                                    styles.ordenacaoTxtAtiva,
+                                ]}
+                              >
+                                {opcao.label}
+                              </Text>
+                              <ScoutSortIndicator
+                                direction={
+                                  ordenacao === opcao.value ? direcao : ""
+                                }
+                              />
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                        <Text style={styles.contextNote}>
+                          Partidas finalizadas · toque em um atleta para analisar.
+                        </Text>
+                      </>
+                    }
+                    ListEmptyComponent={
+                      <View style={styles.listaVazia}>
+                        <View style={styles.estadoIcone}>
+                          <Icon
+                            name="account-off-outline"
+                            size={28}
+                            color={colors.textoSecundario}
+                          />
+                        </View>
+                        <Text style={styles.vazioTitulo}>
+                          {jogadoresDaCategoria.length === 0
+                            ? "Categoria sem atletas"
+                            : "Nenhum atleta neste filtro"}
+                        </Text>
+                        <Text style={styles.txtErro}>
+                          {jogadoresDaCategoria.length === 0
+                            ? "Os atletas cadastrados nesta categoria aparecerão aqui."
+                            : busca.trim()
+                              ? "Tente outro nome ou posição, ou escolha Todos os perfis."
+                              : perfilAtivo === "Sem dados"
+                                ? "Todos os atletas desta categoria já possuem um perfil."
+                                : `Ainda não há atletas com perfil ${perfilAtivo} nesta categoria.`}
+                        </Text>
+                        {jogadoresDaCategoria.length > 0 &&
+                          (busca.trim() || perfilAtivo !== "Todos") && (
+                            <TouchableOpacity
+                              style={styles.btnRetry}
+                              onPress={() => {
+                                setBusca("");
+                                setPerfilAtivo("Todos");
+                              }}
+                              accessibilityRole="button"
+                            >
+                              <Text style={styles.txtBtnRetry}>
+                                Limpar filtros
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                      </View>
+                    }
+                  />
+                )}
+              </PaginaCategoria>
+            </CategoryPageMotion>
+          </View>
+        ),
+      ),
+    [
+      paginas,
+      styles,
+      progressoPagina,
+      pagerMotion.origin,
+      pagerMotion.settling,
+      clubeAtivo?.id,
+      tipoAtivo,
+      carregando,
+      erro,
+      carregarDados,
+      renderizarJogador,
+      atualizando,
+      atualizarScout,
+      colors,
+      perfilAtivo,
+      busca,
+      filtros,
+      filtrosAbertos,
+      ordenacao,
+      direcao,
+    ],
+  );
+
   if (carregandoClubeAtivo) {
     return (
       <View style={styles.containerCarregandoPermissao}>
@@ -621,7 +967,7 @@ export default function Estatisticas() {
         />
       )}
       <CategoryPager
-        key={clubeAtivo?.id}
+        key={`${clubeAtivo?.id}-${tipoAtivo}`}
         ref={pagerRef}
         style={{ flex: 1 }}
         initialPage={subIndex}
@@ -632,387 +978,7 @@ export default function Estatisticas() {
         onSettled={pagerMotion.onSettled}
         keyboardDismissMode="on-drag"
       >
-        {paginas.map(
-          (
-            {
-              categoriaAtual,
-              jogadoresDaCategoria,
-              jogadoresFiltrados,
-              resumo,
-              contagens,
-            },
-            indexPagina,
-          ) => (
-            <View
-              key={`pagina-${indexPagina}`}
-              style={{ flex: 1 }}
-              collapsable={false}
-            >
-              <CategoryPageMotion
-                index={indexPagina}
-                progress={progressoPagina}
-                origin={pagerMotion.origin}
-                settling={pagerMotion.settling}
-              >
-                <PaginaCategoria
-                  grupo={`${clubeAtivo?.id}-${tipoAtivo}`}
-                  preparar
-                >
-                  {carregando ? (
-                    <ScrollView
-                      showsVerticalScrollIndicator={false}
-                      contentContainerStyle={styles.listaContent}
-                    >
-                      <Text
-                        style={styles.contextNote}
-                        accessibilityLiveRegion="polite"
-                      >
-                        Carregando atletas da categoria…
-                      </Text>
-                      <CardsSkeleton rows={3} />
-                    </ScrollView>
-                  ) : erro ? (
-                    <View style={styles.centralizado}>
-                      <ErroCarregamento
-                        titulo="Não foi possível carregar as estatísticas"
-                        descricao="Confira sua conexão e tente atualizar os dados dos jogadores novamente."
-                        onTentarNovamente={() =>
-                          void carregarDados(false, true)
-                        }
-                      />
-                    </View>
-                  ) : (
-                    <FlatList<Jogador>
-                      ref={(ref) => {
-                        paginasScroll.current[indexPagina] = ref;
-                      }}
-                      data={jogadoresFiltrados}
-                      keyExtractor={(jogador) => String(jogador.id_jogador)}
-                      initialNumToRender={6}
-                      maxToRenderPerBatch={6}
-                      windowSize={3}
-                      renderItem={renderizarJogador}
-                      showsVerticalScrollIndicator={false}
-                      contentContainerStyle={styles.telaContent}
-                      keyboardShouldPersistTaps="handled"
-                      keyboardDismissMode="on-drag"
-                      refreshControl={
-                        <RefreshControl
-                          refreshing={atualizando}
-                          onRefresh={atualizarScout}
-                          tintColor={colors.primaria}
-                          colors={[colors.primaria]}
-                        />
-                      }
-                      ListHeaderComponent={
-                        <>
-                          {!!jogadoresDaCategoria.length && (
-                            <View style={styles.resumoCards}>
-                              {(
-                                [
-                                  {
-                                    label: "Mais gols",
-                                    field: "gols",
-                                    value: resumo.artilheiro?.gols ?? 0,
-                                  },
-                                  {
-                                    label: "Assistências",
-                                    field: "assistencias",
-                                    value: resumo.assistente?.assistencias ?? 0,
-                                  },
-                                  {
-                                    label: "Convocações",
-                                    field: "jogos_disputados",
-                                    value: resumo.lider?.pontos ?? 0,
-                                  },
-                                ] as const
-                              ).map((h) => {
-                                const lideres =
-                                  h.value > 0
-                                    ? jogadoresDaCategoria.filter(
-                                        (j) => j[h.field] === h.value,
-                                      )
-                                    : [];
-                                return (
-                                  <TouchableOpacity
-                                    key={h.label}
-                                    style={styles.resumoCard}
-                                    activeOpacity={0.8}
-                                    disabled={!lideres.length}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={`${h.label}: ${h.value}${lideres.length > 1 ? `, ${lideres.length} atletas empatados` : lideres[0] ? `, ${lideres[0].nome}` : ", sem registros"}`}
-                                    onPress={() =>
-                                      lideres.length > 1
-                                        ? setEmpate({
-                                            titulo: h.label,
-                                            jogadores: lideres,
-                                          })
-                                        : setJogadorSelecionado(lideres[0])
-                                    }
-                                  >
-                                    <View style={styles.highlightHeading}>
-                                      <Text
-                                        style={styles.resumoCardLabel}
-                                        numberOfLines={1}
-                                      >
-                                        {h.label}
-                                      </Text>
-                                      <Text style={styles.resumoCardValor}>
-                                        {h.value}
-                                      </Text>
-                                    </View>
-                                    <Text
-                                      style={styles.resumoCardNome}
-                                      numberOfLines={2}
-                                    >
-                                      {lideres[0]?.nome || "Sem registros"}
-                                    </Text>
-                                    {lideres.length > 1 && (
-                                      <Text style={styles.highlightTies}>
-                                        +{lideres.length - 1}{" "}
-                                        {lideres.length === 2
-                                          ? "empatado"
-                                          : "empatados"}
-                                      </Text>
-                                    )}
-                                  </TouchableOpacity>
-                                );
-                              })}
-                            </View>
-                          )}
-                          <View style={styles.filtrosContainer}>
-                            <View style={styles.searchRow}>
-                              <View style={styles.buscaContainer}>
-                                <Icon
-                                  name="magnify"
-                                  size={19}
-                                  color={colors.textoSecundario}
-                                />
-                                <TextInput
-                                  style={styles.buscaInput}
-                                  placeholder="Nome, camisa ou posição"
-                                  placeholderTextColor={colors.textoSecundario}
-                                  value={busca}
-                                  onChangeText={setBusca}
-                                  autoCorrect={false}
-                                  returnKeyType="search"
-                                  accessibilityLabel="Buscar atleta por nome, camisa ou posição"
-                                />
-                                {!!busca && (
-                                  <TouchableOpacity
-                                    style={styles.limparBusca}
-                                    onPress={() => setBusca("")}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="Limpar busca"
-                                  >
-                                    <Icon
-                                      name="close"
-                                      size={18}
-                                      color={colors.textoSecundario}
-                                    />
-                                  </TouchableOpacity>
-                                )}
-                              </View>
-                              <TouchableOpacity
-                                style={styles.filterButton}
-                                accessibilityRole="button"
-                                accessibilityLabel="Mais filtros de atletas"
-                                accessibilityState={{
-                                  expanded: filtrosAbertos,
-                                }}
-                                onPress={() => setFiltrosAbertos(true)}
-                              >
-                                <Icon
-                                  name="sliders-horizontal"
-                                  size={19}
-                                  color={colors.textoSecundario}
-                                />
-                                {(!!filtros.posicao ||
-                                  filtros.participacao !== "todos" ||
-                                  filtros.perfil !== "todos") && (
-                                  <View style={styles.filterDot} />
-                                )}
-                              </TouchableOpacity>
-                            </View>
-                            <ScrollView
-                              horizontal
-                              showsHorizontalScrollIndicator={false}
-                              contentContainerStyle={styles.perfisContent}
-                              keyboardShouldPersistTaps="handled"
-                            >
-                              {PERFIS.map(({ valor, icone }) => {
-                                const ativo = perfilAtivo === valor;
-                                const corAtiva = "#fff";
-                                const quantidade = contagens[valor];
-                                return (
-                                  <TouchableOpacity
-                                    key={valor}
-                                    style={[
-                                      styles.perfilFiltro,
-                                      ativo && {
-                                        backgroundColor: colors.primaria,
-                                        borderColor: colors.primaria,
-                                      },
-                                    ]}
-                                    onPress={() => setPerfilAtivo(valor)}
-                                    activeOpacity={0.8}
-                                    accessibilityRole="button"
-                                    accessibilityState={{ selected: ativo }}
-                                    accessibilityLabel={`${valor}, ${quantidade} atletas`}
-                                  >
-                                    <Text
-                                      style={[
-                                        styles.perfilFiltroTexto,
-                                        ativo && { color: corAtiva },
-                                      ]}
-                                    >
-                                      {valor === "Sem dados"
-                                        ? "Não avaliados"
-                                        : valor}
-                                    </Text>
-                                    <Text
-                                      style={[
-                                        styles.perfilQuantidade,
-                                        ativo && { color: corAtiva },
-                                      ]}
-                                    >
-                                      {quantidade}
-                                    </Text>
-                                  </TouchableOpacity>
-                                );
-                              })}
-                            </ScrollView>
-                          </View>
-                          <TouchableOpacity
-                            onPress={() => setAjudaAberta(true)}
-                            style={styles.helpButton}
-                            accessibilityRole="button"
-                          >
-                            <Icon
-                              name="information-outline"
-                              size={15}
-                              color={colors.textoSecundario}
-                            />
-                            <Text style={styles.helpText}>
-                              Como interpretar o Scout
-                            </Text>
-                          </TouchableOpacity>
-
-                          <View style={styles.listaHeader}>
-                            <Text style={styles.listaTitulo}>
-                              {perfilAtivo === "Todos"
-                                ? "Atletas"
-                                : perfilAtivo}
-                            </Text>
-                            <Text style={styles.listaContador}>
-                              {jogadoresFiltrados.length} de{" "}
-                              {jogadoresDaCategoria.length} · {categoriaAtual}
-                            </Text>
-                          </View>
-
-                          <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={styles.ordenacaoContent}
-                            keyboardShouldPersistTaps="handled"
-                          >
-                            {OPCOES_ORDENACAO.map((opcao) => (
-                              <TouchableOpacity
-                                key={opcao.value}
-                                hitSlop={{ top: 5, bottom: 5 }}
-                                style={[
-                                  styles.ordenacaoPill,
-                                  ordenacao === opcao.value &&
-                                    styles.ordenacaoPillAtiva,
-                                ]}
-                                onPress={() => {
-                                  const next = proximaOrdenacaoScout(
-                                    ordenacao,
-                                    opcao.value,
-                                    direcao,
-                                  );
-                                  setOrdenacao(next.ordenacao);
-                                  setDirecao(next.direcao);
-                                }}
-                                activeOpacity={0.75}
-                                accessibilityRole="button"
-                                accessibilityLabel={`${opcao.label}: ${ordenacao === opcao.value && direcao ? (direcao === "asc" ? "crescente" : "decrescente") : "padrão"}`}
-                                accessibilityHint="Toque para alternar a direção ou voltar ao padrão"
-                                accessibilityState={{
-                                  selected: ordenacao === opcao.value,
-                                }}
-                              >
-                                <Text
-                                  style={[
-                                    styles.ordenacaoTxt,
-                                    ordenacao === opcao.value &&
-                                      styles.ordenacaoTxtAtiva,
-                                  ]}
-                                >
-                                  {opcao.label}
-                                </Text>
-                                <ScoutSortIndicator
-                                  direction={
-                                    ordenacao === opcao.value ? direcao : ""
-                                  }
-                                />
-                              </TouchableOpacity>
-                            ))}
-                          </ScrollView>
-                          <Text style={styles.contextNote}>
-                            Partidas finalizadas · convocações não confirmam
-                            minutos em campo. Abra a ficha para filtrar por
-                            campeonato ou partida.
-                          </Text>
-                        </>
-                      }
-                      ListEmptyComponent={
-                        <View style={styles.listaVazia}>
-                          <View style={styles.estadoIcone}>
-                            <Icon
-                              name="account-off-outline"
-                              size={28}
-                              color={colors.textoSecundario}
-                            />
-                          </View>
-                          <Text style={styles.vazioTitulo}>
-                            {jogadoresDaCategoria.length === 0
-                              ? "Categoria sem atletas"
-                              : "Nenhum atleta neste filtro"}
-                          </Text>
-                          <Text style={styles.txtErro}>
-                            {jogadoresDaCategoria.length === 0
-                              ? "Os atletas cadastrados nesta categoria aparecerão aqui."
-                              : busca.trim()
-                                ? "Tente outro nome ou posição, ou escolha Todos os perfis."
-                                : perfilAtivo === "Sem dados"
-                                  ? "Todos os atletas desta categoria já possuem um perfil."
-                                  : `Ainda não há atletas com perfil ${perfilAtivo} nesta categoria.`}
-                          </Text>
-                          {jogadoresDaCategoria.length > 0 &&
-                            (busca.trim() || perfilAtivo !== "Todos") && (
-                              <TouchableOpacity
-                                style={styles.btnRetry}
-                                onPress={() => {
-                                  setBusca("");
-                                  setPerfilAtivo("Todos");
-                                }}
-                                accessibilityRole="button"
-                              >
-                                <Text style={styles.txtBtnRetry}>
-                                  Limpar filtros
-                                </Text>
-                              </TouchableOpacity>
-                            )}
-                        </View>
-                      }
-                    />
-                  )}
-                </PaginaCategoria>
-              </CategoryPageMotion>
-            </View>
-          ),
-        )}
+        {conteudoPaginas}
       </CategoryPager>
 
       {empate && (
