@@ -110,7 +110,7 @@ export function HomeHighlights({ category, highlights }: {
         : highlights.leaders.length ? <div className="home-highlight-leaders">
           {highlights.leaders.map(leader => <Link key={leader.campo} to={`/elenco?categoria_id=${category.id}&ordem=${leader.campo === 'totalGols' ? 'goals' : 'assists'}`}>
             <Icon name={leader.campo === 'totalGols' ? 'ball' : 'switchClub'} size={22} />
-            <span><small>{leader.campo === 'totalGols' ? 'Mais gols' : 'Mais assistências'}</small><strong data-tooltip={leader.jogador.nome} data-tooltip-overflow>{leader.jogador.nome}</strong>{leader.empatados > 0 && <small>+{leader.empatados} {leader.empatados === 1 ? 'atleta empatado' : 'atletas empatados'}</small>}</span>
+            <span className="home-highlight-copy"><small>{leader.campo === 'totalGols' ? 'Mais gols' : 'Mais assistências'}</small><strong data-tooltip={leader.jogador.nome} data-tooltip-overflow>{leader.jogador.nome}</strong>{leader.empatados > 0 && <small>+{leader.empatados} {leader.empatados === 1 ? 'atleta empatado' : 'atletas empatados'}</small>}</span>
             <b>{leader.valor}</b><Icon name="chevronRight" size={16} />
           </Link>)}
         </div> : null}

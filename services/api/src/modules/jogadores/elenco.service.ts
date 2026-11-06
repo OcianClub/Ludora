@@ -63,7 +63,8 @@ export async function salvarAluno(clubeId: number, usuarioId: number, entrada: a
     if (atual && entrada.cpf !== undefined && entrada.cpf !== atual.cpf) throw new ErroElenco(400, 'O CPF não pode ser alterado.');
     if (entrada.foto !== undefined && !fotoValida(entrada.foto)) throw new ErroElenco(400, 'Use uma imagem JPEG, PNG ou WebP de até 130 KB.');
     const nome = entrada.nome === undefined ? atual?.nome ?? '' : typeof entrada.nome === 'string' ? entrada.nome.trim() : '';
-    if ((!atual || entrada.nome !== undefined) && (!nome || !/\p{L}/u.test(nome) || /[\uFE0F\u20E3]/u.test(nome) || !/^[\p{L}\p{M} '\u2019-]+$/u.test(nome) || nome.length > 120)) throw new ErroElenco(400, 'Informe um nome válido, sem emojis ou símbolos.');
+    const nomeAlterado = !atual || (entrada.nome !== undefined && entrada.nome !== atual.nome);
+    if (nomeAlterado && (!nome || !/\p{L}/u.test(nome) || /[\uFE0F\u20E3]/u.test(nome) || !/^[\p{L}\p{M} '\u2019-]+$/u.test(nome) || nome.length > 120)) throw new ErroElenco(400, 'Informe um nome válido, sem emojis ou símbolos.');
     const nascimento = entrada.dtNasc === undefined ? atual?.dtNasc.toISOString().slice(0, 10) : entrada.dtNasc;
     if (typeof nascimento !== 'string') throw new ErroElenco(400, 'Data de nascimento obrigatória.');
     // Um PATCH de camisa não deve recategorizar nem revalidar dados antigos do atleta.
@@ -80,6 +81,19 @@ export async function salvarAluno(clubeId: number, usuarioId: number, entrada: a
     const conflito = camisa === null || !verificarCamisa ? null : await tx.jogador.findFirst({
       where: { categoria_id: categoria.id, ativo: true, numCamisa: camisa, ...(id ? { id: { not: id } } : {}) }, orderBy: { id: 'asc' },
     });
+    // Conferir os dois lados antes de qualquer escrita: uma transferência também
+    // não pode tirar a camisa de um adversário da troca que esteja em campo.
+    const afetados = [
+      ...(atual && atual.numCamisa !== camisa ? [atual.id] : []),
+      ...(conflito && conflito.numCamisa !== anterior ? [conflito.id] : []),
+    ];
+    if (afetados.length) {
+      const emCampo = await tx.escalacaoPartida.findFirst({
+        where: { jogador_id: { in: afetados }, titular: true, partida: { status: 'AO_VIVO' } },
+        select: { partida_id: true, jogador: { select: { nome: true } } },
+      });
+      if (emCampo) throw new ErroElenco(409, `Não é possível trocar a camisa: ${emCampo.jogador.nome} está em campo na partida #${emCampo.partida_id}. Faça a substituição ou aguarde o encerramento.`);
+    }
     if (conflito) {
       const confirmacao = entrada.confirmar_camisa;
       if (confirmacao?.jogador_id !== conflito.id || confirmacao?.camisa_anterior !== anterior) {
@@ -104,7 +118,8 @@ export async function salvarAluno(clubeId: number, usuarioId: number, entrada: a
       await tx.jogador.create({ data: { ...data, cpf, perfil_ml: 'Sem dados' }, include: { categoria: true } });
     if (atual && atual.numCamisa !== camisa) camisasAlteradas.push({ id: atual.id, numCamisa: camisa });
     const escalacoesAtualizadas = await sincronizarCamisasPreparacao(tx, camisasAlteradas, { clubeId, usuarioId });
-    return { ...salvo, escalacoes_atualizadas: escalacoesAtualizadas };
+    return { ...salvo, escalacoes_atualizadas: escalacoesAtualizadas,
+      camisas_atualizadas: camisasAlteradas.map(j => ({ ...j, categoria_id: categoria.id })) };
   });
 }
 

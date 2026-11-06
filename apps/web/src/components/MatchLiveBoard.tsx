@@ -95,7 +95,7 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
     setUndoEvent(event);
     setFeedback(event ? `${EVENT_TYPES.find(type => type.value === event.tipo)?.label || 'Evento'} registrado na súmula.` : 'Evento revertido e súmula atualizada.');
     await updateView();
-  });
+  }, data.podeSumula);
   const changing = busy || delayed.queue.length > 0;
   const scores = eventScores(data);
   const lastEvent = [...data.eventos].sort((a, b) => b.id - a.id)[0];
@@ -514,7 +514,7 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
               </div>
             </section>
           )}
-          {!!pending.length && (
+          {!!pending.length && (data.podePreparar || data.podeSumula) && (
             <section className="live-pending" aria-label="Autoria pendente">
               <Icon name="alert" size={21} />
               <div>
@@ -650,7 +650,7 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
               })}
           </div>
         </section>
-        <details className="live-audit" aria-label="Histórico de alterações">
+        {(data.podePreparar || data.podeSumula) && <details className="live-audit" aria-label="Histórico de alterações">
           <summary>
             <Icon name="archive" size={17} />
             <span>
@@ -674,7 +674,7 @@ function MatchLiveSession({ data, refresh, onEdit, onResponsibility }: Props) {
               );
             })}
           </ol>
-        </details></div>
+        </details>}</div>
       </div>
       <section className="live-lineups">
         <div className="live-section-heading">

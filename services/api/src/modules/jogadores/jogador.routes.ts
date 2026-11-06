@@ -18,6 +18,7 @@ import { idPositivo } from '../../utils/id';
 import { consultarPerfis } from './perfis.service';
 import { consultarContextoScout } from './contexto-scout.service';
 import { contarParticipacoes } from './participacoes';
+import { notificarCamisas } from './elenco.realtime';
 
 const router = Router();
 
@@ -42,7 +43,11 @@ router.get('/jogadores/categoria', exigirGestorDoClube, async (req, res) => {
 });
 
 router.post('/jogadores', exigirGestorDoClube, async (req, res) => {
-  try { const { cpf: _private, ...player } = await salvarAluno((req as any).clubeId, (req as any).usuarioId, req.body); res.status(201).json(player); }
+  try {
+    const { cpf: _private, ...player } = await salvarAluno((req as any).clubeId, (req as any).usuarioId, req.body);
+    void notificarCamisas(req.app?.get('io'), (req as any).clubeId, player).catch(() => console.error('Falha ao sincronizar camisas após salvar.'));
+    res.status(201).json(player);
+  }
   catch (erro) { responderErro(res, erro); }
 });
 
@@ -191,7 +196,11 @@ router.get('/jogadores', exigirClubePublico, async (req, res) => {
 router.patch('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async (req, res) => {
   const id = idPositivo(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID inválido' });
-  try { const { cpf: _private, ...player } = await salvarAluno((req as any).clubeId, (req as any).usuarioId, req.body, id); res.json(player); }
+  try {
+    const { cpf: _private, ...player } = await salvarAluno((req as any).clubeId, (req as any).usuarioId, req.body, id);
+    void notificarCamisas(req.app?.get('io'), (req as any).clubeId, player).catch(() => console.error('Falha ao sincronizar camisas após salvar.'));
+    res.json(player);
+  }
   catch (erro) { responderErro(res, erro); }
 });
 

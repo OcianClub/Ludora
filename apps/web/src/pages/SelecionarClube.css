@@ -1,6 +1,23 @@
 .selecionar-page { min-height: 100dvh; }
+.club-follow-login-dialog { max-width: 460px; }
+.club-follow-login-club { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.club-follow-login-club .club-badge { flex-shrink: 0; border: 1px solid var(--linha); background: var(--fundo-card-sec); color: var(--texto); }
+.club-follow-login-club > div { display: grid; gap: 4px; min-width: 0; }
+.club-follow-login-club span:not(.club-badge) { font-size: 12px; color: var(--texto-sec); }
+.club-follow-login-club strong { font-size: 16px; overflow-wrap: anywhere; }
+.club-follow-login-dialog .modal-body > p { color: var(--texto-sec); font-size: 13px; line-height: 1.6; }
+.club-follow-login-benefit { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--texto-sec); }
+.club-follow-login-dialog .modal-footer { padding: 16px 20px; border-top: 1px solid var(--linha); }
+.club-follow-login-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.club-follow-login-actions .btn { min-height: 44px; justify-content: center; text-decoration: none; }
+@media (max-width: 480px) {
+  .club-follow-login-dialog .modal-footer { padding: 16px; }
+  .club-follow-login-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .club-follow-login-actions .btn { width: 100%; white-space: normal; }
+  .club-follow-login-actions .btn-primary { grid-row: 1; }
+}
 .selecionar-header { border-bottom: 1px solid var(--linha); }
-.selecionar-header-inner, .selecionar-body {
+.selecionar-header-inner, .selecionar-body, .selecionar-page .public-header-inner {
   width: 100%;
   max-width: 960px;
   margin: 0 auto;
@@ -114,10 +131,10 @@
 .club-picker-confirm .modal-body > p { color: var(--texto-sec); line-height: 1.6; }
 .club-picker-confirm .collection-dialog-actions { margin-top: 6px; }
 @media (max-width: 1000px) {
-  .selecionar-header-inner, .selecionar-body { padding-inline: 22px; }
+  .selecionar-header-inner, .selecionar-body, .selecionar-page .public-header-inner { padding-inline: 22px; }
 }
 @media (max-width: 760px) {
-  .selecionar-header-inner, .selecionar-body { padding-inline: 16px; }
+  .selecionar-header-inner, .selecionar-body, .selecionar-page .public-header-inner { padding-inline: 16px; }
   .selecionar-header-inner { min-height: 72px; }
   .selecionar-body { padding-top: 28px; padding-bottom: 40px; }
   .selecionar-intro h1 { font-size: 26px; }

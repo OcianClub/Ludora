@@ -1,0 +1,33 @@
+const assert = require('node:assert/strict');
+const { test } = require('node:test');
+const { once } = require('node:events');
+const http = require('node:http');
+process.env.NODE_ENV = 'test';
+const { io: connect } = require('../../../apps/web/node_modules/socket.io-client');
+const { criarSocketServer } = require('../dist/src/realtime/socket');
+const { notificarPartidaPublica } = require('../dist/src/realtime/publico');
+
+test('socket público recebe apenas invalidação e não entra nos canais privados', async t => {
+  const banco = { clube: { findUnique: async ({ where }) => [2,3].includes(where.id) ? { id: where.id } : null } };
+  const io = criarSocketServer(async () => null, banco);
+  const server = http.createServer(); io.attach(server); server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(() => new Promise(resolve => io.close(resolve)));
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const guest = connect(url + '/publico', { auth: { clubeId: 2 }, transports: ['websocket'], reconnection: false });
+  t.after(() => guest.close()); await once(guest, 'connect');
+  const received = []; guest.onAny((...args) => received.push(args));
+  const privateClient = connect(url, { auth: { clubeId: 2 }, transports: ['websocket'], reconnection: false });
+  t.after(() => privateClient.close());
+  const [error] = await once(privateClient, 'connect_error'); assert.match(error.message, /autorizado/i);
+  const serverGuest = io.of('/publico').sockets.get(guest.id);
+  assert.equal(serverGuest.rooms.has('publico:clube:2'), true);
+  assert.equal(serverGuest.rooms.has('clube:2'), false);
+  io.to('clube:2').emit('partida_atualizada', { privado: true });
+  io.to('usuario:1').emit('notificacao_criada', { privado: true });
+  const changed = once(guest, 'partidas_alteradas');
+  notificarPartidaPublica(io, { id: 9, categoria: { clube_id: 2 }, participantes: [{ clube_id: 3 }] });
+  assert.deepEqual((await changed)[0], { partida_id: 9 });
+  assert.deepEqual(received, [['partidas_alteradas', { partida_id: 9 }]]);
+  const invalid = connect(url + '/publico', { auth: { clubeId: 999 }, transports: ['websocket'], reconnection: false });
+  t.after(() => invalid.close()); assert.match((await once(invalid, 'connect_error'))[0].message, /encontrado/);
+});

@@ -6,6 +6,7 @@ import { prisma } from '../lib/prisma';
 import { idPositivo } from '../utils/id';
 import { registrarNamespaceAdmin } from '../modules/admin/superadmin';
 import { agendarExpiracaoTokenVerificado } from './sessoes';
+import { registrarNamespacePublico } from './publico';
 
 export function criarSocketServer(
   autenticarToken = getUsuarioIdPeloToken,
@@ -49,6 +50,7 @@ export function criarSocketServer(
     delete socket.data.token;
   });
 
+  registrarNamespacePublico(io, banco);
   registrarNamespaceAdmin(io);
   return io;
 }

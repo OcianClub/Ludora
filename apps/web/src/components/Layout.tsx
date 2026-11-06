@@ -10,6 +10,7 @@ import { AccountMenu } from './AccountMenu';
 import './Layout.css';
 import './ClubWorkspace.css';
 import { ClubPendingProvider, useClubPending } from '../contexts/ClubPendingContext';
+import PublicLayout from './PublicLayout';
 
 const NAV: { to: string; label: string; icon: IconName }[] = [
   { to: '/dashboard', label: 'Visão geral', icon: 'home' },
@@ -25,11 +26,13 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function Layout() {
+  const { modo, podeEntrarGestao } = useAuth();
+  if (modo !== 'gestao' || !podeEntrarGestao) return <PublicLayout />;
   return <ClubPendingProvider><LayoutContent /></ClubPendingProvider>;
 }
 
 function LayoutContent() {
-  const { clube } = useAuth();
+  const { clube, mudarModo } = useAuth();
   const pending = useClubPending();
   const missingShirts = pending?.missing ? [...pending.missing.values()].reduce((sum, value) => sum + value, 0) : 0;
   const [moreOpen, setMoreOpen] = useState(false);
@@ -152,6 +155,7 @@ function LayoutContent() {
               <span className="nav-label">{item.to === '/clube' ? 'Configurações' : item.label}</span>
             </NavLink>
           ))}
+          <Link to={clube ? `/clubes/${clube.id}` : '/selecionar-clube'} className="nav-item" aria-label="Ver como visitante" onClick={() => mudarModo('publico')}><span className="nav-icon"><Icon name="eye" /></span><span className="nav-label">Ver como visitante</span></Link>
         </nav>
 
         <div className="sidebar-footer">
@@ -216,6 +220,7 @@ function LayoutContent() {
                 <Icon name="chevronRight" size={18} />
               </NavLink>
             ))}
+            <Link to={clube ? `/clubes/${clube.id}` : '/selecionar-clube'} className="mobile-more-item" onClick={() => { setMoreOpen(false); mudarModo('publico'); }}><span className="mobile-more-item-icon"><Icon name="eye" /></span><span>Ver como visitante</span><Icon name="chevronRight" size={18}/></Link>
             </nav>
           </section>
 

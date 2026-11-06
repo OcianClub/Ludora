@@ -100,7 +100,10 @@ export function HomeHistoryTable({ partidas }: { partidas: HomePartida[] }) {
                   </div>
                 </td>
                 <td className="history-score-cell"><div className="history-table-score" aria-label={`${partida.gols_mandante} a ${partida.gols_visitante}`}><strong>{partida.gols_mandante}</strong><strong>{partida.gols_visitante}</strong></div></td>
-                <td className="history-result-cell"><span className={`home-result-tag result-${result}`}>{RESULTADOS[result]}</span></td>
+                <td className="history-result-cell"><div className="history-result-summary">
+                  <span className={`home-result-tag result-${result}`}>{RESULTADOS[result]}</span>
+                  <span className="history-result-venue"><Icon name={partida.emCasa ? 'home' : 'bus'} size={13} />{partida.emCasa ? 'Em casa' : 'Fora'}</span>
+                </div></td>
                 <td className="history-venue"><span><Icon name={partida.emCasa ? 'home' : 'bus'} size={16} />{partida.emCasa ? 'Em casa' : 'Fora'}</span></td>
                 <td className="history-action-cell"><Link className="history-table-link" to={`/partidas/${partida.id}`} aria-label={`Ver partida: ${home} contra ${away}, ${dataHome(partida.data, true)}`}><span>Ver partida</span><Icon name="chevronRight" size={17} /></Link></td>
               </tr>

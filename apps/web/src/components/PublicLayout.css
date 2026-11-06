@@ -1,0 +1,73 @@
+.public-layout { min-height: 100dvh; color: var(--texto); background: var(--fundo); }
+.public-header { border-bottom: 1px solid var(--linha); background: var(--fundo); }
+.public-header-inner { max-width: 1440px; margin: 0 auto; min-height: 80px; padding: 16px 48px; display: flex; align-items: center; gap: 24px; }
+.public-header-identity { display: flex; align-items: center; gap: 24px; min-width: 0; }
+.public-header-in-club .public-header-inner { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+.public-brand { flex-shrink: 0; color: var(--texto); text-decoration: none; }
+.public-club-switcher { display: flex; align-items: center; gap: 4px; min-width: 0; max-width: 240px; padding-left: 20px; border-left: 1px solid var(--linha); }
+.public-current-club { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--texto); text-decoration: none; }
+.public-current-club strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.public-current-club .club-badge { flex-shrink: 0; border: 1px solid var(--linha); background: var(--fundo-card); color: var(--texto); }
+.public-switch-club { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border-radius: 8px; color: var(--texto-sec); }
+.public-switch-club:hover { background: var(--fundo-card); color: var(--texto); }
+.public-top-nav { display: flex; align-items: center; gap: 4px; }
+.public-top-nav a { padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--texto-sec); text-decoration: none; white-space: nowrap; }
+.public-top-nav a:hover, .public-top-nav a.active { color: var(--texto); background: var(--fundo-card); }
+.public-header-actions { display: flex; align-items: center; flex-shrink: 0; gap: 10px; margin-left: auto; }
+.public-header-actions .account-trigger,
+.public-header-actions .notifications-trigger.profile-link { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 10px; color: var(--texto); }
+.public-header-actions .account-trigger { background: var(--fundo-card-sec); }
+.public-header-actions .notifications-trigger.profile-link { background: transparent; }
+.public-header-actions .notifications-trigger .icon { width: 24px !important; height: 24px !important; }
+.public-header-actions :is(.account-trigger, .notifications-trigger.profile-link):hover { background: var(--fundo-card); }
+.public-manage { white-space: nowrap; font-size: 12px; }
+.public-content { container: workspace / inline-size; max-width: 1440px; margin: 0 auto; padding: 32px 48px 48px; min-width: 0; outline: none; }
+.public-content > :is(.perfil-page, .club-settings) { margin-inline: auto; }
+.public-bottom-nav { display: none; }
+.public-access-state { padding: 60px 24px; text-align: center; color: var(--texto-sec); }
+.public-access-state p { margin: 16px auto; max-width: 400px; }
+@media (min-width: 761px) {
+  .public-current-club { gap: 10px; }
+  .public-current-club .club-badge { width: 42px !important; height: 42px !important; }
+  .public-switch-club { display: none; }
+}
+@media (min-width: 1101px) and (max-width: 1280px) {
+  .public-header-inner { gap: 14px; }
+  .public-header-identity { gap: 14px; }
+  .public-club-switcher { max-width: 160px; padding-left: 14px; }
+  .public-header-in-club .brand small { display: none; }
+  .public-top-nav a { padding-inline: 9px; }
+  .public-manage > span:not(.icon) { display: none; }
+  .public-manage { width: 40px; height: 40px; padding: 0; justify-content: center; }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .public-header-in-club .public-header-inner { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; }
+  .public-header-in-club .public-brand { display: none; }
+  .public-club-switcher { max-width: 100%; padding-left: 0; border-left: 0; }
+  .public-top-nav { justify-content: center; }
+  .public-top-nav a { padding-inline: 8px; }
+  .public-manage > span:not(.icon) { display: none; }
+  .public-manage { width: 40px; height: 40px; padding: 0; justify-content: center; }
+}
+@media (max-width: 1050px) {
+  .public-header-inner { padding-inline: 22px; }
+  .public-content { padding: 28px 22px 48px; }
+  .public-manage > span:not(.icon) { display: none; }
+  .public-manage { width: 40px; height: 40px; padding: 0; justify-content: center; }
+}
+@media (max-width: 760px) {
+  .public-header-inner { min-height: 72px; padding: 14px 16px; gap: 10px; }
+  .public-header-in-club .public-header-inner { display: flex; }
+  .public-header-identity { flex: 1; }
+  .public-header .brand img { width: 34px; height: 34px; }
+  .public-header .brand > span { font-size: 22px; }
+  .public-header-in-club .public-brand, .public-top-nav, .public-header-actions .public-manage { display: none; }
+  .public-club-switcher { max-width: none; flex: 1; padding: 0; border: 0; }
+  .public-current-club { flex: 1; }
+  .public-current-club strong { font-size: 14px; }
+  .public-header-actions { gap: 8px; }
+  .public-content { padding: 20px 16px calc(92px + env(safe-area-inset-bottom)); }
+  .public-bottom-nav { position: fixed; z-index: 25; bottom: 0; left: 0; right: 0; display: flex; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--linha); background: var(--fundo); }
+  .public-bottom-nav > :is(a,button) { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 5px; min-height: 48px; padding: 4px; border: 0; border-radius: 8px; background: transparent; color: var(--texto-sec); font-size: 10px; text-decoration: none; }
+  .public-bottom-nav .active { color: var(--primaria); }
+}

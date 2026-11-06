@@ -61,7 +61,7 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
   replace(prisma,'$queryRaw',async()=>{ consultasParticipacoes++; return [{jogador_id:7,total:5n}]; });
   replace(prisma.jogador,'findMany',async(args:any)=>{reads.push(args);return [{id:7,nome:'James Walker',categoria_id:9}];});
   replace(prisma.jogador,'groupBy',async(args:any)=>{reads.push(args);return [{categoria_id:9,_count:{_all:12,numCamisa:10}}];});
-  const app=express();app.use(express.json());app.use(criarPartidaRoutes({to:()=>({emit:()=>{}})} as any),jogadores,locais,perfis,clubes);
+  const app=express();app.use(express.json());app.use(criarPartidaRoutes({of:()=>({to:()=>({emit(){}})}),to:()=>({emit:()=>{}})} as any),jogadores,locais,perfis,clubes);
   const server=app.listen(0,'127.0.0.1');await new Promise<void>(resolve=>server.once('listening',resolve));
   t.after(()=>new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve())));
   const base=`http://127.0.0.1:${(server.address() as AddressInfo).port}`;

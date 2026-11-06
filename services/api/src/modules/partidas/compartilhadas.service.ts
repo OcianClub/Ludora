@@ -125,6 +125,7 @@ export async function criarOficial(tx: Banco, ctx: Contexto, dados: any, destino
 export async function validarEquipe(tx: Banco, p: PartidaCompleta, equipe: PartidaCompleta['participantes'][number]) {
   const rows = await tx.escalacaoPartida.findMany({ where: { partida_id: p.id, time_id: equipe.time_id }, include: { jogador: true } });
   exigir(rows.filter(r => r.titular).length === p.titulares_necessarios, `Defina exatamente ${p.titulares_necessarios} titulares.`);
+  exigir(rows.filter(r => r.titular && r.jogador.posicao === 'Goleiro').length === 1, 'A escalação titular deve ter exatamente um goleiro. Os demais goleiros podem ficar na reserva.');
   exigir(rows.every(r => r.numCamisa >= 1 && r.numCamisa <= 99 && r.jogador.numCamisa != null && r.jogador.ativo && r.jogador.categoria_id === equipe.categoria_id), 'Todos os convocados devem estar ativos, na categoria correta e com camisa definida.');
   exigir(rows.every(r => r.numCamisa === r.jogador.numCamisa) && new Set(rows.map(r => r.numCamisa)).size === rows.length, 'A numeração do elenco mudou. Atualize as camisas antes de confirmar a equipe.', 409);
   if (p.competicao?.exigir_inscricao) {

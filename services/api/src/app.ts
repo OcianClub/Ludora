@@ -23,9 +23,11 @@ import { registrarRequisicoes } from './modules/admin/superadmin';
 import locaisRoutes from './modules/partidas/locais.routes';
 import perfilJogadorRoutes from './modules/jogadores/perfil.routes';
 import perfilClubeRoutes from './modules/clubes/perfil-clube.routes';
+import { criarPublicoRoutes } from './modules/publico/publico.routes';
 
 export function criarApp(io: Server) {
   const app = express();
+  app.set('io', io);
 
   app.disable('x-powered-by');
   app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 0));
@@ -63,6 +65,7 @@ export function criarApp(io: Server) {
   app.use(criarCadastroRoutes());
   app.use(criarRecuperacaoRoutes(io));
   app.use(clubeRoutes);
+  app.use(criarPublicoRoutes());
   app.use(perfilClubeRoutes);
   app.use(membrosRoutes);
   app.use(vinculoTimeRoutes);

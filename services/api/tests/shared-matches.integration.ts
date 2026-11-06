@@ -6,7 +6,7 @@ async function main() {
   process.env.PYTHON_AI_URL = '';
   const { criarCompartilhadasRoutes } = await import('../src/modules/partidas/compartilhadas.routes.js');
   const emissions: string[] = [];
-  const router = criarCompartilhadasRoutes({ to: (room: string) => ({ emit: () => emissions.push(room) }) } as any);
+  const router = criarCompartilhadasRoutes({ of: () => ({ to: () => ({ emit() {} }) }), to: (room: string) => ({ emit: () => emissions.push(room) }) } as any);
   const clubs: number[] = [], users: number[] = [];
   let checks = 0;
   async function call(method: string, path: string, ctx: object, body = {}, id: number | string = '', expected: number | number[] = 200) {
@@ -26,7 +26,7 @@ async function main() {
       const cat = await prisma.categoria.create({ data: { nome: 'sub-7', tipo: 'INICIACAO', faixaIdade: suffix === 'A' ? 0 : 7, clube_id: club.id } });
       const team = await prisma.time.create({ data: { nome: key, categoria_id: cat.id, clube_representado_id: club.id } });
       const players = [];
-      for (let n = 1; n <= 6; n++) players.push(await prisma.jogador.create({ data: { nome: `Teste ${n}`, cpf: `${club.id}${String(n).padStart(8, '0')}`, categoria_id: cat.id, posicao: 'Fixo', numCamisa: n, dtNasc: new Date('2020-01-01') } }));
+      for (let n = 1; n <= 6; n++) players.push(await prisma.jogador.create({ data: { nome: `Teste ${n}`, cpf: `${club.id}${String(n).padStart(8, '0')}`, categoria_id: cat.id, posicao: n === 1 ? 'Goleiro' : 'Fixo', numCamisa: n, dtNasc: new Date('2020-01-01') } }));
       return { club, cat, team, players, ctx: { clubeId: club.id, usuarioId: user.id } };
     }
     const a = await fixture('A'), b = await fixture('B'), c = await fixture('C');

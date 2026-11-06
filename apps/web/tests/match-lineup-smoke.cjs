@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 const path = require('node:path');
 const fs = require('node:fs');
-const base = 'http://127.0.0.1:5187';
+const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5187';
 const output = path.resolve(__dirname, '../../../test-results/match-lineup');
 fs.mkdirSync(output, { recursive: true });
 
@@ -22,10 +22,11 @@ fs.mkdirSync(output, { recursive: true });
       const page = await context.newPage();
       page.on('pageerror', error => errors.push(error.message));
       await require('./visual-fixture.cjs').install(page);
-      const players = Array.from({ length: 7 }, (_, i) => ({ id: 100 + i, nome: `Atleta ${i + 1}`, posicao: 'Fixo', numCamisa: i + 1 }));
+      const players = Array.from({ length: 7 }, (_, i) => ({ id: 100 + i, nome: `Atleta ${i + 1}`, posicao: i === 1 ? 'Goleiro' : 'Fixo', numCamisa: i + 1 }));
       let lineup = players.slice(0, 6).map((player, i) => ({ jogador_id: player.id, numCamisa: player.numCamisa, titular: i < 5, jogador: player }));
       let saved;
       await page.route('**/jogadores/perfis?*', route => route.fulfill({ json: players }));
+      await page.route('**/jogadores?*convocacao=true*', route => route.fulfill({ json: players }));
       await page.route('**/partidas?*', route => route.fulfill({ json: [{ id: 106, status: 'PREPARADA', data: '2026-10-29', horario: '19:30', local: 'Ginasio Ocian', categoria_id: 1, categoria: { id: 1, nome: 'sub-7' }, mandante_id: 13, visitante_id: 14, emCasa: true, gols_mandante: 0, gols_visitante: 0, mandante: { id: 13, nome: 'Ocian' }, visitante: { id: 14, nome: 'Santos' } }] }));
       await page.route('**/partidas/106/escalacao', route => {
         if (route.request().method() === 'PUT') {

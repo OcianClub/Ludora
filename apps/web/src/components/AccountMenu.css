@@ -1,6 +1,14 @@
 .account-trigger[aria-expanded="true"] {
   background: var(--fundo-card-sec);
 }
+.account-guest-content { padding: 16px 10px 10px; overflow-y: auto; font-size: 13px; }
+.account-guest-content > strong { font-size: 14px; }
+.account-guest-content p { margin: 8px 0 14px; color: var(--texto-sec); font-size: 12px; line-height: 1.6; }
+.account-guest-content ul { padding: 0; margin: 0 0 18px; list-style: none; display: grid; gap: 13px; }
+.account-guest-content li { display: flex; align-items: center; gap: 10px; line-height: 1.5; }
+.account-guest-content li .icon { flex-shrink: 0; color: var(--texto-sec); }
+.account-guest-content > .btn { width: 100%; min-height: 40px; text-decoration: none; }
+.account-guest-register { display: block; text-align: center; color: var(--primaria); padding: 12px 4px 0; text-decoration: none; font-size: 12px; }
 
 .account-popover {
   position: fixed;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchConfrontosTime, type ResumoConfronto, type ConfrontoTime } from '../services/api';
+import { fetchConfrontosTime } from '../services/api';
 import { teamName } from '../utils/teamIdentity';
 import { Btn, Spinner } from './UI';
 import { Icon } from './Icon';
@@ -10,13 +10,11 @@ export function shortTeamDate(date: string) {
   return new Date(`${date.slice(0, 10)}T12:00:00Z`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', timeZone: 'UTC' }).replace('.', '');
 }
 
-export function TeamInsights({ teamId, clubeId, clubeName, summary, summaryLoading, summaryError, retrySummary, categoria, opponentName, ownClub = false }: {
+export function TeamInsights({ teamId, clubeId, clubeName, categoria, opponentName }: {
   teamId: number; clubeId: number; clubeName: string;
-  summary?: ResumoConfronto; summaryLoading: boolean; summaryError: boolean; retrySummary: () => void;
   categoria?: { id: number; nome: string }; opponentName: string;
-  ownClub?: boolean;
 }) {
-  const [data, setData] = useState<{ ultimas: ConfrontoTime[]; proximas: ConfrontoTime[] } | null>(null);
+  const [data, setData] = useState<Awaited<ReturnType<typeof fetchConfrontosTime>> | null>(null);
   const [error, setError] = useState('');
   const [version, setVersion] = useState(0);
   useEffect(() => {
@@ -28,21 +26,20 @@ export function TeamInsights({ teamId, clubeId, clubeName, summary, summaryLoadi
     return () => { active = false; };
   }, [teamId, clubeId, categoria?.id, version]);
 
+  const summary = data?.resumo;
   return <div className="team-insights">
-    <section><h3>{ownClub ? 'Retrospecto do clube' : `Confrontos com ${clubeName}`}{categoria ? ` · ${categoria.nome.toUpperCase()}` : ''}</h3><p className="team-insights-scope">Somente partidas finalizadas{ownClub ? ' · Todos os adversários' : ''}</p>
-      {summaryLoading ? <p role="status">Carregando retrospecto…</p> : summaryError ? <div role="alert"><p>Retrospecto indisponível.</p><Btn size="sm" variant="ghost" onClick={retrySummary}>Tentar novamente</Btn></div> : <>
+    <section><h3>{`Confrontos com ${clubeName}`}{categoria ? ` · ${categoria.nome.toUpperCase()}` : ''}</h3><p className="team-insights-scope">Resultados do {clubeName} contra {opponentName} · Partidas finalizadas</p>
+      {!data && !error ? <p role="status">Carregando retrospecto…</p> : summary ? <>
         <div className="team-insights-stats">
           <div><strong>{summary?.vitorias || 0}</strong><span>Vitórias</span></div>
           <div><strong>{summary?.empates || 0}</strong><span>Empates</span></div>
           <div><strong>{summary?.derrotas || 0}</strong><span>Derrotas</span></div>
-          <div><strong>{(summary?.golsPro || 0) - (summary?.golsContra || 0) > 0 ? '+' : ''}{(summary?.golsPro || 0) - (summary?.golsContra || 0)}</strong><span>Saldo</span></div>
         </div>
-        <p className="team-insights-scope">{summary?.golsPro || 0} gols marcados · {summary?.golsContra || 0} sofridos</p>
-      </>}
+      </> : <p className="team-insights-empty">Retrospecto indisponível.</p>}
     </section>
     {!data && !error ? <Spinner/> : error ? <div role="alert"><p>{error}</p><Btn size="sm" variant="ghost" onClick={() => setVersion(value => value + 1)}>Recarregar jogos</Btn></div> : <>
-      <section><div className="team-insights-section-header"><h3>Últimos 5 jogos</h3><Link to={`/partidas?status=FINALIZADA${ownClub ? '' : `&busca=${encodeURIComponent(opponentName)}`}${categoria ? `&categoria_id=${categoria.id}` : ''}`}>Ver todos<Icon name="chevronRight" size={13}/></Link></div>
-        {!data?.ultimas.length && <p className="team-insights-empty">{ownClub ? 'O clube ainda não tem partidas finalizadas nesta categoria.' : 'Nenhuma partida finalizada entre os clubes.'}</p>}
+      <section><div className="team-insights-section-header"><h3>Últimos 5 confrontos</h3></div>
+        {!data?.ultimas.length && <p className="team-insights-empty">Nenhuma partida finalizada entre os clubes.</p>}
         {data?.ultimas.map(match => {
           const ownHome = match.mandante.clube_representado_id === clubeId;
           const pro = ownHome ? match.gols_mandante : match.gols_visitante;
@@ -56,7 +53,7 @@ export function TeamInsights({ teamId, clubeId, clubeName, summary, summaryLoadi
         })}
       </section>
       <section><h3>Próximos confrontos</h3>
-        {!data?.proximas.length && <p className="team-insights-empty">{ownClub ? 'Nenhuma partida agendada nesta categoria.' : 'Nenhum confronto agendado com este time.'}</p>}
+        {!data?.proximas.length && <p className="team-insights-empty">Nenhum confronto agendado com este time.</p>}
         {data?.proximas.map(match => <Link key={match.id} to={`/partidas/${match.id}`} className="team-next-match">
           <span className="team-match-date">{shortTeamDate(match.data)}<small>{match.categoria.nome.toUpperCase()}</small></span>
           <span><strong><Icon name="clock" size={14}/>{match.horario || 'Horário a definir'}</strong><small>{match.mandante.clube_representado_id === clubeId ? 'Em casa' : 'Fora de casa'} · {match.status === 'PREPARADA' ? 'Preparada' : 'Agendada'}</small></span>

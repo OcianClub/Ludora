@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { AuthShell } from '../components/AuthShell';
 import { AccessFeedback, AuthField, InviteCard, useAccessForm } from '../components/auth';
 import { erroEmail } from '../utils/authValidation';
+import { consumeAccess } from '../services/publicAccess';
+import { seguirClube } from '../services/api';
 import './Auth.css';
 
 export default function LoginPage() {
@@ -20,7 +22,13 @@ export default function LoginPage() {
     if (!access.validate({ email: erroEmail(email), senha: senha ? '' : 'Informe sua senha para entrar.' })) return;
     void access.run(async () => {
       await login(email, senha);
-      navigate(state?.convite?.startsWith('/convite/') ? state.convite : '/selecionar-clube', { replace: true });
+      const intent = consumeAccess();
+      if (state?.convite?.startsWith('/convite/')) { navigate(state.convite, { replace: true }); return; }
+      if (intent?.followClub) {
+        try { await seguirClube(intent.followClub); }
+        catch { navigate('/selecionar-clube', { replace: true, state: { message: 'Você entrou. Não foi possível seguir o clube agora; tente novamente na lista.' } }); return; }
+      }
+      navigate(intent?.returnTo || '/selecionar-clube', { replace: true });
     });
   }
 

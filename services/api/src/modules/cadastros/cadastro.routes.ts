@@ -1,4 +1,4 @@
-import { Router, type RequestHandler } from 'express';
+import { Router } from 'express';
 
 import { prisma } from '../../lib/prisma';
 import {
@@ -7,37 +7,15 @@ import {
   exigirCompeticaoParticipante,
   exigirClubePublico,
   exigirGestorDoClube,
-  exigirTimeDoClube,
   obterEscopoCategorias,
   obterEscopoCategoriasLeitura,
   podeAcessarCategoria,
 } from '../../middlewares/permissoes.middleware';
 import { idPositivo } from '../../utils/id';
-import { nomeBaseTime } from './time-identity';
 import { chaveTime, resumirConfrontos } from './time-context';
+import { somenteAdministracaoPlataforma } from './gestao-times.policy';
 
 const router = Router();
-
-const exigirTimeEditavel: RequestHandler = async (req, res, next) => {
-  try {
-    const clubeId = (req as any).clubeId as number;
-    const time = await prisma.time.findFirst({
-      where: { id: Number(req.params.id), categoria: { clube_id: clubeId } },
-      select: { clube_representado_id: true },
-    });
-    if (!time) return res.status(404).json({ error: 'Time não encontrado.' });
-    if (time.clube_representado_id && time.clube_representado_id !== clubeId) {
-      return res.status(403).json({ error: 'Este time pertence a outro clube e só pode ser gerenciado pelo próprio clube.' });
-    }
-    next();
-  } catch {
-    res.status(500).json({ error: 'Não foi possível verificar o time.' });
-  }
-};
-
-function timeError(message: string, status = 409) {
-  return Object.assign(new Error(message), { status });
-}
 
 async function timesDoContexto(usuarioId: number, clubeId: number) {
   const escopo = await obterEscopoCategoriasLeitura(usuarioId, clubeId);
@@ -116,149 +94,25 @@ router.get('/times/:id/contexto', exigirClubePublico, async (req, res) => {
       clubeRepresentado: { select: { id: true, nome: true, escudo: true } } } as const;
     const select = { id: true, data: true, horario: true, status: true, local: true, gols_mandante: true, gols_visitante: true,
       categoria: { select: { id: true, nome: true } }, mandante: { select: teamSelect }, visitante: { select: teamSelect } } as const;
-    const [ultimas, proximas] = await Promise.all([
+    const [ultimas, proximas, resultados] = await Promise.all([
       prisma.partida.findMany({ where: { ...where, status: 'FINALIZADA' }, orderBy: [{ data: 'desc' }, { horario: 'desc' }, { id: 'desc' }], take: 5, select }),
       prisma.partida.findMany({ where: { ...where, status: { in: ['AGENDADA', 'PREPARADA'] }, data: { gte: hoje() } }, orderBy: [{ data: 'asc' }, { horario: 'asc' }, { id: 'asc' }], take: 3, select }),
+      prisma.partida.groupBy({ by: ['mandante_id', 'visitante_id', 'gols_mandante', 'gols_visitante'], where: { ...where, status: 'FINALIZADA' }, _count: { _all: true } }),
     ]);
-    res.json({ ultimas, proximas });
+    const resumo = resumirConfrontos(times, resultados, [], clubeId).find(item => item.key === chaveTime(source));
+    res.json({ ultimas, proximas, resumo });
   } catch {
     res.status(500).json({ error: 'Não foi possível carregar os confrontos. Tente novamente.' });
   }
 });
 
-router.patch('/times/:id/nome', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
-  const nome = req.body?.nome;
-  if (typeof nome !== 'string' || nome.trim().length < 2 || nome.length > 120) return res.status(400).json({ error: 'Informe um nome entre 2 e 120 caracteres.' });
-  try {
-    const resultado = await prisma.$transaction(async tx => {
-      const times = await tx.time.findMany({ where: { categoria: { clube_id: (req as any).clubeId } }, include: { categoria: true } });
-      const source = times.find(time => time.id === Number(req.params.id));
-      if (!source) throw timeError('Time não encontrado.', 404);
-      if (source.clube_representado_id && (source.clube_representado_id !== (req as any).clubeId || (req as any).papelUsuario !== 'ADMIN')) {
-        throw timeError('Somente o administrador do próprio clube pode alterar o nome oficial.', 403);
-      }
-      const group = times.filter(time => chaveTime(time) === chaveTime(source));
-      if (times.some(time => chaveTime(time) !== chaveTime(source) && nomeBaseTime(time.nome) === nomeBaseTime(nome))) {
-        throw timeError('Já existe um time com este nome. Escolha outro nome para evitar duplicação.');
-      }
-      for (const time of group) {
-        if (!time.categoria_id || !await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, time.categoria_id)) {
-          throw timeError('É necessário administrar todas as categorias deste time.', 403);
-        }
-      }
-      if (source.clube_representado_id) await tx.clube.update({ where: { id: (req as any).clubeId }, data: { nome: nome.trim() } });
-      const items = [];
-      for (const time of group) {
-        items.push(await tx.time.update({ where: { id: time.id }, data: { nome: `${nome.trim()} ${time.categoria?.nome || ''}`.trim() },
-          include: { clubeRepresentado: { select: { id: true, nome: true, escudo: true } } } }));
-      }
-      return { items, clubeId: source.clube_representado_id, nome: nome.trim() };
-    }, { isolationLevel: 'Serializable' });
-    res.json(resultado);
-  } catch (error: any) {
-    res.status(error.status || 409).json({ error: error.status ? error.message : 'Não foi possível alterar o nome. Atualize os dados e tente novamente.' });
-  }
-});
+router.patch('/times/:id/nome', exigirGestorDoClube, somenteAdministracaoPlataforma);
 
-router.patch('/times/:id/arquivo', exigirGestorDoClube, exigirTimeDoClube, exigirTimeEditavel, async (req, res) => {
-  if (typeof req.body?.arquivado !== 'boolean') return res.status(400).json({ error: 'Informe se o time deve ser arquivado.' });
-  try {
-    const ids = await prisma.$transaction(async tx => {
-      const times = await tx.time.findMany({ where: { categoria: { clube_id: (req as any).clubeId } } });
-      const source = times.find(time => time.id === Number(req.params.id));
-      if (!source) throw timeError('Time não encontrado.', 404);
-      if (source.clube_representado_id === (req as any).clubeId) throw timeError('O time do clube ativo não pode ser arquivado.', 403);
-      const group = times.filter(time => chaveTime(time) === chaveTime(source));
-      for (const time of group) {
-        if (!time.categoria_id || !await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, time.categoria_id)) {
-          throw timeError('É necessário administrar todas as categorias deste time.', 403);
-        }
-      }
-      const ids = group.map(time => time.id);
-      await tx.time.updateMany({ where: { id: { in: ids } }, data: { arquivado: req.body.arquivado } });
-      return ids;
-    }, { isolationLevel: 'Serializable' });
-    res.json({ ids, arquivado: req.body.arquivado });
-  } catch (error: any) {
-    res.status(error.status || 409).json({ error: error.status ? error.message : 'Não foi possível alterar o arquivamento. Tente novamente.' });
-  }
-});
+router.patch('/times/:id/arquivo', exigirGestorDoClube, somenteAdministracaoPlataforma);
 
-router.patch('/times/:id/escudo', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
-  const escudo = req.body?.escudo;
-  if (typeof escudo !== 'string' || escudo.length > 2048) {
-    return res.status(400).json({ error: 'Informe uma URL de escudo válida.' });
-  }
-  if (escudo.trim()) {
-    try {
-      if (!['https:', 'http:'].includes(new URL(escudo.trim()).protocol)) throw new Error();
-    } catch {
-      return res.status(400).json({ error: 'Use um endereço iniciado por https:// ou http://.' });
-    }
-  }
-  try {
-    const resultado = await prisma.$transaction(async tx => {
-      const todos = await tx.time.findMany({ where: { categoria: { clube_id: (req as any).clubeId } } });
-      const origem = todos.find(time => time.id === Number(req.params.id));
-      if (!origem) throw timeError('Time não encontrado.', 404);
-      if (origem.clube_representado_id && origem.clube_representado_id !== (req as any).clubeId) {
-        throw timeError('O escudo oficial deve ser alterado pelo clube vinculado.', 403);
-      }
-      if (origem.clube_representado_id && (req as any).papelUsuario !== 'ADMIN') {
-        throw timeError('Somente o administrador pode alterar o escudo oficial do clube.', 403);
-      }
-      const grupo = todos.filter(time => origem.clube_representado_id
-        ? time.clube_representado_id === origem.clube_representado_id
-        : !time.clube_representado_id && nomeBaseTime(time.nome) === nomeBaseTime(origem.nome));
-      for (const time of grupo) {
-        if (!time.categoria_id || !await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, time.categoria_id)) {
-          throw timeError('É necessário administrar todas as categorias deste time para alterar seu escudo.', 403);
-        }
-      }
-      const result = await tx.time.updateMany({
-        where: { id: { in: grupo.map(time => time.id) }, clube_representado_id: origem.clube_representado_id, categoria: { clube_id: (req as any).clubeId } },
-        data: { escudo: escudo.trim() || null },
-      });
-      if (result.count !== grupo.length) throw timeError('O cadastro mudou. Atualize a página e tente novamente.');
-      if (origem.clube_representado_id) {
-        await tx.clube.update({ where: { id: (req as any).clubeId }, data: { escudo: escudo.trim() || null } });
-      }
-      return { ids: grupo.map(time => time.id), clubeId: origem.clube_representado_id, escudo: escudo.trim() || null };
-    }, { isolationLevel: 'Serializable' });
-    res.json(resultado);
-  } catch (error: any) {
-    res.status(error.status || 409).json({ error: error.status ? error.message : 'Não foi possível atualizar o escudo. Atualize os dados e tente novamente.' });
-  }
-});
+router.patch('/times/:id/escudo', exigirGestorDoClube, somenteAdministracaoPlataforma);
 
-router.post('/times/:id/categorias', exigirGestorDoClube, exigirTimeDoClube, exigirTimeEditavel, async (req, res) => {
-  const categoriaId = idPositivo(req.body?.categoria_id);
-  if (!categoriaId) return res.status(400).json({ error: 'Selecione uma categoria.' });
-  try {
-    const categoria = await prisma.categoria.findFirst({ where: { id: categoriaId, clube_id: (req as any).clubeId } });
-    if (!categoria || !await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, categoriaId)) {
-      return res.status(403).json({ error: 'Você não administra esta categoria.' });
-    }
-    const result = await prisma.$transaction(async tx => {
-      const todos = await tx.time.findMany({ where: { categoria: { clube_id: (req as any).clubeId } } });
-      const origem = todos.find(time => time.id === Number(req.params.id));
-      if (!origem) throw timeError('Time não encontrado.', 404);
-      if (origem.arquivado) throw timeError('Restaure o time antes de adicionar uma categoria.');
-      const grupo = todos.filter(time => origem.clube_representado_id
-        ? time.clube_representado_id === origem.clube_representado_id
-        : !time.clube_representado_id && nomeBaseTime(time.nome) === nomeBaseTime(origem.nome));
-      if (grupo.some(time => time.categoria_id === categoriaId)) throw timeError('O time já possui esta categoria.');
-      return tx.time.create({
-        data: { nome: origem.nome.replace(/\s*[-–—·(]?\s*sub[\s-]*\d{1,2}\)?\s*$/i, '').trim() + ' ' + categoria.nome,
-          escudo: origem.escudo, categoria_id: categoriaId, clube_representado_id: origem.clube_representado_id },
-        include: { categoria: true, clubeRepresentado: { select: { id: true, nome: true, escudo: true } } },
-      });
-    }, { isolationLevel: 'Serializable' });
-    res.status(201).json(result);
-  } catch (error: any) {
-    res.status(error.status || 409).json({ error: error.status ? error.message : 'Não foi possível adicionar. Atualize os dados e confira se a categoria já existe.' });
-  }
-});
+router.post('/times/:id/categorias', exigirGestorDoClube, somenteAdministracaoPlataforma);
 
 router.get('/times/:id/impacto', exigirGestorDoClube, exigirTimeDoClube, async (req, res) => {
   const id = Number(req.params.id);
@@ -297,26 +151,7 @@ router.post('/times', exigirGestorDoClube, async (req, res) => {
   } catch (error: any) { res.status(500).json({ error: 'Erro ao criar time' }); }
 });
 
-router.patch('/times/:id', exigirGestorDoClube, exigirTimeDoClube, exigirTimeEditavel, async (req, res) => {
-  const { nome, escudo, categoria_id } = req.body;
-  try {
-    const categoriaId = idPositivo(categoria_id);
-    if (!categoriaId) return res.status(400).json({ error: 'Categoria inválida' });
-    const categoriaValida = await prisma.categoria.count({
-      where: { id: categoriaId, clube_id: (req as any).clubeId },
-    });
-    if (!categoriaValida) return res.status(403).json({ error: 'Categoria não pertence ao clube ativo' });
-    if (!(await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, categoriaId))) {
-      return res.status(403).json({ error: 'Você não administra a categoria de destino' });
-    }
-    const time = await prisma.time.update({
-      where: { id: Number(req.params.id) },
-      data: { nome, escudo, categoria_id: categoriaId },
-      include: { categoria: true, clubeRepresentado: {select:{id:true,nome:true,escudo:true}} }
-    });
-    res.json(time);
-  } catch (error: any) { res.status(500).json({ error: 'Erro ao atualizar time' }); }
-});
+router.patch('/times/:id', exigirGestorDoClube, somenteAdministracaoPlataforma);
 
 router.get('/times', exigirClubePublico, async (req, res) => {
   const clube_id = (req as any).clubeId as number;
@@ -337,14 +172,7 @@ router.get('/times', exigirClubePublico, async (req, res) => {
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar times' }); }
 });
 
-router.delete('/times/:id', exigirGestorDoClube, exigirTimeDoClube, exigirTimeEditavel, async (req, res) => {
-  try {
-    await prisma.time.delete({ where: { id: Number(req.params.id) } });
-    res.json({ mensagem: 'Time excluído' });
-  } catch (error: any) {
-    res.status(409).json({ error: 'Time possui partidas vinculadas e não pode ser excluído.' });
-  }
-});
+router.delete('/times/:id', exigirGestorDoClube, somenteAdministracaoPlataforma);
 
 router.post('/competicoes', exigirGestorDoClube, exigirAcessoTotalCategorias, async (req, res) => {
   const clube_id = (req as any).clubeId as number;

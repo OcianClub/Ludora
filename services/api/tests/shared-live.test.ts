@@ -127,6 +127,7 @@ test("súmula compartilhada: eventos, autoria, repetição e autorização pós-
       : null,
   );
   const router = criarCompartilhadasRoutes({
+    of: () => ({ to: () => ({ emit() {} }) }),
     to: () => ({ emit() {} }),
   } as any);
   async function call(

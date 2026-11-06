@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { requestJson, criarJogador, fetchCategorias, preverCategoria, ErroJogador,
+import { requestJson, criarJogador, fetchCategorias, preverCategoria, ErroJogador, invalidateApiReads,
   type Jogador, type Categoria, type ConflitoCamisa, type DadosJogador } from '../services/api';
 import { Btn, Modal, Input, LoadingSkeleton } from '../components/UI';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,6 +17,7 @@ import { useClubCategory } from '../hooks/useClubCategory';
 import { CollectionSearch, CollectionFilterButton, CollectionViewToggle, CollectionFilterDialog } from '../components/CollectionToolbar';
 import './Dashboard.css';
 import '../components/ResponsiveControls.css';
+import { subscribeToRoster, type RosterChange } from '../services/rosterRealtime';
 
 
 const FORM_VAZIO = { nome: '', cpf: '', dtNasc: '', posicao: 'Alas', numCamisa: '' };
@@ -32,7 +33,7 @@ type SortField = typeof SORT_FIELDS[number]['value'];
 type CategoryRows = { items: Jogador[]; loading: boolean; error: string };
 
 export default function JogadoresPage() {
-  const { podeGerenciar, clube } = useAuth();
+  const { podeGerenciar, clube, token } = useAuth();
   const [params, setParams] = useSearchParams();
   const debouncedSearch = useRef('');
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
@@ -107,6 +108,25 @@ export default function JogadoresPage() {
   const [previsao, setPrevisao] = useState<{ nascimento: string; categoria: Categoria; temporada: number } | null>(null);
   const [erroCategoria, setErroCategoria] = useState('');
   const [versao, setVersao] = useState(0);
+  const rosterRefresh = useRef<() => void>(() => {});
+  rosterRefresh.current = () => {
+    if (listView) refreshExpanded.current = [...expandedSubs];
+    setVersao(v => v + 1);
+  };
+  useEffect(() => {
+    if (!clube?.id || !token) return;
+    function changed(change: RosterChange) {
+      const shirts = new Map(change.jogadores.map(j => [j.id, j.numCamisa]));
+      const patch = (j: Jogador) => shirts.has(j.id) ? { ...j, numCamisa: shirts.get(j.id) ?? undefined } : j;
+      setJogadores(current => current.map(patch));
+      setCategoryRows(current => Object.fromEntries(Object.entries(current).map(([id, rows]) => [id, { ...rows, items: rows.items.map(patch) }])));
+      rosterRefresh.current();
+    }
+    const unsubscribe = subscribeToRoster(clube.id, token, changed, () => rosterRefresh.current());
+    const resume = () => { if (!document.hidden) { invalidateApiReads('/jogadores'); rosterRefresh.current(); } };
+    document.addEventListener('visibilitychange', resume);
+    return () => { unsubscribe(); document.removeEventListener('visibilitychange', resume); };
+  }, [clube?.id, token]);
   const position = params.get('posicao') || '', shirtFilter = params.get('camisa') || '', order = params.get('ordem') === 'desc' ? 'desc' : 'asc';
   const setPosition = (value: string) => changeFilter('posicao', value);
   const setShirtFilter = (value: string) => changeFilter('camisa', value);

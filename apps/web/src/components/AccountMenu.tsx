@@ -5,10 +5,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { ThemeOptions } from './ThemeOptions';
 import { Icon } from './Icon';
 import { LogoutDialog } from './LogoutButton';
+import { rememberAccess } from '../services/publicAccess';
 import './AccountMenu.css';
 
 export function AccountMenu({ header = false, avatar = false }: { header?: boolean; avatar?: boolean }) {
-  const { usuario, clube } = useAuth();
+  const { usuario, clube, token } = useAuth();
   const location = useLocation();
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -128,9 +129,16 @@ export function AccountMenu({ header = false, avatar = false }: { header?: boole
         }
       }}>
       <div className="account-popover-heading">
-        <p data-tooltip={usuario?.email} data-tooltip-overflow>{usuario?.email || usuario?.nome || 'Minha conta'}</p>
+        <p data-tooltip={usuario?.email} data-tooltip-overflow>{token ? usuario?.email || usuario?.nome || 'Minha conta' : 'Seu Ludora, do seu jeito'}</p>
         <ThemeOptions />
       </div>
+      {!token ? <div className="account-guest-content">
+        <strong>Acompanhe ainda mais de perto</strong>
+        <p>Explore os clubes e jogos livremente. Entre para salvar suas preferências.</p>
+        <ul><li><Icon name="shield" size={18} /><span>Siga seus clubes favoritos</span></li><li><Icon name="bell" size={18} /><span>Receba avisos de partidas e resultados</span></li><li><Icon name="team" size={18} /><span>Acesse sua equipe com um convite</span></li></ul>
+        <Link className="btn btn-primary" to="/login" onClick={() => { rememberAccess(); close(); }}><Icon name="user" size={17} />Entrar na conta</Link>
+        <Link className="account-guest-register" to="/registrar" onClick={() => { rememberAccess(); close(); }}>Criar uma conta</Link>
+      </div> : <>
       <nav className="account-popover-links" aria-label="Minha conta">
         <Link to="/perfil" className="account-menu-profile" aria-label="Meu perfil" onClick={() => close()}>
           <span className="usuario-avatar"><Icon name="user" size={20} /></span>
@@ -141,6 +149,7 @@ export function AccountMenu({ header = false, avatar = false }: { header?: boole
         <Link to="/perfil?secao=conta" onClick={() => close()}><Icon name="defense" size={18} /><span>Conta e segurança</span></Link>
       </nav>
       <div className="account-popover-footer"><button type="button" onClick={() => { close(true); setLogoutOpen(true); }}><Icon name="logout" size={18} /><span>Sair da conta</span></button></div>
+      </>}
     </div>, trigger.current?.closest('dialog') || document.body)}
     <LogoutDialog open={logoutOpen} onClose={() => { setLogoutOpen(false); trigger.current?.focus({ preventScroll: true }); }} />
   </>;

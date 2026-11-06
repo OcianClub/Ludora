@@ -43,7 +43,8 @@ export const MembrosPage = lazy(loaders['/membros']);
 
 const prefetched = new Set<string>();
 export function preloadPage(path: string) {
-  const key = path.startsWith('/jogadores/') ? '/jogadores/:id'
+  const publicClub = path.match(/^\/clubes\/\d+(?:\/(partidas|competicoes))?$/);
+  const key = publicClub ? publicClub[1] ? `/${publicClub[1]}` : '/dashboard' : path.startsWith('/jogadores/') ? '/jogadores/:id'
     : path.startsWith('/partidas/') && path !== '/partidas/solicitacoes' ? '/partidas/:id'
     : path.startsWith('/convite/') ? '/convite' : path;
   if (!(key in loaders) || prefetched.has(key)) return;

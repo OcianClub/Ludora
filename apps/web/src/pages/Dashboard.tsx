@@ -195,11 +195,13 @@ export default function DashboardPage() {
     const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 30_000);
     const onVisibility = () => { if (!document.hidden) void refresh(); };
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('ludora:public-matches-changed', onVisibility);
     return () => {
       active = false;
       controller?.abort();
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('ludora:public-matches-changed', onVisibility);
     };
   }, [clube?.id, version]);
 

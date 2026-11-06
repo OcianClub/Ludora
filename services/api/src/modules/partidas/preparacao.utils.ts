@@ -1,7 +1,7 @@
 export class PreparacaoInvalida extends Error {}
 
 type DadosPreparacao = { data: Date; horario: string | null; categoria_id: number };
-type Convocado = { jogador_id: number; numCamisa: number; titular: boolean; jogador: { categoria_id: number } };
+type Convocado = { jogador_id: number; numCamisa: number; titular: boolean; jogador: { categoria_id: number; posicao: string } };
 
 export function validarPreparacao(partida: DadosPreparacao, convocados: Convocado[]) {
   if (!partida.data || Number.isNaN(partida.data.getTime()) || !partida.horario || !/^([01]\d|2[0-3]):[0-5]\d$/.test(partida.horario)) {
@@ -9,6 +9,9 @@ export function validarPreparacao(partida: DadosPreparacao, convocados: Convocad
   }
   if (convocados.filter(item => item.titular).length !== 5) {
     throw new PreparacaoInvalida('Salve uma escalação com exatamente cinco titulares antes de preparar ou iniciar.');
+  }
+  if (convocados.filter(item => item.titular && item.jogador.posicao === 'Goleiro').length !== 1) {
+    throw new PreparacaoInvalida('A escalação titular deve ter exatamente um goleiro. Os demais goleiros podem ficar na reserva.');
   }
   if (new Set(convocados.map(item => item.jogador_id)).size !== convocados.length || convocados.some(item =>
     item.jogador.categoria_id !== partida.categoria_id || !Number.isInteger(item.numCamisa) || item.numCamisa < 1 || item.numCamisa > 99)) {

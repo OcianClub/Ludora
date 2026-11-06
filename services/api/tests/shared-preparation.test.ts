@@ -7,7 +7,7 @@ import { validarEquipe } from '../src/modules/partidas/compartilhadas.service';
 test('preparação: consultas paralelas, privacidade e numeração atualizada', async t => {
   const own = { id: 1, clube_id: 2, categoria_id: 7, time_id: 10, publicada_em: null as Date | null, clube: { id: 2, nome: 'Ocian' } };
   const opponent = { id: 2, clube_id: 3, categoria_id: 8, time_id: 20, publicada_em: null as Date | null, clube: { id: 3, nome: 'Santos' } };
-  const p: any = { id: 1, versao: 0, status: 'AGENDADA', organizador_id: 2, sumula_clube_id: 2,
+  const p: any = { id: 1, versao: 0, status: 'AGENDADA', data: new Date('2026-11-06T00:00:00Z'), horario: '19:30', organizador_id: 2, sumula_clube_id: 2,
     titulares_necessarios: 5, categoria: { clube_id: 2 }, participantes: [own, opponent],
     mandante: { clube_representado_id: 2 }, visitante: { clube_representado_id: 3 } };
   let role = 'ADMIN';
@@ -17,7 +17,7 @@ test('preparação: consultas paralelas, privacidade e numeração atualizada', 
   let organizerReads = 0;
   const players = Array.from({ length: 6 }, (_, i) => ({ id: i + 100, numCamisa: i + 1 }));
   let lineup: any[] = players.map((j, i) => ({ jogador_id: j.id, numCamisa: j.numCamisa, titular: i < 5,
-    jogador: { numCamisa: j.numCamisa, ativo: true, categoria_id: 7 } }));
+    jogador: { numCamisa: j.numCamisa, ativo: true, categoria_id: 7, posicao: i === 0 || i === 5 ? 'Goleiro' : 'Fixo' } }));
   let writes = 0;
   function replace(target: any, name: string, value: any) {
     const old = target[name]; target[name] = value; t.after(() => { target[name] = old; });
@@ -95,5 +95,26 @@ test('preparação: consultas paralelas, privacidade e numeração atualizada', 
     lineup[5].jogador.numCamisa = 6;
     lineup = lineup.slice(0, 4);
     await assert.rejects(validarEquipe(prisma, p, own as any), /exatamente 5 titulares/);
+  });
+  await t.test('confirmação e início bloqueiam zero ou dois goleiros titulares sem gravar dados', async () => {
+    lineup = players.map((j, i) => ({ jogador_id: j.id, numCamisa: j.numCamisa, titular: i < 5,
+      jogador: { numCamisa: j.numCamisa, ativo: true, categoria_id: 7, posicao: i === 5 ? 'Goleiro' : 'Fixo' } }));
+    const before = writes;
+    p.status = 'PREPARADA';
+    Object.assign(own, { pronta: true }); Object.assign(opponent, { pronta: true });
+    for (const count of [0, 2]) {
+      lineup[0].jogador.posicao = count ? 'Goleiro' : 'Fixo';
+      lineup[1].jogador.posicao = count ? 'Goleiro' : 'Fixo';
+      await assert.rejects(validarEquipe(prisma, p, own as any), /exatamente um goleiro/);
+      const confirm = await call('post', '/partidas/:id/preparacao');
+      assert.equal(confirm.status, 400);
+      assert.match(confirm.result.error, /exatamente um goleiro/);
+      const start = await call('patch', '/partidas/:id/status', { status: 'AO_VIVO' });
+      assert.equal(start.status, 400);
+      assert.match(start.result.error, /exatamente um goleiro/);
+      assert.equal(writes, before);
+    }
+    lineup[0].jogador.posicao = 'Goleiro'; lineup[1].jogador.posicao = 'Fixo';
+    await validarEquipe(prisma, p, own as any); // Outro goleiro na reserva é permitido.
   });
 });

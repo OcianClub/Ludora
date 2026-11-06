@@ -18,12 +18,17 @@ import { BASE_URL } from '../services/config';
 import { AuthError, authRequest } from '../services/authHttp';
 import { invalidateReadCache } from '../services/readCache';
 import { clearSavedSession, reconcileClubAccess } from '../services/authSession';
+import { navigationMode, saveNavigationMode, type NavigationMode } from '../services/publicAccess';
 
 interface AuthContextValue {
   usuario: Usuario | null;
   clube: Clube | null;
   token: string | null;
   podeGerenciar: boolean;
+  modo: NavigationMode;
+  mudarModo: (modo: NavigationMode) => void;
+  clubeSelecionado: Clube | null;
+  podeEntrarGestao: boolean;
   fazendoLogin: boolean;
   login: (email: string, senha: string) => Promise<void>;
   iniciarSessao: (dados: { token: string; usuario: Usuario }) => void;
@@ -38,7 +43,7 @@ const PAPEIS_GESTORES = ['ADMIN', 'TECNICO', 'MESARIO'];
 
 function lerSalvo<T extends { id: number }>(chave: string): T | null {
   try {
-    if (!getToken()) return null;
+    if (chave !== 'ludora_clube' && !getToken()) return null;
     const value = JSON.parse(localStorage.getItem(chave) || 'null');
     return value && Number.isSafeInteger(value.id) && value.id > 0 ? value : null;
   } catch { return null; }
@@ -47,6 +52,8 @@ function lerSalvo<T extends { id: number }>(chave: string): T | null {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(() => lerSalvo<Usuario>('ludora_usuario'));
   const [clube, setClube] = useState<Clube | null>(() => lerSalvo<Clube>('ludora_clube'));
+  const [modo, setModo] = useState<NavigationMode>(navigationMode);
+  const mudarModo = useCallback((value: NavigationMode) => { saveNavigationMode(value); invalidateReadCache(); setModo(value); }, []);
   const [token, setTokenState] = useState<string | null>(getToken());
   const [fazendoLogin, setFazendoLogin] = useState(false);
   const sessionVersion = useRef(0);
@@ -102,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const sync = (event: StorageEvent) => {
-      if (event.storageArea !== localStorage || (event.key && !['ludora_token', 'ludora_usuario', 'ludora_clube', 'ludora_clube_id'].includes(event.key))) return;
+      if (event.storageArea !== localStorage || (event.key && !['ludora_token', 'ludora_usuario', 'ludora_clube', 'ludora_clube_id', 'ludora_navigation_mode'].includes(event.key))) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
         const nextToken = getToken();
@@ -111,7 +118,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         invalidateReadCache();
         setTokenState(nextToken);
         setUsuario(nextToken ? lerSalvo<Usuario>('ludora_usuario') : null);
-        const selected = nextToken ? lerSalvo<Clube>('ludora_clube') : null;
+        setModo(navigationMode());
+        const selected = lerSalvo<Clube>('ludora_clube');
         setClube(selected?.id === getClubeId() ? selected : null);
       }, 0);
     };
@@ -159,7 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUsuario(null);
     setClube(null);
     setTokenState(null);
-    window.location.href = '/login';
+    saveNavigationMode('publico');
+    window.location.href = '/selecionar-clube';
   }, []);
 
   const definirClube = useCallback((c: Clube) => {
@@ -185,10 +194,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     applyProfile(perfil);
   }, [applyProfile]);
 
-  const podeGerenciar = !!clube?.meuPapel && PAPEIS_GESTORES.includes(clube.meuPapel);
+  const podeEntrarGestao = !!token && !!clube?.meuPapel && PAPEIS_GESTORES.includes(clube.meuPapel);
+  const podeGerenciar = modo === 'gestao' && podeEntrarGestao;
+  const visibleClub = useMemo(() => modo === 'publico' || !token ? clube && { ...clube, meuPapel: null, acessoTodasCategorias: false, categoriasAcesso: [] } : clube, [clube, modo, token]);
 
-  const value = useMemo(() => ({ usuario, clube, token, podeGerenciar, fazendoLogin, login, iniciarSessao, logout, definirClube, atualizarPerfil, recarregarPerfil }),
-    [usuario, clube, token, podeGerenciar, fazendoLogin, login, iniciarSessao, logout, definirClube, atualizarPerfil, recarregarPerfil]);
+  const value = useMemo(() => ({ usuario, clube: visibleClub, clubeSelecionado: clube, token, modo, mudarModo, podeEntrarGestao, podeGerenciar, fazendoLogin, login, iniciarSessao, logout, definirClube, atualizarPerfil, recarregarPerfil }),
+    [usuario, clube, visibleClub, token, modo, mudarModo, podeEntrarGestao, podeGerenciar, fazendoLogin, login, iniciarSessao, logout, definirClube, atualizarPerfil, recarregarPerfil]);
   return (
     <AuthContext.Provider value={value}>
       {children}

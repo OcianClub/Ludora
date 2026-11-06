@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import type { Server } from 'socket.io';
 import { prisma } from '../../lib/prisma';
+import { notificarPartidaPublica } from '../../realtime/publico';
 import { exigirClubePublico, exigirGestorDoClube } from '../../middlewares/permissoes.middleware';
 import { criarNotificacoesDoClube, enviarPushParaUsuarios } from '../../services/notificacoes.service';
 import { processarMachineLearning } from '../../services/scout-ia.service';
@@ -20,6 +21,7 @@ export function criarCompartilhadasRoutes(io: Server) {
   };
   async function transmitir(id: number, resultado = false, golTimeId?: number) {
     const p = await prisma.partida.findUniqueOrThrow({ where: { id }, include: incluirPartida });
+    notificarPartidaPublica(io, p);
     for (const equipe of p.participantes) {
       io.to(`clube:${equipe.clube_id}`).emit('partida_atualizada', { id });
       io.to(`clube:${equipe.clube_id}`).emit('placar_atualizado', { id, gols_mandante: p.gols_mandante, gols_visitante: p.gols_visitante });
@@ -66,6 +68,7 @@ export function criarCompartilhadasRoutes(io: Server) {
   }
   async function agendamento(id: number, titulo: string) {
     const p = await prisma.partida.findUniqueOrThrow({ where: { id }, include: incluirPartida });
+    notificarPartidaPublica(io, p);
     for (const equipe of p.participantes) await criarNotificacoesDoClube({ io, clubeId: equipe.clube_id, partidaId: id, tipo: 'PARTIDA_AGENDADA', titulo,
       corpo: `${p.mandante.nome} x ${p.visitante.nome} · ${p.data.toISOString().slice(0, 10)} às ${p.horario}`, dados: { partidaId: id, clubeId: equipe.clube_id } }).catch(() => console.error('Falha ao notificar agenda.'));
   }

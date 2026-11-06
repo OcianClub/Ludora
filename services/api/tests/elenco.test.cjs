@@ -46,7 +46,7 @@ function banco(t, inicial = []) {
   let retries = 0;
   let allowed = [12, 14, 18];
   const tx = {
-    escalacaoPartida: { findMany: async () => [] },
+    escalacaoPartida: { findMany: async () => [], findFirst: async () => null },
     categoria: { findFirst: async ({ where }) => categorias.find(c => c.clube_id === where.clube_id && c.nome === where.nome.equals), findMany: async () => categorias },
     usuarioClube: { findUnique: async () => ({ papel: 'TECNICO', acesso_todas_categorias: false, categorias: allowed.map(categoria_id => ({ categoria_id })) }) },
     jogador: {
@@ -114,8 +114,10 @@ test('editar somente a camisa aceita 1 e 01 e preserva nome, posição e categor
     assert.equal(salvo.dtNasc.toISOString(), legado.dtNasc.toISOString());
   }
   await assert.rejects(salvarAluno(1, 7, { nome: 'James ⚽' }, legado.id), /nome válido/);
+  await salvarAluno(1, 7, { nome: legado.nome, numCamisa: '33' }, legado.id);
+  assert.equal(db.rows()[0].numCamisa, 33, 'cliente antigo pode reenviar o nome legado inalterado');
   await assert.rejects(salvarAluno(1, 7, { numCamisa: '00' }, legado.id), /1 a 99/);
-  assert.equal(db.rows()[0].numCamisa, 1);
+  assert.equal(db.rows()[0].numCamisa, 33);
 });
 
 test('troca de camisa funciona com nomes antigos e confirmação obsoleta não altera ninguém', async t => {

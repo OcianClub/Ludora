@@ -3,6 +3,7 @@ import { Router } from 'express';
 import type { Server } from 'socket.io';
 
 import { prisma } from '../../lib/prisma';
+import { notificarPartidaPublica } from '../../realtime/publico';
 import {
   exigirGestorDoClube,
   exigirClubePublico,
@@ -43,6 +44,10 @@ function formatarDataPartida(data: Date, horario: string | null) {
 }
 
 export function criarPartidaRoutes(io: Server) {
+  function publicarMudanca(id: number) {
+    void prisma.partida.findUnique({ where: { id }, select: { id: true, categoria: { select: { clube_id: true } }, mandante: { select: { clube_representado_id: true } }, visitante: { select: { clube_representado_id: true } } } })
+      .then(p => { if (p) notificarPartidaPublica(io, p); }).catch(() => console.error('Falha ao atualizar espectadores da partida.'));
+  }
   const router = Router();
   router.use(criarCompartilhadasRoutes(io));
   router.use(criarHomeRoutes(exigirClubePublico, (clubeId, hoje) => consultarHome(prisma, clubeId, hoje)));
@@ -236,6 +241,7 @@ export function criarPartidaRoutes(io: Server) {
         console.error('Não foi possível criar notificações da partida:', erro);
       }
 
+      publicarMudanca(partida.id);
       res.status(201).json(partida);
     } catch (error: any) {
       console.error('Erro ao criar partida:', error.message || error);
@@ -353,6 +359,7 @@ export function criarPartidaRoutes(io: Server) {
           'partida_atualizada',
           partida
         );
+        publicarMudanca(partida.id);
         res.json(partida);
       } catch (e: any) {
         res.status(500).json({ error: 'Não foi possível atualizar a partida. Tente novamente.' });
@@ -423,6 +430,7 @@ export function criarPartidaRoutes(io: Server) {
           'placar_atualizado',
           partida
         );
+        publicarMudanca(partida.id);
         await notificarGol((req as any).clubeId, anterior, partida);
 
         res.json(partida);
@@ -483,7 +491,7 @@ export function criarPartidaRoutes(io: Server) {
             }
             const convocados = await tx.escalacaoPartida.findMany({
               where: { partida_id: partidaId },
-              select: { jogador_id: true, numCamisa: true, titular: true, jogador: { select: { categoria_id: true } } },
+              select: { jogador_id: true, numCamisa: true, titular: true, jogador: { select: { categoria_id: true, posicao: true } } },
             });
             validarPreparacao(atual, convocados);
           }
@@ -508,6 +516,7 @@ export function criarPartidaRoutes(io: Server) {
           partida
         );
 
+        publicarMudanca(partida.id);
         if (status === 'FINALIZADA' && anterior?.status !== 'FINALIZADA') {
           const clubeId = (req as any).clubeId as number;
           setImmediate(() => {
@@ -692,6 +701,7 @@ export function criarPartidaRoutes(io: Server) {
           partida_id: partidaId,
         });
 
+        publicarMudanca(partidaId);
         res.status(201).json(evento);
       } catch (error: any) {
         if (error instanceof ConflitoPartida)
@@ -782,6 +792,7 @@ export function criarPartidaRoutes(io: Server) {
             atual
           );
         }
+        publicarMudanca(evento.partida_id);
         res.json({ mensagem: 'Evento deletado' });
       } catch (error: any) {
         if (error instanceof ConflitoPartida)

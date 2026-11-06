@@ -4,13 +4,11 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import { TooltipLayer } from './components/Tooltip';
+import { WorkspaceAccess, ManagementAccess, AccessRequired, PublicClubEntry, PublicMatchEntry } from './components/PublicAccess';
 
 function Protegida({ children }: { children: React.ReactNode }) {
-  const { token, clube } = useAuth();
-  const { pathname } = useLocation();
-  if (!token) return <Navigate to="/login" replace />;
-  if (!clube && pathname !== '/perfil') return <Navigate to="/selecionar-clube" replace />;
-  return <Fragment key={token}>{children}</Fragment>;
+  const { token, modo } = useAuth();
+  return <WorkspaceAccess><Fragment key={`${token}:${modo}`}>{children}</Fragment></WorkspaceAccess>;
 }
 
 function RouteNavigation() {
@@ -40,7 +38,7 @@ function RouteNavigation() {
 
 function SoToken({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
-  if (!token) return <Navigate to="/login" replace />;
+  if (!token) return <AccessRequired />;
   return <Fragment key={token}>{children}</Fragment>;
 }
 
@@ -57,25 +55,30 @@ export default function App() {
           <Route path="/convite" element={<Page><ConvitePage /></Page>} />
           <Route path="/convite/token/:codigo" element={<Page><ConvitePage /></Page>} />
           <Route path="/convite/:codigo" element={<Page><ConvitePage /></Page>} />
-          <Route path="/selecionar-clube" element={<SoToken><Page><SelecionarClubePage /></Page></SoToken>} />
-          <Route element={<Protegida><Layout /></Protegida>}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Page><DashboardPage /></Page>} />
-            <Route path="/jogadores" element={<Page><JogadoresPage /></Page>} />
-            <Route path="/jogadores/:id" element={<Page><JogadorPerfil /></Page>} />
-            <Route path="/jogadores/:id/partidas" element={<Page><JogadorPerfil history="partidas" /></Page>} />
-            <Route path="/jogadores/:id/campeonatos" element={<Page><JogadorPerfil history="campeonatos" /></Page>} />
-            <Route path="/clube" element={<Page><ClubePerfil /></Page>} />
-            <Route path="/elenco" element={<Page><ElencoPage /></Page>} />
-            <Route path="/times" element={<Page><TimesPage /></Page>} />
-            <Route path="/partidas" element={<Page><PartidasPage /></Page>} />
-            <Route path="/partidas/solicitacoes" element={<Page><SolicitacoesPartidas /></Page>} />
-            <Route path="/partidas/:id" element={<Page><PartidaDetalhePage /></Page>} />
-            <Route path="/competicoes" element={<Page><CompeticoesPage /></Page>} />
-            <Route path="/perfil" element={<Page><PerfilPage /></Page>} />
-            <Route path="/membros" element={<Page><MembrosPage /></Page>} />
+          <Route path="/selecionar-clube" element={<Page><SelecionarClubePage /></Page>} />
+          <Route path="/clubes/:clubeId" element={<PublicClubEntry />}>
+            <Route index element={<Page><DashboardPage /></Page>} />
+            <Route path="partidas" element={<Page><PartidasPage /></Page>} />
+            <Route path="competicoes" element={<Page><CompeticoesPage /></Page>} />
           </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route element={<Protegida><Layout /></Protegida>}>
+            <Route index element={<Navigate to="/selecionar-clube" replace />} />
+            <Route path="/dashboard" element={<Page><DashboardPage /></Page>} />
+            <Route path="/jogadores" element={<ManagementAccess><Page><JogadoresPage /></Page></ManagementAccess>} />
+            <Route path="/jogadores/:id" element={<ManagementAccess><Page><JogadorPerfil /></Page></ManagementAccess>} />
+            <Route path="/jogadores/:id/partidas" element={<ManagementAccess><Page><JogadorPerfil history="partidas" /></Page></ManagementAccess>} />
+            <Route path="/jogadores/:id/campeonatos" element={<ManagementAccess><Page><JogadorPerfil history="campeonatos" /></Page></ManagementAccess>} />
+            <Route path="/clube" element={<ManagementAccess><Page><ClubePerfil /></Page></ManagementAccess>} />
+            <Route path="/elenco" element={<ManagementAccess><Page><ElencoPage /></Page></ManagementAccess>} />
+            <Route path="/times" element={<ManagementAccess><Page><TimesPage /></Page></ManagementAccess>} />
+            <Route path="/partidas" element={<Page><PartidasPage /></Page>} />
+            <Route path="/partidas/solicitacoes" element={<ManagementAccess><Page><SolicitacoesPartidas /></Page></ManagementAccess>} />
+            <Route path="/partidas/:id" element={<PublicMatchEntry><Page><PartidaDetalhePage /></Page></PublicMatchEntry>} />
+            <Route path="/competicoes" element={<Page><CompeticoesPage /></Page>} />
+            <Route path="/perfil" element={<SoToken><Page><PerfilPage /></Page></SoToken>} />
+            <Route path="/membros" element={<ManagementAccess><Page><MembrosPage /></Page></ManagementAccess>} />
+          </Route>
+          <Route path="*" element={<Navigate to="/selecionar-clube" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

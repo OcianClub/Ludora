@@ -1,10 +1,11 @@
 import { Router } from 'express';
+import { somenteAdministracaoPlataforma } from '../cadastros/gestao-times.policy';
 import { prisma } from '../../lib/prisma';
 import { exigirMembroDoClube, exigirAdminDoClube } from '../../middlewares/permissoes.middleware';
 import { ErroOperacao, responderErroOperacao } from '../../utils/erro-operacao';
 const router = Router();
 // Até existir o administrador global da empresa, exige administração dos dois clubes.
-router.patch('/times/vinculo', exigirMembroDoClube, exigirAdminDoClube, async (req,res) => {
+router.patch('/times/vinculo', exigirMembroDoClube, exigirAdminDoClube, somenteAdministracaoPlataforma, async (req,res) => {
   const {time_ids:ids, clube_id:target, motivo} = req.body ?? {};
   if (!Array.isArray(ids) || !ids.length || ids.length > 30 || ids.some(id=>!Number.isSafeInteger(id)||id<1) || new Set(ids).size!==ids.length || (target !== null && (!Number.isSafeInteger(target)||target<1)) || typeof motivo !== 'string' || motivo.trim().length<5 || motivo.length>300) return res.status(400).json({error:'Informe times, clube (ou null para desfazer) e motivo'});
   try {

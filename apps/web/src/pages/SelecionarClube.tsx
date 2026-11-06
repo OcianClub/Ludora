@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cachedJson, deixarDeSeguirClube, fetchClubes, seguirClube, type Clube } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Btn, Modal } from '../components/UI';
 import { ClubRowsSkeleton } from '../components/StandaloneLoading';
-import { Brand, ClubBadge } from '../components/Brand';
-import { AccountMenu } from '../components/AccountMenu';
-import { Notifications } from '../components/Notifications';
+import { ClubBadge } from '../components/Brand';
+import { PublicHeader } from '../components/PublicLayout';
+import { rememberAccess } from '../services/publicAccess';
 import { CollectionSearch } from '../components/CollectionToolbar';
 import { Icon, type IconName } from '../components/Icon';
 import './SelecionarClube.css';
@@ -22,15 +22,18 @@ const papeis: Record<string, { label: string; icon: IconName }> = {
 };
 
 export default function SelecionarClubePage() {
-  const { definirClube, clube: clubeAtual } = useAuth();
+  const { definirClube, clubeSelecionado: clubeAtual, token, mudarModo } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [clubes, setClubes] = useState<Clube[]>(() => cachedJson<Clube[]>('/clubes') || []);
   const [loading, setLoading] = useState(() => !cachedJson('/clubes'));
   const [erro, setErro] = useState('');
+  const accessNotice = (location.state as { message?: string } | null)?.message;
   const [seguindoId, setSeguindoId] = useState<number | null>(null);
   const [busca, setBusca] = useState('');
   const [tentativa, setTentativa] = useState(0);
   const [confirmarSaida, setConfirmarSaida] = useState<Clube | null>(null);
+  const [entrarParaSeguir, setEntrarParaSeguir] = useState<Clube | null>(null);
 
   useEffect(() => {
     let ativo = true;
@@ -40,14 +43,16 @@ export default function SelecionarClubePage() {
       .catch(() => { if (ativo) setErro('Não foi possível carregar os clubes. Verifique sua conexão e tente novamente.'); })
       .finally(() => { if (ativo) setLoading(false); });
     return () => { ativo = false; };
-  }, [tentativa]);
+  }, [tentativa, token]);
 
   function selecionar(clube: Clube) {
+    mudarModo('publico');
     definirClube(clube);
-    navigate('/dashboard');
+    navigate(`/clubes/${clube.id}`);
   }
 
   async function acompanhar(clube: Clube) {
+    if (!token) { setEntrarParaSeguir(clube); return; }
     if (seguindoId !== null) return;
     setErro('');
     setSeguindoId(clube.id);
@@ -130,12 +135,10 @@ export default function SelecionarClubePage() {
   }
 
   return <div className="selecionar-page">
-    <header className="selecionar-header"><div className="selecionar-header-inner">
-      <Brand />
-      <div className="selecionar-header-acoes">{clubeAtual && <Notifications />}<AccountMenu header /></div>
-    </div></header>
+    <PublicHeader />
     <main className="selecionar-body" data-tooltip-disabled>
       <div className="selecionar-intro"><h1>Encontre o seu clube</h1><p>Acesse qualquer clube. Seguir serve para deixar seus favoritos salvos aqui.</p></div>
+      {accessNotice && <p className="editor-description" role="status">{accessNotice}</p>}
       {erro && <div className="club-picker-error" role="alert"><span>{erro}</span>{!clubes.length && <button type="button" onClick={() => setTentativa(value => value + 1)}>Tentar novamente</button>}</div>}
       {loading ? <ClubRowsSkeleton /> : <>
         {!query && gerenciados.length > 0 && <section className="club-picker-section" aria-labelledby="clubs-roles">
@@ -155,6 +158,11 @@ export default function SelecionarClubePage() {
       </>}
 
     </main>
+    <Modal open={!!entrarParaSeguir} title="Salve seus clubes favoritos" className="club-follow-login-dialog" onClose={() => setEntrarParaSeguir(null)} footer={<div className="club-follow-login-actions"><Btn variant="ghost" onClick={() => setEntrarParaSeguir(null)}>Continuar explorando</Btn><Link className="btn btn-primary btn-md" to="/login" onClick={() => rememberAccess('/selecionar-clube', entrarParaSeguir?.id)}>Entrar e seguir<Icon name="arrow" size={16} /></Link></div>}>
+      <div className="club-follow-login-club"><ClubBadge src={entrarParaSeguir?.escudo} name={entrarParaSeguir?.nome || 'Clube'} size={44}/><div><span>Você quer acompanhar</span><strong>{entrarParaSeguir?.nome}</strong></div></div>
+      <p>Entre na sua conta para seguir este clube e encontrar seus favoritos em qualquer dispositivo.</p>
+      <div className="club-follow-login-benefit"><Icon name="bell" size={18}/><span>Escolha os avisos que deseja receber.</span></div>
+    </Modal>
     <Modal open={!!confirmarSaida} title="Deixar de seguir?" className="club-picker-confirm" onClose={() => { if (seguindoId === null) { setConfirmarSaida(null); setErro(''); } }}>
       <p>O {confirmarSaida?.nome} sairá dos seus favoritos. Você ainda poderá acessar o clube pela busca.</p>
       {erro && <p role="alert" className="club-picker-error">{erro}</p>}

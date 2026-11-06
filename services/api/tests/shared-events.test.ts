@@ -52,7 +52,7 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
   replace(prisma.participantePartida, 'findMany', async () => []);
   replace(prisma.usuarioClube, 'findMany', async () => []);
   const broadcasts: string[] = [];
-  const router = criarCompartilhadasRoutes({ to: () => ({ emit: (name: string) => broadcasts.push(name) }) } as any);
+  const router = criarCompartilhadasRoutes({ of: () => ({ to: () => ({ emit() {} }) }), to: () => ({ emit: (name: string) => broadcasts.push(name) }) } as any);
   async function call(method: string, path: string, body: any, club = 2, eventId?: number, expected = 201, user = club) {
     const layer = (router as any).stack.find((item: any) => item.route?.path === path && item.route.methods[method]);
     let status = 200, result: any;

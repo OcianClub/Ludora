@@ -1,85 +1,19 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const express = require('express');
 const { prisma } = require('../dist/src/lib/prisma.js');
-const permissions = require('../dist/src/middlewares/permissoes.middleware.js');
 const router = require('../dist/src/modules/cadastros/cadastro.routes.js').default;
+const profile = require('../dist/src/modules/clubes/perfil-clube.routes.js').default;
+const links = require('../dist/src/modules/clubes/vinculo-time.routes.js').default;
 const { resumirConfrontos } = require('../dist/src/modules/cadastros/time-context.js');
-
 const initial = [
-  { id: 1, nome: 'Ocian sub-7', categoria_id: 7, clube_representado_id: 2, escudo: null, arquivado: false },
-  { id: 2, nome: 'Ocian sub-8', categoria_id: 8, clube_representado_id: 2, escudo: null, arquivado: false },
-  { id: 3, nome: 'Aurora FC sub-7', categoria_id: 7, clube_representado_id: null, escudo: null, arquivado: false },
-  { id: 4, nome: 'Aurora FC (sub-8)', categoria_id: 8, clube_representado_id: null, escudo: null, arquivado: false },
-  { id: 5, nome: 'Santos sub-7', categoria_id: 7, clube_representado_id: 3, escudo: null, arquivado: false },
-  { id: 6, nome: 'Aurora FC sub-7', categoria_id: 99, clube_representado_id: null, escudo: null, arquivado: false },
+  { id: 1, nome: 'Ocian sub-7', categoria_id: 7, clube_representado_id: 2 },
+  { id: 2, nome: 'Ocian sub-8', categoria_id: 8, clube_representado_id: 2 },
+  { id: 3, nome: 'Aurora FC sub-7', categoria_id: 7, clube_representado_id: null },
+  { id: 4, nome: 'Aurora FC sub-8', categoria_id: 8, clube_representado_id: null },
+  { id: 5, nome: 'Santos sub-7', categoria_id: 7, clube_representado_id: 3 },
+  { id: 6, nome: 'Aurora FC sub-7', categoria_id: 99, clube_representado_id: null },
 ];
-
-function database(t) {
-  let rows = structuredClone(initial);
-  let official = null;
-  let allowed = [7, 8, 9];
-  let failOfficial = false;
-  t.mock.method(permissions, 'podeAcessarCategoria', async (_user, _club, category) => allowed.includes(category));
-  const originalFind = prisma.categoria.findFirst;
-  const originalTransaction = prisma.$transaction;
-  let transactions = 0;
-  prisma.categoria.findFirst = async ({ where }) => where.clube_id === 2 && [7, 8, 9].includes(where.id) ? { id: where.id, nome: `sub-${where.id}` } : null;
-  prisma.$transaction = async (callback, options) => {
-    transactions++;
-    assert.equal(options.isolationLevel, 'Serializable');
-    const before = structuredClone(rows);
-    const crest = official;
-    const tx = {
-      time: {
-        findMany: async ({ where, include }) => {
-          assert.equal(where.categoria.clube_id, 2);
-          return structuredClone(rows.filter(row => row.categoria_id !== 99).map(row => include?.categoria ? { ...row, categoria: { nome: `sub-${row.categoria_id}` } } : row));
-        },
-        updateMany: async ({ where, data }) => {
-          const target = rows.filter(row => where.id.in.includes(row.id));
-          target.forEach(row => Object.assign(row, data));
-          return { count: target.length };
-        },
-        create: async ({ data }) => { const row = { id: 20, arquivado: false, ...data }; rows.push(row); return row; },
-        update: async ({ where, data }) => {
-          const row = rows.find(item => item.id === where.id);
-          Object.assign(row, data);
-          return row;
-        },
-      },
-      clube: { update: async ({ data }) => { if (failOfficial) throw new Error('Injected failure'); official = data.escudo; } },
-    };
-    try { return await callback(tx); }
-    catch (error) { rows = before; official = crest; throw error; }
-  };
-  t.after(() => { prisma.categoria.findFirst = originalFind; prisma.$transaction = originalTransaction; });
-  return { transactions: () => transactions, rows: () => rows, official: () => official, allow: categories => { allowed = categories; }, failOfficial: () => { failOfficial = true; } };
-}
-
-async function call(method, path, id, body, role = 'ADMIN') {
-  const route = router.stack.find(layer => layer.route?.path === path && layer.route.methods[method]).route;
-  const response = { statusCode: 200, body: null, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
-  await route.stack.at(-1).handle({ params: { id: String(id) }, body, query: {}, clubeId: 2, usuarioId: 1, papelUsuario: role }, response);
-  return response;
-}
-
-test('ações de gestão rejeitam times vinculados a outro clube e permitem times externos ou do próprio clube', async t => {
-  const originalFind = prisma.time.findFirst;
-  prisma.time.findFirst = async ({ where }) => initial.find(item => item.id === where.id) || null;
-  t.after(() => { prisma.time.findFirst = originalFind; });
-  for (const [method, path] of [['patch', '/times/:id/arquivo'], ['post', '/times/:id/categorias'], ['patch', '/times/:id'], ['delete', '/times/:id']]) {
-    const route = router.stack.find(layer => layer.route?.path === path && layer.route.methods[method]).route;
-    const guard = route.stack.at(-2).handle;
-    for (const [id, expected] of [[5, 403], [3, 200], [1, 200]]) {
-      let nextCalled = false;
-      const response = { statusCode: 200, status(code) { this.statusCode = code; return this; }, json() { return this; } };
-      await guard({ params: { id: String(id) }, clubeId: 2 }, response, () => { nextCalled = true; });
-      assert.equal(response.statusCode, expected, `${method} ${path}, time ${id}`);
-      assert.equal(nextCalled, expected === 200);
-    }
-  }
-});
-
 test('retrospecto usa a perspectiva do clube, agrega categorias, multiplica resultados repetidos e ignora terceiros', () => {
   const score = (home, away, h, a, n = 1) => ({ mandante_id: home, visitante_id: away, gols_mandante: h, gols_visitante: a, _count: { _all: n } });
   const summaries = resumirConfrontos(initial, [score(1, 3, 2, 0, 2), score(4, 2, 1, 1), score(3, 1, 3, 0), score(3, 5, 4, 0)], [
@@ -95,74 +29,79 @@ test('retrospecto usa a perspectiva do clube, agrega categorias, multiplica resu
   assert.deepEqual(own.categorias.map(item => [item.categoria_id, item.vitorias, item.empates, item.derrotas]), [[7, 2, 0, 1], [8, 0, 1, 0]]);
 });
 
-test('escudo atualiza todas as categorias do adversário em uma transação, sem alcançar outro clube', async t => {
-  const db = database(t);
-  const result = await call('patch', '/times/:id/escudo', 3, { escudo: 'https://example.test/crest.png' });
-  assert.equal(result.statusCode, 200);
-  assert.deepEqual(result.body.ids, [3, 4]);
-  assert.equal(db.rows().filter(row => row.escudo).length, 2);
-  assert.equal(db.rows().find(row => row.id === 6).escudo, null);
-});
 
-test('permissão parcial, origem de outro clube e escudo de clube terceiro são rejeitados sem escritas', async t => {
-  const db = database(t);
-  db.allow([7]);
-  assert.equal((await call('patch', '/times/:id/escudo', 3, { escudo: '' })).statusCode, 403);
-  assert.equal((await call('patch', '/times/:id/escudo', 6, { escudo: '' })).statusCode, 404);
-  assert.equal((await call('patch', '/times/:id/escudo', 5, { escudo: '' })).statusCode, 403);
-  assert.deepEqual(db.rows(), initial);
-});
+test('Times web: API somente leitura e confrontos limitados ao clube atual', async t => {
+  let role = 'ADMIN', writes = [], queries = [];
+  const club = { id: 2, nome: 'Ocian', escudo: null };
+  function mock(target, key, implementation) { const old = target[key]; target[key] = implementation; t.after(() => { target[key] = old; }); }
+  mock(prisma.usuarioClube, 'findUnique', async () => ({ papel: role, acesso_todas_categorias: true, categorias: [] }));
+  mock(prisma.time, 'findMany', async ({ where }) => where.categoria ? initial.filter(j => j.categoria_id !== 99) : []);
+  mock(prisma.time, 'findFirst', async ({ where }) => initial.find(j => j.id === where.id));
+  mock(prisma.clube, 'findUnique', async () => club);
+  mock(prisma.clube, 'update', async args => { writes.push(args); return { ...club, ...args.data }; });
+  for (const method of ['create', 'update', 'updateMany', 'delete']) mock(prisma.time, method, async args => { writes.push(args); throw Error('Uma escrita não deveria ocorrer'); });
+  const games = [
+    { id: 10, mandante_id: 1, visitante_id: 5, gols_mandante: 2, gols_visitante: 0 },
+    { id: 11, mandante_id: 5, visitante_id: 1, gols_mandante: 3, gols_visitante: 1 },
+    { id: 12, mandante_id: 3, visitante_id: 5, gols_mandante: 8, gols_visitante: 0 }, // terceiros
+    { id: 13, mandante_id: 1, visitante_id: 3, gols_mandante: 1, gols_visitante: 0 }, // outro adversário
+  ];
+  function filtered(where) {
+    return games.filter(g => where.OR.some(pair => pair.mandante_id.in.includes(g.mandante_id) && pair.visitante_id.in.includes(g.visitante_id)));
+  }
+  mock(prisma.partida, 'findMany', async args => { queries.push(args); return args.where.status === 'FINALIZADA' ? filtered(args.where) : []; });
+  mock(prisma.partida, 'groupBy', async args => { queries.push(args); return filtered(args.where).map(g => ({ ...g, _count: { _all: 1 } })); });
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => { req.usuarioId = 1; req.clubeId = 2; next(); });
+  app.use(links, profile, router);
+  const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.on('listening', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const base = 'http://127.0.0.1:' + server.address().port;
+  const send = (method, path, body) => fetch(base + path, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
 
-test('escudo oficial exige ADMIN e falha no clube desfaz também alterações nos times', async t => {
-  const db = database(t);
-  assert.equal((await call('patch', '/times/:id/escudo', 1, { escudo: 'https://example.test/a.png' }, 'TECNICO')).statusCode, 403);
-  db.failOfficial();
-  assert.equal((await call('patch', '/times/:id/escudo', 1, { escudo: 'https://example.test/a.png' })).statusCode, 409);
-  assert.equal(db.official(), null);
-  assert.deepEqual(db.rows(), initial);
-});
+  await t.test('admin, técnico e mesário não alteram próprio time, adversário Ludora ou externo', async () => {
+    for (role of ['ADMIN', 'TECNICO', 'MESARIO']) {
+      for (const id of [1, 3, 5]) {
+        for (const [method, suffix, body] of [
+          ['PATCH', '/nome', { nome: 'Alterado' }], ['PATCH', '/escudo', { escudo: 'https://example.test/a.png' }],
+          ['PATCH', '/arquivo', { arquivado: true }], ['POST', '/categorias', { categoria_id: 8 }],
+          ['PATCH', '', { nome: 'Alterado', categoria_id: 7 }], ['DELETE', '', {}],
+        ]) {
+          const res = await send(method, '/times/' + id + suffix, body);
+          assert.equal(res.status, 403, role + ' ' + method + ' time ' + id + suffix);
+          assert.match((await res.json()).error, /superadministradores/);
+        }
+      }
+    }
+    assert.equal(writes.length, 0);
+    role = 'ADMIN';
+    assert.equal((await send('PATCH', '/times/vinculo', { time_ids: [5], clube_id: 2, motivo: 'Tentativa de vincular' })).status, 403);
+  });
 
-test('URL inválida não executa transação', async t => {
-  const db = database(t);
-  assert.equal((await call('patch', '/times/:id/escudo', 3, { escudo: 'javascript:alert(1)' })).statusCode, 400);
-  assert.equal(db.transactions(), 0);
-});
+  await t.test('nome e escudo também são bloqueados pelo endpoint alternativo de perfil', async () => {
+    for (const body of [{ nome: 'Outro nome' }, { escudo: 'https://example.test/a.png' }, { nome: 'Ocian', escudo: '', endereco: null }]) {
+      const res = await send('PATCH', '/clube/perfil', body);
+      // Enviar os valores atuais é compatível com clientes antigos e só muda a sede.
+      if (body.nome === 'Ocian') assert.equal(res.status, 200); else assert.equal(res.status, 403);
+    }
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0].data.nome, undefined); assert.equal(writes[0].data.escudo, undefined);
+    assert.equal((await send('PATCH', '/clube/perfil', { nome: 'Ocian' })).status, 400);
+  });
 
-test('arquivar/restaurar preserva registros e só altera categorias locais do adversário', async t => {
-  const db = database(t);
-  const archive = await call('patch', '/times/:id/arquivo', 3, { arquivado: true });
-  assert.deepEqual(archive.body.ids, [3, 4]);
-  assert.equal(db.rows().filter(row => row.arquivado).length, 2);
-  assert.equal(db.rows().length, initial.length);
-  const restore = await call('patch', '/times/:id/arquivo', 4, { arquivado: false });
-  assert.equal(restore.statusCode, 200);
-  assert.deepEqual(db.rows(), initial);
-  assert.equal((await call('patch', '/times/:id/arquivo', 1, { arquivado: true })).statusCode, 403);
-});
-
-test('nova categoria herda vínculo oficial, evita duplicação e exige categoria do clube com acesso', async t => {
-  const db = database(t);
-  const added = await call('post', '/times/:id/categorias', 5, { categoria_id: 8 });
-  assert.equal(added.statusCode, 201);
-  assert.equal(added.body.clube_representado_id, 3);
-  assert.equal((await call('post', '/times/:id/categorias', 5, { categoria_id: 8 })).statusCode, 409);
-  assert.equal((await call('post', '/times/:id/categorias', 5, { categoria_id: 99 })).statusCode, 403);
-  db.allow([7]);
-  assert.equal((await call('post', '/times/:id/categorias', 5, { categoria_id: 9 })).statusCode, 403);
-});
-
-test('time arquivado não recebe novas categorias', async t => {
-  database(t);
-  await call('patch', '/times/:id/arquivo', 3, { arquivado: true });
-  assert.equal((await call('post', '/times/:id/categorias', 3, { categoria_id: 9 })).statusCode, 409);
-});
-
-test('renomear altera todas as categorias mantendo IDs e rejeita nome duplicado ou clube terceiro', async t => {
-  const db = database(t);
-  const renamed = await call('patch', '/times/:id/nome', 3, { nome: 'Aurora Esporte' });
-  assert.equal(renamed.statusCode, 200);
-  assert.deepEqual(renamed.body.items.map(item => [item.id, item.nome]), [[3, 'Aurora Esporte sub-7'], [4, 'Aurora Esporte sub-8']]);
-  assert.equal(db.rows().find(item => item.id === 6).nome, 'Aurora FC sub-7');
-  assert.equal((await call('patch', '/times/:id/nome', 3, { nome: 'Santos' })).statusCode, 409);
-  assert.equal((await call('patch', '/times/:id/nome', 5, { nome: 'Outro nome' })).statusCode, 403);
+  await t.test('resumo e histórico consultam o mesmo confronto, sem partidas de terceiros', async () => {
+    const res = await send('GET', '/times/5/contexto?categoria_id=7');
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.deepEqual(data.ultimas.map(g => g.id), [10, 11]);
+    assert.deepEqual([data.resumo.vitorias, data.resumo.empates, data.resumo.derrotas], [1, 0, 1]);
+    assert.equal(queries.length, 3);
+    for (const query of queries) assert.deepEqual(query.where.OR, [
+      { mandante_id: { in: [1] }, visitante_id: { in: [5] } }, { mandante_id: { in: [5] }, visitante_id: { in: [1] } },
+    ]);
+    assert.equal(queries[0].take, 5);
+    assert.equal((await send('GET', '/times/5/contexto?categoria_id=99')).status, 403);
+    assert.equal((await send('GET', '/times/999/contexto')).status, 404);
+  });
 });

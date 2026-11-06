@@ -4,7 +4,7 @@ const { validarPreparacao, PreparacaoInvalida } = require('../dist/src/modules/p
 const { prisma } = require('../dist/src/lib/prisma');
 const { criarPartidaRoutes } = require('../dist/src/modules/partidas/partida.routes');
 const dados = { data: new Date('2026-10-29T00:00:00Z'), horario: '19:30', categoria_id: 1 };
-const equipe = () => Array.from({ length: 6 }, (_, i) => ({ jogador_id: 100 + i, numCamisa: i + 1, titular: i < 5, jogador: { categoria_id: 1 } }));
+const equipe = () => Array.from({ length: 6 }, (_, i) => ({ jogador_id: 100 + i, numCamisa: i + 1, titular: i < 5, jogador: { categoria_id: 1, posicao: i === 0 || i === 5 ? 'Goleiro' : 'Fixo' } }));
 
 test('preparação exige cinco titulares, data/horário e camisas válidas na categoria', () => {
   assert.doesNotThrow(() => validarPreparacao(dados, equipe()));
@@ -21,7 +21,7 @@ test('API impede pular preparação, valida escalação salva e só então trans
   let emits = 0;
   const originalFind = prisma.partida.findUnique, originalTx = prisma.$transaction;
   t.after(() => { prisma.partida.findUnique = originalFind; prisma.$transaction = originalTx; });
-  prisma.partida.findUnique = async () => ({ status });
+  prisma.partida.findUnique = async () => ({ status, id: 106, categoria: { clube_id: 2 } });
   prisma.$transaction = async callback => callback({
     escalacaoPartida: { findMany: async () => lineup },
     partida: {
@@ -29,7 +29,7 @@ test('API impede pular preparação, valida escalação salva e só então trans
       updateMany: async ({ where, data }) => { if (where.status !== status) return { count: 0 }; status = data.status; return { count: 1 }; },
     },
   });
-  const router = criarPartidaRoutes({ to: () => ({ emit: () => emits++ }) });
+  const router = criarPartidaRoutes({ of: () => ({ to: () => ({ emit() {} }) }), to: () => ({ emit: () => emits++ }) });
   const handler = router.stack.find(layer => layer.route?.path === '/partidas/:id/status' && layer.route.methods.patch).route.stack.at(-1).handle;
   async function request(next) {
     let code = 200, body;
@@ -51,4 +51,12 @@ test('API impede pular preparação, valida escalação salva e só então trans
   assert.equal((await request('AO_VIVO')).code, 200);
   assert.equal(status, 'AO_VIVO');
   assert.equal(emits, 2);
+});
+
+test('fluxo legado exige exatamente um goleiro titular e permite goleiros reservas', () => {
+  for (const total of [0, 2]) {
+    const rows = equipe().map((j, i) => ({ ...j, jogador: { ...j.jogador, posicao: i < total || i === 5 ? 'Goleiro' : 'Fixo' } }));
+    assert.throws(() => validarPreparacao(dados, rows), /exatamente um goleiro/);
+  }
+  assert.doesNotThrow(() => validarPreparacao(dados, equipe()));
 });

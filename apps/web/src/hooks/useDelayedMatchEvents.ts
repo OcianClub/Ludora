@@ -15,9 +15,10 @@ type QueuedEvent = {
   error?: string;
 };
 
-export function useDelayedMatchEvents(matchId: number, scope: string, onSent: (event: MatchEvent | null) => Promise<void>) {
+export function useDelayedMatchEvents(matchId: number, scope: string, onSent: (event: MatchEvent | null) => Promise<void>, enabled = true) {
   const key = `ludora:event-review:${scope}:${matchId}`;
   const [queue, setQueue] = useState<QueuedEvent[]>(() => {
+    if (!enabled) return [];
     try {
       const saved = JSON.parse(sessionStorage.getItem(key) || '[]') as QueuedEvent[];
       return saved.map(item => ({ ...item, status: 'failed', error: 'Envio interrompido. Confira e tente novamente.' }));
@@ -34,7 +35,7 @@ export function useDelayedMatchEvents(matchId: number, scope: string, onSent: (e
     setQueue(current.current);
   }
   useEffect(() => {
-    if (!queue.length) return;
+    if (!enabled || !queue.length) return;
     let mounted = true;
     const tick = async () => {
       if (!mounted) return;
@@ -67,13 +68,15 @@ export function useDelayedMatchEvents(matchId: number, scope: string, onSent: (e
     };
     window.addEventListener('beforeunload', warn);
     return () => { mounted = false; clearInterval(timer); window.removeEventListener('beforeunload', warn); };
-  }, [key, matchId, queue.length > 0]);
+  }, [key, matchId, queue.length > 0, enabled]);
   return {
     queue, now,
     enqueue(payload: Record<string, unknown>, label: string, requestId = crypto.randomUUID()) {
+      if (!enabled) return;
       change(items => [...items, { id: requestId, payload, label, due: Date.now() + EVENT_REVIEW_MS, status: 'waiting' }]);
     },
     remove(eventId: number, motivo: string, label: string) {
+      if (!enabled) return;
       if (current.current.some(item => item.operation === 'remove' && item.payload.evento_id === eventId)) return;
       change(items => [...items, { id: crypto.randomUUID(), operation: 'remove', payload: { evento_id: eventId, motivo }, label, due: Date.now() + EVENT_REVIEW_MS, status: 'waiting' }]);
     },

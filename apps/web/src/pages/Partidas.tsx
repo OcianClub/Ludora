@@ -274,7 +274,10 @@ export default function PartidasPage() {
   }
   useEffect(() => {
     carregar();
-    return () => { loadVersion.current++; };
+    const refresh = () => carregar();
+    window.addEventListener('ludora:public-matches-changed', refresh);
+    const poll = window.setInterval(() => { if (!document.hidden) carregar(); }, 30_000);
+    return () => { loadVersion.current++; window.removeEventListener('ludora:public-matches-changed', refresh); clearInterval(poll); };
   }, [clube?.id]);
 
   function validarPartida() {

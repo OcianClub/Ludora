@@ -17,10 +17,11 @@ const { chromium } = require('playwright');
       const errors = [];
       page.on('pageerror', err => errors.push(err.message));
       await require('./visual-fixture.cjs').install(page);
-      const players = Array.from({ length: 8 }, (_, i) => ({ id: 100 + i, nome: `Atleta ${i + 1}`, numCamisa: i >= 6 ? null : i + 1, posicao: 'Fixo', categoria_id: 1 }));
+      const players = Array.from({ length: 8 }, (_, i) => ({ id: 100 + i, nome: `Atleta ${i + 1}`, numCamisa: i >= 6 ? null : i + 1, posicao: i === 1 ? 'Goleiro' : 'Fixo', categoria_id: 1 }));
       let lineup = [];
       let saves = 0, deletes = 0;
       await page.route('**/jogadores/perfis?*', route => route.fulfill({ json: players }));
+      await page.route('**/jogadores?*convocacao=true*', route => route.fulfill({ json: players }));
       await page.route('**/partidas?*', route => route.fulfill({ json: [{ id: 106, status: 'AGENDADA', categoria_id: 1, categoria: { nome: 'sub-7' }, data: '2026-10-29', horario: '19:30', emCasa: true, mandante_id: 13, visitante_id: 14, mandante: { nome: 'Ocian' }, visitante: { nome: 'Santos' } }] }));
       await page.route('http://localhost:3000/partidas/106', route => { deletes++; return route.fulfill({ json: {} }); });
       await page.route('**/partidas/106/escalacao', route => {
@@ -120,6 +121,13 @@ const { chromium } = require('playwright');
       await page.mouse.up();
       assert.equal(await row(106).getAttribute('data-lineup-role'), 'titular');
       assert.equal(await row(105).getAttribute('data-lineup-role'), 'reserva');
+      // Cinco titulares sem goleiro não liberam a revisão, mesmo com camisas válidas.
+      await page.getByRole('button', { name: 'Trocar Atleta 2', exact: true }).click();
+      await page.getByRole('button', { name: 'Trocar com Atleta 6', exact: true }).click();
+      assert.equal(await page.getByRole('button', { name: 'Salvar e revisar', exact: true }).isDisabled(), true);
+      await page.getByRole('button', { name: 'Trocar Atleta 2', exact: true }).click();
+      await page.getByRole('button', { name: 'Trocar com Atleta 6', exact: true }).click();
+      assert.equal(await page.getByRole('button', { name: 'Salvar e revisar', exact: true }).isEnabled(), true);
       await page.getByRole('button', { name: 'Salvar e revisar', exact: true }).click();
       await page.locator('.preparation-review').waitFor();
       assert.equal(lineup.length, 6);
