@@ -27,7 +27,7 @@ export function MatchResultSummary({ data, onFeedback, onCorrectEvent }: Props) 
     { id: match.mandante_id, name: match.mandante?.nome || 'Mandante', crest: match.mandante?.escudo, score: match.gols_mandante },
     { id: match.visitante_id, name: match.visitante?.nome || 'Visitante', crest: match.visitante?.escudo, score: match.gols_visitante },
   ];
-  const text = matchResultText(data, includeNames);
+  const text = (data.paulista ? 'Anotações do clube (resultado oficial consultável na federação).\n' : '') + matchResultText(data, includeNames);
   const count = (team: number, types: string[]) => data.eventos.filter(event => event.time_id === team && types.includes(event.tipo)).length;
   const stats = [
     { label: 'Faltas', type: 'FALTA', types: ['FALTA'] },
@@ -63,7 +63,7 @@ export function MatchResultSummary({ data, onFeedback, onCorrectEvent }: Props) 
     <>
       <section className="match-result" aria-labelledby="match-result-title">
         <header className="match-result-heading">
-          <h2 id="match-result-title" tabIndex={-1}>Resultado da partida</h2>
+          <h2 id="match-result-title" tabIndex={-1}>{data.paulista ? 'Placar anotado pelo clube' : 'Resultado da partida'}</h2>
           <span><Icon name="checkAll" size={15} />Encerrada</span>
         </header>
         <p className="match-result-outcome">

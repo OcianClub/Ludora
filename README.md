@@ -24,6 +24,11 @@ controle de acesso e atualizações em tempo real.
 Express + TypeScript, Prisma + PostgreSQL/Supabase, Socket.IO e Python +
 FastAPI. O projeto usa pnpm workspaces, com cores, ícones e tipos compartilhados.
 
+**Paulista:** o clube consulta `/competicoes/paulista`; a equipe Ludora administra
+a integração no Electron. O módulo exige suas migrations e flags na API.
+Consulte [operação e comandos](docs/paulista-operacao.md) e o
+[handover de 06/11](docs/handovers/2026-11-06-paulista-operacao.md).
+
 ## 1. Requisitos e instalação
 
 - Git, Node.js 22 e pnpm **11.20.0** (versão definida no projeto).
@@ -126,8 +131,9 @@ ela estiver configurada, sem exibir a chave. O comando `start` da API continua
 respeitando a configuração de produção.
 
 Os comandos individuais continuam disponíveis: `pnpm dev:api`, `pnpm dev:ml`,
-`pnpm dev:mobile` e `pnpm dev:web`. A API usa a build existente; após alterar seu
-código, compile novamente conforme a seção abaixo.
+`pnpm dev:mobile` e `pnpm dev:web`. A API executa `src/server.ts` com `tsx`
+e reinicia automaticamente quando um arquivo importado muda. Web e Electron
+usam HMR; o desktop continua separado, com `pnpm dev:desktop`.
 
 Se a porta `8081` estiver ocupada, `dev:mobile` escolhe uma porta livre até `8091`
 e informa a mudança no terminal, inclusive dentro de `pnpm dev`. No development
@@ -140,18 +146,16 @@ Com o banco configurado, execute **na raiz**:
 ```powershell
 pnpm --filter @ludora/api exec prisma generate
 pnpm --filter @ludora/api exec prisma migrate deploy
-pnpm --filter @ludora/api run build
 pnpm dev:api
 ```
 
 A API atende em `http://localhost:3000`. Mantenha esse terminal aberto.
-`pnpm dev:api` executa o JavaScript compilado: após alterar o backend, compile
-novamente e reinicie. Não há script `dev` dentro de `services/api`.
-
-Para desenvolvimento com reinício automático, use **no lugar de** `pnpm dev:api`:
+`pnpm dev:api` reinicia automaticamente o TypeScript atual. Alterações de `.env`
+exigem reiniciar o comando. Para produção, compile e execute a build:
 
 ```powershell
-pnpm --filter @ludora/api exec tsx watch src/server.ts
+pnpm build:api
+pnpm start:api
 ```
 
 Não inicie duas APIs na mesma porta. No Windows, pare a API antes de regenerar

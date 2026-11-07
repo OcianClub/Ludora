@@ -1,4 +1,4 @@
-import { Page, preloadPage, LoginPage, RegistrarPage, SelecionarClubePage, DashboardPage, JogadoresPage, JogadorPerfil, ClubePerfil, TimesPage, SolicitacoesPartidas, PartidasPage, PartidaDetalhePage, CompeticoesPage, ElencoPage, PerfilPage, MembrosPage, RecuperarSenhaPage, ConvitePage } from './routePages';
+import { Page, preloadPage, LoginPage, RegistrarPage, SelecionarClubePage, DashboardPage, JogadoresPage, JogadorPerfil, ClubePerfil, TimesPage, SolicitacoesPartidas, PartidasPage, PartidaDetalhePage, CompeticoesPage, PaulistaPage, ElencoPage, PerfilPage, MembrosPage, RecuperarSenhaPage, ConvitePage } from './routePages';
 import { Fragment, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -75,6 +75,7 @@ export default function App() {
             <Route path="/partidas/solicitacoes" element={<ManagementAccess><Page><SolicitacoesPartidas /></Page></ManagementAccess>} />
             <Route path="/partidas/:id" element={<PublicMatchEntry><Page><PartidaDetalhePage /></Page></PublicMatchEntry>} />
             <Route path="/competicoes" element={<Page><CompeticoesPage /></Page>} />
+            <Route path="/competicoes/paulista" element={<SoToken><Page><PaulistaPage /></Page></SoToken>} />
             <Route path="/perfil" element={<SoToken><Page><PerfilPage /></Page></SoToken>} />
             <Route path="/membros" element={<ManagementAccess><Page><MembrosPage /></Page></ManagementAccess>} />
           </Route>

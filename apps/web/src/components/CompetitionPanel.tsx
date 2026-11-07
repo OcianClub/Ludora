@@ -3,27 +3,31 @@ import { fetchJogadoresPerfis, requestJson, type Competicao, type PerfilJogador 
 import { useAuth } from '../contexts/AuthContext';
 import { Modal, Btn, Spinner } from './UI';
 import { CollectionSearch } from './CollectionToolbar';
+import { useNavigate } from 'react-router-dom';
 
 type Ranking = { grupo: string; times: { key: string; nome: string; pontos: number; jogos: number; vitorias: number; empates: number; derrotas: number; saldo: number }[] };
 export function CompetitionPanel({ competition, onClose }: { competition: Competicao; onClose: () => void }) {
   const { podeGerenciar } = useAuth();
+  const navigate = useNavigate();
   const [ranking, setRanking] = useState<Ranking[]>([]);
   const [players, setPlayers] = useState<PerfilJogador[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [tab, setTab] = useState('classificacao'), [search, setSearch] = useState('');
   useEffect(() => {
+    if (competition.paulista_evento_id) { navigate(`/competicoes/paulista?evento=${competition.paulista_evento_id}`); return; }
     let active = true;
     Promise.all([requestJson<Ranking[]>(`/competicoes/${competition.id}/classificacao`), podeGerenciar ? fetchJogadoresPerfis() : Promise.resolve([]), podeGerenciar ? requestJson<{ id_jogador: number }[]>(`/competicoes/${competition.id}/jogadores`) : Promise.resolve([])])
       .then(([table, list, registered]) => { if (active) { setRanking(table); setPlayers(list.filter(j => j.categoria_tipo === competition.tipo)); setSelected(registered.map(j => j.id_jogador)); } })
       .catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [competition.id, podeGerenciar]);
+  }, [competition.id, competition.paulista_evento_id, podeGerenciar]);
   async function save() {
     setBusy(true); setError(''); setNotice('');
     try { await requestJson(`/competicoes/${competition.id}/jogadores`, { method: 'PUT', body: JSON.stringify({ jogador_ids: selected }) }); setNotice('Inscrições do seu clube salvas.'); }
     catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
+  if (competition.paulista_evento_id) return null;
   return <Modal open title={competition.nome} onClose={() => { if (!busy) onClose(); }} className="competition-panel">
     <p className="editor-description">Organização: {competition.organizador?.nome || 'Seu clube'} · {competition.titulares_necessarios || 5} titulares · {competition.exigir_inscricao ? 'Inscrição obrigatória' : 'Sem inscrição obrigatória'}</p>
     <div className="shared-status-tabs" role="group" aria-label="Informações da competição"><button aria-pressed={tab === 'classificacao'} onClick={() => setTab('classificacao')}>Classificação</button>{podeGerenciar && <button aria-pressed={tab === 'inscricoes'} onClick={() => setTab('inscricoes')}>Inscrições do meu clube</button>}</div>

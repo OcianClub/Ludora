@@ -15,6 +15,7 @@ import {
 import { idPositivo } from '../../utils/id';
 import { chaveTime, resumirConfrontos } from './time-context';
 import { somenteAdministracaoPlataforma } from './gestao-times.policy';
+import { referenciasCompeticoes, timesVinculados } from '../paulista/service';
 
 const router = Router();
 
@@ -169,7 +170,7 @@ router.get('/times', exigirClubePublico, async (req, res) => {
       orderBy: { nome: 'asc' },
       include: { categoria: true, clubeRepresentado: {select:{id:true,nome:true,escudo:true}} }
     });
-    res.json(times);
+    res.json(await timesVinculados(prisma, clube_id, times, escopo.acessoTotal ? undefined : escopo.categoriaIds));
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar times' }); }
 });
 
@@ -223,7 +224,8 @@ router.get('/competicoes', exigirClubePublico, async (req, res) => {
       orderBy: { nome: 'asc' } 
     });
     const clubes = await prisma.clube.findMany({ where: { id: { in: [...new Set(competicoes.map(c => c.clube_id))] } }, select: { id: true, nome: true } });
-    res.json(competicoes.map(c => ({ ...c, organizador: clubes.find(clube => clube.id === c.clube_id), somente_leitura: c.clube_id !== clube_id })));
+    const oficiais = await referenciasCompeticoes(prisma, competicoes.map(c => c.id));
+    res.json(competicoes.map(c => ({ ...c, paulista_evento_id: oficiais.get(c.id), organizador: oficiais.has(c.id) ? { nome: 'Federação Paulista' } : clubes.find(clube => clube.id === c.clube_id), somente_leitura: oficiais.has(c.id) || c.clube_id !== clube_id })));
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar competições' }); }
 });
 

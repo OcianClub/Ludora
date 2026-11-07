@@ -173,7 +173,8 @@ test('recupera conflito serializável e limita tentativas concorrentes', async t
   await assert.rejects(transacaoElenco(async () => 42), e => e.status === 409);
 });
 
-test('conflito de unicidade de camisa não retorna erro de CPF', async () => {
+test('conflito de unicidade de camisa não retorna erro de CPF', async t => {
+  banco(t);
   await assert.rejects(transacaoElenco(async () => {
     throw Object.assign(Error('unique'), { code: 'P2002', meta: { target: ['partida_id', 'time_id', 'numCamisa'] } });
   }), e => e.status === 409 && /numeração/.test(e.message) && !/CPF/.test(e.message));

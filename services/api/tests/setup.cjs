@@ -12,4 +12,6 @@ Object.assign(process.env, {
   SUPABASE_SERVICE_ROLE_KEY: '',
   GOOGLE_PLACES_API_KEY: '',
   ATUALIZACAO_TEMPORADA: 'false',
+  PAULISTA_ENABLED: 'false',
+  PAULISTA_SYNC_DIARIA: 'false',
 });

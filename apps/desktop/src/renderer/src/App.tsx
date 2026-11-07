@@ -10,6 +10,7 @@ import UsuariosPage from './pages/Usuarios';
 import BancoPage from './pages/Banco';
 import LogsPage from './pages/Logs';
 import AjustesPage from './pages/Ajustes';
+import PaulistaAdmin from './pages/Paulista';
 
 function Rotas() {
   const { estado } = useAdminAuth();
@@ -26,6 +27,7 @@ function Rotas() {
         <Route path="/banco" element={<BancoPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/ajustes" element={<AjustesPage />} />
+        <Route path="/paulista" element={<PaulistaAdmin />} />
       </Route>
       <Route path="*" element={<Navigate to="/visao" replace />} />
     </Routes>

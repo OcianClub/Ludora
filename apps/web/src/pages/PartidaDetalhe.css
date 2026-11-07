@@ -908,3 +908,4 @@
   .available-roster .available-player-info strong { font-size: 13px; }
   .preparation-header-location { padding-top: 12px; font-size: 11px; }
 }
+.official-match-notice { padding: 16px; border: 1px solid var(--borda); border-left: 3px solid var(--primaria); background: var(--fundo-card); border-radius: 8px; font-size: 13px; margin-bottom: 16px; } .official-match-notice > div { display:flex; align-items:center; flex-wrap:wrap; gap:9px; } .official-match-notice p { color:var(--texto-sec); line-height:1.5; margin:8px 0; } .official-match-notice a { display:inline-flex; align-items:center; gap:5px; margin-top:8px; color:var(--primaria); } .official-match-notice small { display:block; color:var(--texto-sec); }

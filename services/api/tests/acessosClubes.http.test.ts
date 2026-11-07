@@ -11,10 +11,10 @@ import { exigirGestorDoClube, exigirPartidaDoClube } from '../src/middlewares/pe
 
 // HTTP, assinatura JWT e middleware reais; somente a persistência é substituída.
 // Não conecta ao Supabase e não altera contas existentes.
-test('autorização HTTP de cargos, categorias e vínculos reversíveis', async t => {
-  let role = 'ADMIN', managed = 1, self = false, outside = false, validCategories = 1;
-  let transactionRole = 'ADMIN', previous: number | null = null;
-  const writes: any[] = [], audits: any[] = [];
+test('autorização HTTP de cargos, categorias e vínculos de plataforma', async t => {
+  let role = 'ADMIN', self = false, outside = false, validCategories = 1;
+  let transactionRole = 'ADMIN';
+  const writes: any[] = [];
   // Delegates Prisma são proxies; MockTracker.method não encontra o descritor.
   function replace(target:any, key:string, value:any) { const before=target[key];target[key]=value;t.after(()=>{target[key]=before;}); }
   replace(prisma.usuario, 'findUnique', async () => ({versao_sessao:0}));
@@ -24,16 +24,11 @@ test('autorização HTTP de cargos, categorias e vínculos reversíveis', async 
     usuarioClube: {
       findUnique: async () => ({papel:transactionRole}),
       findFirst: async () => outside ? null : ({id:5,usuario_id:self?1:5}),
-      count: async () => managed,
       update: async (args:any) => { writes.push(args); },
     },
     categoria: { count:async () => validCategories },
     usuarioClubeCategoria: { deleteMany:async () => {} },
-    time: {
-      findMany: async () => outside ? [] : [{id:20,clube_representado_id:previous}],
-      update: async (args:any) => { writes.push(args); previous=args.data.clube_representado_id; },
-    },
-    auditoriaVinculoTime: {create:async (args:any) => {audits.push(args.data);}},
+
   };
   replace(prisma, '$transaction', async (fn:any) => fn(tx));
   const app = express(); app.use(express.json(),members,links);
@@ -66,19 +61,13 @@ test('autorização HTTP de cargos, categorias e vínculos reversíveis', async 
       for(const r of ['TORCEDOR','OLHEIRO','ADMIN']) {role=r;assert.equal((await patch('/partidas/91',{})).status,403);}
       role='ADMIN';
     });
-    await t.test('vincular exige administrar os dois clubes e rejeita times fora do escopo',async()=>{
-      const body={time_ids:[20],clube_id:3,motivo:'Correção de identidade'};
-      managed=0;assert.equal((await patch('/times/vinculo',body)).status,409);managed=1;
-      outside=true;assert.equal((await patch('/times/vinculo',body)).status,409);outside=false;
-      assert.equal(writes.length,0);assert.equal(audits.length,0);
-      assert.equal((await patch('/times/vinculo',{...body,time_ids:[20,20]})).status,400);
-    });
-    await t.test('vincular/desvincular preserva ID do time e grava antes/depois com autor',async()=>{
-      assert.equal((await patch('/times/vinculo',{time_ids:[20],clube_id:3,motivo:'Clube confirmado'})).status,200);
-      assert.deepEqual(writes[0],{where:{id:20},data:{clube_representado_id:3}});
-      assert.equal((await patch('/times/vinculo',{time_ids:[20],clube_id:null,motivo:'Vínculo incorreto'})).status,200);
-      assert.deepEqual(writes[1],{where:{id:20},data:{clube_representado_id:null}});
-      assert.deepEqual(audits.map(a=>[a.clube_anterior_id,a.clube_novo_id,a.usuario_id]),[[null,3,1],[3,null,1]]);
+    await t.test('admin do clube não vincula nem desvincula times pelo endpoint da gestão', async () => {
+      for (const clube_id of [3, null]) {
+        const response = await patch('/times/vinculo', { time_ids: [20], clube_id, motivo: 'Correção de identidade' });
+        assert.equal(response.status, 403);
+        assert.match(await response.text(), /superadministradores/);
+      }
+      assert.equal(writes.length, 0);
     });
   } finally { await new Promise<void>(resolve=>server.close(()=>resolve())); }
 });

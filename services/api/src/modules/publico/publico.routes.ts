@@ -5,6 +5,7 @@ import { idPositivo } from '../../utils/id';
 import { limitarRequisicoes } from '../../middlewares/rate-limit.middleware';
 import { consultarHome, dataHomeValida } from '../partidas/home.service';
 import { escopoPartidas } from '../partidas/visibilidade';
+import { referenciasCompeticoes } from '../paulista/service';
 import { clubePublicoSelect, consultarPartidaPublica, partidaPublicaSelect, publicarPartida, competicaoPublicaSelect, escopoCompeticoesPublicas, classificarPartidas } from './publico.service';
 
 export function criarPublicoRoutes(banco: PrismaClient = prisma) {
@@ -63,7 +64,13 @@ export function criarPublicoRoutes(banco: PrismaClient = prisma) {
   }));
   router.get('/publico/clubes/:clubeId/competicoes', clube, safe(async (_req, res) => {
     const rows = await banco.competicao.findMany({ where: escopoCompeticoesPublicas(res.locals.clube.id), select: competicaoPublicaSelect, orderBy: [{ ano: 'desc' }, { nome: 'asc' }] });
-    res.json(rows.map(({ clube: organizador, ...competition }) => ({ ...competition, organizador, somente_leitura: true })));
+    const oficiais = await referenciasCompeticoes(banco, rows.map(row => row.id));
+    res.json(rows.map(({ clube: organizador, ...competition }) => ({
+      ...competition,
+      organizador,
+      somente_leitura: true,
+      paulista_evento_id: oficiais.get(competition.id),
+    })));
   }));
   router.get('/publico/clubes/:clubeId/competicoes/:id/classificacao', clube, safe(async (req, res) => {
     const id = idPositivo(req.params.id);

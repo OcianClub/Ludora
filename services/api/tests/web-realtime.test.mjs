@@ -9,6 +9,19 @@ import { subscribeToMatch } from '../../../apps/web/src/services/matchRealtime.t
 // Não carrega o .env do serviço, não conecta ao Supabase e não altera dados.
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-only-secret-for-local-realtime-contract';
+const storage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: { getItem(key) {
+    if (key === 'ludora_token') return 'sessao-do-teste';
+    if (key === 'ludora_clube') return JSON.stringify({ id: 11, meuPapel: 'ADMIN' });
+    return null;
+  } },
+});
+after(() => {
+  if (storage) Object.defineProperty(globalThis, 'localStorage', storage);
+  else delete globalThis.localStorage;
+});
 const require = createRequire(import.meta.url);
 const jwt = require('jsonwebtoken');
 const { JWT_OPTIONS } = require('../dist/src/config/env.js');

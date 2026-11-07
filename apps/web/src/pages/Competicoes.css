@@ -167,3 +167,6 @@
     margin-top: 16px;
   }
 }
+.competition-official-status { display: inline-flex; align-items: center; gap: 5px; color: var(--primaria); font-size: 11px; margin-top: 7px; }
+
+.competition-card[data-oficial="true"] { border-left: 4px solid var(--primaria); background: var(--fundo-botao); }

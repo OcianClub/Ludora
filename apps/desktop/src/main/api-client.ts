@@ -29,7 +29,9 @@ export async function chamarApi<T = unknown>(
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const controle = new AbortController();
-  const timer = setTimeout(() => controle.abort(), TIMEOUT_MS);
+  // Descoberta e distribuição são transações maiores que uma consulta comum.
+  const prazo = metodo === 'POST' && caminho.startsWith('/admin/paulista/') ? 125_000 : TIMEOUT_MS;
+  const timer = setTimeout(() => controle.abort(), prazo);
 
   try {
     const resposta = await fetch(`${lerApiUrl()}${caminho}`, {

@@ -11,7 +11,7 @@ let cwd;
 
 if (service === 'api') {
   command = process.execPath;
-  args = ['--import', 'tsx', 'src/server.ts'];
+  args = ['--import', 'tsx', '--watch', 'src/server.ts'];
   cwd = path.join(root, 'services/api');
 } else if (service === 'ml') {
   cwd = path.join(root, 'services/ml');

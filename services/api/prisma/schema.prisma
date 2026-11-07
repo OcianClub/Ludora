@@ -27,6 +27,7 @@ model Clube {
   notificacoes       Notificacao[]
   equipesPartida     ParticipantePartida[]
   timesRepresentados Time[]                @relation("ClubeRepresentado")
+  fpfsVinculo FpfsVinculo[]
 }
 
 model UsuarioClube {
@@ -125,6 +126,7 @@ model Categoria {
 }
 
 model Competicao {
+  fpfsEvento FpfsEvento?
   id       Int            @id @default(autoincrement())
   clube_id Int
   nome     String
@@ -163,6 +165,7 @@ model Evento {
 // ── MODELOS INALTERADOS ESTRUTURALMENTE ──
 
 model Time {
+  fpfsTime FpfsTime[]
   id                    Int                   @id @default(autoincrement())
   nome                  String
   escudo                String?
@@ -216,6 +219,7 @@ model Jogador {
 }
 
 model Partida {
+  fpfsJogo FpfsJogo?
   id                    Int                   @id @default(autoincrement())
   mandante_id           Int
   visitante_id          Int
@@ -443,6 +447,112 @@ model ConviteCategoria {
 
   @@id([convite_id, categoria_id])
   @@index([categoria_id])
+}
+
+// Paulista: apenas tabelas novas; referências inversas são virtuais.
+model FpfsCatalogo {
+  id Int @id
+  ano Int
+  divisao String
+  categoria String
+  equipes Json
+  descobertoEm DateTime @default(now())
+  acompanhado Boolean @default(false)
+  tentativaEm DateTime?
+  sucessoEm DateTime?
+  proximaEm DateTime?
+  erro String?
+}
+
+model FpfsRotina {
+  id Int @id
+  descobertaEm DateTime?
+  proximaEm DateTime?
+  erro String?
+  leaseAte DateTime?
+}
+
+model FpfsEvento {
+  id Int @id
+  ano Int
+  titulo String
+  divisao String
+  categoria String
+  payload Json
+  hash String
+  versao Int @default(1)
+  consultadoEm DateTime @default(now())
+  verificadoEm DateTime?
+  diario Boolean @default(false)
+  competicaoId Int? @unique
+  competicao Competicao? @relation(fields: [competicaoId], references: [id], onDelete: Restrict)
+  times FpfsTime[]
+  jogos FpfsJogo[]
+  auditoria FpfsAuditoria[]
+}
+
+model FpfsEquipe {
+  id Int @id
+  nome String
+  escudo String?
+  times FpfsTime[]
+  vinculo FpfsVinculo?
+}
+
+model FpfsTime {
+  eventoId Int
+  equipeId Int
+  timeId Int?
+  evento FpfsEvento @relation(fields: [eventoId], references: [id], onDelete: Restrict)
+  equipe FpfsEquipe @relation(fields: [equipeId], references: [id], onDelete: Restrict)
+  time Time? @relation(fields: [timeId], references: [id], onDelete: Restrict)
+  @@id([eventoId, equipeId])
+}
+
+model FpfsVinculo {
+  equipeId Int @id
+  clubeId Int
+  confirmadoEm DateTime @default(now())
+  usuarioId Int
+  motivo String
+  equipe FpfsEquipe @relation(fields: [equipeId], references: [id], onDelete: Restrict)
+  clube Clube @relation(fields: [clubeId], references: [id], onDelete: Restrict)
+  @@index([clubeId])
+}
+
+model FpfsJogo {
+  id String @id
+  eventoId Int
+  faseId String
+  sumulaId Int? @unique
+  oficial Json
+  partidaId Int? @unique
+  evento FpfsEvento @relation(fields: [eventoId], references: [id], onDelete: Restrict)
+  partida Partida? @relation(fields: [partidaId], references: [id], onDelete: Restrict)
+  pendencias FpfsPendencia[]
+  @@index([eventoId, faseId])
+}
+
+model FpfsPendencia {
+  id Int @id @default(autoincrement())
+  jogoId String
+  tipo String
+  estado String @default("ABERTA")
+  dados Json
+  atualizadoEm DateTime @updatedAt
+  jogo FpfsJogo @relation(fields: [jogoId], references: [id], onDelete: Restrict)
+  @@unique([jogoId, tipo])
+}
+
+model FpfsAuditoria {
+  id Int @id @default(autoincrement())
+  eventoId Int
+  usuarioId Int?
+  acao String
+  dados Json
+  criadoEm DateTime @default(now())
+  evento FpfsEvento @relation(fields: [eventoId], references: [id], onDelete: Restrict)
+  @@index([eventoId, criadoEm])
 }
 
 // ── ENUMS ATUALIZADOS ──

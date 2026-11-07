@@ -77,14 +77,15 @@ test('consultas alternativas respeitam categorias e falhas de persistência não
       assert.doesNotMatch(await response.text(), /postgres|prisma|QUERY/);
     }
   });
-  await t.test('exceções de banco em membros, vínculos e exclusão não chegam à resposta', async () => {
+  await t.test('erros de persistência ficam internos e vínculos exigem a administração da plataforma', async () => {
     role = 'ADMIN';
     failPersistence = true;
     const responses = await Promise.all([
       request('/membros/5', 'PATCH', { papel: 'TECNICO', categoria_ids: [9] }),
-      request('/times/vinculo', 'PATCH', { time_ids: [20], clube_id: 3, motivo: 'Correção de identidade' }),
       request('/jogadores/1', 'DELETE'),
     ]);
+    const vinculo = await request('/times/vinculo', 'PATCH', { time_ids: [20], clube_id: 3, motivo: 'Correção de identidade' });
+    assert.equal(vinculo.status, 403);
     for (const response of responses) {
       assert.equal(response.status, 500);
       const text = await response.text();

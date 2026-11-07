@@ -1,4 +1,5 @@
 import { CompetitionPanel } from '../components/CompetitionPanel';
+import { Link } from 'react-router-dom';
 import './SharedMatches.css';
 import { useEffect, useState } from 'react';
 import {
@@ -43,6 +44,7 @@ export default function CompeticoesPage() {
   const [busca, setBusca] = useState(''),
     [phase, setPhase] = useState(''),
     [year, setYear] = useState('');
+  const [origem, setOrigem] = useState(''), [draftOrigem, setDraftOrigem] = useState('');
   const [view, setView] = useState<ViewMode>('grid');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [draftPhase, setDraftPhase] = useState(''),
@@ -126,14 +128,17 @@ export default function CompeticoesPage() {
       setBusy(false);
     }
   }
-  const visible = competicoes
+  const filtradas = competicoes
     .filter(
       (c) =>
-        c.nome.toLocaleLowerCase().includes(busca.toLocaleLowerCase()) &&
+        (c.paulista_evento_id ? 'Campeonato Paulista' : c.nome).toLocaleLowerCase().includes(busca.toLocaleLowerCase()) &&
         (!phase || c.tipo === phase) &&
-        (!year || String(c.ano) === year),
+        (!year || String(c.ano) === year) && (!origem || (origem === 'paulista' ? !!c.paulista_evento_id : !c.paulista_evento_id)),
     )
-    .sort((a, b) => b.ano - a.ano || a.nome.localeCompare(b.nome, 'pt-BR'));
+    .sort((a, b) => Number(!!b.paulista_evento_id) - Number(!!a.paulista_evento_id) || b.ano - a.ano || a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true }));
+  // Eventos mantêm suas âncoras no banco; a coleção representa um campeonato.
+  const oficiais = filtradas.filter(c => c.paulista_evento_id);
+  const visible = [...(oficiais.length ? [{ ...oficiais[0], nome: 'Campeonato Paulista', somente_leitura: true }] : []), ...filtradas.filter(c => !c.paulista_evento_id)];
   const seasons = [...new Set(competicoes.map((c) => c.ano))]
     .sort((a, b) => b - a)
     .map((ano) => ({ value: String(ano), label: String(ano) }));
@@ -147,7 +152,7 @@ export default function CompeticoesPage() {
             Competições organizadas pelo clube e confrontos compartilhados.
           </p>
         </div>
-        {podeGerenciar && <Btn onClick={() => open()}>+ Nova competição</Btn>}
+        <div className="competition-actions">{podeGerenciar && <Btn onClick={() => open()}>+ Nova competição</Btn>}</div>
       </div>
       <div className="competition-toolbar">
         <CollectionSearch
@@ -156,7 +161,7 @@ export default function CompeticoesPage() {
           onChange={setBusca}
           placeholder="Nome do torneio"
         />
-        <div className="competition-desktop-filters">
+        <div className="competition-desktop-filters"><FilterSelect label="Organização" value={origem} onChange={setOrigem} emptyLabel="Todas" options={[{value: 'paulista', label: 'Paulista · Federação'}, {value: 'clube', label: 'Competições do clube'}]} />
           <FilterSelect
             label="Fase"
             value={phase}
@@ -174,9 +179,9 @@ export default function CompeticoesPage() {
         </div>
         <CollectionFilterButton
           className="competition-mobile-filter"
-          count={Number(!!phase) + Number(!!year)}
+          count={Number(!!phase) + Number(!!year) + Number(!!origem)}
           onClick={() => {
-            setDraftPhase(phase);
+            setDraftPhase(phase); setDraftOrigem(origem);
             setDraftYear(year);
             setFiltersOpen(true);
           }}
@@ -187,15 +192,16 @@ export default function CompeticoesPage() {
         title="Filtrar competições"
         onClose={() => setFiltersOpen(false)}
         onClear={() => {
-          setDraftPhase('');
+          setDraftPhase(''); setDraftOrigem('');
           setDraftYear('');
         }}
         onApply={() => {
-          setPhase(draftPhase);
+          setPhase(draftPhase); setOrigem(draftOrigem);
           setYear(draftYear);
           setFiltersOpen(false);
         }}
       >
+        <FilterSelect label="Organização" value={draftOrigem} onChange={setDraftOrigem} emptyLabel="Todas" inlineOptions options={[{value: 'paulista', label: 'Paulista · Federação'}, {value: 'clube', label: 'Competições do clube'}]} />
         <FilterSelect
           label="Fase"
           value={draftPhase}
@@ -238,7 +244,7 @@ export default function CompeticoesPage() {
             {visible.map((c) => (
               <article
                 key={c.id}
-                className={`competition-card ${view === 'list' ? 'competition-row' : ''}`}
+                data-oficial={!!c.paulista_evento_id} className={`competition-card ${view === 'list' ? 'competition-row' : ''}`}
               >
                 <div className="competition-identity">
                   <span className="competition-icon">
@@ -246,15 +252,13 @@ export default function CompeticoesPage() {
                   </span>
                   <div>
                     <small>
-                      {c.ano} · {c.tipo === 'BASE' ? 'Base' : 'Iniciação'}
+                      {c.paulista_evento_id ? 'Federação Paulista de Futsal' : c.ano} · {c.paulista_evento_id ? 'Temporadas e categorias' : c.tipo === 'BASE' ? 'Base' : 'Iniciação'}
                     </small>
-                    <h2>{c.nome}</h2>
+                    <h2>{c.nome}</h2>{c.paulista_evento_id && <span className="competition-official-status"><Icon name="checkAll" size={14}/>Paulista · Federação · Tabela disponível</span>}
                   </div>
                 </div>
                 <div className="competition-actions">
-                  <Btn variant="ghost" size="sm" onClick={() => setDetails(c)}>
-                    Ver competição
-                  </Btn>
+                  {c.paulista_evento_id ? <Link className="btn btn-ghost btn-sm" aria-label={`Abrir ${c.nome}`} to={`/competicoes/paulista?evento=${c.paulista_evento_id}`}>Ver campeonato<Icon name="chevronRight" size={15}/></Link> : <Btn variant="ghost" size="sm" onClick={() => setDetails(c)}>Ver competição</Btn>}
                   {podeGerenciar && !c.somente_leitura && (
                     <>
                       <Btn variant="ghost" size="sm" onClick={() => open(c)}>

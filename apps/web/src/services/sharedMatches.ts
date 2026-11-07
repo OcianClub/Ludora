@@ -4,6 +4,8 @@ export interface EquipePartida {
   categoria: Categoria; clube: Pick<Clube, 'id' | 'nome'>; escalacao: (EscalacaoItem & { titular_inicial?: boolean; time_id: number; ordem: number })[];
 }
 export interface GestaoPartida {
+  paulista?: { eventoId: number; jogo: import('../../../../packages/shared-types/src/paulista').JogoPaulista; retroativo: boolean } | null;
+  podeAnotarOficial?: boolean;
   partida: Partida & { versao: number; periodo_atual: number; sumula_clube_id: number; organizador_id: number; titulares_necessarios: number };
   organizador: Pick<Clube, 'id' | 'nome'>; equipes: EquipePartida[]; minhaEquipeId?: number; podePreparar: boolean; podeSumula: boolean;
   eventos: (Evento & { time_id?: number; gol_contra?: boolean })[];

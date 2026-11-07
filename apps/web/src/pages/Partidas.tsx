@@ -461,6 +461,8 @@ export default function PartidasPage() {
     { id: 'mando', label: mando === 'casa' ? 'Em casa' : mando === 'fora' ? 'Fora de casa' : '', clear: () => changeFilters({ mando: '' }) },
   ].filter(chip => chip.label);
   function renderMatch(match: Partida) {
+    const oficialId = competicoes.find(c => c.id === match.competicao_id)?.paulista_evento_id;
+    if (oficialId) match = { ...match, paulista_evento_id: oficialId };
     if (list && match.status !== 'AO_VIVO') return <MatchListRow key={match.id} partida={match} />;
     return <MatchCard key={match.id} partida={match} featured={match.status === 'AO_VIVO'} />;
   }
@@ -660,7 +662,7 @@ export default function PartidasPage() {
           <div className="schedule-picker-options">
             {picker === 'competicao' ? <>
               <button type="button" aria-pressed={form.competicao_id === 'amistoso'} onClick={() => { setForm(f => ({ ...f, competicao_id: 'amistoso', rodada: '' })); setErro(''); setPicker(null); }}><span className="schedule-picker-icon"><Icon name="ball" size={23} /></span><span><strong>Amistoso</strong><small>Sem competição</small></span>{form.competicao_id === 'amistoso' && <Icon name="checkAll" size={18} />}</button>
-              {competicoes.filter(item => (!formCategory || item.tipo === formCategory.tipo) && normalizarBusca(`${item.nome} ${item.ano}`).includes(normalizarBusca(pickerSearch))).map(item => (
+              {competicoes.filter(item => !item.paulista_evento_id && (!formCategory || item.tipo === formCategory.tipo) && normalizarBusca(`${item.nome} ${item.ano}`).includes(normalizarBusca(pickerSearch))).map(item => (
                 <button key={item.id} type="button" aria-pressed={form.competicao_id === String(item.id)} onClick={() => {
                   setForm(f => ({ ...f, competicao_id: String(item.id), rodada: f.competicao_id === String(item.id) ? f.rodada : '' }));
                   setErro('');

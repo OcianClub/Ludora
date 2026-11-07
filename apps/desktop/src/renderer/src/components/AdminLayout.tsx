@@ -9,6 +9,7 @@ import { ROTULO_ESTADO, useEstadoTempoReal } from './useTempoReal';
 const NAV: { to: string; label: string; icon: AdminIconName }[] = [
   { to: '/visao', label: 'Visão global', icon: 'home' },
   { to: '/clubes', label: 'Clubes', icon: 'shield' },
+  { to: '/paulista', label: 'Campeonato Paulista', icon: 'radar' },
   { to: '/usuarios', label: 'Usuários', icon: 'user' },
   { to: '/banco', label: 'Banco e integrações', icon: 'radar' },
   { to: '/logs', label: 'Logs ao vivo', icon: 'clipboard' },

@@ -5,6 +5,7 @@ import { ClubBadge } from '@web/components/Brand';
 import { Btn, Empty, Input, Modal, Select, Spinner } from '@web/components/UI';
 import { AdminIcon } from '../components/AdminIcon';
 import { criarClube, fetchVisaoGlobal } from '../services/api';
+import { CandidatosClube, type Candidato } from '../components/CandidatosClube';
 
 export const PLANOS: { value: PlanoClube; label: string }[] = [
   { value: 'TRIAL', label: 'Teste (TRIAL)' },
@@ -27,6 +28,7 @@ export default function ClubesPage() {
   const [busca, setBusca] = useState('');
   const [planoFiltro, setPlanoFiltro] = useState('');
   const [etapa, setEtapa] = useState(0);
+  const [candidato, setCandidato] = useState<Candidato | null>(null);
   const buscaRef = useRef<HTMLDivElement>(null);
 
   const carregar = useCallback(() => {
@@ -69,7 +71,7 @@ export default function ClubesPage() {
       });
       setAberto(false);
       setForm(VAZIO);
-      navigate(`/clubes/${novo.id}`);
+      navigate(candidato ? `/paulista?clube=${novo.id}&evento=${candidato.eventoId}&equipe=${candidato.equipeId}` : `/clubes/${novo.id}`);
     } catch (err) {
       setErroForm((err as Error).message);
     } finally {
@@ -88,7 +90,7 @@ export default function ClubesPage() {
     <div>
       <div className="page-header">
         <div><h1 className="page-title">Clubes</h1><p className="page-sub">{clubes.length} cadastrados · clientes da plataforma</p></div>
-        <Btn onClick={() => { setForm(VAZIO); setEtapa(0); setErroForm(''); setAberto(true); }}><AdminIcon name="plus" size={18} /> Novo clube</Btn>
+        <Btn onClick={() => { setForm(VAZIO); setCandidato(null); setEtapa(0); setErroForm(''); setAberto(true); }}><AdminIcon name="plus" size={18} /> Novo clube</Btn>
       </div>
 
       <div className="admin-club-filters">
@@ -129,6 +131,7 @@ export default function ClubesPage() {
           <Input className="full" label="Escudo (URL HTTPS, opcional)" type="url" pattern="https://.+" value={form.escudo} onChange={e => setForm(f => ({ ...f, escudo: e.target.value }))} />
           </>}
           {etapa === 1 && <>
+            <CandidatosClube nome={form.nome} selected={candidato} onSelect={setCandidato} />
             <Select className="full" label="Plano" emptyLabel="Plano" options={PLANOS} required value={form.plano} onChange={e => setForm(f => ({ ...f, plano: e.target.value }))} />
             <label className="full check"><input type="checkbox" checked={form.categorias_padrao} onChange={e => setForm(f => ({ ...f, categorias_padrao: e.target.checked }))} /> Criar as oito categorias padrão</label>
             <Input className="full" label="E-mail do primeiro administrador (opcional)" type="email" value={form.admin_email} onChange={e => setForm(f => ({ ...f, admin_email: e.target.value }))} placeholder="E-mail de uma conta já cadastrada" />

@@ -299,3 +299,4 @@
   font-family: var(--font-corpo);
   font-size: 14px;
 }
+.match-official-label { color: var(--primaria); font-size: 10px; font-weight: 600; white-space: nowrap; }

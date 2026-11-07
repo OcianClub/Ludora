@@ -5,6 +5,7 @@ import { notificarPartidaPublica } from '../../realtime/publico';
 import { exigirClubePublico, exigirGestorDoClube } from '../../middlewares/permissoes.middleware';
 import { criarNotificacoesDoClube, enviarPushParaUsuarios } from '../../services/notificacoes.service';
 import { processarMachineLearning } from '../../services/scout-ia.service';
+import { publicacaoPartida, retroativo, FalhaPaulista } from '../paulista/service';
 import { FluxoInvalido, acesso, auditar, bloquearDuplicidade, criarOficial, exigir, incluirPartida, inteiro, partida, podeCorrigirSumula, tocar, transacao, validarDados, validarDataHorario, validarEquipe, type Contexto, type PartidaCompleta } from './compartilhadas.service';
 
 const contexto = (req: Request): Contexto => ({ usuarioId: (req as any).usuarioId, clubeId: (req as any).clubeId });
@@ -14,7 +15,7 @@ export function criarCompartilhadasRoutes(io: Server) {
   const tratar = (fn: (req: Request, res: Response) => Promise<unknown>) => async (req: Request, res: Response) => {
     try { req.body ??= {}; await fn(req, res); }
     catch (error) {
-      if (error instanceof FluxoInvalido) return res.status(error.status).json({ error: error.message });
+      if (error instanceof FluxoInvalido || error instanceof FalhaPaulista) return res.status(error.status).json({ error: error.message });
       console.error('Fluxo de partidas:', error instanceof Error ? error.message : error);
       res.status(500).json({ error: 'Não foi possível concluir a operação. Atualize e tente novamente.' });
     }
@@ -194,7 +195,9 @@ export function criarCompartilhadasRoutes(io: Server) {
     ]);
     const dados = p.participantes.map(e => ({ ...e, escalacao: e.publicada_em || (pode && e.clube_id === ctx.clubeId) ? rows.filter(r => r.time_id === e.time_id) : [] }));
     const identidade = (time: typeof p.mandante) => time.clubeRepresentado ? { ...time, nome: time.clubeRepresentado.nome, escudo: time.clubeRepresentado.escudo } : time;
+    const paulista = await publicacaoPartida(prisma, p.id);
     res.json({ partida: { ...p, mandante: identidade(p.mandante), visitante: identidade(p.visitante) }, organizador, equipes: dados, minhaEquipeId: equipe?.id, podePreparar: pode, podeSumula: pode && p.sumula_clube_id === ctx.clubeId,
+      paulista, podeAnotarOficial: !!paulista && pode && p.status === 'FINALIZADA' && !paulista.jogo.ocorrencia && paulista.jogo.golsMandante !== null && paulista.jogo.golsVisitante !== null,
       eventos, auditoria, podeCorrigir });
   }));
 
@@ -377,6 +380,15 @@ export function criarCompartilhadasRoutes(io: Server) {
   }));
   router.post('/partidas/:id/eventos', exigirGestorDoClube, tratar(async (req, res) => {
     const ctx = contexto(req), id = inteiro(req.params.id);
+    const oficial = await publicacaoPartida(prisma, id);
+    if (oficial && oficial.jogo.golsMandante !== null && oficial.jogo.golsVisitante !== null && !oficial.jogo.ocorrencia) {
+      const { p, equipe } = await partida(prisma, id, ctx, true);
+      exigir(p.status === 'FINALIZADA' && equipe && req.body.time_id === equipe.time_id, 'Registre apenas acontecimentos da sua equipe nesta súmula oficial.', 403);
+      exigir(!req.body.gol_contra && !req.body.autor_pendente && !req.body.assistencia_jogador_id && !req.body.placar, 'Identifique o atleta; registre assistências como um evento próprio. O resultado oficial permanece separado.');
+      const e = await retroativo(prisma, oficial.jogo.id, ctx.clubeId, ctx.usuarioId, { requestId: req.body.request_id, jogadorId: req.body.jogador_id, tipo: req.body.tipo, motivo: req.body.motivo, periodo: req.body.periodo, minuto: req.body.minuto });
+      io.to(`clube:${ctx.clubeId}`).emit('partida_atualizada', { id });
+      return res.status(201).json(e);
+    }
     const evento = await transacao(async tx => {
       const { p } = await partida(tx, id, ctx, true);
       exigir(await podeCorrigirSumula(tx, p, ctx), 'Somente o responsável ou um clube autorizado pode registrar eventos.', 403);

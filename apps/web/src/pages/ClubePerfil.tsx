@@ -76,7 +76,6 @@ export default function ClubePerfil() {
       if (controller.signal.aborted) return;
       setData(result);
       setOriginal(JSON.stringify(normalizeClubForm(result)));
-      setImageName('');
       if (clube) definirClube({ ...clube, ...result, escudo: result.escudo || undefined });
       setMessage('As alterações do clube foram salvas.');
     } catch (failure) {

@@ -8,19 +8,21 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
   let events: any[];
   let audits: any[];
   let nextId = 1;
+  let correcaoAceita = false;
   const roster = [
     { jogador_id: 101, time_id: 10, titular: true }, { jogador_id: 102, time_id: 10, titular: true },
     { jogador_id: 103, time_id: 10, titular: false }, { jogador_id: 201, time_id: 20, titular: true },
   ];
   const withPlayer = (event: any) => ({ ...event, jogador: event.jogador_id ? { nome: `Jogador ${event.jogador_id}` } : null });
   function reset() {
-    nextId = 1; events = []; audits = [];
+    nextId = 1; events = []; audits = []; correcaoAceita = false;
     p = { id: 1, data: new Date('2026-10-30'), horario: '19:30', status: 'AO_VIVO', versao: 0, mandante_id: 10, visitante_id: 20, sumula_clube_id: 2, organizador_id: 2,
       categoria: { clube_id: 2 }, mandante: { nome: 'Ocian', clube_representado_id: 2 }, visitante: { nome: 'Santos', clube_representado_id: 3 },
       participantes: [{ clube_id: 2, time_id: 10, categoria_id: 7 }, { clube_id: 3, time_id: 20, categoria_id: 8 }],
       gols_mandante: 0, gols_visitante: 0, periodo_atual: 1 };
   }
   const tx: any = {
+    propostaPartida: { findFirst: async () => correcaoAceita ? { id: 1 } : null },
     partida: {
       findUnique: async () => p,
       updateMany: async ({ where }: any) => { if (where.versao !== p.versao) return { count: 0 }; p.versao++; return { count: 1 }; },
@@ -90,7 +92,10 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
     await call('patch', patch, { jogador_id: 201, versao: p.versao }, 4, goal.id, 404);
     await call('patch', patch, { jogador_id: 201, versao: p.versao }, 3, goal.id, 403, 99);
     p.status = 'FINALIZADA';
-    await call('patch', patch, { jogador_id: 201, versao: p.versao }, 3, goal.id, 200);
+    await call('patch', patch, { jogador_id: 201, motivo: 'Identificação do autor', versao: p.versao }, 3, goal.id, 403);
+    correcaoAceita = true;
+    await call('patch', patch, { jogador_id: 201, motivo: 'Identificação do autor', versao: p.versao }, 3, goal.id, 200);
+    correcaoAceita = false;
     assert.equal(p.gols_visitante, 1); assert.equal(events.length, 1); assert.equal(events[0].jogador_id, 201);
     await call('patch', patch, { jogador_id: 201, versao: p.versao }, 3, goal.id, 403);
   });
@@ -106,6 +111,7 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
     reset();
     const goal = await call('post', post, { tipo: 'GOL', time_id: 20, gol_contra: true, jogador_id: 101 });
     assert.equal(p.gols_visitante, 1); assert.equal(goal.gol_contra, true);
+    p.status = 'FINALIZADA';
     await call('patch', patch, { jogador_id: 102, versao: p.versao }, 2, goal.id, 400);
     await call('patch', patch, { jogador_id: 102, motivo: 'Camisa identificada', versao: p.versao }, 2, goal.id, 200);
     assert.equal(p.gols_visitante, 1); assert.equal(events[0].jogador_id, 102);

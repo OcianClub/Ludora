@@ -1,6 +1,8 @@
 import { Toast } from '../components/Toast';
+import { PaulistaMatchNotice } from '../components/PaulistaMatchNotice';
+import { nomeOficial } from '../utils/paulistaView';
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   fetchPartidas, deletarPartida, atualizarStatusPartida, fetchEventosPartida, registrarEvento, deletarEvento,
   fetchEscalacao, salvarEscalacao, requestJson, fetchTimes,
@@ -41,6 +43,7 @@ const STATUS_BTN: Record<string, string> = { AGENDADA: 'Iniciar preparação', P
 export default function PartidaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const detailLocation = useLocation();
   const { podeGerenciar: gestorDoClube, token, clube, usuario } = useAuth();
   const preparationKey = preparationStorageKey(usuario?.id, clube?.id, id);
 
@@ -107,6 +110,10 @@ export default function PartidaDetalhePage() {
   const [eventError, setEventError] = useState('');
 
   function aplicarGestao(data: GestaoPartida, manterRascunho = false, players?: typeof jogadores) {
+    if (data.paulista) data = { ...data, partida: { ...data.partida,
+      mandante: data.partida.mandante && { ...data.partida.mandante, nome: nomeOficial(data.partida.mandante.nome) },
+      visitante: data.partida.visitante && { ...data.partida.visitante, nome: nomeOficial(data.partida.visitante.nome) },
+    } };
     const mine = data.equipes.find(e => e.id === data.minhaEquipeId);
     setGestao(data);
     setPartida({ ...data.partida, categoria_id: mine?.categoria_id || data.partida.categoria_id, categoria: mine?.categoria || data.partida.categoria,
@@ -122,7 +129,7 @@ export default function PartidaDetalhePage() {
   }
   async function carregarElenco(data: GestaoPartida) {
     const mine = data.equipes.find(e => e.id === data.minhaEquipeId);
-    return data.podePreparar && mine && ['AGENDADA', 'PREPARADA'].includes(data.partida.status)
+    return data.podePreparar && mine && (data.podeAnotarOficial || ['AGENDADA', 'PREPARADA'].includes(data.partida.status))
       ? requestJson<typeof jogadores>(`/jogadores?categoria_id=${mine.categoria_id}&convocacao=true`) : undefined;
   }
   async function atualizarDados(manterRascunho = false) {
@@ -477,10 +484,11 @@ export default function PartidaDetalhePage() {
 
   return (
     <div className="partida-detalhe" data-preparation={preparando ? 'true' : undefined} data-live={partida.status === 'AO_VIVO' ? 'true' : undefined}>
+      <PaulistaMatchNotice oficial={gestao?.paulista} partida={partida}/>
       <header className="match-detail-header">
-        <button type="button" className="match-detail-close" aria-label="Voltar para partidas" onClick={() => { if (!lineupDirty || confirm('Sair sem salvar as alterações da escalação?')) navigate('/partidas'); }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
+        <button type="button" className="match-detail-close" aria-label={detailLocation.state?.fromPaulista ? 'Voltar ao campeonato' : 'Voltar para partidas'} onClick={() => { if (!lineupDirty || confirm('Sair sem salvar as alterações da escalação?')) { if (detailLocation.state?.fromPaulista) { navigate(-1); return; } navigate(new URLSearchParams(location.search).get('retorno')?.startsWith('/competicoes/paulista') ? new URLSearchParams(location.search).get('retorno')! : '/partidas'); } }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
         <h1>{partidaEmAndamento ? <><span className="match-detail-desktop-title">{partida.status === 'FINALIZADA' ? 'Resumo da partida' : 'Detalhes da partida'}</span><span className="match-detail-mobile-title">{partida.mandante?.nome} × {partida.visitante?.nome}</span></> : preparando ? 'Preparação da partida' : 'Detalhes da partida'}</h1>
-        {preparando && <MatchActionsMenu disabled={busy || salvandoEvento || deletingEvent !== null || deleteBusy}
+        {preparando && !gestao?.paulista && <MatchActionsMenu disabled={busy || salvandoEvento || deletingEvent !== null || deleteBusy}
           onEdit={() => setEditor('match')}
           onResponsibility={gestao && gestao.equipes.length > 1 ? () => { setTransferError(''); setResponsibilityOpen(true); } : undefined}
           onDelete={gestao && (gestao.podeSumula || gestao.organizador.id === clube?.id) ? () => { setMotivoCancelamento(''); setDeleteError(''); setConfirmDelete(true); } : undefined}/>}
@@ -522,7 +530,7 @@ export default function PartidaDetalhePage() {
         {!gestao && podeGerenciar && partidaEmAndamento && <div className="match-detail-score-edit"><Btn variant="ghost" size="sm" onClick={() => setEditor('score')}><Icon name="edit" size={14}/>Editar placar</Btn></div>}
       </section>}
       {preparando && etapa === 0 && <section className="preparation-data-details" aria-label="Detalhes do confronto">
-        <header><h3>Detalhes do confronto</h3><Btn variant="ghost" size="sm" className="preparation-edit-data" aria-label="Editar dados" onClick={() => setEditor('match')}><Icon name="edit" size={16}/><span>Editar dados</span></Btn></header>
+        <header><h3>Detalhes do confronto</h3>{!gestao?.paulista && <Btn variant="ghost" size="sm" className="preparation-edit-data" aria-label="Editar dados" onClick={() => setEditor('match')}><Icon name="edit" size={16}/><span>Editar dados</span></Btn>}</header>
         <div><Icon name="trophy" size={21}/><span><small>Competição</small><strong>{partida.competicao?.nome || 'Amistoso'}</strong></span></div>
         <div><Icon name={partida.emCasa ? 'home' : 'bus'} size={21}/><span><small>Mando da sua equipe</small><strong>{partida.emCasa ? 'Em casa' : 'Fora de casa'}</strong></span></div>
         {adversario && <p className="editor-description"><Icon name="info" size={17}/><span>Alterações de data, horário ou local precisam do aceite do {adversario.clube.nome}.</span></p>}
@@ -664,8 +672,8 @@ export default function PartidaDetalhePage() {
       </div>}
 
       {gestao && partidaEmAndamento && <MatchOperations data={gestao} refresh={() => atualizarDados()}
-        onEdit={gestao.podeSumula ? () => setEditor('match') : undefined}
-        onResponsibility={gestao.equipes.length > 1 ? () => { setTransferError(''); setResponsibilityOpen(true); } : undefined}/>}
+        players={jogadores} onEdit={gestao.podeSumula && !gestao.paulista ? () => setEditor('match') : undefined}
+        onResponsibility={!gestao.paulista && gestao.equipes.length > 1 ? () => { setTransferError(''); setResponsibilityOpen(true); } : undefined}/>}
       {gestao && !podeGerenciar && !partidaEmAndamento && <PublishedLineups data={gestao}/>}
       {gestao && adversario && <Modal open={opponentOpen} title={`Escalação do ${adversario.clube.nome}`} className="preparation-modal preparation-opponent-modal" onClose={() => setOpponentOpen(false)}>
         <p className="editor-description">{adversario.publicada_em ? 'Escalação publicada pelo adversário. Apenas o próprio clube pode alterá-la.' : 'O adversário ainda não publicou a escalação. Os rascunhos são privados.'}</p>

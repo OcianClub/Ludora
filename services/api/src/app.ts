@@ -24,6 +24,7 @@ import locaisRoutes from './modules/partidas/locais.routes';
 import perfilJogadorRoutes from './modules/jogadores/perfil.routes';
 import perfilClubeRoutes from './modules/clubes/perfil-clube.routes';
 import { criarPublicoRoutes } from './modules/publico/publico.routes';
+import { criarPaulistaRoutes, protegerPaulista } from './modules/paulista/routes';
 
 export function criarApp(io: Server) {
   const app = express();
@@ -61,6 +62,8 @@ export function criarApp(io: Server) {
   });
 
   app.use(criarAdminRoutes(io));
+  app.use(criarPaulistaRoutes(io));
+  app.use(protegerPaulista);
   app.use(authRoutes);
   app.use(criarCadastroRoutes());
   app.use(criarRecuperacaoRoutes(io));

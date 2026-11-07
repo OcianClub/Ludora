@@ -1,0 +1,17 @@
+import type { PainelPaulista } from '@ludora/shared-types/src/paulista';
+
+const campos: Record<string, string> = { data: 'Data', horario: 'Horário', local: 'Local', golsMandante: 'Gols do mandante', golsVisitante: 'Gols do visitante', ocorrencia: 'Ocorrência', sumulaId: 'Súmula' };
+const valor = (v: unknown): string => v == null ? 'Não publicado' : typeof v === 'string' || typeof v === 'number' ? String(v) : 'Identidade alterada — conferir participantes na fonte';
+export function PaulistaComparison({ pendencia: p }: { pendencia: PainelPaulista['pendencias'][number] }) {
+  const linhas = p.tipo === 'PLACAR'
+    ? [{ campo: 'Placar', fonte: p.dados.oficial?.join(' × '), clube: p.dados.local?.join(' × ') }]
+    : p.tipo === 'ALTERACAO_OFICIAL' && Array.isArray(p.dados.changes)
+      ? p.dados.changes.map((c: any) => ({ campo: campos[c.campo] || 'Dado publicado', fonte: c.depois, clube: c.antes }))
+      : [{ campo: 'Identidade dos participantes', fonte: 'Conferência humana necessária', clube: 'Histórico preservado; transferência automática bloqueada' }];
+  return <div className="paulista-comparison" role="table" aria-label="Comparação da divergência"><div role="row" className="comparison-head"><span role="columnheader">Informação</span><strong role="columnheader">Federação · atual</strong><strong role="columnheader">{p.tipo === 'PLACAR' ? 'Anotado pelo clube' : 'Publicação anterior'}</strong></div>{linhas.map((l: any, i: number) => <div role="row" key={i}><span role="rowheader">{l.campo}</span><strong role="cell">{valor(l.fonte)}</strong><span role="cell">{valor(l.clube)}</span></div>)}</div>;
+}
+const acoes: Record<string, string> = { SUGESTAO_REJEITADA: 'Sugestão rejeitada', SINCRONIZACAO: 'Calendário conferido', VINCULO_CONFIRMADO: 'Identidade confirmada', VINCULO_DESFEITO: 'Vínculo desfeito', DECISAO_PENDENCIA: 'Decisão de revisão', DADOS_OFICIAIS_ALTERADOS: 'Publicação oficial alterada', AGENDA_LOCAL_ATUALIZADA: 'Agenda atualizada', FALHA_SINCRONIZACAO: 'Falha na atualização', RETROATIVO: 'Acontecimento histórico incluído', REVISAO_VINCULO_SOLICITADA: 'Revisão de identidade solicitada', ACOMPANHAMENTO: 'Acompanhamento alterado', PROGRAMACAO: 'Rotina alterada' };
+export function PaulistaAudit({ item }: { item: { id: number; acao: string; criadoEm: string; dados: any; operador?: string } }) {
+  const d = item.dados || {};
+  return <details className="paulista-audit"><summary>{acoes[item.acao] || 'Operação registrada'} · {new Date(item.criadoEm).toLocaleString('pt-BR')}</summary><dl><div><dt>Responsável</dt><dd>{item.operador || 'Sistema'}</dd></div>{d.motivo && <div><dt>Motivo</dt><dd>{d.motivo}</dd></div>}{d.antes?.oficial && d.antes?.local && <div><dt>Dados analisados</dt><dd>Federação: {d.antes.oficial.join(' × ')} · Clube: {d.antes.local.join(' × ')}</dd></div>}{typeof d.antes === 'string' && <div><dt>Antes → depois</dt><dd>{d.antes === 'SUGESTAO' ? 'Sugestão de identidade' : d.antes} → {d.depois === 'REJEITADA' ? 'Rejeitada' : d.depois}</dd></div>}{d.estado && <div><dt>Situação</dt><dd>{d.estado === 'CONFERIDA' ? 'Conferida' : 'Em revisão'}</dd></div>}{typeof d.criadas === 'number' && <div><dt>Partidas novas / atualizadas</dt><dd>{d.criadas} / {d.atualizadas || 0}</dd></div>}{d.preservouEventosLocais && <div><dt>Registros do clube</dt><dd>Eventos e scout preservados</dd></div>}{!d.motivo && typeof d.criadas !== 'number' && <div><dt>Registro</dt><dd>Operação auditada. Confira o confronto e a decisão correspondente nesta tela.</dd></div>}</dl></details>;
+}

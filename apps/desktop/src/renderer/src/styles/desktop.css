@@ -242,3 +242,25 @@
   font-weight: 700;
   letter-spacing: 0.06em;
 }
+/* Integração: reaproveita tokens e controles do painel interno. */
+.paulista-admin { display: grid; gap: 20px; min-width: 0; }
+.paulista-admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 12px; align-items: start; }
+.paulista-event-choice { display: grid; gap: 8px; text-align: left; cursor: pointer; color: var(--texto); background: var(--fundo-card); border: 1px solid var(--borda); padding: 18px; }
+.paulista-event-choice.selected { border-color: var(--primaria); }
+.paulista-event-choice small { color: var(--texto-sec); }
+.paulista-monitor { display: flex; gap: 24px; flex-wrap: wrap; padding: 20px; }
+.paulista-monitor > div { display: grid; gap: 8px; }
+.paulista-admin-detail { display: grid; gap: 16px; padding: 20px; }
+.paulista-admin-detail .card { display: grid; gap: 12px; padding: 16px; }
+.paulista-admin pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; font-size: 12px; }
+.paulista-task-summary { display: grid; gap: 8px; padding: 18px; border: 1px solid var(--borda); }
+.paulista-task-summary span { color: var(--texto-sec); font-size: 13px; }
+.paulista-comparison { border: 1px solid var(--borda); border-radius: 6px; overflow: hidden; }
+.paulista-comparison > div { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; padding: 12px; border-bottom: 1px solid var(--borda); }
+.paulista-comparison > div:last-child { border-bottom: 0; }
+.paulista-comparison .comparison-head { background: var(--fundo-botao); font-size: 12px; }
+.paulista-audit { border-bottom: 1px solid var(--borda); padding: 12px 0; }
+.paulista-audit summary { cursor: pointer; }
+.paulista-audit dl { display: grid; gap: 12px; }
+.paulista-audit dt { color: var(--texto-sec); font-size: 12px; }
+.paulista-audit dd { margin: 5px 0 0; }
