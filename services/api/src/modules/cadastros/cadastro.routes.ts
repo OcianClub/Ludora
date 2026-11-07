@@ -7,6 +7,7 @@ import {
   exigirCompeticaoParticipante,
   exigirClubePublico,
   exigirGestorDoClube,
+  exigirTimeDoClube,
   obterEscopoCategorias,
   obterEscopoCategoriasLeitura,
   podeAcessarCategoria,

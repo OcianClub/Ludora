@@ -1,6 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const jwt = require('jsonwebtoken');
+const { JWT_SECRET, JWT_OPTIONS } = require('../dist/src/config/env.js');
 const { prisma } = require('../dist/src/lib/prisma.js');
 const router = require('../dist/src/modules/cadastros/cadastro.routes.js').default;
 const profile = require('../dist/src/modules/clubes/perfil-clube.routes.js').default;
@@ -34,8 +36,9 @@ test('Times web: API somente leitura e confrontos limitados ao clube atual', asy
   let role = 'ADMIN', writes = [], queries = [];
   const club = { id: 2, nome: 'Ocian', escudo: null };
   function mock(target, key, implementation) { const old = target[key]; target[key] = implementation; t.after(() => { target[key] = old; }); }
+  mock(prisma.usuario, 'findUnique', async () => ({ versao_sessao: 0 }));
   mock(prisma.usuarioClube, 'findUnique', async () => ({ papel: role, acesso_todas_categorias: true, categorias: [] }));
-  mock(prisma.time, 'findMany', async ({ where }) => where.categoria ? initial.filter(j => j.categoria_id !== 99) : []);
+  mock(prisma.time, 'findMany', async ({ where }) => where.categoria?.clube_id === 2 ? initial.filter(j => j.categoria_id !== 99) : []);
   mock(prisma.time, 'findFirst', async ({ where }) => initial.find(j => j.id === where.id));
   mock(prisma.clube, 'findUnique', async () => club);
   mock(prisma.clube, 'update', async args => { writes.push(args); return { ...club, ...args.data }; });
@@ -53,12 +56,12 @@ test('Times web: API somente leitura e confrontos limitados ao clube atual', asy
   mock(prisma.partida, 'groupBy', async args => { queries.push(args); return filtered(args.where).map(g => ({ ...g, _count: { _all: 1 } })); });
   const app = express();
   app.use(express.json());
-  app.use((req, _res, next) => { req.usuarioId = 1; req.clubeId = 2; next(); });
   app.use(links, profile, router);
   const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.on('listening', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
   const base = 'http://127.0.0.1:' + server.address().port;
-  const send = (method, path, body) => fetch(base + path, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const token = jwt.sign({ id: 1, versao_sessao: 0 }, JWT_SECRET, JWT_OPTIONS);
+  const send = (method, path, body) => fetch(base + path, { method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, 'x-clube-id': '2' }, body: body === undefined ? undefined : JSON.stringify(body) });
 
   await t.test('admin, técnico e mesário não alteram próprio time, adversário Ludora ou externo', async () => {
     for (role of ['ADMIN', 'TECNICO', 'MESARIO']) {
