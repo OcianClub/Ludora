@@ -1,14 +1,30 @@
 const MODE = 'ludora_navigation_mode';
+const VISITOR = 'ludora_visitor_view';
 const INTENT = 'ludora_access_intent';
 export type NavigationMode = 'publico' | 'gestao';
+export function clubNavigationMode(club: { id: number; meuPapel?: string | null } | null): NavigationMode {
+  try {
+    if (!localStorage.getItem('ludora_token') || !['ADMIN', 'TECNICO', 'MESARIO'].includes(club?.meuPapel || '')) return 'publico';
+    const choice = JSON.parse(sessionStorage.getItem(VISITOR) || 'null');
+    const user = JSON.parse(localStorage.getItem('ludora_usuario') || 'null');
+    return choice?.clubId === club?.id && choice?.userId === user?.id ? 'publico' : 'gestao';
+  } catch { return 'publico'; }
+}
 export function navigationMode(): NavigationMode {
   try {
     const club = JSON.parse(localStorage.getItem('ludora_clube') || 'null');
-    return localStorage.getItem('ludora_token') && ['ADMIN', 'TECNICO', 'MESARIO'].includes(club?.meuPapel) && localStorage.getItem(MODE) !== 'publico' ? 'gestao' : 'publico';
+    return clubNavigationMode(club);
   }
   catch { return 'publico'; }
 }
-export function saveNavigationMode(mode: NavigationMode) { localStorage.setItem(MODE, mode); }
+export function saveNavigationMode(mode: NavigationMode) {
+  const club = JSON.parse(localStorage.getItem('ludora_clube') || 'null');
+  const user = JSON.parse(localStorage.getItem('ludora_usuario') || 'null');
+  if (mode === 'publico' && localStorage.getItem('ludora_token') && user?.id && ['ADMIN', 'TECNICO', 'MESARIO'].includes(club?.meuPapel)) {
+    sessionStorage.setItem(VISITOR, JSON.stringify({ clubId: club.id, userId: user.id }));
+  } else sessionStorage.removeItem(VISITOR);
+  localStorage.setItem(MODE, mode);
+}
 function internalPath(path: string) {
   try {
     if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return '/selecionar-clube';

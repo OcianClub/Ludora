@@ -21,6 +21,10 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
   await page.route('http://localhost:3000/**',async route=>{
     const pathname=new URL(route.request().url()).pathname;
     const query=new URL(route.request().url()).searchParams;
+    if(pathname==='/publico/partidas/ao-vivo') return route.fulfill({json:partidas.filter(p=>p.status==='AO_VIVO').map(p=>({
+      id:p.id,data:p.data,horario:p.horario,categoria:p.categoria.nome,gols_mandante:p.gols_mandante,gols_visitante:p.gols_visitante,
+      mandante:p.mandante,visitante:p.visitante,clube_ids:[...new Set([p.mandante.clube_representado_id,p.visitante.clube_representado_id].filter(Boolean))],
+    }))});
     if(pathname==='/locais/sugestoes') return route.fulfill({json:{items:[{id:'local:demo',label:'Ginásio de demonstração',source:'local'}],providerEnabled:false,unavailable:false}});
     if(pathname==='/jogadores') {
       let rows=jogadores.filter(j=>(!query.get('fase')||categorias.find(c=>c.id===j.categoria_id)?.tipo===query.get('fase'))&&(!query.get('categoria_id')||j.categoria_id===Number(query.get('categoria_id')))&&j.nome.toLowerCase().includes((query.get('busca')||'').toLowerCase())&&(!query.get('posicao')||j.posicao===query.get('posicao'))&&(!query.get('camisa')||(query.get('camisa')==='missing'?j.numCamisa==null:j.numCamisa!=null)));

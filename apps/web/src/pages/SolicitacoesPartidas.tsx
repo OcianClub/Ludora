@@ -1,9 +1,8 @@
-import { io } from 'socket.io-client';
-import { BASE_URL } from '../services/config';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { carregarPropostas, responderProposta, type PropostaPartida } from '../services/sharedMatches';
+import { responderProposta, type PropostaPartida } from '../services/sharedMatches';
+import { useMatchProposals } from '../hooks/useMatchProposals';
 import { Btn, Input, Modal, LoadingSkeleton } from '../components/UI';
 import { Icon } from '../components/Icon';
 import { InfoNotice } from '../components/InfoNotice';
@@ -16,11 +15,9 @@ import './SharedMatches.css';
 
 export default function SolicitacoesPartidas() {
   const { clube, token } = useAuth();
-  const currentClub = useRef(clube?.id);
-  currentClub.current = clube?.id;
   const [params] = useSearchParams();
-  const [items, setItems] = useState<PropostaPartida[]>([]);
-  const [loading, setLoading] = useState(true), [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const { items, loading, refreshing, error: refreshError, refresh } = useMatchProposals(clube?.id, token);
+  const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [selected, setSelected] = useState<PropostaPartida | null>(null);
   const [acao, setAcao] = useState('ACEITAR'), [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ data: '', horario: '', local: '', motivo: '' });
@@ -38,21 +35,6 @@ export default function SolicitacoesPartidas() {
     setDirecao('TODAS');
     requestAnimationFrame(() => document.querySelector('[data-highlight]')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   }, [items, params]);
-  async function refresh() {
-    setError('');
-    const sourceClub = clube?.id;
-    try { const data = await carregarPropostas(); if (currentClub.current === sourceClub) setItems(data); } catch (e) { if (currentClub.current === sourceClub) setError((e as Error).message); } finally { if (currentClub.current === sourceClub) setLoading(false); }
-  }
-  useEffect(() => {
-    setItems([]); setLoading(true);
-    void refresh();
-    if (!clube || !token) return;
-    const socket = io(BASE_URL, { auth: { token, clubeId: clube.id } });
-    socket.on('solicitacao_partida', () => { void refresh(); });
-    socket.on('connect', () => { void refresh(); });
-    const timer = setInterval(() => { if (!socket.connected) void refresh(); }, 12000);
-    return () => { socket.disconnect(); clearInterval(timer); };
-  }, [clube?.id, token]);
   function open(p: PropostaPartida, next: string) {
     setSelected(p); setAcao(next); setError('');
     setForm({ data: p.dados.data || '', horario: p.dados.horario || '', local: p.dados.local || '', motivo: '' });
@@ -89,9 +71,12 @@ export default function SolicitacoesPartidas() {
       <div className="shared-status-tabs" role="group" aria-label="Situação das solicitações">{situationOptions.map(([v, l]) => <button type="button" key={l} aria-pressed={filtro === v} onClick={() => setFiltro(v)}>{l}</button>)}</div>
       <div className="shared-status-tabs" role="group" aria-label="Direção das solicitações">{directionOptions.map(([v, l]) => <button type="button" key={l} aria-pressed={direcao === v} onClick={() => setDirecao(v)}>{l}</button>)}</div>
     </div>
-    {!loading && !error && <div className="shared-request-results"><strong>{visibleItems.length} {visibleItems.length === 1 ? 'solicitação' : 'solicitações'}</strong><span>{filtro ? 'Pendentes' : 'Todas as situações'} · {directionOptions.find(([value]) => value === direcao)?.[1]}</span></div>}
+    <div className="shared-request-toolbar">
+      <div className="shared-request-results" aria-live="polite">{!loading && <><strong>{visibleItems.length} {visibleItems.length === 1 ? 'solicitação' : 'solicitações'}</strong><span>{filtro ? 'Pendentes' : 'Todas as situações'} · {directionOptions.find(([value]) => value === direcao)?.[1]}</span></>}</div>
+      <button type="button" className="btn btn-ghost shared-request-refresh" aria-label="Atualizar solicitações" aria-busy={refreshing} disabled={refreshing || busy} onClick={() => { setError(''); void refresh(); }}><Icon name="refresh" size={17}/><span>{refreshing ? 'Atualizando…' : 'Atualizar'}</span></button>
+    </div>
     <Toast message={notice} onClose={() => setNotice('')}/>
-    {!selected && error && <p role="alert" className="notice-error">{error}<button onClick={() => void refresh()}>Tentar novamente</button></p>}
+    {!selected && (error || refreshError) && <p role="alert" className="notice-error">{error || refreshError}</p>}
     {loading ? <LoadingSkeleton kind="rows" /> : <div className="shared-proposal-list">{visibleItems.map(p => {
       const recebida = p.respondente_id === clube?.id;
       const sugestao = p.dados.sugestao;
@@ -116,7 +101,7 @@ export default function SolicitacoesPartidas() {
         </div>
       </article>;
     })}</div>}
-    {!loading && !error && visibleItems.length === 0 && <div className="shared-requests-empty" role="status"><Icon name="email" size={36}/><h2>{items.length ? 'Nenhuma solicitação com esses filtros' : 'Nenhuma solicitação por aqui'}</h2><p>{items.length ? 'Tente outra situação ou veja todas as solicitações.' : 'Propostas de partida e pedidos entre clubes aparecerão aqui.'}</p>{items.length > 0 && <Btn variant="ghost" onClick={clearFilters}>Limpar filtros</Btn>}</div>}
+    {!loading && !error && !refreshError && visibleItems.length === 0 && <div className="shared-requests-empty" role="status"><Icon name="email" size={36}/><h2>{items.length ? 'Nenhuma solicitação com esses filtros' : 'Nenhuma solicitação por aqui'}</h2><p>{items.length ? 'Tente outra situação ou veja todas as solicitações.' : 'Propostas de partida e pedidos entre clubes aparecerão aqui.'}</p>{items.length > 0 && <Btn variant="ghost" onClick={clearFilters}>Limpar filtros</Btn>}</div>}
     <CollectionFilterDialog open={filtersOpen} title="Filtrar solicitações" onClose={() => setFiltersOpen(false)} onClear={() => setDraftFilters({ situacao: '', direcao: 'TODAS' })} onApply={() => { setFiltro(draftFilters.situacao); setDirecao(draftFilters.direcao); setFiltersOpen(false); }} className="shared-request-filter-dialog">
       <fieldset className="shared-request-filter-group"><legend>Situação</legend><div>{situationOptions.map(([value, label]) => <button type="button" key={label} aria-pressed={draftFilters.situacao === value} onClick={() => setDraftFilters(current => ({ ...current, situacao: value }))}>{label}</button>)}</div></fieldset>
       <fieldset className="shared-request-filter-group"><legend>Solicitações</legend><div>{directionOptions.map(([value, label]) => <button type="button" key={label} aria-pressed={draftFilters.direcao === value} onClick={() => setDraftFilters(current => ({ ...current, direcao: value }))}>{label}</button>)}</div></fieldset>

@@ -82,7 +82,7 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
         <section className="home-moment" aria-labelledby="home-moment-title">
           <div className="home-section-heading"><h2 id="home-moment-title">Momento da categoria</h2></div>
           <div className="category-moment">
-            <p className="home-section-copy">Últimas 5 partidas · selecione para ver detalhes</p>
+            <p className="home-section-copy">{historico.length === 1 ? 'Última partida' : historico.length ? `Últimas ${historico.length} partidas · mais recente à direita` : 'Resultados da categoria'}</p>
             {historico.length ? <>
               <div className="moment-results">
                 {[...historico].reverse().map((match, index) => (
@@ -90,13 +90,15 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
                     to={`/partidas/${match.id}`} data-tooltip={`${teamName(match.mandante?.nome || 'Mandante')} ${match.gols_mandante} × ${match.gols_visitante} ${teamName(match.visitante?.nome || 'Visitante')} · ${dataHome(match.data)}`}
                     aria-label={`${RESULTADOS[resultadoPartida(match)]}: ${teamName(match.mandante?.nome || 'Mandante')} ${match.gols_mandante} a ${match.gols_visitante} ${teamName(match.visitante?.nome || 'Visitante')}, ${dataHome(match.data, true)}. Ver partida`}>
                     <strong>{resultadoPartida(match)}</strong>
+                    <b className="moment-score">{match.emCasa ? match.gols_mandante : match.gols_visitante}<span aria-hidden="true">–</span>{match.emCasa ? match.gols_visitante : match.gols_mandante}</b>
+                    <span className="moment-opponent" data-tooltip={teamName((match.emCasa ? match.visitante : match.mandante)?.nome || 'Adversário')} data-tooltip-overflow>{teamName((match.emCasa ? match.visitante : match.mandante)?.nome || 'Adversário')}</span>
                     <small className={index === historico.length - 1 ? 'is-latest' : ''}>{dataHome(match.data)}</small>
                   </Link>
                 ))}
               </div>
               <div className="moment-footer">
                 <p><span>{totais.V} vit.</span><i>·</i>{totais.E} emp.<i>·</i><span>{totais.D} der.</span></p>
-                <small>Mais recente à direita</small>
+                <small>Placar do {clube?.nome || 'clube'} à esquerda</small>
               </div>
             </> : <p className="home-inline-empty">Os resultados aparecem após a primeira partida finalizada.</p>}
           </div>
@@ -105,7 +107,6 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
         <section className="home-upcoming">
           <div className="home-section-heading"><h2>Na sequência</h2><Link to={`/partidas?status=PROXIMAS&categoria_id=${current.id}`}>Ver agenda<Icon name="chevronRight" size={15} /></Link></div>
           <div className="home-upcoming-card">
-            <p className="home-section-copy">Próximos compromissos do {current.nome.toUpperCase()}</p>
             {seguintes.length ? <div className="home-upcoming-list">
               {upcomingDays.map(([day, games]) => <div className="home-upcoming-day" key={day}>
                 <h3><Icon name="calendar" size={16} /><time dateTime={day}>{day === hojeCalendario() ? 'Hoje · ' : ''}{dataHome(day)}</time></h3>
@@ -136,11 +137,9 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
       </div>
 
       <section className="home-history">
-        <div className="home-section-heading"><h2>Histórico de partidas</h2><span className="home-category-label">{current.nome.toUpperCase()}</span></div>
-        <p className="home-section-copy">Últimos cinco confrontos · mais recente primeiro</p>
+        <div className="home-section-heading"><h2>Histórico de partidas <span className="home-category-label">{current.nome.toUpperCase()}</span></h2><Link to={`/partidas?status=FINALIZADA&categoria_id=${current.id}`}>Ver histórico completo<Icon name="chevronRight" size={15} /></Link></div>
         {historico.length ? <HomeHistoryTable partidas={historico} />
           : <div className="home-empty"><Icon name="ball" size={28} /><p>As partidas finalizadas desta categoria aparecerão aqui.</p></div>}
-        <Link className="home-history-all" to={`/partidas?status=FINALIZADA&categoria_id=${current.id}`}>Ver histórico completo<Icon name="chevronRight" size={17} /></Link>
       </section>
     </div>
   );

@@ -3,7 +3,12 @@
 .shared-mobile-back .icon,
 .shared-desktop-header > a .icon { transform: rotate(180deg); }
 .shared-desktop-filters { display: flex; flex-wrap: wrap; gap: 8px 24px; }
-.shared-request-results { display: grid; gap: 5px; margin-bottom: 16px; }
+.shared-request-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.shared-request-results { display: grid; gap: 5px; min-width: 0; }
+.shared-request-refresh { flex-shrink: 0; min-height: 40px; padding: 8px 10px; font-size: 12px; }
+.shared-request-refresh[aria-busy="true"] > svg { animation: shared-request-spin 1s linear infinite; }
+@keyframes shared-request-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .shared-request-refresh[aria-busy="true"] > svg { animation: none; } }
 .shared-request-results strong { font-size: 13px; font-weight: 600; }
 .shared-request-results > span { font-size: 11px; color: var(--texto-sec); line-height: 1.5; }
 .shared-requests-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 300px; padding: 32px 16px; text-align: center; color: var(--texto-sec); }

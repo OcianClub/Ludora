@@ -24,7 +24,10 @@ test('consulta pública HTTP: escopo, rascunhos e ações de gestão', async t =
     time: { findMany: async () => [] },
     partida: {
       findUnique: async ({ select }: any) => { assert.equal(select.auditoria, undefined); assert.equal(select.propostas, undefined); return exists ? row() : null; },
-      findMany: async ({ where }: any) => { assert.ok(where.AND); assert.match(JSON.stringify(where.AND), /clube_id/); return [row()]; },
+      findMany: async ({ where }: any) => {
+        if (where.status === 'AO_VIVO') { assert.equal(where.OR.length, 3); return status === 'AO_VIVO' ? [row()] : []; }
+        assert.ok(where.AND); assert.match(JSON.stringify(where.AND), /clube_id/); return [row()];
+      },
     },
     escalacaoPartida: { findMany: async ({ where, select }: any) => {
       lineupCalls++; assert.deepEqual(where.time_id.in, [20]);
@@ -66,6 +69,17 @@ test('consulta pública HTTP: escopo, rascunhos e ações de gestão', async t =
     const away = await (await fetch(base + '/publico/partidas/50?clube_id=3')).json();
     assert.equal(away.clube.id, 3); assert.equal(away.partida.emCasa, false);
     const list = await (await fetch(base + '/publico/clubes/2/partidas')).json(); assert.equal(list[0].somente_leitura, true);
+  });
+  await t.test('feed ao vivo responde sem token e não é confundido com um identificador de partida', async () => {
+    const response = await fetch(base + '/publico/partidas/ao-vivo');
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.length, 1); assert.equal(body[0].id, 50);
+    assert.equal(body[0].mandante.nome, 'Ocian');
+    assert.deepEqual(body[0].clube_ids, [2, 3]);
+    assert.doesNotMatch(JSON.stringify(body), /cpf|dtNasc|email|senha|escalacao|auditoria|usuario_id/);
+    status = 'FINALIZADA';
+    assert.deepEqual(await (await fetch(base + '/publico/partidas/ao-vivo')).json(), []);
   });
   await t.test('não há escrita pública; rotas autenticadas continuam exigindo token', async () => {
     assert.equal((await fetch(base + '/publico/partidas/50', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 404);

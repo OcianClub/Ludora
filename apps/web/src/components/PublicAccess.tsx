@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchClubes, getClubeId, requestJson, type Clube } from '../services/api';
 import type { GestaoPartida } from '../services/sharedMatches';
@@ -28,7 +28,7 @@ export function WorkspaceAccess({ children }: { children: ReactNode }) {
 }
 export function PublicClubEntry() {
   const { clubeId } = useParams();
-  const { token, definirClube, mudarModo } = useAuth();
+  const { token, definirClube } = useAuth();
   const [ready, setReady] = useState('');
   const [error, setError] = useState('');
   useEffect(() => {
@@ -37,29 +37,34 @@ export function PublicClubEntry() {
       const club = await requestJson<Clube>(`/publico/clubes/${clubeId}`);
       const personalized = token ? await fetchClubes().catch(() => []) : [];
       if (!active) return;
-      mudarModo('publico'); definirClube(personalized.find(c => c.id === club.id) || club); setReady(clubeId!);
+      definirClube(personalized.find(c => c.id === club.id) || club); setReady(clubeId!);
     })().catch(() => { if (active) setError('Não foi possível abrir este clube. Verifique o endereço e tente novamente.'); });
     return () => { active = false; };
-  }, [clubeId, token, definirClube, mudarModo]);
+  }, [clubeId, token, definirClube]);
   if (error) return <div className="public-access-state" role="alert"><p>{error}</p><Link to="/selecionar-clube">Voltar aos clubes</Link></div>;
   return ready === clubeId ? <Layout /> : <div className="public-access-state" role="status">Abrindo clube…</div>;
 }
 export function PublicMatchEntry({ children }: { children: ReactNode }) {
   const { id } = useParams();
-  const { token, modo, definirClube } = useAuth();
+  const [params] = useSearchParams();
+  const candidate = Number(params.get('clube_id'));
+  const requestedClub = Number.isSafeInteger(candidate) && candidate > 0 ? candidate : null;
+  const { token, modo, definirClube, clubeSelecionado } = useAuth();
+  const switchContext = requestedClub != null && requestedClub !== clubeSelecionado?.id;
+  const key = `${id}:${requestedClub || ''}`;
   const [ready, setReady] = useState('');
   const [error, setError] = useState('');
   useEffect(() => {
-    if (modo === 'gestao') return;
+    if (modo === 'gestao' && !switchContext) return;
     let active = true; setError('');
-    const selected = getClubeId();
+    const selected = requestedClub || getClubeId();
     requestJson<GestaoPartida & { clube: Clube }>(`/publico/partidas/${id}${selected ? `?clube_id=${selected}` : ''}`).then(async data => {
       const clubs = token ? await fetchClubes().catch(() => []) : [];
       if (!active) return;
-      definirClube(clubs.find(c => c.id === data.clube.id) || data.clube); setReady(id!);
+      definirClube(clubs.find(c => c.id === data.clube.id) || data.clube); setReady(key);
     }).catch(() => { if (active) setError('Não foi possível abrir esta partida.'); });
     return () => { active = false; };
-  }, [id, token, modo, definirClube]);
-  if (modo === 'gestao' || ready === id) return <>{children}</>;
+  }, [id, token, modo, definirClube, requestedClub, switchContext, key]);
+  if ((modo === 'gestao' && !switchContext) || ready === key) return <>{children}</>;
   return <div className="public-access-state" role={error ? 'alert' : 'status'}><p>{error || 'Abrindo partida…'}</p>{error && <Link to="/selecionar-clube">Voltar aos clubes</Link>}</div>;
 }

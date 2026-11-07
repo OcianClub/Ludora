@@ -5,6 +5,9 @@ import { idPositivo } from '../utils/id';
 export function registrarNamespacePublico(io: Server, banco: PrismaClient) {
   const publico = io.of('/publico');
   publico.use(async (socket, next) => {
+    if (socket.handshake.auth?.descoberta === true) {
+      socket.data.descoberta = true; return next();
+    }
     const clubeId = idPositivo(socket.handshake.auth?.clubeId);
     if (!clubeId) return next(new Error('Clube inválido'));
     try {
@@ -14,7 +17,7 @@ export function registrarNamespacePublico(io: Server, banco: PrismaClient) {
   });
   publico.on('connection', socket => {
     // Namespace e salas distintos dos canais privados de usuário e de gestão.
-    void socket.join(`publico:clube:${socket.data.clubeId}`);
+    void socket.join(socket.data.descoberta ? 'publico:ao-vivo' : `publico:clube:${socket.data.clubeId}`);
   });
 }
 export function notificarPartidaPublica(io: Server, partida: {
@@ -24,4 +27,7 @@ export function notificarPartidaPublica(io: Server, partida: {
   const clubes = new Set([partida.categoria.clube_id, partida.mandante?.clube_representado_id,
     partida.visitante?.clube_representado_id, ...(partida.participantes || []).map(team => team.clube_id)]);
   for (const clube of clubes) if (clube) io.of('/publico').to(`publico:clube:${clube}`).emit('partidas_alteradas', { partida_id: partida.id });
+  if (partida.mandante?.clube_representado_id || partida.visitante?.clube_representado_id || partida.participantes?.length) {
+    io.of('/publico').to('publico:ao-vivo').emit('ao_vivo_alterado', { partida_id: partida.id });
+  }
 }

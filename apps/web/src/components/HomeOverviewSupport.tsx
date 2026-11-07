@@ -105,7 +105,6 @@ export function HomeHighlights({ category, highlights }: {
   return <section className="home-highlights" aria-labelledby="home-highlights-title">
     <div className="home-section-heading"><h2 id="home-highlights-title">Destaques da categoria</h2><Link to={`/elenco?categoria_id=${category.id}`}>Ver Scout<Icon name="chevronRight" size={15} /></Link></div>
     <div className="home-highlights-card">
-      <p className="home-section-copy">Gols e assistências registrados no {category.nome.toUpperCase()}</p>
       {highlights.loading ? <div className="home-highlights-loading home-placeholder" role="status" aria-label="Carregando destaques" />
         : highlights.leaders.length ? <div className="home-highlight-leaders">
           {highlights.leaders.map(leader => <Link key={leader.campo} to={`/elenco?categoria_id=${category.id}&ordem=${leader.campo === 'totalGols' ? 'goals' : 'assists'}`}>

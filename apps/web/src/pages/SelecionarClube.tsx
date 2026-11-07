@@ -9,6 +9,7 @@ import { PublicHeader } from '../components/PublicLayout';
 import { rememberAccess } from '../services/publicAccess';
 import { CollectionSearch } from '../components/CollectionToolbar';
 import { Icon, type IconName } from '../components/Icon';
+import { ClubLiveMatches } from '../components/ClubLiveMatches';
 import './SelecionarClube.css';
 
 const normalizar = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
@@ -22,7 +23,7 @@ const papeis: Record<string, { label: string; icon: IconName }> = {
 };
 
 export default function SelecionarClubePage() {
-  const { definirClube, clubeSelecionado: clubeAtual, token, mudarModo } = useAuth();
+  const { definirClube, clubeSelecionado: clubeAtual, token } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [clubes, setClubes] = useState<Clube[]>(() => cachedJson<Clube[]>('/clubes') || []);
@@ -46,7 +47,6 @@ export default function SelecionarClubePage() {
   }, [tentativa, token]);
 
   function selecionar(clube: Clube) {
-    mudarModo('publico');
     definirClube(clube);
     navigate(`/clubes/${clube.id}`);
   }
@@ -137,7 +137,7 @@ export default function SelecionarClubePage() {
   return <div className="selecionar-page">
     <PublicHeader />
     <main className="selecionar-body" data-tooltip-disabled>
-      <div className="selecionar-intro"><h1>Encontre o seu clube</h1><p>Acesse qualquer clube. Seguir serve para deixar seus favoritos salvos aqui.</p></div>
+      <div className="selecionar-intro"><h1>Encontre o seu clube</h1><p>Acesse clubes, acompanhe partidas e salve seus favoritos.</p></div>
       {accessNotice && <p className="editor-description" role="status">{accessNotice}</p>}
       {erro && <div className="club-picker-error" role="alert"><span>{erro}</span>{!clubes.length && <button type="button" onClick={() => setTentativa(value => value + 1)}>Tentar novamente</button>}</div>}
       {loading ? <ClubRowsSkeleton /> : <>
@@ -145,6 +145,7 @@ export default function SelecionarClubePage() {
           <h2 id="clubs-roles" className="club-picker-section-title">Com cargo <span>{gerenciados.length}</span></h2>
           <div className="club-picker-grid">{gerenciados.map(item => card(item))}</div>
         </section>}
+        {!query && <ClubLiveMatches clubs={clubes}/>}
         {!query && seguindo.length > 0 && <section className="club-picker-section" aria-labelledby="clubs-following">
           <h2 id="clubs-following" className="club-picker-section-title">Que você segue <span>{seguindo.length}</span></h2>
           <div className="club-picker-grid">{seguindo.map(item => card(item))}</div>

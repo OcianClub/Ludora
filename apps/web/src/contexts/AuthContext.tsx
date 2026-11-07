@@ -18,7 +18,7 @@ import { BASE_URL } from '../services/config';
 import { AuthError, authRequest } from '../services/authHttp';
 import { invalidateReadCache } from '../services/readCache';
 import { clearSavedSession, reconcileClubAccess } from '../services/authSession';
-import { navigationMode, saveNavigationMode, type NavigationMode } from '../services/publicAccess';
+import { clubNavigationMode, navigationMode, saveNavigationMode, type NavigationMode } from '../services/publicAccess';
 
 interface AuthContextValue {
   usuario: Usuario | null;
@@ -77,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     localStorage.setItem('ludora_clube', JSON.stringify(nextClub));
     setClube(current => current?.id === selected.id ? nextClub : current);
+    setModo(clubNavigationMode(nextClub));
   }, []);
 
   useEffect(() => {
@@ -135,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('ludora_clube');
       localStorage.setItem('ludora_usuario', JSON.stringify(dados.usuario));
       setToken(dados.token);
+      saveNavigationMode('gestao');
     } catch {
       invalidateReadCache();
       clearSavedSession();
@@ -172,9 +174,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const definirClube = useCallback((c: Clube) => {
+    const nextMode = clubNavigationMode(c);
+    if (navigationMode() !== nextMode) invalidateReadCache();
     setClubeId(c.id);
     setClube(c);
     localStorage.setItem('ludora_clube', JSON.stringify(c));
+    setModo(nextMode);
   }, []);
 
   const atualizarPerfil = useCallback(async (dados: { nome: string; email: string; senha?: string }) => {

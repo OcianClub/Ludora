@@ -27,7 +27,6 @@ export function PublicHeader() {
       <Link to="/selecionar-clube" className="public-brand" aria-label="Ludora · encontrar clubes"><Brand /></Link>
       {insideClub && clube && <div className="public-club-switcher">
         <Link to={base} className="public-current-club" aria-label={`Visão geral do ${clube.nome}`}><ClubBadge src={clube.escudo} name={clube.nome} size={34} /><strong>{clube.nome}</strong></Link>
-        <Link to="/selecionar-clube" className="public-switch-club" aria-label="Trocar clube"><Icon name="switchClub" size={18} /></Link>
       </div>}
       </div>
       {insideClub && <nav className="public-top-nav" aria-label="Navegação pública">{links.map(link => <NavLink key={link.to} to={link.to} end={link.end} className={({ isActive }) => active(link, isActive)}>{link.label}</NavLink>)}</nav>}

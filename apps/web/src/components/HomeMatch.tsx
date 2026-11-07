@@ -77,8 +77,7 @@ export function HomeHistoryTable({ partidas }: { partidas: HomePartida[] }) {
           <tr>
             <th scope="col">Data</th>
             <th scope="col" className="history-competition">Competição</th>
-            <th scope="col" className="history-confrontation">Confronto</th>
-            <th scope="col" className="history-score-cell">Placar</th>
+            <th scope="col" className="history-confrontation"><span className="history-confrontation-heading">Confronto<span>Placar</span></span></th>
             <th scope="col" className="history-result-cell">Resultado</th>
             <th scope="col" className="history-venue">Mando</th>
             <th scope="col" className="history-action-cell"><span className="history-sr-only">Detalhes</span></th>
@@ -96,10 +95,10 @@ export function HomeHistoryTable({ partidas }: { partidas: HomePartida[] }) {
                 <td className="history-confrontation">
                   <div className="history-table-teams">
                     <span className={partida.emCasa ? 'is-club' : ''}><ClubBadge src={partida.mandante?.escudo} name={home} size={28} /><span data-tooltip={home} data-tooltip-overflow>{home}{partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</span></span>
+                    <div className="history-table-score history-score-cell" aria-label={`${partida.gols_mandante} a ${partida.gols_visitante}`}><strong>{partida.gols_mandante}</strong><i aria-hidden="true">–</i><strong>{partida.gols_visitante}</strong></div>
                     <span className={!partida.emCasa ? 'is-club' : ''}><ClubBadge src={partida.visitante?.escudo} name={away} size={28} /><span data-tooltip={away} data-tooltip-overflow>{away}{!partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</span></span>
                   </div>
                 </td>
-                <td className="history-score-cell"><div className="history-table-score" aria-label={`${partida.gols_mandante} a ${partida.gols_visitante}`}><strong>{partida.gols_mandante}</strong><strong>{partida.gols_visitante}</strong></div></td>
                 <td className="history-result-cell"><div className="history-result-summary">
                   <span className={`home-result-tag result-${result}`}>{RESULTADOS[result]}</span>
                   <span className="history-result-venue"><Icon name={partida.emCasa ? 'home' : 'bus'} size={13} />{partida.emCasa ? 'Em casa' : 'Fora'}</span>

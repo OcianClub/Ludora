@@ -36,10 +36,11 @@ import handshake from '../../../../packages/icons/src/svg/mdi-handshake.svg?raw'
 
 const drawings = { email, home, ball, team, player, shirt, alert, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus, bell, checkAll, settings, clock, radar, broadcast, handshake };
 const icons = Object.fromEntries(Object.entries(drawings).map(([name, svg]) => [name, `data:image/svg+xml,${encodeURIComponent(svg)}`])) as Record<keyof typeof drawings, string>;
-export type IconName = keyof typeof drawings | 'grid' | 'list' | 'filters' | 'table' | 'desktop' | 'phone' | 'sun' | 'moon' | 'sidebarExpand' | 'sidebarCollapse' | 'info' | 'cancel' | 'archive' | 'undo' | 'share';
+export type IconName = keyof typeof drawings | 'grid' | 'list' | 'filters' | 'table' | 'desktop' | 'phone' | 'sun' | 'moon' | 'sidebarExpand' | 'sidebarCollapse' | 'info' | 'cancel' | 'archive' | 'undo' | 'share' | 'refresh';
 
 // Usa os mesmos desenhos do mobile, sem depender de componentes React Native.
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+  if (name === 'refresh') return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}><path d="M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 13 3l1 3M4 12l1 3a8 8 0 0 0 13 3"/></svg>;
   if (name === 'share') return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}><path d="M12 16V3m-4 4 4-4 4 4M5 12v8h14v-8" /></svg>;
   if (name === 'undo') return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}><path d="m9 5-6 6 6 6M3 11h11a6 6 0 0 1 6 6v2"/></svg>;
   if (name === 'archive') return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>

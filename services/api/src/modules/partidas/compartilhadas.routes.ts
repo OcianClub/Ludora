@@ -42,6 +42,10 @@ export function criarCompartilhadasRoutes(io: Server) {
   }
   async function avisoProposta(id: string, acao = 'CRIAR', autorId?: number) {
     const p = await prisma.propostaPartida.findUniqueOrThrow({ where: { id } });
+    // A proposta já foi confirmada na transação. Atualize as telas antes do envio de avisos.
+    for (const clubeId of new Set([p.origem_id, p.destino_id])) {
+      io.to(`clube:${clubeId}`).emit('solicitacao_partida', { id });
+    }
     const clubes = await prisma.clube.findMany({ where: { id: { in: [p.origem_id, p.destino_id] } }, select: { id: true, nome: true } });
     const autor = clubes.find(clube => clube.id === autorId)?.nome || clubes.find(clube => clube.id === p.origem_id)?.nome || 'O outro clube';
     const dados = p.dados as { data?: string; horario?: string; local?: string };
@@ -64,7 +68,6 @@ export function criarCompartilhadasRoutes(io: Server) {
         io.to(`usuario:${gestor.usuario_id}`).emit('notificacao_criada', n);
       }
       void enviarPushParaUsuarios(gestores.map(g => g.usuario_id), clubeId, 'PARTIDA_AGENDADA', titulo, detalhes || 'Consulte a proposta em Solicitações de partidas.', { solicitacaoId: p.id, clubeId }).catch(() => console.error('Falha ao enviar push da proposta.'));
-      io.to(`clube:${clubeId}`).emit('solicitacao_partida', { id });
     }
   }
   async function agendamento(id: number, titulo: string) {

@@ -6,6 +6,7 @@ import { limitarRequisicoes } from '../../middlewares/rate-limit.middleware';
 import { consultarHome, dataHomeValida } from '../partidas/home.service';
 import { escopoPartidas } from '../partidas/visibilidade';
 import { referenciasCompeticoes } from '../paulista/service';
+import { consultarAoVivo } from './ao-vivo.service';
 import { clubePublicoSelect, consultarPartidaPublica, partidaPublicaSelect, publicarPartida, competicaoPublicaSelect, escopoCompeticoesPublicas, classificarPartidas } from './publico.service';
 
 export function criarPublicoRoutes(banco: PrismaClient = prisma) {
@@ -14,6 +15,9 @@ export function criarPublicoRoutes(banco: PrismaClient = prisma) {
   const safe = (handler: RequestHandler): RequestHandler => async (req, res, next) => {
     try { await handler(req, res, next); } catch { res.status(500).json({ error: 'Não foi possível carregar esta consulta. Tente novamente.' }); }
   };
+  router.get('/publico/partidas/ao-vivo', safe(async (_req, res) => {
+    res.json(await consultarAoVivo(banco));
+  }));
   const clube: RequestHandler = safe(async (req, res, next) => {
     const id = idPositivo(req.params.clubeId);
     if (!id) { res.status(400).json({ error: 'Clube inválido.' }); return; }

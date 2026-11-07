@@ -8,6 +8,7 @@ async function checkHeader(page, insideClub) {
   assert.equal(await page.locator('.public-club-switcher').count(), insideClub ? 1 : 0, 'clube só aparece dentro de suas páginas');
   assert.equal(await page.locator('.public-top-nav').count(), insideClub ? 1 : 0, 'descoberta não mostra links de um clube salvo');
   assert.equal(await page.locator('.public-club-context').count(), 0, 'não há faixa extra abaixo da navegação');
+  assert.equal(await page.getByRole('link', { name: 'Trocar clube', exact: true }).count(), 0, 'Clubes já está disponível na navegação, sem ação redundante no header');
   if (insideClub) {
     assert.deepEqual(await page.locator('.public-top-nav a').allTextContents(), ['Visão geral', 'Partidas', 'Campeonatos', 'Clubes']);
     assert.equal(await page.locator('.public-header .public-current-club').count(), 1);
@@ -63,7 +64,8 @@ async function fixture(page, role = 'ADMIN') {
     const club = data.clubes.find(c => c.id === Number(endpoint.split('/')[3]));
     const match = endpoint.match(/^\/publico\/partidas\/(\d+)$/);
     let response;
-    if (match) {
+    if (endpoint === '/publico/partidas/ao-vivo') response = [];
+    else if (match) {
       const p = data.partidas.find(p => p.id === Number(match[1]));
       if (p) response = { clube: { ...data.clubes[0], meuPapel: null }, partida: { ...p, versao: 1, periodo_atual: 1, organizador_id: 2, sumula_clube_id: 2 },
         organizador: data.clubes[0], podePreparar: false, podeSumula: false, auditoria: [], minhaEquipeId: 1,
@@ -159,13 +161,24 @@ async function fixture(page, role = 'ADMIN') {
     await checkHeader(page, false);
     assert.equal(f.writes.length, 1, 'login retoma seguir exatamente uma vez');
     await page.getByRole('button', { name: 'Acessar Ocian', exact: true }).click();
+    await page.locator('.sidebar').waitFor();
+    await page.reload();
+    await page.locator('.sidebar').waitFor();
+    assert.equal(await page.locator('.public-layout').count(), 0, 'gestor entra e retorna na visão gerencial por padrão');
+    await page.getByRole('link', { name: 'Ver como visitante', exact: true }).first().click();
     await page.locator('.home-history-table').waitFor();
+    await page.reload();
+    await page.locator('.public-header').waitFor();
     for (const width of [320, 390, 768, 1024, 1101, 1200, 1280, 1281, 1366, 1440, 1920]) {
       await page.setViewportSize({ width, height: 900 });
       await checkHeader(page, true);
       const sizes = await page.locator('.public-header-actions').evaluate(el => [...el.querySelectorAll('.notifications-trigger, .account-trigger')].map(button => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, icon: button.querySelector('.icon').getBoundingClientRect().width })));
       assert.equal(sizes.length, 2);
       assert.deepEqual(sizes[0], sizes[1], `sino e perfil têm o mesmo tamanho no topo em ${width}px`);
+      if (width > 760) {
+        const manage = await page.getByRole('button', { name: 'Gerenciar clube', exact: true }).boundingBox();
+        assert.equal(manage.height, sizes[1].height, 'gerenciar acompanha a altura dos demais controles');
+      }
     }
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.getByRole('button', { name: 'Gerenciar clube', exact: true }).click();
