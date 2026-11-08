@@ -116,11 +116,13 @@ const output = path.resolve(__dirname, '../../../test-results/proposal-response'
         await page.reload();
         await page.getByRole('button', { name: 'Aceitar', exact: true }).click();
         await dialog.getByRole('button', { name: 'Aceitar proposta', exact: true }).click();
-        await dialog.getByRole('alert').waitFor();
+        await dialog.waitFor({ state: 'hidden' });
+        await page.getByText('A solicitação mudou ou já foi respondida. Confira os dados atualizados antes de continuar.', { exact: true }).waitFor();
         assert.equal(responses.length, 1);
         assert.equal(responses[0].versao, 4);
         assert.equal(responses[0].acao, 'ACEITAR');
         fail = false;
+        await page.getByRole('button', { name: 'Aceitar', exact: true }).click();
         await dialog.getByRole('button', { name: 'Aceitar proposta', exact: true }).click();
         await dialog.waitFor({ state: 'hidden' });
         assert.equal(responses.length, 2);

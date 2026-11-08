@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { carregarGestao, comandoPartida } from '../services/sharedMatches';
-import { requestJson } from '../services/api';
+import { ApiResponseError, requestJson } from '../services/api';
 import type { MatchEvent } from '../utils/matchEvents';
 
 export const EVENT_REVIEW_MS = 5000;
@@ -10,7 +10,7 @@ type QueuedEvent = {
   operation?: 'remove';
   label: string;
   due: number;
-  status: 'waiting' | 'sending' | 'failed';
+  status: 'waiting' | 'sending' | 'failed' | 'rejected';
   attempted?: boolean;
   error?: string;
 };
@@ -21,17 +21,17 @@ export function useDelayedMatchEvents(matchId: number, scope: string, onSent: (e
     if (!enabled) return [];
     try {
       const saved = JSON.parse(sessionStorage.getItem(key) || '[]') as QueuedEvent[];
-      return saved.map(item => ({ ...item, status: 'failed', error: 'Envio interrompido. Confira e tente novamente.' }));
+      return saved.map(item => item.status === 'rejected' ? item : ({ ...item, status: 'failed', error: 'Envio interrompido. Confira e tente novamente.' }));
     } catch { return []; }
   });
-  const [now, setNow] = useState(Date.now());
   const current = useRef(queue);
   const sending = useRef(false);
   const sent = useRef(onSent);
   sent.current = onSent;
   function change(update: (items: QueuedEvent[]) => QueuedEvent[]) {
     current.current = update(current.current);
-    sessionStorage.setItem(key, JSON.stringify(current.current));
+    // Restricted/full storage must not prevent the local cancellation or the HTTP request.
+    try { sessionStorage.setItem(key, JSON.stringify(current.current)); } catch { /* In-memory queue stays usable. */ }
     setQueue(current.current);
   }
   useEffect(() => {
@@ -39,8 +39,6 @@ export function useDelayedMatchEvents(matchId: number, scope: string, onSent: (e
     let mounted = true;
     const tick = async () => {
       if (!mounted) return;
-      const timestamp = Date.now();
-      setNow(previous => Math.floor(previous / 1000) === Math.floor(timestamp / 1000) ? previous : timestamp);
       const first = current.current[0];
       if (sending.current || !first || first.status !== 'waiting' || first.due > Date.now()) return;
       sending.current = true;
@@ -57,8 +55,9 @@ export function useDelayedMatchEvents(matchId: number, scope: string, onSent: (e
         change(items => items.filter(item => item.id !== first.id));
         if (mounted) await sent.current(event);
       } catch (error) {
+        const rejected = error instanceof ApiResponseError && error.status >= 400 && error.status < 500 && ![408, 429].includes(error.status);
         change(items => items.map(item => item.id === first.id ? {
-          ...item, status: 'failed', error: error instanceof Error ? error.message : 'Não foi possível confirmar o envio.',
+          ...item, status: rejected ? 'rejected' : 'failed', error: error instanceof Error ? error.message : 'Não foi possível confirmar o envio.',
         } : item));
       } finally { sending.current = false; }
     };
@@ -70,7 +69,7 @@ export function useDelayedMatchEvents(matchId: number, scope: string, onSent: (e
     return () => { mounted = false; clearInterval(timer); window.removeEventListener('beforeunload', warn); };
   }, [key, matchId, queue.length > 0, enabled]);
   return {
-    queue, now,
+    queue,
     enqueue(payload: Record<string, unknown>, label: string, requestId = crypto.randomUUID()) {
       if (!enabled) return;
       change(items => [...items, { id: requestId, payload, label, due: Date.now() + EVENT_REVIEW_MS, status: 'waiting' }]);
@@ -82,7 +81,8 @@ export function useDelayedMatchEvents(matchId: number, scope: string, onSent: (e
     },
     cancel(id: string) { change(items => items.filter(item => item.id !== id || item.status !== 'waiting' || item.attempted)); },
     retry(id: string) {
-      change(items => items.map(item => item.id === id ? { ...item, status: 'waiting', due: item.attempted ? Date.now() : Date.now() + EVENT_REVIEW_MS, error: undefined } : item));
+      change(items => items.map(item => item.id === id && item.status === 'failed' ? { ...item, status: 'waiting', due: item.attempted ? Date.now() : Date.now() + EVENT_REVIEW_MS, error: undefined } : item));
     },
+    dismiss(id: string) { change(items => items.filter(item => item.id !== id || item.status !== 'rejected')); },
   };
 }

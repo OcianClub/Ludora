@@ -120,9 +120,8 @@ export default function SelecionarClubePage() {
       <div className="club-picker-info">
         <div className="club-picker-name"><strong>{clube.nome}</strong>{clube.id === clubeAtual?.id && <span className="club-picker-current">Atual</span>}</div>
         {detalhes && <span className="club-picker-details">{detalhes}</span>}
-        {(cargo || Boolean(clube.partidasAoVivo)) && <div className="club-picker-tags">
+        {cargo && papel && <div className="club-picker-tags">
           {cargo && papel && <span className={`club-picker-role role-${clube.meuPapel?.toLowerCase()}`}><Icon name={papel.icon} size={13}/>{papel.label}</span>}
-          {Boolean(clube.partidasAoVivo) && <span className="club-picker-live" aria-label={`${clube.partidasAoVivo} ${clube.partidasAoVivo === 1 ? 'partida ao vivo' : 'partidas ao vivo'}`}><Icon name="broadcast" size={14}/>Ao vivo</span>}
         </div>}
       </div>
       <span className="club-picker-chevron"><Icon name="chevronRight" size={18}/></span>

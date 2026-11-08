@@ -1,0 +1,31 @@
+.match-poll { min-width: 0; padding: 18px; background: var(--fundo-card); border: 1px solid var(--borda); border-radius: 9px; }
+.match-poll header { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.match-poll h2 { font-size: 14px; font-family: inherit; margin: 0; }
+.match-poll header p { margin: 6px 0 0; color: var(--texto-sec); font-size: 11px; }
+.match-poll header>.icon { color: var(--texto-sec); }
+.match-poll-options { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin-top: 16px; }
+.match-poll-options button { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 11px 6px 14px; border: 1px solid var(--borda); border-radius: 8px; background: var(--fundo); color: var(--texto); overflow: hidden; cursor: pointer; }
+.match-poll-options button > :not(.match-poll-fill) { position: relative; z-index: 1; }
+.match-poll-options button:disabled { opacity: 1; cursor: default; }
+.match-poll-options button:not(:disabled):hover { background: var(--fundo-card-sec); }
+.match-poll-options button[aria-pressed="true"] { border-color: var(--primaria); background: var(--fundo-card-sec); }
+.match-poll-options .club-badge { background: var(--fundo-card-sec); border-radius: 5px; flex-shrink: 0; }
+.match-poll-choice-team { min-width: 0; max-width: 100%; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.match-poll-option-name { max-width: 100%; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.match-poll-draw { height: 24px; display: grid; place-items: center; font-size: 14px; }
+.match-poll-options strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.match-poll-fill { position: absolute; inset: 0; transform-origin: center bottom; pointer-events: none; background: color-mix(in srgb, var(--texto-sec) 14%, transparent); }
+.match-poll small { display: block; font-size: 10px; color: var(--texto-sec); margin-top: 12px; line-height: 1.5; }
+.match-poll-login { display: flex; align-items: center; gap: 5px; margin-top: 14px; font-size: 12px; }
+.match-poll-hint,.match-poll-feedback { color: var(--texto-sec); font-size: 11px; line-height: 1.6; margin: 12px 0 0; }
+.match-poll-error { margin-top: 12px; display: grid; gap: 8px; color: var(--texto-sec); font-size: 11px; }
+.match-poll-error button { border: 0; padding: 6px 0; justify-self: start; color: var(--primaria); background: transparent; cursor: pointer; }
+@media(max-width: 480px) { .match-poll { padding: 16px; } }
+@media(min-width: 1101px) {
+  .match-poll-options button { padding: 9px 8px; gap: 5px; }
+  .match-poll-choice-team { flex-direction: row; gap: 7px; }
+  .match-poll-options .club-badge { width: 30px !important; height: 30px !important; }
+  .match-poll-option-name { min-width: 0; font-size: 12px; font-weight: 600; }
+  .match-poll-draw { height: 30px; }
+}
+@media(prefers-reduced-motion: no-preference) { .match-poll-fill { transition: transform .4s ease; } }

@@ -10,8 +10,8 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
   let nextId = 1;
   let correcaoAceita = false;
   const roster = [
-    { jogador_id: 101, time_id: 10, titular: true }, { jogador_id: 102, time_id: 10, titular: true },
-    { jogador_id: 103, time_id: 10, titular: false }, { jogador_id: 201, time_id: 20, titular: true },
+    { jogador_id: 101, time_id: 10, titular: true, numCamisa: 1 }, { jogador_id: 102, time_id: 10, titular: true, numCamisa: 2 },
+    { jogador_id: 103, time_id: 10, titular: false, numCamisa: 3 }, { jogador_id: 201, time_id: 20, titular: true, numCamisa: 1 },
   ];
   const withPlayer = (event: any) => ({ ...event, jogador: event.jogador_id ? { nome: `Jogador ${event.jogador_id}` } : null });
   function reset() {
@@ -29,7 +29,15 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
       update: async ({ data }: any) => { for (const [key, value] of Object.entries(data)) p[key] = typeof value === 'object' ? p[key] + ((value as any).increment ?? -(value as any).decrement) : value; return p; },
     },
     usuarioClube: { findUnique: async ({ where }: any) => ({ papel: where.usuario_id_clube_id.usuario_id === 99 ? 'TORCEDOR' : 'ADMIN', categorias: [] }) },
-    escalacaoPartida: { count: async ({ where }: any) => roster.filter(row => Object.entries(where).every(([key, value]) => key === 'partida_id' || row[key as keyof typeof row] === value)).length },
+    escalacaoPartida: {
+      count: async ({ where }: any) => roster.filter(row => Object.entries(where).every(([key, value]) => key === 'partida_id' || row[key as keyof typeof row] === value)).length,
+      findMany: async ({ where }: any) => roster.filter(row => row.time_id === where.time_id && where.jogador_id.in.includes(row.jogador_id)),
+      updateMany: async ({ where, data }: any) => {
+        assert.equal(where.time_id, 10, 'A substituição deve se limitar ao time atual');
+        const rows = roster.filter(row => row.time_id === where.time_id && row.jogador_id === where.jogador_id);
+        rows.forEach(row => Object.assign(row, data)); return { count: rows.length };
+      },
+    },
     evento: {
       create: async ({ data }: any) => { const event = { id: nextId++, ...data }; events.push(event); return withPlayer(event); },
       findUnique: async ({ where }: any) => { const event = events.find(e => e.id === where.id); return event ? withPlayer(event) : null; },
@@ -134,5 +142,59 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
     assert.equal(p.gols_visitante, 1); assert.equal(events[0].jogador_id, null);
     p.status = 'FINALIZADA';
     await call('post', post, { tipo: 'GOL', time_id: 20 }, 2, undefined, 400);
+  });
+  await t.test('todos os tipos respeitam jogador, equipe, permissão, minuto e versão da súmula', async () => {
+    for (const tipo of ['GOL', 'ASSISTENCIA', 'DEFESA', 'FALTA', 'CARTAO_AMARELO', 'CARTAO_VERMELHO', 'CARTAO_AZUL']) {
+      reset();
+      const body = { tipo, time_id: 10, jogador_id: 101, minuto: 0, periodo: 1 };
+      for (const extra of [{ minuto: -1 }, { minuto: '1x' }, { minuto: 201 }, { periodo: 0 }, { periodo: 11 }, { jogador_id: 201 }, { jogador_id: 103 }, { versao: 9 }]) {
+        await call('post', post, { ...body, ...extra }, 2, undefined, 'versao' in extra ? 409 : 400);
+      }
+      await call('post', post, body, 2, undefined, 403, 99);
+      assert.equal(events.length, 0); assert.equal(p.versao, 0);
+      const saved = await call('post', post, body);
+      assert.equal(saved.minuto, 0); assert.equal(events.length, 1);
+      await call('delete', '/eventos/:id', { partida_id: 1, versao: p.versao }, 2, saved.id, 200);
+      assert.equal(events.length, 0); assert.equal(p.gols_mandante, 0);
+    }
+  });
+  await t.test('limite de gols e conflito de versão não deixam efeitos parciais', async () => {
+    reset(); p.gols_mandante = 99;
+    await call('post', post, { tipo: 'GOL', time_id: 10, jogador_id: 101, versao: 0 }, 2, undefined, 400);
+    assert.equal(p.gols_mandante, 99); assert.equal(events.length, 0); assert.equal(audits.length, 0);
+    reset();
+    await call('post', post, { tipo: 'GOL', time_id: 10, jogador_id: 101, versao: 0 });
+    await call('post', post, { tipo: 'GOL', time_id: 10, jogador_id: 102, versao: 0 }, 2, undefined, 409);
+    assert.equal(events.length, 1); assert.equal(p.gols_mandante, 1);
+  });
+  await t.test('encerrada exige justificativa inclusive para identificar gol pendente e remover evento', async () => {
+    reset();
+    const goal = await call('post', post, { tipo: 'GOL', time_id: 10, autor_pendente: true });
+    p.status = 'FINALIZADA';
+    await call('patch', patch, { jogador_id: 101 }, 2, goal.id, 400);
+    await call('delete', '/eventos/:id', { partida_id: 1 }, 2, goal.id, 400);
+    assert.equal(events[0].jogador_id, null); assert.equal(p.gols_mandante, 1);
+    await call('patch', patch, { jogador_id: 101, motivo: 'Identificação após conferir a súmula' }, 2, goal.id, 200);
+    await call('delete', '/eventos/:id', { partida_id: 1, motivo: 'Anulação confirmada' }, 2, goal.id, 200);
+    assert.equal(events.length, 0); assert.equal(p.gols_mandante, 0);
+  });
+  await t.test('substituição respeita titular/reserva, clube, camisa, situação e versão; reenvio não troca de novo', async () => {
+    reset(); const path = '/partidas/:id/substituicoes';
+    for (const body of [{ sai: 101, entra: 101 }, { sai: 103, entra: 102 }, { sai: 101, entra: 201 }, { sai: 101, entra: 999 }]) {
+      await call('post', path, body, 2, undefined, 400);
+    }
+    await call('post', path, { sai: 101, entra: 103 }, 2, undefined, 403, 99);
+    await call('post', path, { sai: 101, entra: 103 }, 3, undefined, 400);
+    roster[2].numCamisa = 0;
+    await call('post', path, { sai: 101, entra: 103 }, 2, undefined, 400);
+    roster[2].numCamisa = 3;
+    await call('post', path, { sai: 101, entra: 103, versao: 7 }, 2, undefined, 409);
+    await call('post', path, { sai: 101, entra: 103, versao: 0 }, 2, undefined, 200);
+    assert.equal(roster[0].titular, false); assert.equal(roster[2].titular, true);
+    await call('post', path, { sai: 101, entra: 103, versao: 0 }, 2, undefined, 400);
+    assert.equal(audits.filter(a => a.acao === 'SUBSTITUICAO').length, 1);
+    p.status = 'FINALIZADA';
+    await call('post', path, { sai: 103, entra: 101 }, 2, undefined, 400);
+    roster[0].titular = true; roster[2].titular = false;
   });
 });

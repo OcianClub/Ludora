@@ -1,6 +1,6 @@
 import type { Prisma, StatusPartida } from '@prisma/client';
-import { escopoPartidas, perspectivaPartida } from './visibilidade';
-import { intervaloDataPartidas } from './filtros-data.utils';
+import { escopoPartidas, escopoCategoriaPartidas, perspectivaPartida } from './visibilidade';
+import { FiltroDataInvalido, intervaloDataPartidas } from './filtros-data.utils';
 
 export async function consultarListaPartidas(
   banco: Pick<Prisma.TransactionClient, 'partida' | 'categoria'>,
@@ -8,18 +8,28 @@ export async function consultarListaPartidas(
   filtros: Record<string, unknown>
 ) {
   const where: Prisma.PartidaWhereInput = escopoPartidas(clubeId);
+  const idFiltro = (valor: unknown) => {
+    const n = Number(valor);
+    if (!['number', 'string'].includes(typeof valor) || !/^\d+$/.test(String(valor)) || !Number.isSafeInteger(n) || n < 1 || n > 2147483647)
+      throw new FiltroDataInvalido('Informe um identificador de filtro válido.');
+    return n;
+  };
   const intervalo = intervaloDataPartidas(filtros);
   if (intervalo) where.data = intervalo;
-  if (filtros.categoria_id) {
+  if (filtros.categoria_id !== undefined) {
     const cat = await banco.categoria.findFirst({
-      where: { id: Number(filtros.categoria_id), clube_id: clubeId },
+      where: { id: idFiltro(filtros.categoria_id), clube_id: clubeId },
     });
     if (!cat) return [];
-    where.AND = [{ categoria: { faixaIdade: cat.faixaIdade } }];
+    where.AND = [escopoCategoriaPartidas(clubeId, cat)];
   }
-  if (filtros.status) where.status = filtros.status as StatusPartida;
-  if (filtros.competicao_id)
-    where.competicao_id = Number(filtros.competicao_id);
+  if (filtros.status !== undefined) {
+    if (typeof filtros.status !== 'string' || !['AGENDADA', 'PREPARADA', 'AO_VIVO', 'FINALIZADA', 'CANCELADA'].includes(filtros.status))
+      throw new FiltroDataInvalido('Escolha uma situação válida.');
+    where.status = filtros.status as StatusPartida;
+  }
+  if (filtros.competicao_id !== undefined)
+    where.competicao_id = idFiltro(filtros.competicao_id);
   if (filtros.resumo === '1') {
     const time = {
       select: {
@@ -32,7 +42,7 @@ export async function consultarListaPartidas(
     } as const;
     const partidas = await banco.partida.findMany({
       where,
-      orderBy: { data: 'asc' },
+      orderBy: [{ data: 'asc' }, { horario: 'asc' }, { id: 'asc' }],
       select: {
         participantes: { include: { categoria: true } },
         organizador_id: true,
@@ -71,7 +81,7 @@ export async function consultarListaPartidas(
   }
   const partidas = await banco.partida.findMany({
     where,
-    orderBy: { data: 'asc' },
+    orderBy: [{ data: 'asc' }, { horario: 'asc' }, { id: 'asc' }],
     include: {
       participantes: { include: { categoria: true } },
       mandante: {

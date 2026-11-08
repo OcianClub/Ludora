@@ -6,12 +6,23 @@ import { BASE_URL, invalidateApiReads } from './api';
 import { receiveRosterChange, type RosterChange } from './rosterRealtime';
 
 export const PUBLIC_MATCHES_CHANGED = 'ludora:public-matches-changed';
+export function subscribeClubMatches(clubId: number, token: string, onRefresh: () => void, baseUrl = BASE_URL) {
+  const socket = io(baseUrl, { auth: { token, clubeId: clubId } });
+  const refresh = () => { invalidateApiReads('/partidas'); onRefresh(); };
+  socket.on('connect', refresh);
+  socket.on('partida_atualizada', refresh);
+  socket.on('solicitacao_partida', refresh);
+  return () => { socket.removeAllListeners(); socket.disconnect(); };
+}
 export function subscribePublicClub(clubId: number) {
   const socket = io(`${BASE_URL}/publico`, { auth: { clubeId: clubId } });
-  socket.on('partidas_alteradas', () => {
+  const refresh = () => {
     invalidateApiReads('/partidas'); invalidateApiReads('/clubes');
     window.dispatchEvent(new Event(PUBLIC_MATCHES_CHANGED));
-  });
+  };
+  let connected = false;
+  socket.on('connect', () => { if (connected) refresh(); connected = true; });
+  socket.on('partidas_alteradas', refresh);
   return () => { socket.removeAllListeners(); socket.disconnect(); };
 }
 
@@ -27,6 +38,8 @@ interface MatchRealtimeOptions {
   onRefresh: () => void;
   onStateChange: (state: RealtimeState) => void;
   onRoster?: (change: RosterChange) => void;
+  onPoll?: (value: unknown) => void;
+  onReconnect?: () => void;
 }
 
 // Os nomes dos eventos e o campo clubeId seguem o contrato da API existente.
@@ -47,9 +60,13 @@ export function subscribeToMatch(options: MatchRealtimeOptions): () => void {
     onStateChange('connected');
     if (!isPublic) invalidateApiReads('/jogadores');
     if (!isPublic || connectedBefore) onRefresh();
+    if (connectedBefore) options.onReconnect?.();
     connectedBefore = true;
   });
   socket.on('disconnect', () => onStateChange('disconnected'));
+  socket.on('palpite_atualizado', (value: { partida_id?: number }) => {
+    if (value?.partida_id === matchId) options.onPoll?.(value);
+  });
   socket.on('connect_error', () => onStateChange('error'));
   socket.on('partidas_alteradas', (match: { partida_id: number }) => {
     invalidateMatches(); if (match.partida_id === matchId) onRefresh();

@@ -56,16 +56,18 @@ export async function consultarHome(
   return banco.$queryRaw<PartidaDaHome[]>(Prisma.sql`
     WITH candidatas AS (
       SELECT p.id, p.data, COALESCE(p.horario, '00:00') AS horario,
-        UPPER(REPLACE(c.nome, ' ', '-')) AS categoria,
+        UPPER(REPLACE(COALESCE(cp.nome, c.nome), ' ', '-')) AS categoria,
         CASE WHEN p.status = 'FINALIZADA' THEN 'historico'
              WHEN p.status = 'AO_VIVO' THEN 'ao_vivo'
              ELSE 'agenda' END AS grupo
       FROM "Partida" p
       JOIN "Categoria" c ON c.id = p.categoria_id
+      LEFT JOIN "ParticipantePartida" pp ON pp.partida_id = p.id AND pp.clube_id = ${clubeId}
+      LEFT JOIN "Categoria" cp ON cp.id = pp.categoria_id
       JOIN "Time" m ON m.id = p.mandante_id
       JOIN "Time" v ON v.id = p.visitante_id
       WHERE (c.clube_id = ${clubeId} OR m.clube_representado_id = ${clubeId}
-        OR v.clube_representado_id = ${clubeId})
+        OR v.clube_representado_id = ${clubeId} OR pp.clube_id = ${clubeId})
         AND (p.status IN ('FINALIZADA', 'AO_VIVO')
           OR (p.status IN ('AGENDADA', 'PREPARADA') AND p.data >= ${new Date(`${hoje}T00:00:00.000Z`)}))
     ), ordenadas AS (
@@ -99,7 +101,8 @@ export async function consultarHome(
           AND et.clube_representado_id IS NOT NULL
       ) AS gols_sem_autor,
       c.clube_id AS clube_origem_id, (c.clube_id <> ${clubeId}) AS somente_leitura,
-      CASE WHEN c.clube_id = ${clubeId} THEN p."emCasa"
+      CASE WHEN equipe.time_id IS NOT NULL THEN equipe.time_id = p.mandante_id
+        WHEN c.clube_id = ${clubeId} THEN p."emCasa"
         ELSE COALESCE(m.clube_representado_id = ${clubeId}, false) END AS "emCasa",
       jsonb_build_object('id', m.id,
         'nome', CASE WHEN cm.id IS NOT NULL THEN cm.nome ELSE m.nome END,
@@ -107,7 +110,8 @@ export async function consultarHome(
       jsonb_build_object('id', v.id,
         'nome', CASE WHEN cv.id IS NOT NULL THEN cv.nome ELSE v.nome END,
         'escudo', CASE WHEN cv.id IS NOT NULL THEN cv.escudo ELSE v.escudo END) AS visitante,
-      jsonb_build_object('id', c.id, 'nome', c.nome, 'tipo', c.tipo, 'clube_id', c.clube_id) AS categoria,
+      jsonb_build_object('id', COALESCE(cp.id, c.id), 'nome', COALESCE(cp.nome, c.nome),
+        'tipo', COALESCE(cp.tipo, c.tipo), 'clube_id', COALESCE(cp.clube_id, c.clube_id)) AS categoria,
       CASE WHEN co.id IS NOT NULL THEN jsonb_build_object('id', co.id, 'nome', co.nome,
         'ano', co.ano, 'tipo', co.tipo) ELSE NULL END AS competicao
     FROM selecionadas s
@@ -120,6 +124,7 @@ export async function consultarHome(
     LEFT JOIN "Competicao" co ON co.id = p.competicao_id
     LEFT JOIN "ParticipantePartida" equipe ON equipe.partida_id = p.id
       AND equipe.clube_id = ${clubeId}
+    LEFT JOIN "Categoria" cp ON cp.id = equipe.categoria_id
     ORDER BY p.data ASC, p.id ASC
   `);
 }

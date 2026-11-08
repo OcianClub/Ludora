@@ -114,3 +114,6 @@
   .home-sub-strip::-webkit-scrollbar { display: none; }
   .home-controls .home-sub-strip button { flex: 1 0 64px; min-width: 64px; font-size: 12px; padding: 7px 8px; }
 }
+@media (max-width: 480px) {
+  .home-controls { padding-top: 0; }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { ApiResponseError } from '../services/api';
 import { responderProposta, type PropostaPartida } from '../services/sharedMatches';
 import { useMatchProposals } from '../hooks/useMatchProposals';
 import { Btn, Input, Modal, LoadingSkeleton } from '../components/UI';
@@ -44,9 +45,19 @@ export default function SolicitacoesPartidas() {
     setBusy(true); setError('');
     try {
       await responderProposta(selected, acao, form);
-      setSelected(null); setNotice(acao === 'ACEITAR' ? 'Confronto confirmado. Cada clube já pode preparar sua equipe.' : acao === 'SUGERIR' ? 'Alteração enviada. Aguarde a resposta do outro clube.' : 'Resposta registrada.');
+      setSelected(null); setNotice(acao === 'ACEITAR'
+        ? selected.tipo === 'SUMULA' ? 'Responsabilidade pela súmula atualizada.'
+          : selected.tipo === 'CORRECAO' ? 'Correções autorizadas por 30 minutos.'
+          : 'Confronto confirmado. A partida está disponível para os dois clubes.'
+        : acao === 'SUGERIR' ? 'Alteração enviada. Aguarde a resposta do outro clube.' : 'Resposta registrada.');
       await refresh();
-    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    } catch (e) {
+      if (e instanceof ApiResponseError && e.status === 409) {
+        setSelected(null);
+        setNotice('A solicitação mudou ou já foi respondida. Confira os dados atualizados antes de continuar.');
+        await refresh();
+      } else setError((e as Error).message);
+    } finally { setBusy(false); }
   }
   function closeResponse() {
     if (busy) return;

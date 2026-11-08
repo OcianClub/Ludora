@@ -21,6 +21,8 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
   await page.route('http://localhost:3000/**',async route=>{
     const pathname=new URL(route.request().url()).pathname;
     const query=new URL(route.request().url()).searchParams;
+    if (/^\/(?:publico\/)?partidas\/\d+\/destaques-votos$/.test(pathname)) return route.fulfill({json:{partida_id:Number(pathname.split('/').at(-2)),revisao:0,status:'AO_VIVO',aberta:false,total:0,resultados:[],meuVoto:null}});
+    if (/^\/(?:publico\/)?partidas\/\d+\/palpite$/.test(pathname)) return route.fulfill({json:{partida_id:Number(pathname.split('/').at(-2)),revisao:0,status:'AO_VIVO',aberta:true,total:0,votos:{MANDANTE:0,EMPATE:0,VISITANTE:0},percentuais:{MANDANTE:0,EMPATE:0,VISITANTE:0},meuVoto:null}});
     if(pathname==='/publico/partidas/ao-vivo') return route.fulfill({json:partidas.filter(p=>p.status==='AO_VIVO').map(p=>({
       id:p.id,data:p.data,horario:p.horario,categoria:p.categoria.nome,gols_mandante:p.gols_mandante,gols_visitante:p.gols_visitante,
       mandante:p.mandante,visitante:p.visitante,clube_ids:[...new Set([p.mandante.clube_representado_id,p.visitante.clube_representado_id].filter(Boolean))],

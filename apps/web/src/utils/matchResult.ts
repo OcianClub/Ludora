@@ -17,7 +17,7 @@ export function matchResultText(data: GestaoPartida, includePlayerNames = false)
   const lines = [
     'LUDORA · Resultado final',
     `${home} ${match.gols_mandante} × ${match.gols_visitante} ${away}`,
-    winner ? `Vitória do ${winner.name}` : 'Empate',
+    winner ? `Vitória do ${winner.name}!` : 'Empate',
     [match.categoria?.nome?.toUpperCase(), match.competicao?.nome].filter(Boolean).join(' · '),
     [new Date(`${match.data.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR'), match.horario].filter(Boolean).join(' · '),
     match.local || '',

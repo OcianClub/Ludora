@@ -8,10 +8,17 @@ import { navigationMode, publicEndpoint } from './publicAccess';
 import { contextoScoutValido, type ContextoScout } from '../../../mobile/src/utils/contextoScout';
 export { BASE_URL } from './config';
 
+export class ApiResponseError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = 'ApiResponseError';
+  }
+}
+
 export async function requestJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const response = await apiFetch(endpoint, options);
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error || 'Não foi possível concluir a solicitação');
+  if (!response.ok) throw new ApiResponseError(body.error || 'Não foi possível concluir a solicitação', response.status);
   return body;
 }
 
@@ -65,7 +72,7 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
       options.signal,
     )
     : await fetchJsonResponse(`${BASE_URL}${target}`, { ...options, headers });
-  if (res.ok && method !== 'GET' && !endpoint.startsWith('/notificacoes') && endpoint !== '/usuarios/me/notificacoes') invalidateReadCache(`${BASE_URL}:${token || ''}:`);
+  if (res.ok && method !== 'GET' && !/^\/partidas\/\d+\/palpite$/.test(endpoint) && !endpoint.startsWith('/notificacoes') && endpoint !== '/usuarios/me/notificacoes') invalidateReadCache(`${BASE_URL}:${token || ''}:`);
   if (getToken() !== token || getClubeId() !== clubeId || navigationMode() !== mode) {
     throw new DOMException('O clube ou a sessão foi alterado durante a solicitação', 'AbortError');
   }

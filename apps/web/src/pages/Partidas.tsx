@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { cachedJson, fetchPartidas, criarPartida, fetchTimes, fetchCategorias, fetchCompeticoes, type Partida, type Time, type Categoria, type Competicao } from '../services/api';
+import { cachedJson, invalidateApiReads, fetchPartidas, criarPartida, fetchTimes, fetchCategorias, fetchCompeticoes, type Partida, type Time, type Categoria, type Competicao } from '../services/api';
+import { PUBLIC_MATCHES_CHANGED, subscribeClubMatches } from '../services/matchRealtime';
 import { Btn, Modal, Input, LoadingSkeleton } from '../components/UI';
 import { ClubBadge } from '../components/Brand';
 import { useAuth } from '../contexts/AuthContext';
@@ -130,7 +131,7 @@ export default function PartidasPage() {
     viewport.addEventListener('change', update);
     return () => viewport.removeEventListener('change', update);
   }, []);
-  const { podeGerenciar, clube } = useAuth();
+  const { podeGerenciar, clube, token, modo } = useAuth();
   const requests = useMatchRequests();
   const [partidas, setPartidas] = useState<Partida[]>(() => cachedJson<Partida[]>('/partidas?') || []);
   const [times, setTimes] = useState<Time[]>(() => cachedJson<Time[]>('/times') || []);
@@ -247,38 +248,71 @@ export default function PartidasPage() {
     if (searchParams.has('local')) changeFilters({ local: '' });
   }, [searchParams]);
 
-  function carregar() {
+  function carregar(background = false) {
     const version = ++loadVersion.current;
     setLoadError('');
     setLoadWarning('');
-    setLoading(!cachedJson('/partidas?') || !cachedJson('/categorias'));
-    Promise.allSettled([fetchPartidas(), fetchTimes(), fetchCategorias(), fetchCompeticoes()])
+    if (!background) setLoading(!cachedJson('/partidas?') || !cachedJson('/categorias'));
+    return Promise.allSettled([fetchPartidas(), fetchTimes(), fetchCategorias(), fetchCompeticoes()])
       .then(([p, t, c, comp]) => {
         if (version !== loadVersion.current) return;
         if (p.status === 'rejected') throw p.reason;
         setPartidas(p.value);
-        setTimes(t.status === 'fulfilled' ? t.value : []);
-        setCategorias(c.status === 'fulfilled' ? c.value : []);
-        setCompeticoes(comp.status === 'fulfilled' ? comp.value : []);
+        if (t.status === 'fulfilled') setTimes(t.value); else if (!background) setTimes([]);
+        if (c.status === 'fulfilled') setCategorias(c.value); else if (!background) setCategorias([]);
+        if (comp.status === 'fulfilled') setCompeticoes(comp.value); else if (!background) setCompeticoes([]);
         const indisponiveis = [t.status === 'rejected' && 'times', c.status === 'rejected' && 'categorias', comp.status === 'rejected' && 'competições'].filter(Boolean);
         if (indisponiveis.length) setLoadWarning('As partidas foram carregadas, mas alguns filtros e opções de criação estão temporariamente indisponíveis.');
+        return true;
       })
       .catch(() => {
         if (version !== loadVersion.current) return;
-        setPartidas([]);
-        setLoadError(navigator.onLine
+        const message = navigator.onLine
           ? 'Não foi possível buscar as partidas agora. O servidor pode estar temporariamente indisponível.'
-          : 'Você está sem conexão. Reconecte-se à internet e tente novamente.');
+          : 'Você está sem conexão. Reconecte-se à internet e tente novamente.';
+        if (background) setLoadWarning(message);
+        else { setPartidas([]); setLoadError(message); }
+        return false;
       })
       .finally(() => { if (version === loadVersion.current) setLoading(false); });
   }
   useEffect(() => {
-    carregar();
-    const refresh = () => carregar();
-    window.addEventListener('ludora:public-matches-changed', refresh);
-    const poll = window.setInterval(() => { if (!document.hidden) carregar(); }, 30_000);
-    return () => { loadVersion.current++; window.removeEventListener('ludora:public-matches-changed', refresh); clearInterval(poll); };
-  }, [clube?.id]);
+    setPartidas(cachedJson<Partida[]>('/partidas?') || []);
+    setCategorias(cachedJson<Categoria[]>('/categorias') || []);
+    setTimes(cachedJson<Time[]>('/times') || []);
+    setCompeticoes(cachedJson<Competicao[]>('/competicoes') || []);
+    let active = true, queued = false, background = false;
+    let running: Promise<void> | null = null;
+    const load = (force = false): Promise<void> => {
+      if (!active) return Promise.resolve();
+      if (force) invalidateApiReads('/partidas');
+      if (running) { queued ||= force; return running; }
+      running = (async () => {
+        do {
+          queued = false;
+          const loaded = await carregar(background);
+          background ||= loaded === true;
+        } while (active && queued);
+      })().finally(() => { running = null; });
+      return running;
+    };
+    const refresh = () => { if (!document.hidden) void load(true); };
+    void load();
+    const unsubscribe = clube && token && modo === 'gestao'
+      ? subscribeClubMatches(clube.id, token, refresh) : undefined;
+    window.addEventListener(PUBLIC_MATCHES_CHANGED, refresh);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    const poll = window.setInterval(refresh, 30_000);
+    return () => {
+      active = false; loadVersion.current++; unsubscribe?.(); clearInterval(poll);
+      window.removeEventListener(PUBLIC_MATCHES_CHANGED, refresh);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [clube?.id, token, modo]);
 
   function validarPartida() {
     if (!form.categoria_id) return 'Selecione a categoria da partida.';
@@ -428,11 +462,10 @@ export default function PartidasPage() {
       && (!range.inicio || day >= range.inicio)
       && (!range.fim || day <= range.fim);
   }), [matches, phase, opponent, mando, onlyOrganized, clube?.id, range.inicio, range.fim]);
-  const hasLive = contextualMatches.some(match => match.status === 'AO_VIVO' && (!selectedCategory || match.categoria_id === selectedCategory.id));
-  const filtroStatus = requestedStatus || (hasLive ? 'AO_VIVO' : 'PROXIMAS');
+  const filtroStatus = requestedStatus || 'TODAS';
   const resultsByCategory = useMemo(() => new Map((phaseCategories.length ? phaseCategories : [undefined]).map(category => {
     const scoped = contextualMatches.filter(match => !category || match.categoria_id === category.id
-      || match.categoria?.nome.toLowerCase() === category.nome.toLowerCase());
+      || (match.categoria?.clube_id !== clube?.id && match.categoria?.nome.trim().toLowerCase() === category.nome.trim().toLowerCase()));
     const filtered = scoped.filter(match => filtroStatus === 'TODAS' || !filtroStatus || (filtroStatus === 'PROXIMAS'
       ? grupoSituacao(match.status) === 'next' : match.status === filtroStatus));
     const counts = scoped.reduce((total, match) => {
@@ -449,7 +482,7 @@ export default function PartidasPage() {
       finished: ordenarAgenda(groups.finished, sortCategory, true),
       cancelled: ordenarAgenda(groups.cancelled, sortCategory, true),
     }];
-  })), [contextualMatches, phaseCategories, filtroStatus, sortCategory]);
+  })), [contextualMatches, phaseCategories, filtroStatus, sortCategory, clube?.id]);
   const { filtered, counts } = resultsByCategory.get(selectedCategory?.id ?? 0)!;
   const customLabel = start && end ? `${formatMatchDate(start)} — ${formatMatchDate(end)}` : 'Escolher período';
   const filterKey = [phase, filtroCategoria, filtroStatus, period, start, end, opponent, mando, onlyOrganized, sortCategory].join('|');
@@ -554,8 +587,8 @@ export default function PartidasPage() {
           <button type="button" className="schedule-clear" onClick={clearFilters}>Limpar tudo</button>
         </div>
 
-      {loadWarning && <div className="schedule-load-warning" role="status"><Icon name="filters" size={20} /><div><strong>Algumas opções não carregaram</strong><p>{loadWarning}</p></div><Btn variant="ghost" size="sm" onClick={carregar}>Atualizar</Btn></div>}
-      {loading ? <LoadingSkeleton kind="cards" /> : loadError ? <div className="schedule-load-error" role="alert"><span><Icon name="ball" size={26} /></span><div><strong>Não foi possível carregar a agenda</strong><p>{loadError}</p></div><Btn onClick={carregar}>Tentar novamente</Btn></div> : null}
+      {loadWarning && <div className="schedule-load-warning" role="status"><Icon name="filters" size={20} /><div><strong>Algumas opções não carregaram</strong><p>{loadWarning}</p></div><Btn variant="ghost" size="sm" onClick={() => carregar()}>Atualizar</Btn></div>}
+      {loading ? <LoadingSkeleton kind="cards" /> : loadError ? <div className="schedule-load-error" role="alert"><span><Icon name="ball" size={26} /></span><div><strong>Não foi possível carregar a agenda</strong><p>{loadError}</p></div><Btn onClick={() => carregar()}>Tentar novamente</Btn></div> : null}
       {renderSchedule(0)}
 
       {periodOpen && <SchedulePeriodDialog inicio={range.inicio} fim={range.fim} onClose={() => setPeriodOpen(false)}

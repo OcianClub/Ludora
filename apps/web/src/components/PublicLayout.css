@@ -56,6 +56,7 @@
   .public-manage { width: 44px; padding: 0; justify-content: center; }
 }
 @media (max-width: 760px) {
+  .public-layout[data-mobile-header="match"] .public-header { display: none; }
   .public-header-inner { min-height: 72px; padding: 14px 16px; gap: 10px; }
   .public-header-in-club .public-header-inner { display: flex; }
   .public-header-identity { flex: 1; }
@@ -66,8 +67,20 @@
   .public-current-club { flex: 1; }
   .public-current-club strong { font-size: 14px; }
   .public-header-actions { gap: 8px; }
+  .public-header-actions :is(.account-trigger, .notifications-trigger.profile-link) { width: 36px; height: 36px; border-radius: 8px; }
   .public-content { padding: 20px 16px calc(92px + env(safe-area-inset-bottom)); }
+  .public-layout[data-mobile-header="match"] .public-content { padding-top: 22px; }
   .public-bottom-nav { position: fixed; z-index: 25; bottom: 0; left: 0; right: 0; display: flex; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--linha); background: var(--fundo); }
   .public-bottom-nav > :is(a,button) { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 5px; min-height: 48px; padding: 4px; border: 0; border-radius: 8px; background: transparent; color: var(--texto-sec); font-size: 10px; text-decoration: none; }
   .public-bottom-nav .active { color: var(--primaria); }
+}
+@media (max-width: 480px) {
+  .public-header-inner { min-height: 64px; padding-block: 8px; }
+  .public-layout:has(.public-content .home-controls) .public-header-inner { min-height: 58px; padding-block: 4px; }
+  .public-content:has(.home-controls) { padding-top: 4px; }
+  .public-header .public-current-club .club-badge { width: 36px !important; height: 36px !important; }
+  .public-header-actions :is(.notifications-trigger, .account-trigger) .icon { width: 19px !important; height: 19px !important; }
+  .public-bottom-nav { padding-block: 6px calc(6px + env(safe-area-inset-bottom, 0px)); }
+  .public-bottom-nav > :is(a, button) { gap: 3px; }
+  .public-bottom-nav .icon { width: 19px !important; height: 19px !important; }
 }

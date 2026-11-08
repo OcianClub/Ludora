@@ -494,6 +494,7 @@
     border-bottom: 0;
   }
   .layout[data-mobile-header="requests"] .workspace-header,
+  .layout[data-mobile-header="match"] .workspace-header,
   .layout:has(.partida-detalhe[data-preparation="true"]) .workspace-header {
     display: none;
   }
@@ -508,8 +509,10 @@
     display: grid;
   }
   .workspace-actions .profile-link {
-    width: 42px;
-    height: 42px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 8px;
   }
   .workspace-actions .header-profile-link {
     border: 1.5px solid var(--borda-botao);
@@ -544,6 +547,7 @@
   .content {
     padding: 8px var(--workspace-gutter) calc(var(--mobile-navigation-height, 73px) + 24px);
   }
+  .layout[data-mobile-header="match"] .content { padding-top: 10px; }
   .mobile-navigation {
     display: block;
   }
@@ -750,4 +754,18 @@
   .current-club-role {
     font-size: 12px;
   }
+}
+@media (max-width: 480px) {
+  .workspace-header-inner { min-height: 64px; padding-block: 8px; }
+  .layout:has(.content .home-controls) .workspace-header-inner { min-height: 58px; padding-block: 4px; }
+  .layout .content:has(.home-controls) { padding-top: 2px; }
+  .workspace-header .current-club { gap: 9px; }
+  .workspace-header .current-club .club-badge { width: 36px !important; height: 36px !important; font-size: 21px; }
+  .workspace-header .current-club strong { font-size: 15px; line-height: 20px; }
+  .workspace-header .current-club-role { font-size: 11px; line-height: 15px; }
+  .workspace-actions .notifications-trigger .icon { width: 18px !important; height: 18px !important; }
+  .bottom-nav { padding-block: 4px calc(4px + env(safe-area-inset-bottom, 0px)); }
+  .bottom-nav-item { min-height: 52px; gap: 2px; font-size: 10px; }
+  .bottom-nav-item > .nav-icon { width: 40px; height: 28px; }
+  .bottom-nav-item > .nav-icon .icon { width: 20px !important; height: 20px !important; }
 }

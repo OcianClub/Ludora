@@ -47,5 +47,5 @@ export default function PublicLayout() {
   const { pathname } = useLocation();
   const matchPage = /^\/partidas\/\d+$/.test(pathname);
   useEffect(() => clube && !matchPage ? subscribePublicClub(clube.id) : undefined, [clube?.id, matchPage]);
-  return <div className="public-layout"><PublicHeader /><main id="main-content" tabIndex={-1} className="public-content"><Outlet /></main></div>;
+  return <div className="public-layout" data-mobile-header={matchPage ? 'match' : undefined}><PublicHeader /><main id="main-content" tabIndex={-1} className="public-content"><Outlet /></main></div>;
 }

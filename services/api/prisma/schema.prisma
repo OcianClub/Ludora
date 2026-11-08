@@ -75,6 +75,8 @@ model Usuario {
   clubes            UsuarioClube[]
   notificacoes      Notificacao[]
   dispositivos_push DispositivoPush[]
+  palpites          VotoPartida[]
+  votosDestaque     VotoDestaquePartida[]
 
   convitesCriados ConviteClube[] @relation("ConvitesCriados")
   convitesAceitos ConviteClube[] @relation("ConvitesAceitos")
@@ -213,6 +215,7 @@ model Jogador {
   competicoes  CompeticaoJogador[]
   escalacoes   EscalacaoPartida[]
   eventos      Evento[]
+  votosDestaque VotoDestaquePartida[]
   categoria    Categoria           @relation(fields: [categoria_id], references: [id])
 
   @@index([categoria_id])
@@ -239,6 +242,10 @@ model Partida {
   versao                Int                   @default(0)
   titulares_necessarios Int                   @default(5)
   periodo_atual         Int                   @default(1)
+  palpites_versao        Int                   @default(0)
+  palpites              VotoPartida[]
+  votacaoDestaque        VotacaoDestaquePartida?
+  votosDestaque          VotoDestaquePartida[]
   participantes         ParticipantePartida[]
   propostas             PropostaPartida[]
   auditoria             AuditoriaPartida[]
@@ -253,6 +260,46 @@ model Partida {
   @@index([data])
   @@index([categoria_id])
   @@index([competicao_id])
+}
+
+enum OpcaoPalpite {
+  MANDANTE
+  EMPATE
+  VISITANTE
+}
+
+model VotoPartida {
+  partida_id    Int
+  usuario_id    Int
+  escolha       OpcaoPalpite
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+  partida       Partida @relation(fields: [partida_id], references: [id], onDelete: Cascade)
+  usuario       Usuario @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@id([partida_id, usuario_id])
+  @@index([partida_id, escolha])
+}
+
+// Revisão independente: votar não muda a versão dos comandos da súmula.
+model VotacaoDestaquePartida {
+  partida_id Int @id
+  revisao Int @default(0)
+  partida Partida @relation(fields: [partida_id], references: [id], onDelete: Cascade)
+}
+
+model VotoDestaquePartida {
+  partida_id Int
+  usuario_id Int
+  jogador_id Int
+  criado_em DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+  partida Partida @relation(fields: [partida_id], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  jogador Jogador @relation(fields: [jogador_id], references: [id], onDelete: Cascade)
+
+  @@id([partida_id, usuario_id])
+  @@index([partida_id, jogador_id])
 }
 
 model CompeticaoTime {

@@ -25,10 +25,11 @@ function timePublico(time: PublicMatch['mandante']) {
 }
 // Lista explícita: nunca propagar objetos Prisma completos para o visitante.
 export function publicarPartida(p: PublicMatch, clubeId: number) {
-  const categoria = p.participantes.find(team => team.clube_id === clubeId)?.categoria || p.categoria;
+  const equipe = p.participantes.find(team => team.clube_id === clubeId);
+  const categoria = equipe?.categoria || p.categoria;
   return { id: p.id, mandante_id: p.mandante_id, visitante_id: p.visitante_id,
     gols_mandante: p.gols_mandante, gols_visitante: p.gols_visitante, data: p.data,
-    horario: p.horario, local: p.local, status: p.status, emCasa: p.categoria.clube_id === clubeId ? p.emCasa : p.mandante.clube_representado_id === clubeId,
+    horario: p.horario, local: p.local, status: p.status, emCasa: equipe ? equipe.time_id === p.mandante_id : p.categoria.clube_id === clubeId ? p.emCasa : p.mandante.clube_representado_id === clubeId,
     categoria_id: categoria.id, categoria, competicao_id: p.competicao_id,
     competicao: p.competicao ? { id: p.competicao.id, nome: p.competicao.nome, ano: p.competicao.ano, tipo: p.competicao.tipo } : null,
     rodada: p.rodada, grupo: p.grupo, organizador_id: p.organizador_id, sumula_clube_id: p.sumula_clube_id,

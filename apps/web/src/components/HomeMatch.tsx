@@ -70,17 +70,48 @@ export function HomeMatch({ partida, manager = false }: { partida: HomePartida; 
 }
 
 export function HomeHistoryTable({ partidas }: { partidas: HomePartida[] }) {
+  const [highlighted, setHighlighted] = useState<number | null>(null);
+  const totals = partidas.reduce((counts, match) => {
+    counts[resultadoPartida(match)] += 1;
+    return counts;
+  }, { V: 0, E: 0, D: 0 });
+
+  function locateMatch(id: number) {
+    const row = document.getElementById(`home-history-match-${id}`);
+    row?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    row?.querySelector<HTMLAnchorElement>('.history-table-link')?.focus({ preventScroll: true });
+  }
+
   return (
     <div className="home-history-table-wrap">
-      <table className="home-history-table" aria-label="Últimas cinco partidas">
+      <div className="history-summary" role="group" aria-label="Resumo dos resultados da categoria">
+        <span className="history-summary-label">{partidas.length === 1 ? 'Último jogo' : `Últimos ${partidas.length} jogos`}</span>
+        <div className="history-summary-results">
+          {partidas.map(match => {
+            const result = resultadoPartida(match);
+            const description = `${RESULTADOS[result]}: ${teamName(match.mandante?.nome || 'Mandante')} ${match.gols_mandante} a ${match.gols_visitante} ${teamName(match.visitante?.nome || 'Visitante')}, ${dataHome(match.data, true)}`;
+            return <button type="button" key={match.id} className={`history-summary-result result-${result}`}
+              aria-label={`${description}. Localizar no histórico`} aria-controls={`home-history-match-${match.id}`}
+              data-tooltip={description} onMouseEnter={() => setHighlighted(match.id)} onMouseLeave={() => setHighlighted(null)}
+              onFocus={() => setHighlighted(match.id)} onBlur={() => setHighlighted(null)} onClick={() => locateMatch(match.id)}>
+              <strong aria-hidden="true">{result}</strong>
+            </button>;
+          })}
+        </div>
+        <p className="history-summary-totals">
+          <span className="history-summary-wins">{totals.V} {totals.V === 1 ? 'vitória' : 'vitórias'}</span><i aria-hidden="true">·</i>
+          <span>{totals.E} {totals.E === 1 ? 'empate' : 'empates'}</span><i aria-hidden="true">·</i>
+          <span className="history-summary-losses">{totals.D} {totals.D === 1 ? 'derrota' : 'derrotas'}</span>
+        </p>
+        <small className="history-summary-order">Mais recente primeiro</small>
+      </div>
+      <table className="home-history-table" aria-label={partidas.length === 1 ? 'Última partida' : `Últimas ${partidas.length} partidas`}>
         <thead>
           <tr>
             <th scope="col">Data</th>
-            <th scope="col" className="history-competition">Competição</th>
+            <th scope="col" className="history-competition"><span className="history-competition-label">Competição</span><abbr className="history-competition-short" title="Competição">Comp.</abbr></th>
             <th scope="col" className="history-confrontation"><span className="history-confrontation-heading">Confronto<span>Placar</span></span></th>
             <th scope="col" className="history-result-cell">Resultado</th>
-            <th scope="col" className="history-venue">Mando</th>
-            <th scope="col" className="history-action-cell"><span className="history-sr-only">Detalhes</span></th>
           </tr>
         </thead>
         <tbody>
@@ -88,10 +119,11 @@ export function HomeHistoryTable({ partidas }: { partidas: HomePartida[] }) {
             const result = resultadoPartida(partida);
             const home = teamName(partida.mandante?.nome || 'Mandante');
             const away = teamName(partida.visitante?.nome || 'Visitante');
+            const month = new Date(`${partida.data.slice(0, 10)}T12:00:00Z`).toLocaleDateString('pt-BR', { month: 'short', timeZone: 'UTC' }).replace(/\./g, '');
             return (
-              <tr key={partida.id}>
-                <td><time dateTime={partida.data.slice(0, 10)}>{dataHome(partida.data)}</time></td>
-                <td className="history-competition">{partida.competicao?.nome || 'Sem competição informada'}</td>
+              <tr key={partida.id} id={`home-history-match-${partida.id}`} data-highlighted={highlighted === partida.id ? 'true' : undefined}>
+                <td><time dateTime={partida.data.slice(0, 10)} aria-label={dataHome(partida.data, true)}><span className="history-date-wide" aria-hidden="true">{dataHome(partida.data)}</span><span className="history-date-compact" aria-hidden="true"><b>{partida.data.slice(8, 10)}</b><span>{month}</span></span></time></td>
+                <td className="history-competition" data-tooltip={partida.competicao?.nome || 'Sem competição informada'} data-tooltip-overflow>{partida.competicao?.nome || 'Sem competição informada'}</td>
                 <td className="history-confrontation">
                   <div className="history-table-teams">
                     <span className={partida.emCasa ? 'is-club' : ''}><ClubBadge src={partida.mandante?.escudo} name={home} size={28} /><span data-tooltip={home} data-tooltip-overflow>{home}{partida.emCasa && <span className="history-sr-only"> (Seu clube)</span>}</span></span>
@@ -101,10 +133,8 @@ export function HomeHistoryTable({ partidas }: { partidas: HomePartida[] }) {
                 </td>
                 <td className="history-result-cell"><div className="history-result-summary">
                   <span className={`home-result-tag result-${result}`}>{RESULTADOS[result]}</span>
-                  <span className="history-result-venue"><Icon name={partida.emCasa ? 'home' : 'bus'} size={13} />{partida.emCasa ? 'Em casa' : 'Fora'}</span>
+                  <Link className="history-table-link" to={`/partidas/${partida.id}`} aria-label={`Ver partida: ${home} contra ${away}, ${dataHome(partida.data, true)}`}><Icon name="chevronRight" size={17} /></Link>
                 </div></td>
-                <td className="history-venue"><span><Icon name={partida.emCasa ? 'home' : 'bus'} size={16} />{partida.emCasa ? 'Em casa' : 'Fora'}</span></td>
-                <td className="history-action-cell"><Link className="history-table-link" to={`/partidas/${partida.id}`} aria-label={`Ver partida: ${home} contra ${away}, ${dataHome(partida.data, true)}`}><span>Ver partida</span><Icon name="chevronRight" size={17} /></Link></td>
               </tr>
             );
           })}

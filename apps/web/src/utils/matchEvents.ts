@@ -25,8 +25,11 @@ export function eventAuthorTeam(data: GestaoPartida, event: MatchEvent) {
 }
 
 export function pendingGoal(data: GestaoPartida, event: MatchEvent) {
+  return event.tipo === 'GOL' && pendingAuthor(data, event);
+}
+
+export function pendingAuthor(data: GestaoPartida, event: MatchEvent) {
   return (
-    event.tipo === 'GOL' &&
     !event.jogador_id &&
     data.equipes.some((team) => team.time_id === eventAuthorTeam(data, event))
   );
@@ -35,7 +38,8 @@ export function pendingGoal(data: GestaoPartida, event: MatchEvent) {
 export function canIdentifyGoal(data: GestaoPartida, event: MatchEvent, clubId?: number) {
   return (
     data.podeSumula ||
-    (data.podePreparar &&
+    (data.partida.status === 'FINALIZADA' && data.podeCorrigir === true) ||
+    (data.partida.status !== 'FINALIZADA' && data.podePreparar &&
       pendingGoal(data, event) &&
       data.equipes.some(
         (team) => team.clube_id === clubId && team.time_id === eventAuthorTeam(data, event),

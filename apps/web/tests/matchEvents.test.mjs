@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pendingGoal, eventAuthorTeam, canIdentifyGoal, eventScores } from '../src/utils/matchEvents.ts';
+import { pendingAuthor, pendingGoal, eventAuthorTeam, canIdentifyGoal, eventScores } from '../src/utils/matchEvents.ts';
 const data = { partida: { mandante_id: 10, visitante_id: 20 }, podeSumula: false, podePreparar: true, equipes: [{ time_id: 10, clube_id: 2 }, { time_id: 20, clube_id: 3 }] };
 
 test('mini placar respeita a sequência de gols e gols contra sem contar assistências', () => {
@@ -28,4 +28,15 @@ test('clube identifica apenas seus gols pendentes; operador pode corrigir autori
   assert.equal(canIdentifyGoal({ ...data, podePreparar: false }, goal, 3), false);
   assert.equal(canIdentifyGoal(data, { ...goal, jogador_id: 201 }, 3), false);
   assert.equal(canIdentifyGoal({ ...data, podeSumula: true }, { ...goal, jogador_id: 201 }, 2), true);
+  const finished = { ...data, partida: { ...data.partida, status: 'FINALIZADA' } };
+  assert.equal(canIdentifyGoal(finished, goal, 3), false, 'No pós-jogo o adversário também precisa de autorização');
+  assert.equal(canIdentifyGoal({ ...finished, podeCorrigir: true }, goal, 3), true);
+});
+
+test('outros eventos sem atleta são pendências apenas quando a equipe tem elenco Ludora', () => {
+  for (const tipo of ['FALTA', 'DEFESA', 'ASSISTENCIA', 'CARTAO_AMARELO', 'CARTAO_VERMELHO', 'CARTAO_AZUL']) {
+    assert.equal(pendingAuthor(data, { tipo, time_id: 10 }), true);
+    assert.equal(pendingAuthor(data, { tipo, time_id: 10, jogador_id: 101 }), false);
+    assert.equal(pendingAuthor({ ...data, equipes: data.equipes.slice(0, 1) }, { tipo, time_id: 20 }), false);
+  }
 });

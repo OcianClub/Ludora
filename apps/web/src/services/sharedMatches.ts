@@ -6,6 +6,7 @@ export interface EquipePartida {
 export interface GestaoPartida {
   paulista?: { eventoId: number; jogo: import('../../../../packages/shared-types/src/paulista').JogoPaulista; retroativo: boolean } | null;
   podeAnotarOficial?: boolean;
+  podeCorrigir?: boolean;
   partida: Partida & { versao: number; periodo_atual: number; sumula_clube_id: number; organizador_id: number; titulares_necessarios: number };
   organizador: Pick<Clube, 'id' | 'nome'>; equipes: EquipePartida[]; minhaEquipeId?: number; podePreparar: boolean; podeSumula: boolean;
   eventos: (Evento & { time_id?: number; gol_contra?: boolean })[];

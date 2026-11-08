@@ -3,13 +3,15 @@ import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { after, test } from 'node:test';
-import { subscribeToMatch } from '../../../apps/web/src/services/matchRealtime.ts';
+import { subscribeToMatch, subscribeClubMatches } from '../../../apps/web/src/services/matchRealtime.ts';
 
 // Testa o cliente web com Socket.IO/JWT reais e persistência simulada.
 // Não carrega o .env do serviço, não conecta ao Supabase e não altera dados.
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-only-secret-for-local-realtime-contract';
 const storage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+const session = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
+Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: { getItem() { return null; } } });
 Object.defineProperty(globalThis, 'localStorage', {
   configurable: true,
   value: { getItem(key) {
@@ -19,6 +21,8 @@ Object.defineProperty(globalThis, 'localStorage', {
   } },
 });
 after(() => {
+  if (session) Object.defineProperty(globalThis, 'sessionStorage', session);
+  else delete globalThis.sessionStorage;
   if (storage) Object.defineProperty(globalThis, 'localStorage', storage);
   else delete globalThis.localStorage;
 });
@@ -62,6 +66,7 @@ async function setup(t, overrides = {}) {
   await new Promise(resolve => http.listen(0, '127.0.0.1', resolve));
   const states = [];
   const scores = [];
+  const polls = [];
   const connections = [];
   let refreshes = 0;
   io.on('connection', socket => connections.push(socket));
@@ -73,13 +78,14 @@ async function setup(t, overrides = {}) {
     onScore: score => scores.push(score),
     onRefresh: () => { refreshes += 1; },
     onStateChange: state => states.push(state),
+    onPoll: value => polls.push(value),
     ...overrides,
   });
   t.after(async () => {
     unsubscribe();
     await new Promise(resolve => io.close(resolve));
   });
-  return { io, states, scores, connections, unsubscribe, get refreshes() { return refreshes; } };
+  return { io, states, scores, polls, connections, unsubscribe, get refreshes() { return refreshes; } };
 }
 
 test('envia o token e o clube aceitos pela autorização da API', async t => {
@@ -89,6 +95,26 @@ test('envia o token e o clube aceitos pela autorização da API', async t => {
   assert.equal(lookups.length, 0);
   assert.equal(client.connections[0].rooms.has('clube:11'), true);
   assert.equal(client.connections[0].rooms.has('usuario:7'), true);
+});
+
+test('agenda gerencial recebe aceite e mudança da partida, reconcilia na conexão e desconecta ao sair', async t => {
+  const http = createServer();
+  const io = criarSocketServer(); io.attach(http);
+  await new Promise(resolve => http.listen(0, '127.0.0.1', resolve));
+  const sockets = []; io.on('connection', socket => sockets.push(socket));
+  let refreshes = 0;
+  const unsubscribe = subscribeClubMatches(11, token, () => { refreshes++; }, `http://127.0.0.1:${http.address().port}`);
+  t.after(async () => { unsubscribe(); await new Promise(resolve => io.close(resolve)); });
+  await waitFor(() => refreshes === 1, 'A agenda não reconciliou ao conectar');
+  io.to('clube:22').emit('partida_atualizada', { id: 99 });
+  await delay(40); assert.equal(refreshes, 1, 'outro clube não deve atualizar esta agenda');
+  io.to('clube:11').emit('solicitacao_partida', { id: 'accepted-proposal' });
+  io.to('clube:11').emit('partida_atualizada', { id: 41 });
+  await waitFor(() => refreshes === 3, 'O aceite não atualizou a agenda');
+  assert.equal(sockets[0].rooms.has('clube:11'), true);
+  unsubscribe();
+  io.to('clube:11').emit('partida_atualizada', { id: 42 });
+  await delay(40); assert.equal(refreshes, 3, 'não atualizar uma tela desmontada');
 });
 
 test('usa os eventos da API e ignora partidas diferentes', async t => {
@@ -102,6 +128,16 @@ test('usa os eventos da API e ignora partidas diferentes', async t => {
   serverSocket.emit('evento_partida', { partida_id: 41, tipo: 'GOL', jogador: 'Test Player', minuto: 3 });
   await waitFor(() => client.scores.length === 1 && client.refreshes === 2, 'Os avisos não foram processados');
   assert.deepEqual(client.scores, [{ id: 41, gols_mandante: 2, gols_visitante: 1 }]);
+});
+
+test('palpites usam canal próprio, ignoram outra partida e não recarregam os dados do jogo', async t => {
+  const client = await setup(t);
+  await waitFor(() => client.refreshes === 1, 'O cliente não conectou');
+  client.connections[0].emit('palpite_atualizado', { partida_id: 99, total: 3 });
+  client.connections[0].emit('palpite_atualizado', { partida_id: 41, total: 4 });
+  await waitFor(() => client.polls.length === 1, 'O voto não foi recebido');
+  assert.deepEqual(client.polls, [{ partida_id: 41, total: 4 }]);
+  assert.equal(client.refreshes, 1);
 });
 
 test('mostra falha quando a API rejeita um token inválido', async t => {

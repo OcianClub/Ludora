@@ -94,6 +94,7 @@ test('filtragem por ano e status mantém escopo público e não carrega eventos 
     { categoria: { clube_id: 7 } },
     { mandante: { clube_representado_id: 7 } },
     { visitante: { clube_representado_id: 7 } },
+    { participantes: { some: { clube_id: 7 } } },
   ]);
   assert.equal(consulta.select.eventos, undefined);
 });

@@ -79,9 +79,15 @@ export function criarCompartilhadasRoutes(io: Server) {
 
   router.get('/partidas/solicitacoes', exigirGestorDoClube, tratar(async (req, res) => {
     const ctx = contexto(req);
-    const propostas = await prisma.propostaPartida.findMany({ where: { OR: [{ origem_id: ctx.clubeId }, { destino_id: ctx.clubeId }] }, orderBy: { criado_em: 'desc' }, take: 100 });
     const vinculo = await prisma.usuarioClube.findUnique({ where: { usuario_id_clube_id: { usuario_id: ctx.usuarioId, clube_id: ctx.clubeId } }, include: { categorias: true } });
-    const permitidas = propostas.filter(p => vinculo && (vinculo.papel === 'ADMIN' || vinculo.acesso_todas_categorias || vinculo.categorias.some(c => c.categoria_id === (p.origem_id === ctx.clubeId ? p.categoria_origem_id : p.categoria_destino_id))));
+    exigir(vinculo && ['ADMIN', 'TECNICO', 'MESARIO'].includes(vinculo.papel), 'Você não administra este clube.', 403);
+    const categoriasAcesso = vinculo.categorias.map(c => c.categoria_id);
+    // Filtrar no banco antes do limite: propostas de outras categorias não
+    // podem ocupar os 100 lugares e ocultar solicitações permitidas ao técnico.
+    const permitidas = await prisma.propostaPartida.findMany({ where: { OR: vinculo.papel === 'ADMIN' || vinculo.acesso_todas_categorias
+      ? [{ origem_id: ctx.clubeId }, { destino_id: ctx.clubeId }]
+      : [{ origem_id: ctx.clubeId, categoria_origem_id: { in: categoriasAcesso } }, { destino_id: ctx.clubeId, categoria_destino_id: { in: categoriasAcesso } }],
+    }, orderBy: [{ criado_em: 'desc' }, { id: 'desc' }], take: 100 });
     const ids = [...new Set(permitidas.flatMap(p => [p.origem_id, p.destino_id]))];
     const clubes = await prisma.clube.findMany({ where: { id: { in: ids } }, select: { id: true, nome: true, escudo: true } });
     const categorias = await prisma.categoria.findMany({ where: { id: { in: [...new Set(permitidas.map(p => p.origem_id === ctx.clubeId ? p.categoria_origem_id : p.categoria_destino_id))] } }, select: { id: true, nome: true } });
@@ -178,8 +184,13 @@ export function criarCompartilhadasRoutes(io: Server) {
         partida_id: partidaId, motivo: String(req.body.motivo || '').trim().slice(0, 500) || null, respondido_em: new Date(), versao: { increment: 1 } } });
       return { solicitacaoId: proposta.id, partidaId, correcao: ['CORRECAO', 'SUMULA'].includes(proposta.tipo) };
     });
+    // O confronto já foi gravado. Publique a atualização nos dois clubes antes
+    // das notificações, e nunca anuncie uma alteração recusada como confirmada.
+    if (req.body.acao === 'ACEITAR' && result.partidaId) {
+      await transmitir(result.partidaId).catch(() => console.error('Falha ao transmitir confronto confirmado.'));
+      if (!('correcao' in result && result.correcao)) await agendamento(result.partidaId, 'Confronto confirmado ou atualizado').catch(() => console.error('Falha ao notificar confronto confirmado.'));
+    }
     await avisoProposta(result.solicitacaoId, req.body.acao, ctx.clubeId).catch(() => console.error('Falha ao notificar resposta.'));
-    if (result.partidaId) { await transmitir(result.partidaId); if (!('correcao' in result && result.correcao)) await agendamento(result.partidaId, 'Confronto confirmado ou atualizado'); }
     res.json(result);
   }));
 
@@ -363,9 +374,10 @@ export function criarCompartilhadasRoutes(io: Server) {
       exigir(sai !== entra, 'Escolha dois jogadores diferentes.');
       const rows = await tx.escalacaoPartida.findMany({ where: { partida_id: id, time_id: equipe!.time_id, jogador_id: { in: [sai, entra] } } });
       exigir(rows.length === 2 && rows.find(r => r.jogador_id === sai)?.titular && !rows.find(r => r.jogador_id === entra)?.titular, 'Selecione um titular para sair e um reserva para entrar.');
+      exigir(rows.every(r => Number.isInteger(r.numCamisa) && r.numCamisa >= 1 && r.numCamisa <= 99), 'Os dois jogadores precisam ter camisa definida na súmula.');
       await tocar(tx, p, req.body.versao);
-      await tx.escalacaoPartida.updateMany({ where: { partida_id: id, jogador_id: sai }, data: { titular: false } });
-      await tx.escalacaoPartida.updateMany({ where: { partida_id: id, jogador_id: entra }, data: { titular: true } });
+      await tx.escalacaoPartida.updateMany({ where: { partida_id: id, time_id: equipe!.time_id, jogador_id: sai }, data: { titular: false } });
+      await tx.escalacaoPartida.updateMany({ where: { partida_id: id, time_id: equipe!.time_id, jogador_id: entra }, data: { titular: true } });
       await auditar(tx, ctx, id, 'SUBSTITUICAO', { time_id: equipe!.time_id, sai, entra, periodo: p.periodo_atual });
     });
     await transmitir(id); res.json({ ok: true });
@@ -398,7 +410,7 @@ export function criarCompartilhadasRoutes(io: Server) {
       const requestId = req.body.request_id;
       exigir(requestId == null || (typeof requestId === 'string' && /^[a-zA-Z0-9-]{16,80}$/.test(requestId)), 'Identificador de envio inválido.');
       const assinatura = JSON.stringify([req.body.tipo, req.body.time_id, req.body.jogador_id || null, req.body.gol_contra === true,
-        req.body.periodo || null, req.body.minuto || null, req.body.autor_pendente === true, req.body.assistencia_jogador_id || null, req.body.motivo || '']);
+        req.body.periodo ?? null, req.body.minuto ?? null, req.body.autor_pendente === true, req.body.assistencia_jogador_id || null, req.body.motivo || '']);
       if (requestId) {
         const anterior = await tx.auditoriaPartida.findFirst({ where: { partida_id: id, usuario_id: ctx.usuarioId, clube_id: ctx.clubeId,
           acao: 'EVENTO_REGISTRADO', dados: { path: ['request_id'], equals: requestId } } });
@@ -437,9 +449,10 @@ export function criarCompartilhadasRoutes(io: Server) {
         exigir(tipo === 'GOL' && !contra && jogadorId && assistente !== jogadorId, 'A assistência deve ser de outro jogador da equipe que marcou.');
         exigir(await tx.escalacaoPartida.count({ where: { partida_id: id, time_id: timeId, jogador_id: assistente, ...(p.status === 'AO_VIVO' ? { titular: true } : {}) } }), 'O autor da assistência deve estar na escalação e em campo.');
       }
+      if (tipo === 'GOL') exigir((timeId === p.mandante_id ? p.gols_mandante : p.gols_visitante) < 99, 'O placar atingiu o limite de 99 gols. Confira os registros antes de continuar.');
       await tocar(tx, p, req.body.versao);
       const e = await tx.evento.create({ data: { partida_id: id, tipo, time_id: timeId, jogador_id: jogadorId, gol_contra: contra,
-        criado_por_id: ctx.usuarioId, periodo: req.body.periodo ? inteiro(req.body.periodo, 1, 10) : p.periodo_atual, minuto: req.body.minuto == null || req.body.minuto === '' ? null : inteiro(req.body.minuto, 0, 200) }, include: { jogador: { select: { nome: true } } } });
+        criado_por_id: ctx.usuarioId, periodo: req.body.periodo == null ? p.periodo_atual : inteiro(req.body.periodo, 1, 10), minuto: req.body.minuto == null || req.body.minuto === '' ? null : inteiro(req.body.minuto, 0, 200) }, include: { jogador: { select: { nome: true } } } });
       if (tipo === 'GOL') await tx.partida.update({ where: { id }, data: timeId === p.mandante_id ? { gols_mandante: { increment: 1 } } : { gols_visitante: { increment: 1 } } });
       const assistencia = assistente ? await tx.evento.create({ data: { partida_id: id, tipo: 'ASSISTENCIA', time_id: timeId, jogador_id: assistente,
         criado_por_id: ctx.usuarioId, periodo: e.periodo, minuto: e.minuto } }) : null;

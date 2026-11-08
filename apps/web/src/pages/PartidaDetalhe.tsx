@@ -11,6 +11,7 @@ import {
 import { Btn, Modal, Input, Select, StatusBadge, LoadingSkeleton, Card } from '../components/UI';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToMatch, type RealtimeState } from '../services/matchRealtime';
+import { MATCH_POLL_CHANGED, MATCH_POLL_REFRESH } from '../services/matchPoll';
 import './PartidaDetalhe.css';
 import { ClubBadge } from '../components/Brand';
 import { formatMatchDate } from '../components/MatchCard';
@@ -186,6 +187,10 @@ export default function PartidaDetalhePage() {
         if (!['AGENDADA', 'PREPARADA'].includes(data.partida.status)) rememberPreparationStep(preparationKey, null);
         if (clube) unsubscribe = subscribeToMatch({ baseUrl: BASE_URL, token: token || '', clubId: clube.id, matchId: Number(id),
           onScore: scheduleRefresh, onRefresh: scheduleRefresh, onStateChange: setRealtimeState,
+          onPoll: value => window.dispatchEvent(new CustomEvent(MATCH_POLL_CHANGED, { detail: value })),
+          onReconnect: () => {
+            window.dispatchEvent(new CustomEvent(MATCH_POLL_REFRESH, { detail: Number(id) }));
+          },
           onRoster: change => rosterChanged.current(change) });
       } catch (e) { if (active) setLoadError((e as Error).message || 'Não foi possível carregar a partida.'); }
       finally { if (active) setLoading(false); }
@@ -672,7 +677,7 @@ export default function PartidaDetalhePage() {
       </div>}
 
       {gestao && partidaEmAndamento && <MatchOperations data={gestao} refresh={() => atualizarDados()}
-        players={jogadores} onEdit={gestao.podeSumula && !gestao.paulista ? () => setEditor('match') : undefined}
+        players={jogadores}
         onResponsibility={!gestao.paulista && gestao.equipes.length > 1 ? () => { setTransferError(''); setResponsibilityOpen(true); } : undefined}/>}
       {gestao && !podeGerenciar && !partidaEmAndamento && <PublishedLineups data={gestao}/>}
       {gestao && adversario && <Modal open={opponentOpen} title={`Escalação do ${adversario.clube.nome}`} className="preparation-modal preparation-opponent-modal" onClose={() => setOpponentOpen(false)}>
@@ -681,7 +686,7 @@ export default function PartidaDetalhePage() {
       </Modal>}
       <Modal open={responsibilityOpen} className="preparation-modal preparation-responsibility-modal" title="Responsável pela súmula" onClose={() => { if (!transferBusy) setResponsibilityOpen(false); }} footer={<div className="editor-actions">
         <Btn variant="ghost" disabled={transferBusy} onClick={() => setResponsibilityOpen(false)}>Fechar</Btn>
-        {gestao?.podeSumula && adversario && <Btn disabled={transferBusy} onClick={async () => {
+        {gestao?.podePreparar && adversario && ['AGENDADA', 'PREPARADA', 'AO_VIVO'].includes(partida.status) && <Btn disabled={transferBusy} onClick={async () => {
           setTransferBusy(true); setTransferError('');
           try {
             await comandoPartida(partida.id, 'sumula', {});
@@ -689,11 +694,11 @@ export default function PartidaDetalhePage() {
             setNotice(`Solicitação enviada ao ${adversario.clube.nome}. Seu clube continua responsável até o aceite.`);
           } catch (e) { setTransferError((e as Error).message); }
           finally { setTransferBusy(false); }
-        }}>{transferBusy ? 'Enviando…' : 'Solicitar transferência'}</Btn>}
+        }}>{transferBusy ? 'Enviando…' : gestao.podeSumula ? 'Solicitar transferência' : 'Solicitar responsabilidade'}</Btn>}
       </div>}>
         <div className="preparation-responsible"><Icon name="team" size={24}/><div><small>Clube responsável</small><strong>{responsavelSumula}</strong></div></div>
         <p className="editor-description">O responsável inicia a partida e registra o placar e os eventos. Cada clube continua gerenciando sua própria escalação.</p>
-        {gestao?.podeSumula && adversario && <p className="editor-description">A transferência para o {adversario.clube.nome} depende do aceite na aba Solicitações.</p>}
+        {gestao?.podePreparar && adversario && ['AGENDADA', 'PREPARADA', 'AO_VIVO'].includes(partida.status) && <p className="editor-description">{gestao.podeSumula ? `A transferência para o ${adversario.clube.nome}` : `A responsabilidade pelo ${clube?.nome || 'seu clube'}`} depende do aceite do outro clube na aba Solicitações.</p>}
         {transferError && <p className="notice-error" role="alert">{transferError}</p>}
       </Modal>
       <Modal open={confirmDelete} title="Cancelar partida" onClose={() => { if (!deleteBusy) setConfirmDelete(false); }} footer={<div className="editor-actions"><Btn disabled={deleteBusy} variant="ghost" onClick={() => setConfirmDelete(false)}>Voltar</Btn><Btn disabled={deleteBusy || !motivoCancelamento.trim()} variant="danger" onClick={async () => {

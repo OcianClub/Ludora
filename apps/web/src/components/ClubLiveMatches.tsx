@@ -92,7 +92,7 @@ export function ClubLiveMatches({ clubs }: { clubs: Clube[] }) {
           onKeyDown={event => { if (['ArrowLeft', 'ArrowRight'].includes(event.key) && !event.ctrlKey && !event.metaKey && !event.altKey) { event.preventDefault(); move(event.key === 'ArrowRight' ? 1 : -1); } }}>
           {ordered.map(match => <Link key={match.id} className="club-live-match" to={`/partidas/${match.id}?clube_id=${clubFor(match)}`}
             aria-label={`Acompanhar ${teamName(match.mandante.nome)} ${match.gols_mandante} a ${match.gols_visitante} ${teamName(match.visitante.nome)}, ${match.categoria}`}>
-            <div className="club-live-meta"><span><Icon name="broadcast" size={15}/>Ao vivo</span><small>{match.categoria.toUpperCase()}</small></div>
+            <div className="club-live-meta"><small>{match.categoria.toUpperCase()}</small></div>
             <div className="club-live-scoreboard">
               <div><ClubBadge src={match.mandante.escudo} name={teamName(match.mandante.nome)} size={38}/><strong>{teamName(match.mandante.nome)}</strong></div>
               <b>{match.gols_mandante}<span aria-hidden="true">–</span>{match.gols_visitante}</b>

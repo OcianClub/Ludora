@@ -118,13 +118,14 @@ export async function consultarAgenda(
       LEFT JOIN "Clube" cm ON cm.id = m.clube_representado_id
       LEFT JOIN "Clube" cv ON cv.id = v.clube_representado_id
       WHERE (c.clube_id = ${clubeId} OR m.clube_representado_id = ${clubeId}
-        OR v.clube_representado_id = ${clubeId})
+        OR v.clube_representado_id = ${clubeId} OR pp.clube_id = ${clubeId})
         ${intervalo ? Prisma.sql`AND p.data >= ${intervalo.gte} AND p.data < ${intervalo.lt}` : Prisma.empty}
         AND (${status}::text IS NULL OR p.status::text = ${status})
         AND (NOT ${organizadas} OR COALESCE(p.organizador_id, c.clube_id) = ${clubeId})
         AND (${preparacao}::text IS NULL OR p.status::text = ${preparacao})
         AND (${mando}::boolean IS NULL OR (
-          CASE WHEN c.clube_id = ${clubeId} THEN p."emCasa"
+          CASE WHEN pp.time_id IS NOT NULL THEN pp.time_id = p.mandante_id
+            WHEN c.clube_id = ${clubeId} THEN p."emCasa"
             ELSE COALESCE(m.clube_representado_id = ${clubeId}, false) END
         ) = ${mando})
         AND (${busca}::text IS NULL OR
@@ -156,7 +157,8 @@ export async function consultarAgenda(
       s.total::int AS total_grupo, p.id, p.organizador_id, p.data, p.horario, p.local, p.status,
       p.gols_mandante, p.gols_visitante, p.rodada, p.grupo, p.competicao_id,
       c.clube_id AS clube_origem_id, (c.clube_id <> ${clubeId}) AS somente_leitura,
-      CASE WHEN c.clube_id = ${clubeId} THEN p."emCasa"
+      CASE WHEN pp.time_id IS NOT NULL THEN pp.time_id = p.mandante_id
+        WHEN c.clube_id = ${clubeId} THEN p."emCasa"
         ELSE COALESCE(m.clube_representado_id = ${clubeId}, false) END AS "emCasa",
       jsonb_build_object('id', m.id,
         'nome', CASE WHEN cm.id IS NOT NULL THEN cm.nome ELSE m.nome END,

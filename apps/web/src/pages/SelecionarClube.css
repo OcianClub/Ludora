@@ -134,6 +134,10 @@
   .selecionar-header-inner, .selecionar-body, .selecionar-page .public-header-inner { padding-inline: 22px; }
 }
 @media (max-width: 760px) {
+  .selecionar-page .public-header .brand { gap: 8px; }
+  .selecionar-page .public-header .brand img { width: 30px; height: 30px; border-radius: 8px; }
+  .selecionar-page .public-header .brand > span { font-size: 20px; }
+  .selecionar-page .public-header .brand small { display: none; }
   .selecionar-header-inner, .selecionar-body, .selecionar-page .public-header-inner { padding-inline: 16px; }
   .selecionar-header-inner { min-height: 72px; }
   .selecionar-body { padding-top: 28px; padding-bottom: 40px; }

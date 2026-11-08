@@ -11,7 +11,7 @@ const output = path.resolve(__dirname, '../../../test-results/home-roles');
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   const errors = [];
   try {
-    for (const role of ['ADMIN', 'TECNICO', 'RESTRITO', 'TORCEDOR', 'OLHEIRO']) {
+    for (const role of process.env.LUDORA_HOME_TEST_ROLES?.split(',') || ['ADMIN', 'TECNICO', 'RESTRITO', 'TORCEDOR', 'OLHEIRO', 'ANONIMO']) {
       for (const width of [320, 390, 820, 1440]) for (const theme of ['dark', 'light']) {
         const manager = ['ADMIN', 'TECNICO'].includes(role);
         const club = { id: 2, nome: 'Ocian', meuPapel: role === 'RESTRITO' ? 'TECNICO' : role,
@@ -24,6 +24,7 @@ const output = path.resolve(__dirname, '../../../test-results/home-roles');
             localStorage.setItem('ludora_clube', JSON.stringify(club));
             localStorage.setItem('ludora_clube_id', '2');
             localStorage.setItem('ludora_tema', theme);
+            if (club.meuPapel === 'ANONIMO') { localStorage.removeItem('ludora_token'); localStorage.removeItem('ludora_usuario'); }
           }, { club, theme });
           const page = await context.newPage();
           const calls = [];
@@ -53,6 +54,13 @@ const output = path.resolve(__dirname, '../../../test-results/home-roles');
             { id: 'b', respondente_id: 2, status: 'PENDENTE', categoria_nome: 'sub-8' },
             { id: 'c', respondente_id: 3, status: 'PENDENTE', categoria_nome: 'sub-7' },
           ] }));
+          await page.route('**/publico/clubes/2/**', route => {
+            const pathname = new URL(route.request().url()).pathname;
+            if (pathname.endsWith('/categorias')) return route.fulfill({ json: [category] });
+            if (pathname.endsWith('/partidas/home')) return route.fulfill({ json: rows });
+            if (pathname.endsWith('/times')) return route.fulfill({ json: [] });
+            return route.fallback();
+          });
           await page.goto(base + '/dashboard');
           await page.locator('.home-match-cta').waitFor();
           if (manager) {
@@ -74,16 +82,23 @@ const output = path.resolve(__dirname, '../../../test-results/home-roles');
             assert.ok(calls.every(url => url.includes('categoria_id=1')));
           }
           assert.equal(await page.locator('.home-stale-live').count(), 1);
-          const ball = page.locator('.moment-result').first();
+          const ball = page.locator('.history-summary-result').first();
           await ball.focus();
           await page.getByRole('tooltip').waitFor();
-          assert.match(await page.getByRole('tooltip').innerText(), /Ocian 3 × 1 Santos/);
+          assert.match(await page.getByRole('tooltip').innerText(), /Ocian 3 a 1 Santos/);
           assert.match(await ball.getAttribute('aria-label'), /Ocian 3 a 1 Santos/);
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${role} ${width}: overflow`);
-          if (width > 760) {
-            const main = await page.locator('.home-main-match').boundingBox();
-            const side = await page.locator(manager ? '.home-pending-card' : '.category-moment').boundingBox();
-            assert.ok(Math.abs(main.y - side.y) < 1 && Math.abs(main.height - side.height) < 1, 'Cards principais alinhados');
+          assert.equal(await page.locator('.home-moment, .category-moment').count(), 0, 'sem histórico duplicado');
+          assert.equal(await page.locator('.history-summary-result').count(), await page.locator('.home-history-table tbody tr').count());
+          const summaryOrder = await page.locator('.history-summary-result').evaluateAll(buttons => buttons.map(button => button.getAttribute('aria-controls')));
+          const rowOrder = await page.locator('.home-history-table tbody tr').evaluateAll(rows => rows.map(row => row.id));
+          assert.deepEqual(summaryOrder, rowOrder, 'bolinhas e tabela têm a mesma ordem');
+          await ball.click();
+          assert.ok(await page.locator('.home-history-table tbody tr').first().locator('.history-table-link').evaluate(el => el === document.activeElement), 'bolinha leva à partida na tabela pelo teclado ou toque');
+          if (width === 1440) {
+            const main = await page.locator('.home-feature').boundingBox();
+            const side = await page.locator(manager ? '.home-pending' : '.home-side').boundingBox();
+            assert.ok(Math.abs(main.y - side.y) < 1 && side.x > main.x + main.width, 'colunas superiores alinhadas');
           }
           await page.mouse.move(0, 0);
           await ball.evaluate(el => el.blur());

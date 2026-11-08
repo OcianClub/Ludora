@@ -17,6 +17,7 @@ import escalacaoRoutes from './modules/escalacoes/escalacao.routes';
 import jogadorRoutes from './modules/jogadores/jogador.routes';
 import criarNotificacaoRoutes from './modules/notificacoes/notificacao.routes';
 import { criarPartidaRoutes } from './modules/partidas/partida.routes';
+import { criarPalpitesRoutes } from './modules/partidas/palpites.routes';
 import scoutRoutes from './modules/scout/scout.routes';
 import { criarAdminRoutes } from './modules/admin/admin.routes';
 import { registrarRequisicoes } from './modules/admin/superadmin';
@@ -67,6 +68,7 @@ export function criarApp(io: Server) {
   app.use(authRoutes);
   app.use(criarCadastroRoutes());
   app.use(criarRecuperacaoRoutes(io));
+  app.use(criarPalpitesRoutes(io));
   app.use(clubeRoutes);
   app.use(criarPublicoRoutes());
   app.use(perfilClubeRoutes);

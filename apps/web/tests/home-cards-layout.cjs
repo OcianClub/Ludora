@@ -50,8 +50,16 @@ function matches(mode) {
       });
       await install(page, { role });
       await page.route('**/partidas/home?**', route => route.fulfill({ json: matches(mode) }));
+      await page.route('**/publico/clubes/2/**', route => {
+        const pathname = new URL(route.request().url()).pathname;
+        if (pathname.endsWith('/categorias')) return route.fulfill({ json: [category] });
+        if (pathname.endsWith('/partidas/home')) return route.fulfill({ json: matches(mode) });
+        if (pathname.endsWith('/times')) return route.fulfill({ json: [] });
+        if (pathname.endsWith('/jogadores/perfis')) return route.fulfill({ json: [] });
+        return route.fallback();
+      });
       await page.goto(base + '/dashboard');
-      await page.locator('.home-moment .category-moment').waitFor();
+      await page.locator('.home-upcoming-card').waitFor();
       await page.evaluate(() => document.fonts.ready);
       if (role === 'ADMIN') await page.locator('.home-pending-items').waitFor();
       const name = `${width}-${role}-${mode}-${theme}`;
@@ -62,24 +70,18 @@ function matches(mode) {
       }
       assert.ok(pageFits, `Overflow: ${name}`);
       assert.equal(await page.locator('.home-pending').count(), role === 'ADMIN' ? 1 : 0, `Role: ${name}`);
-      const main = page.locator(mode === 'empty' ? '.home-feature > .home-empty' : '.home-main-match');
-      const side = page.locator(role === 'ADMIN' ? '.home-pending-card' : '.category-moment');
+      const main = page.locator('.home-feature');
+      const side = page.locator(role === 'ADMIN' ? '.home-pending' : '.home-side');
       const [a, b] = await Promise.all([main.boundingBox(), side.boundingBox()]);
-      if (width > 760) {
+      const twoColumns = await page.locator('.home-focus').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length === 2);
+      if (twoColumns) {
         assert.ok(Math.abs(a.y - b.y) < 1, `Card tops: ${name}: ${a.y}/${b.y}`);
-        assert.ok(Math.abs(a.height - b.height) < 1, `Card heights: ${name}: ${a.height}/${b.height}`);
         assert.ok(b.x > a.x + a.width, `Side by side: ${name}`);
-        if (role === 'ADMIN') {
-          const upcoming = await page.locator('.home-upcoming-card').boundingBox();
-          const moment = await page.locator('.category-moment').boundingBox();
-          assert.ok(Math.abs(upcoming.y - moment.y) < 1, `Secondary card tops: ${name} ${upcoming.y}/${moment.y}`);
-          assert.ok(Math.abs(upcoming.height - moment.height) < 1, `Secondary card heights: ${name}`);
-        }
       } else {
         assert.ok(b.y >= a.y + a.height, `Stacked: ${name}`);
-        if (role !== 'ADMIN') assert.ok(b.height < 270, `Natural mobile moment height: ${name}`);
       }
-      for (const selector of ['.home-main-match', '.home-pending-card', '.category-moment']) {
+      assert.equal(await page.locator('.home-moment, .category-moment').count(), 0);
+      for (const selector of ['.home-main-match', '.home-pending-card', '.home-upcoming-card']) {
         if (!await page.locator(selector).count()) continue;
         const overflow = await page.locator(selector).evaluate(el => {
           const card = el.getBoundingClientRect();
@@ -98,7 +100,7 @@ function matches(mode) {
         assert.ok(await page.locator('.home-match-cta').evaluate(el => el === document.activeElement), 'Keyboard CTA focus');
       }
       if (mode === 'normal') {
-        assert.equal(await page.locator('.moment-result').count(), 5);
+        assert.equal(await page.locator('.history-summary-result').count(), 5);
         assert.equal(await page.locator('.home-history-table tbody tr').count(), 5);
         assert.ok((await page.getByRole('link', { name: 'Ver agenda', exact: true }).getAttribute('href')).includes('status=PROXIMAS'));
       }

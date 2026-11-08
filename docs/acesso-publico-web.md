@@ -48,7 +48,20 @@ Capturas em `test-results/public-access/`. Os testes não alteraram dados de pro
 - O feed retorna apenas identificação da partida, times, escudos, categoria, data, horário, placar e IDs públicos dos clubes participantes. Não inclui jogadores, rascunhos ou auditoria.
 - O namespace público aceita `{ descoberta: true }` e entra apenas em `publico:ao-vivo`. O evento `ao_vivo_alterado` contém somente `{ partida_id }` e provoca nova leitura. Há recuperação a cada 30 segundos com a aba visível, ao retornar à aba, reconectar o socket ou recuperar a rede. Isso não altera os canais autenticados de web, mobile e desktop.
 - Cada card abre `/partidas/:id?clube_id=ID`: o clube participante é resolvido antes de carregar a página, preservando a permissão do usuário naquele clube. As setas aparecem apenas quando há overflow; no celular, a faixa usa rolagem horizontal nativa. Não há rotação automática.
-- A visão geral mantém os resultados com adversário, placar e data; remove textos repetidos de agenda/destaques e deixa o histórico mais compacto. No desktop, os times e o placar ficam no mesmo grupo; no celular, os nomes ficam empilhados ao lado do placar. O mando permanece disponível junto do resultado quando a coluna própria é ocultada.
+- A visão geral integra o resumo de resultados ao histórico; remove textos repetidos de agenda/destaques e deixa o histórico mais compacto. No desktop, os times e o placar ficam no mesmo grupo; no celular, os nomes ficam empilhados ao lado do placar. O histórico não mostra mando: Resultado é a última coluna, com o atalho para os detalhes. Competição permanece visível no celular, com reticências; a data usa dia e mês empilhados.
 - Verificação adicional: builds API/web; `live-discovery.test.cjs`, `publico-realtime.test.cjs`, `publico.http.test.ts`; `live-discovery-smoke.cjs` (320, 390, 820 e 1366 px, overflow, teclado, atualização, vazio e navegação entre clubes); regressões `home-history-layout-smoke.cjs` e `public-access-smoke.cjs`. HTTP de navegador e persistência dos testes são simulados, sem alterar o banco. Capturas em `test-results/live-discovery/`, `test-results/public-access/` e `test-results/web-home/`.
 
 Não exige migração nem variáveis novas. Publicar API e web para disponibilizar o carrossel em produção.
+
+## Ajuste de densidade e carregamento da visão geral
+
+Os cards usam altura natural, sem esticar até a altura do vizinho. Nomes, metadados de compromissos e competição truncam com reticências quando necessário. A tabela agrupa os times com o placar e termina em Resultado; não contém casa/fora. O skeleton representa filtros, escudos, placar, cards e tabela usando o mesmo grid e classes de colunas, com variação para gestão/visitante e respeito a movimento reduzido.
+
+Verificação com HTTP simulado, sem banco: `home-history-layout-smoke.cjs` (23 combinações de largura/sidebar entre 320 e 1920 px, nomes extensos, ausência de sobreposição e Resultado na direita); `home-density-smoke.cjs` (12 combinações de largura/papel e agendas de 0, 1 e 3 compromissos); `home-skeleton-smoke.cjs` (5 combinações de largura, papel, tema e sidebar, margens e transição para dados). No cenário de um compromisso a 1440 px, o card mede 148 px; ao reaplicar o esticamento antigo no mesmo navegador, media 298 px. Capturas em `test-results/home-density/` e `test-results/web-home/`.
+
+
+## Resumo integrado ao histórico
+
+O antigo card Momento da categoria foi removido. As cinco bolinhas aparecem no topo da tabela, na mesma ordem das linhas (mais recente primeiro), com os totais de vitórias, empates e derrotas. Foco ou hover destaca a linha correspondente; tocar/clicar leva à linha e foca seu atalho, sem abrir outra página. Os botões têm descrição completa para leitores de tela. Sem resultados, permanece apenas a mensagem de histórico vazio.
+
+Na visualização pública, agenda e destaques ficam empilhados à direita da partida principal em telas largas. Na gerencial, pendências continuam à direita e a agenda vem abaixo. O grid vira uma coluna conforme o espaço útil disponível, inclusive com a sidebar expandida. O skeleton acompanha a mesma organização. Dados, regras de permissão e consultas da API não foram alterados.
