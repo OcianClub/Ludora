@@ -50,8 +50,11 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
       const player=jogadores.find(j=>j.id===Number(playerMatch[1]));
       if(!player)return route.fulfill({status:404,json:{error:'Jogador não encontrado'}});
       if(route.request().method()==='PATCH'){Object.assign(player,route.request().postDataJSON());return route.fulfill({json:player});}
-      if(playerMatch[2]){const items=playerMatch[2]==='partidas'?partidas.slice(0,5):competicoes;return route.fulfill({json:{items,total:items.length,pagina:Number(query.get('pagina')||1),porPagina:20}});}
-      return route.fulfill({json:{...player,...(['ADMIN','TECNICO'].includes(role)?{cpf:'12345678901'}:{cpf:undefined}),categoria:categorias.find(c=>c.id===player.categoria_id),podeEditar:['ADMIN','TECNICO','MESARIO'].includes(role),totalPartidas:5,totalCompeticoes:2,partidas:partidas.slice(0,3),campeonatos:competicoes}});
+      const records={gols:2,assistencias:1,defesas:0,faltas:1,cartoes:0,golsContra:0};
+      const games=partidas.slice(0,5).map((p,i)=>({...p,equipe_id:p.mandante_id,resultado:p.gols_mandante===p.gols_visitante?'EMPATE':p.gols_mandante>p.gols_visitante?'VITORIA':'DERROTA',convocado:true,titularInicial:i%2===0,registros:records}));
+      const cups=competicoes.map((c,i)=>({...c,inscrito:true,partidasFinalizadas:i?0:4,convocacoes:i?0:4,registros:records}));
+      if(playerMatch[2]){const items=playerMatch[2]==='partidas'?games.filter(p=>(!query.get('status')||p.status===query.get('status'))&&(!query.get('ano')||p.data.startsWith(query.get('ano')))):cups.filter(c=>!query.get('ano')||String(c.ano)===query.get('ano'));return route.fulfill({json:{items,total:items.length,pagina:Number(query.get('pagina')||1),porPagina:20}});}
+      return route.fulfill({json:{...player,...(['ADMIN','TECNICO'].includes(role)?{cpf:'12345678901'}:{cpf:undefined}),categoria:categorias.find(c=>c.id===player.categoria_id),podeEditar:['ADMIN','TECNICO','MESARIO'].includes(role),totalPartidas:5,totalCompeticoes:2,resumo:{...records,convocacoes:5},temporadas:[2026,2025],opcoesCampeonatos:competicoes,partidas:games.slice(0,3),campeonatos:cups}});
     }
     if(pathname==='/clube/perfil')return route.fulfill({json:{...clubes[0],endereco:{logradouro:'Rua de demonstração',numero:'10',bairro:'Centro',cidade:'Praia Grande',estado:'SP',cep:'11700000',complemento:''}}});
     const gameMatch=pathname.match(/^\/partidas\/(\d+)$/);
@@ -64,7 +67,7 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
       '/partidas/solicitacoes':[],
       '/auth/login':{token:'visual-test-only',usuario},'/usuarios/me':{...usuario,notificacoes_ativas:true,clubes},'/clubes':clubes,'/categorias':categorias,'/times':times,
       '/jogadores':jogadores,'/jogadores/perfis':jogadores,'/partidas':partidas,'/partidas/home':partidas,'/competicoes':competicoes,
-      '/membros':[{id:1,usuario,papel:'ADMIN',acesso_todas_categorias:true,categorias:[]},{id:2,usuario:{id:2,nome:'James Walker'},papel:'TORCEDOR',acesso_todas_categorias:false,categorias:[]}],
+      '/membros':[{id:1,usuario,papel:'ADMIN',acesso_todas_categorias:true,categorias:[]},{id:2,usuario:{id:2,nome:'James Walker',email:'james@example.test'},papel:'TORCEDOR',acesso_todas_categorias:false,categorias:[]}],
       '/notificacoes':{totalNaoLidas:1,notificacoes:[{id:1,titulo:'Partida ao vivo',corpo:'Dados controlados de teste visual.',lida:false,partida_id:105,criada_em:new Date().toISOString()}]},
     };
     if(pathname==='/socket.io/')return route.fulfill({status:400,body:'Test without socket server'});

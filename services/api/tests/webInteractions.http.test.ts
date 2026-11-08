@@ -50,10 +50,15 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
   replace(prisma.propostaPartida,'findFirst',async()=>null);
   replace(prisma.partida,'create',async(args:any)=>{writes.push(args.data);return {id:99,...args.data,mandante:{nome:'Harbor'},visitante:{nome:'Wolves'}};});
   replace(prisma.partida,'update',async(args:any)=>{writes.push(args.data);return {id:99,...args.data};});
-  replace(prisma.partida,'findMany',async(args:any)=>{reads.push(args);return args.select.id?[{id:99,data:new Date(),mandante:{nome:'Harbor'},visitante:{nome:'Wolves'},status:'FINALIZADA'}]:[{local:'Harbor Court'}];});
+  replace(prisma.partida,'findMany',async(args:any)=>{reads.push(args);
+    if (args.select.competicao_id) return [{ competicao_id: 1, jogadores_escalonados: [{ titular_inicial: true }], eventos: [{ tipo: 'GOL', gol_contra: false }] }];
+    if (args.select.data && !args.select.id) return [{ data: new Date('2026-11-01') }];
+    return args.select.id?[{id:99,data:new Date(),mandante:{nome:'Harbor',escudo:null,clubeRepresentado:{escudo:'https://example.test/escudo.png'}},visitante:{nome:'Wolves',escudo:'https://example.test/externo.png',clubeRepresentado:null},mandante_id:1,visitante_id:2,gols_mandante:2,gols_visitante:1,emCasa:true,categoria:{clube_id:2},participantes:[],jogadores_escalonados:[{time_id:1,titular_inicial:true}],eventos:[{tipo:'GOL',gol_contra:false,time_id:1}],status:'FINALIZADA'}]:[{local:'Harbor Court'}];});
   replace(prisma.partida,'count',async()=>5);
   replace(prisma.competicao,'count',async()=>2);
   replace(prisma.competicao,'findMany',async()=>[{id:1,nome:'Harbor Cup',ano:2026,tipo:'BASE'}]);
+  replace(prisma.evento,'groupBy',async()=>[{tipo:'GOL',gol_contra:false,_count:{_all:3}}]);
+  replace(prisma.escalacaoPartida,'groupBy',async()=>[{titular_inicial:true,_count:{_all:2}},{titular_inicial:false,_count:{_all:1}}]);
   replace(prisma.jogador,'findFirst',async(args:any)=>args.where.id===404?null:{id:7,nome:'James Walker',foto:null,dtNasc:new Date('2014-10-28'),posicao:'Fixo',categoria_id:9,categoria:{id:9,nome:'sub-12',tipo:'BASE'}});
   replace(prisma.jogador,'findUnique',async()=>({cpf:'12345678901'}));
   replace(prisma,'$transaction',async(args:any)=>typeof args==='function'?args(prisma):Promise.all(args));
@@ -142,10 +147,19 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
       role=current;const response=await send('GET','/jogadores/7');assert.equal(response.status,200);const profile=await response.json();
       assert.equal('cpf' in profile,['ADMIN','TECNICO'].includes(current));assert.equal(profile.podeEditar,['ADMIN','TECNICO','MESARIO'].includes(current));
       assert.equal(profile.totalPartidas,5);
+      assert.equal(profile.resumo.convocacoes,3);assert.equal(profile.resumo.gols,3);
+      assert.equal(profile.partidas[0].resultado,'VITORIA');assert.equal(profile.partidas[0].registros.gols,1);
+      assert.equal(profile.partidas[0].mandante.escudo,'https://example.test/escudo.png');assert.equal(profile.partidas[0].visitante.escudo,'https://example.test/externo.png');
+      assert.equal(profile.partidas[0].titularInicial,true);assert.equal('eventos' in profile.partidas[0],false);
+      assert.equal(profile.campeonatos[0].convocacoes,1);assert.equal(profile.campeonatos[0].registros.gols,1);
     }
     assert.equal((await send('GET','/jogadores/404')).status,404);
     assert.equal((await send('GET','/jogadores/7/partidas?pagina=0')).status,400);
     const response=await send('GET','/jogadores/7/partidas?pagina=2&status=FINALIZADA');assert.equal(response.status,200);assert.equal((await response.json()).pagina,2);
+    await send('GET','/jogadores/7/partidas?ano=2026&competicao_id=1');
+    assert.equal(reads.at(-1).where.competicao_id,1);assert.equal(reads.at(-1).where.data.gte.toISOString(),'2026-01-01T00:00:00.000Z');
+    assert.equal((await send('GET','/jogadores/7/partidas?ano=abc')).status,400);
+    assert.equal((await send('GET','/jogadores/7/partidas?competicao_id=-1')).status,400);
     assert.equal((await send('GET','/jogadores/7/campeonatos?ano=2026')).status,200);role='ADMIN';
   });
   await t.test('sede exige admin, endereço válido e identidade gerenciada pela plataforma',async()=>{

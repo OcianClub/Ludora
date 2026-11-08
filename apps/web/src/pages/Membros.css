@@ -132,6 +132,8 @@
   min-width: 0;
   gap: 12px;
 }
+.members-person strong { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.members-person-email { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .members-initials {
   display: grid;
   flex: 0 0 32px;
@@ -497,7 +499,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 25px;
+  box-sizing: border-box;
+  width: 120px;
+  height: 26px;
+  gap: 6px;
   padding: 4px 9px;
   border: 0;
   border-radius: 6px;
@@ -518,13 +523,6 @@
   color: var(--texto);
   gap: 6px;
 }
-.members-status.status-pendente::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--members-role-dot);
-}
 .members-role.role-tecnico, .members-status.status-pendente {
   --members-role-dot: #F0B84E;
 }
@@ -537,11 +535,14 @@
 .members-role {
   gap: 6px;
 }
-.members-role > .icon, .members-role > svg {
+.members-role > .icon, .members-role > svg,
+.members-status > .icon, .members-status > svg {
+  width: 13px;
+  height: 13px;
   flex-shrink: 0;
   color: var(--members-role-dot, var(--texto-sec));
 }
-.members-role.role-admin > .icon {
+.members-role.role-admin > .icon, .members-status.status-aceito > .icon {
   color: #fff;
 }
 [data-theme="light"] .members-role.role-tecnico {
@@ -602,6 +603,18 @@
   min-height: 44px;
   background: var(--fundo-card);
 }
+.members-modal-person { display:flex; align-items:center; gap:12px; padding:12px; border:1px solid var(--linha); border-radius:8px; background:color-mix(in srgb, var(--fundo-card) 75%, var(--fundo-card-sec)); min-width:0; }
+.members-modal-person > div { display:flex; flex-direction:column; min-width:0; gap:3px; }
+.members-modal-person strong { font-size:13px; overflow-wrap:anywhere; }
+.members-modal-person > div > span { color:var(--texto-sec); font-size:12px; overflow-wrap:anywhere; }
+.members-access-modal .choice-value { display:inline-flex; align-items:center; gap:8px; min-width:0; }
+.members-access-modal .choice-options button { display:flex; align-items:center; gap:8px; }
+.members-access-modal .choice-option-icon { display:inline-flex; flex:none; color:var(--texto-sec); }
+.members-access-modal .choice-icon-admin { color:var(--primaria); }
+.members-access-modal .choice-icon-tecnico { color:var(--amarelo); }
+.members-access-modal .choice-icon-olheiro { color:#9D82DC; }
+.members-access-modal .choice-icon-mesario { color:#31B9A2; }
+.members-access-modal .choice-options button[aria-pressed="true"] .choice-option-icon { color:inherit; }
 .member-delivery {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -769,7 +782,7 @@
   word-break: normal;
 }
 .members-table td[data-label="Situação"] {
-  min-width: 110px;
+  min-width: 140px;
 }
 .members-table td[data-label="Validade"] {
   min-width: 115px;

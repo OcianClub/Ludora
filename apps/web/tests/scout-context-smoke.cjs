@@ -290,11 +290,16 @@ function context(query) {
         await dialog
           .getByText('25 partidas com registro', { exact: true })
           .waitFor();
+        // O recorte já foi consultado: invalida o cache para exercitar a falha HTTP.
+        await page.evaluate(async () => {
+          const api = await import('/src/services/api.ts');
+          api.invalidateApiReads('/jogadores/101/scout-contexto');
+        });
         failNext = true;
         await dialog
           .getByRole('button', { name: 'Campeonato', exact: true })
           .click();
-        await dialog.getByRole('alert').waitFor();
+        await dialog.locator('.athlete-load-error').waitFor();
         assert.equal(
           await dialog.locator('.scout-recorded-totals').count(),
           0,

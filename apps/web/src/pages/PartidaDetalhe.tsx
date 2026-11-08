@@ -297,6 +297,7 @@ export default function PartidaDetalhePage() {
   const canRecord = (gestao?.podeSumula ?? podeGerenciar) && ['AO_VIVO', 'FINALIZADA'].includes(partida.status);
   const partidaEmAndamento = ['AO_VIVO', 'FINALIZADA'].includes(partida.status);
   const preparando = podeGerenciar && ['AGENDADA', 'PREPARADA'].includes(partida.status);
+  const podeEditarDados = preparando && !gestao?.paulista;
   const abaVisivel = partidaEmAndamento ? aba : 'escalacao';
   const disponiveis = jogadores.filter(j => !escalacaoIds.has(j.id));
   const normalizar = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
@@ -493,10 +494,11 @@ export default function PartidaDetalhePage() {
       <header className="match-detail-header">
         <button type="button" className="match-detail-close" aria-label={detailLocation.state?.fromPaulista ? 'Voltar ao campeonato' : 'Voltar para partidas'} onClick={() => { if (!lineupDirty || confirm('Sair sem salvar as alterações da escalação?')) { if (detailLocation.state?.fromPaulista) { navigate(-1); return; } navigate(new URLSearchParams(location.search).get('retorno')?.startsWith('/competicoes/paulista') ? new URLSearchParams(location.search).get('retorno')! : '/partidas'); } }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
         <h1>{partidaEmAndamento ? <><span className="match-detail-desktop-title">{partida.status === 'FINALIZADA' ? 'Resumo da partida' : 'Detalhes da partida'}</span><span className="match-detail-mobile-title">{partida.mandante?.nome} × {partida.visitante?.nome}</span></> : preparando ? 'Preparação da partida' : 'Detalhes da partida'}</h1>
-        {preparando && !gestao?.paulista && <MatchActionsMenu disabled={busy || salvandoEvento || deletingEvent !== null || deleteBusy}
-          onEdit={() => setEditor('match')}
+        {podeEditarDados && <div className="match-detail-header-actions">
+          <Btn variant="ghost" size="sm" className="match-detail-edit" aria-label="Editar partida" data-tooltip="Editar partida" data-tooltip-icon-only disabled={busy || deleteBusy} onClick={() => setEditor('match')}><Icon name="edit" size={17}/><span>Editar partida</span></Btn>
+          {gestao && <MatchActionsMenu disabled={busy || salvandoEvento || deletingEvent !== null || deleteBusy}
           onResponsibility={gestao && gestao.equipes.length > 1 ? () => { setTransferError(''); setResponsibilityOpen(true); } : undefined}
-          onDelete={gestao && (gestao.podeSumula || gestao.organizador.id === clube?.id) ? () => { setMotivoCancelamento(''); setDeleteError(''); setConfirmDelete(true); } : undefined}/>}
+          onDelete={gestao && (gestao.podeSumula || gestao.organizador.id === clube?.id) ? () => { setMotivoCancelamento(''); setDeleteError(''); setConfirmDelete(true); } : undefined}/>}</div>}
       </header>
       {!preparando && actionError && <p className="notice-error" role="alert">{actionError}</p>}
       <Toast message={notice} onClose={() => setNotice('')}/>
@@ -535,7 +537,7 @@ export default function PartidaDetalhePage() {
         {!gestao && podeGerenciar && partidaEmAndamento && <div className="match-detail-score-edit"><Btn variant="ghost" size="sm" onClick={() => setEditor('score')}><Icon name="edit" size={14}/>Editar placar</Btn></div>}
       </section>}
       {preparando && etapa === 0 && <section className="preparation-data-details" aria-label="Detalhes do confronto">
-        <header><h3>Detalhes do confronto</h3>{!gestao?.paulista && <Btn variant="ghost" size="sm" className="preparation-edit-data" aria-label="Editar dados" onClick={() => setEditor('match')}><Icon name="edit" size={16}/><span>Editar dados</span></Btn>}</header>
+        <header><h3>Detalhes do confronto</h3></header>
         <div><Icon name="trophy" size={21}/><span><small>Competição</small><strong>{partida.competicao?.nome || 'Amistoso'}</strong></span></div>
         <div><Icon name={partida.emCasa ? 'home' : 'bus'} size={21}/><span><small>Mando da sua equipe</small><strong>{partida.emCasa ? 'Em casa' : 'Fora de casa'}</strong></span></div>
         {adversario && <p className="editor-description"><Icon name="info" size={17}/><span>Alterações de data, horário ou local precisam do aceite do {adversario.clube.nome}.</span></p>}
@@ -710,7 +712,7 @@ export default function PartidaDetalhePage() {
       {shirtPlayer && <PlayerShirtDialog player={shirtPlayer} category={partida.categoria?.nome}
         onClose={() => setShirtPlayer(null)} onSaved={onShirtSaved}/>}
       {/* Modal de evento */}
-      {editor === 'match' && <MatchEditor partida={partida} times={times} onClose={() => setEditor(null)} onSaved={onEdited} />}
+      {editor === 'match' && podeEditarDados && <MatchEditor partida={partida} times={times} approvalClub={adversario?.clube.nome} onClose={() => setEditor(null)} onSaved={onEdited} />}
       {editor === 'score' && <ScoreEditor partida={partida} onClose={() => setEditor(null)} onSaved={onEdited} />}
       <Modal open={modalEvento} onClose={() => { if (!salvandoEvento) setModalEvento(false); }} title="Registrar evento">
         <form onSubmit={adicionarEvento} className="form-grid">

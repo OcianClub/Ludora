@@ -159,6 +159,24 @@ test('propostas e agenda compartilhada: duas perspectivas, respostas e permissõ
     assert.equal(emissions.slice(before).some(e => e.event === 'partida_atualizada' || e.event === 'partidas_alteradas'), false);
     assert.equal(notifications.some(n => n.titulo === 'Confronto confirmado ou atualizado' && n.dados?.solicitacaoId === pending.id), false);
   });
+  await t.test('mandante pode editar antes de confirmar; alterar só local não recria conflito de horário legado', async () => {
+    const p = games[0]; p.status = 'AGENDADA';
+    p.participantes.forEach((e: any) => { e.pronta = false; });
+    const collision = { ...p, id: 999 }; games.push(collision);
+    const result = await call('/partidas/:id', 2, { local: 'Local corrigido', versao: p.versao }, String(p.id), 'patch');
+    assert.equal(result.status, 200); assert.equal(result.result.solicitacao.tipo, 'ALTERACAO');
+    assert.equal(result.result.solicitacao.respondente_id, 3);
+    assert.equal((await response(3, result.result.solicitacao, 'ACEITAR')).status, 200);
+    assert.equal(p.local, 'Local corrigido');
+    collision.horario = '20:30';
+    assert.equal((await call('/partidas/:id', 2, { horario: '20:30' }, String(p.id), 'patch')).status, 409, 'remarcação para horário ocupado continua bloqueada');
+    games.pop();
+    assert.equal((await call('/partidas/:id', 2, { local: 'Versão antiga', versao: p.versao - 1 }, String(p.id), 'patch')).status, 409);
+    assert.equal((await call('/partidas/:id', 99, { local: 'Intruso' }, String(p.id), 'patch')).status, 404);
+    role = 'TORCEDOR'; assert.equal((await call('/partidas/:id', 2, { local: 'Visitante' }, String(p.id), 'patch')).status, 403); role = 'ADMIN';
+    p.status = 'AO_VIVO'; assert.equal((await call('/partidas/:id', 2, { local: 'Depois do início' }, String(p.id), 'patch')).status, 400);
+    p.status = 'AGENDADA';
+  });
   await t.test('remarcação sugerida pelo adversário só vale após aceite e preserva os dois vínculos', async () => {
     const p = games[0]; p.status = 'PREPARADA'; p.participantes.forEach((e: any) => { e.pronta = true; });
     const originalTime = p.data.toISOString();

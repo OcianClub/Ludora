@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { cachedJson, cachedClubProfiles, fetchJogadoresPerfis, fetchCategorias, type PerfilJogador, type Categoria } from '../services/api';
-import { Btn, Modal, Spinner, Empty } from '../components/UI';
+import { cachedJson, cachedClubProfiles, fetchCategorias, type PerfilJogador, type Categoria } from '../services/api';
+import { Btn, Modal } from '../components/UI';
 import { ScoutIndexHelp } from '../components/ScoutIndexHelp';
 import { POSITIONS, normalizePosition } from '../components/CollectionControls';
 import { PositionIcon } from '../components/PositionIcon';
@@ -13,16 +13,15 @@ import { CollectionSearch, CollectionFilterButton, CollectionViewToggle, Collect
 import { useAuth } from '../contexts/AuthContext';
 import { loadClubProfiles } from '../services/clubProfiles';
 import { Icon, type IconName } from '../components/Icon';
-import { hasAssessment, nextScoutOrder, profileClass, searchScout, sortScout, SCOUT_PROFILES, SCOUT_ORDERS } from '../utils/scoutPlayers';
+import { hasAssessment, nextScoutOrder, profileClass, searchScout, sortScout, scoutOrderStartsAscending, SCOUT_PROFILES, SCOUT_ORDERS, SCOUT_TABLE_COLUMNS } from '../utils/scoutPlayers';
 import './Partidas.css';
 import './Dashboard.css';
 import './Elenco.css';
 import '../components/ResponsiveControls.css';
-
-const PROFILE_ICONS: Record<string, IconName> = { Artilheiro: 'ball', Armador: 'switchClub', Paredão: 'defense' };
+import './ScoutCollection.css';
 
 function metricValue(player: PerfilJogador, order: string) {
-  if (order === 'rating' || order === 'name') return player.totalPartidas;
+  if (['rating', 'name', 'position', 'age', 'profile'].includes(order)) return player.totalPartidas;
   const field = { goals: 'totalGols', assists: 'totalAssistencias', saves: 'totalDefesas', games: 'totalPartidas', shirt: 'numCamisa' } as const;
   return player[field[order as keyof typeof field]] ?? '—';
 }
@@ -39,11 +38,10 @@ export default function ElencoPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [draftPosition, setDraftPosition] = useState('');
   const [draftRecords, setDraftRecords] = useState('');
-  const [draftAssessment, setDraftAssessment] = useState('');
+  const [draftProfile, setDraftProfile] = useState('');
   const [draftOrder, setDraftOrder] = useState('');
-  const [limit, setLimit] = useState(24);
+  const [limit, setLimit] = useState(20);
   const [smallScreen, setSmallScreen] = useState(() => window.matchMedia('(max-width: 760px)').matches);
-  const profileTrack = useRef<HTMLDivElement>(null);
   const requestedCategory = params.get('categoria_id') || '';
   const { phase, selected: category } = useClubCategory(categories, requestedCategory, params.get('fase'));
   const phaseCategories = useMemo(() => categories.filter(category => category.tipo === phase).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true })), [categories, phase]);
@@ -52,11 +50,11 @@ export default function ElencoPage() {
   const profile = params.get('perfil') || '';
   const records = params.get('registros') || '';
   const assessment = params.get('avaliacao') || '';
-  const explicitOrder = SCOUT_ORDERS.some(item => item.value === params.get('ordem')) ? params.get('ordem')! : null;
+  const explicitOrder = SCOUT_TABLE_COLUMNS.some(item => item.value === params.get('ordem')) ? params.get('ordem')! : null;
   const order = explicitOrder || 'rating';
   const ascending = explicitOrder && ['asc', 'desc'].includes(params.get('direcao') || '')
-    ? params.get('direcao') === 'asc' : ['name', 'shirt'].includes(order);
-  const list = smallScreen || params.get('visualizacao') === 'lista';
+    ? params.get('direcao') === 'asc' : scoutOrderStartsAscending(order);
+  const table = !smallScreen && params.get('visualizacao') !== 'cards';
   const selected = players.find(player => String(player.id) === params.get('atleta')) || null;
 
   function change(values: Record<string, string>, replace = true) {
@@ -102,12 +100,7 @@ export default function ElencoPage() {
     return [item.id, { categoryPlayers, matching, filtered }];
   })), [players, phaseCategories, search, position, records, assessment, profile, order, ascending]);
   const filterKey = [category?.id, search, position, profile, records, assessment, order, ascending].join('|');
-  useEffect(() => setLimit(24), [filterKey]);
-  useEffect(() => {
-    const track = profileTrack.current;
-    const active = track?.querySelector<HTMLButtonElement>('[aria-pressed="true"]');
-    if (track && active) track.scrollTo({ left: Math.max(0, active.offsetLeft - 2), behavior: 'instant' });
-  }, [profile, loading, category?.id]);
+  useEffect(() => setLimit(20), [filterKey]);
   function getLeaders(categoryPlayers: PerfilJogador[]) {
     return [
     { title: 'Mais gols', field: 'totalGols', icon: 'ball' },
@@ -133,7 +126,7 @@ export default function ElencoPage() {
     const item = phaseCategories[categoryIndex + offset];
     const data = item && categoryData.get(item.id);
     if (!data || loading) return null;
-    const { categoryPlayers, matching, filtered } = data;
+    const { categoryPlayers, filtered } = data;
     const leaders = getLeaders(categoryPlayers);
     const category = item;
     const overviewTitle = `scout-overview-title-${item.id}`;
@@ -148,21 +141,16 @@ export default function ElencoPage() {
       </section>
       <div className="scout-controls">
         <CollectionSearch className="scout-search" id="scout-search" label="Buscar atleta" placeholder="Nome, camisa ou posição" value={search} onChange={value => change({ busca: value })} />
-        <CollectionFilterButton label="Mais filtros" onClick={() => { setDraftPosition(position); setDraftRecords(records); setDraftAssessment(assessment); setDraftOrder(explicitOrder || ''); setFiltersOpen(true); }} />
+        <CollectionFilterButton label="Mais filtros" count={[position, records, assessment || profile].filter(Boolean).length} onClick={() => { setDraftPosition(position); setDraftRecords(records); setDraftProfile(profile === 'pending' ? 'without' : profile || assessment); setDraftOrder(explicitOrder || ''); setFiltersOpen(true); }} />
+        {!smallScreen && <CollectionViewToggle label="Visualização do elenco" value={table ? 'tabela' : 'cards'} onChange={value => change({ visualizacao: value === 'cards' ? 'cards' : '' })}
+          options={[{ value: 'tabela', label: 'Tabela', icon: 'list' }, { value: 'cards', label: 'Cards', icon: 'grid' }]} />}
       </div>
-      <div data-swipe-ignore ref={offset === 0 ? profileTrack : undefined} className="scout-profile-filters" role="group" aria-label="Perfil de desempenho">{['', ...SCOUT_PROFILES, 'pending'].map(value => {
-        const count = matching.filter(player => !value || (value === 'pending' ? !hasAssessment(player) : hasAssessment(player) && player.perfil_ml === value)).length;
-        return <button key={value || 'all'} type="button" aria-pressed={profile === value} onClick={() => change({ perfil: value })} className={`scout-profile-filter profile-${value === 'Armador' ? 'playmaker' : value === 'Paredão' ? 'keeper' : 'scorer'}`}>{value === 'pending' ? 'Sem perfil' : value || 'Todos'}<span>{count}</span></button>;
-      })}</div>
       {!!chips.length && <div className="scout-active-filters" aria-label="Filtros ativos">{chips.map(chip => <button type="button" key={chip.key} onClick={() => change({ [chip.key]: '' })} aria-label={`Remover filtro ${chip.text}`}>{chip.text}<Icon name="minus" size={14} /></button>)}<button type="button" onClick={clear}>Limpar tudo</button></div>}
-      <ScoutIndexHelp />
       <div className="scout-section-heading scout-athletes-heading">
-        <div className="scout-athlete-count"><h2>Atletas</h2><p role="status">{filtered.length} de {categoryPlayers.length} · {category?.nome.toUpperCase()}</p></div>
-        {!smallScreen && <CollectionViewToggle className="schedule-view-toggle" label="Visualização do elenco" value={list ? 'lista' : 'cards'} onChange={value => change({ visualizacao: value === 'lista' ? 'lista' : '' })}
-          options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />}
+        <div className="scout-athlete-count" role="status"><h2>{filtered.length} atletas</h2><p>{filtered.length !== categoryPlayers.length && `de ${categoryPlayers.length} · `}{category?.nome.toUpperCase()}</p></div>
+        <ScoutIndexHelp label="Como ler o Scout" />
       </div>
-      <div data-swipe-ignore className="scout-order-tabs" role="group" aria-label="Ordenar atletas">
-        <span className="scout-order-label">↕ Ordenar por</span>
+      {smallScreen && <div data-swipe-ignore className="scout-order-tabs" role="group" aria-label="Ordenar atletas">
         {SCOUT_ORDERS.map(item => {
           const selected = order === item.value;
           const direction = !explicitOrder ? 'padrão' : ascending ? 'crescente' : 'decrescente';
@@ -173,13 +161,36 @@ export default function ElencoPage() {
             {selected && explicitOrder && <span aria-hidden="true">{ascending ? ' ↑' : ' ↓'}</span>}
           </button>;
         })}
-      </div>
-      <p className="scout-data-note">Partidas finalizadas · convocações não confirmam minutos em campo. Abra a ficha para filtrar por campeonato ou partida.</p>
-      {!filtered.length ? <div className="scout-empty"><Empty icon="👥" message={categoryPlayers.length ? 'Nenhum atleta corresponde aos filtros.' : 'Nenhum atleta cadastrado nesta categoria.'} />{!!chips.length && <Btn variant="ghost" onClick={clear}>Limpar filtros</Btn>}</div> : <>
-        {list && <div className="scout-list-head" aria-hidden="true"><span>Atleta · Registros</span><span>Perfil · Convocações · Gols · Assistências / Defesas</span></div>}
-        <div className={`scout-players${list ? ' scout-players-list' : ''}`}>{filtered.slice(0, offset === 0 ? limit : 24).map(player => {
+      </div>}
+      {!filtered.length ? <div className="scout-empty" role="status"><Icon name="team" size={28} /><p>{categoryPlayers.length ? 'Nenhum atleta corresponde aos filtros.' : 'Nenhum atleta cadastrado nesta categoria.'}</p>{!!chips.length && <Btn variant="ghost" onClick={clear}>Limpar filtros</Btn>}</div> : <>
+        {table ? <div className="scout-table-scroll" role="region" aria-label="Tabela de atletas" tabIndex={0} data-swipe-ignore>
+          <table className="scout-table">
+            <caption className="sr-only">Atletas de {category.nome.toUpperCase()}. Registros de partidas finalizadas. Clique nos títulos para alternar a ordenação.</caption>
+            <colgroup>{SCOUT_TABLE_COLUMNS.map(column => <col key={column.value} className={`scout-col-${column.value}`}/>)}</colgroup>
+            <thead><tr>{SCOUT_TABLE_COLUMNS.map(column => <th key={column.value} scope="col" aria-sort={explicitOrder === column.value ? ascending ? 'ascending' : 'descending' : 'none'}>
+              <button type="button" onClick={() => change(nextScoutOrder(explicitOrder, column.value, ascending))}>
+                {column.label}<span aria-hidden="true" className={`scout-sort-indicator${explicitOrder === column.value ? ascending ? ' is-ascending' : ' is-descending' : ''}`}><i/><i/></span>
+              </button>
+            </th>)}</tr></thead>
+            <tbody>{filtered.slice(0, limit).map(player => <tr key={player.id} className={`scout-tone-${profileClass(player)}`} onClick={event => { if (!(event.target as Element).closest('button, a')) openPlayer(player); }}>
+              <td className="scout-table-shirt">{player.numCamisa != null ? String(player.numCamisa).padStart(2, '0') : '—'}</td>
+              <th scope="row"><button className="scout-table-name" onClick={() => openPlayer(player)} type="button" aria-label={`Ver ficha de ${player.nome}`}><span data-tooltip={player.nome} data-tooltip-overflow>{player.nome}</span></button></th>
+              <td><span className="scout-table-position"><PositionIcon decorative tooltip={false} position={player.posicao}/><span>{normalizePosition(player.posicao) || '—'}</span></span></td>
+              <td>{player.idade != null ? `${player.idade} anos` : '—'}</td>
+              <td className="scout-table-number">{player.totalPartidas}</td><td className="scout-table-number">{player.totalGols}</td><td className="scout-table-number">{player.totalAssistencias}</td><td className="scout-table-number">{player.totalDefesas}</td>
+              <td><span className="scout-table-profile">{hasAssessment(player) ? player.perfil_ml : 'Sem perfil'}</span></td>
+            </tr>)}</tbody>
+          </table>
+        </div> : <div className={`scout-players${smallScreen ? ' scout-players-compact' : ''}`}>{filtered.slice(0, offset === 0 ? limit : 20).map(player => {
           const assessed = hasAssessment(player);
           const keeper = normalizePosition(player.posicao) === 'Goleiro';
+          if (smallScreen) return <article key={player.id} className={`scout-player scout-tone-${profileClass(player)}`}>
+            <button type="button" className="scout-mobile-player" onClick={() => openPlayer(player)} aria-label={`Ver ficha de ${player.nome}`}>
+              <span className="scout-mobile-shirt">{player.numCamisa != null ? String(player.numCamisa).padStart(2, '0') : '—'}</span>
+              <span className="scout-mobile-identity"><strong>{player.nome}</strong><span><PositionIcon decorative tooltip={false} position={player.posicao}/>{normalizePosition(player.posicao) || 'Sem posição'}</span></span>
+              <span className="scout-mobile-metrics">{[{ label: 'Convocações', short: 'CONV', value: player.totalPartidas }, { label: 'Gols', short: 'GOL', value: player.totalGols }, { label: keeper ? 'Defesas' : 'Assistências', short: keeper ? 'DEF' : 'AST', value: keeper ? player.totalDefesas : player.totalAssistencias }].map(metric => <span key={metric.label} aria-label={`${metric.value} ${metric.label}`}><b>{metric.value}</b><small>{metric.short}</small></span>)}</span>
+            </button>
+          </article>;
           return <article key={player.id} className={`scout-player scout-tone-${profileClass(player)}`} onClick={event => {
             if (!(event.target as Element).closest('button, a')) openPlayer(player);
           }}>
@@ -189,8 +200,8 @@ export default function ElencoPage() {
             </button>
             <div className="scout-player-bottom"><span className="scout-profile-label">{assessed ? player.perfil_ml : 'Sem perfil'}</span><dl className="scout-player-metrics"><div><dt>Convocações</dt><dd>{player.totalPartidas}</dd></div><div><dt>Gols</dt><dd>{player.totalGols}</dd></div><div><dt>{keeper ? 'Defesas' : 'Assistências'}</dt><dd>{keeper ? player.totalDefesas : player.totalAssistencias}</dd></div></dl></div>
           </article>;
-        })}</div>
-        {filtered.length > limit && <Btn className="scout-show-more" variant="ghost" onClick={() => setLimit(value => value + 24)}>Mostrar mais atletas ({filtered.length - limit})</Btn>}
+        })}</div>}
+        {filtered.length > limit && <Btn className="scout-show-more" variant="ghost" onClick={() => setLimit(value => value + 20)}>Carregar mais atletas ({filtered.length - limit})</Btn>}
       </>}
     </div>;
   }
@@ -205,22 +216,24 @@ export default function ElencoPage() {
           const next = phaseCategories.find(item => item.nome === name);
           if (next) change({ categoria_id: String(next.id), atleta: '' });
         }} />
-      {loading ? <div className="scout-loading" role="status" aria-label="Carregando elenco">{[1, 2, 3, 4, 5, 6].map(id => <div className="scout-skeleton" key={id} />)}</div> : error ? <div role="alert" className="notice-error"><p>{error}</p><Btn variant="ghost" onClick={() => setVersion(value => value + 1)}>Tentar novamente</Btn></div> : null}
+      {loading ? <div className="scout-collection-loading" role="status" aria-label="Carregando elenco"><div className="scout-skeleton-summary"/><div className="scout-skeleton-toolbar"/><div className="scout-skeleton-rows">{[1, 2, 3, 4, 5, 6].map(id => <div key={id}/>)}</div></div> : error ? <div role="alert" className="notice-error"><p>{error}</p><Btn variant="ghost" onClick={() => setVersion(value => value + 1)}>Tentar novamente</Btn></div> : null}
       {!loading && renderCategory(0)}
     <CollectionFilterDialog open={filtersOpen} title="Filtrar elenco" className="scout-filter-dialog" onClose={() => setFiltersOpen(false)}
-      onClear={() => { setDraftPosition(''); setDraftRecords(''); setDraftAssessment(''); setDraftOrder(''); }}
+      onClear={() => { setDraftPosition(''); setDraftRecords(''); setDraftProfile(''); setDraftOrder(''); }}
       onApply={() => {
         change({
-          posicao: draftPosition, registros: draftRecords, avaliacao: draftAssessment, ordem: draftOrder,
+          posicao: draftPosition, registros: draftRecords,
+          avaliacao: ['with', 'without'].includes(draftProfile) ? draftProfile : '',
+          perfil: ['with', 'without'].includes(draftProfile) ? '' : draftProfile, ordem: draftOrder,
           direcao: !draftOrder ? '' : draftOrder === explicitOrder
-            ? ascending ? 'asc' : 'desc' : ['name', 'shirt'].includes(draftOrder) ? 'asc' : 'desc',
+            ? ascending ? 'asc' : 'desc' : scoutOrderStartsAscending(draftOrder) ? 'asc' : 'desc',
         });
         setFiltersOpen(false);
       }}>
       <fieldset className="scout-filter-options"><legend>Posição</legend>{['', ...POSITIONS].map(value => <button type="button" key={value} aria-pressed={draftPosition === value} onClick={() => setDraftPosition(value)}>{value || 'Todas'}</button>)}</fieldset>
       <fieldset className="scout-filter-options"><legend>Participação</legend>{[{ value: '', label: 'Todos' }, { value: 'with', label: 'Com escalações' }, { value: 'without', label: 'Sem escalações' }].map(item => <button type="button" key={item.value} aria-pressed={draftRecords === item.value} onClick={() => setDraftRecords(item.value)}>{item.label}</button>)}</fieldset>
-      <fieldset className="scout-filter-options"><legend>Perfil de registros</legend>{[{ value: '', label: 'Todos' }, { value: 'with', label: 'Com perfil' }, { value: 'without', label: 'Sem perfil' }].map(item => <button type="button" key={item.value} aria-pressed={draftAssessment === item.value} onClick={() => setDraftAssessment(item.value)}>{item.label}</button>)}</fieldset>
-      <FilterSelect label="Ordenar por" emptyLabel="Padrão (índice)" options={SCOUT_ORDERS} value={draftOrder} onChange={setDraftOrder} inlineOptions />
+      <fieldset className="scout-filter-options"><legend>Perfil de registros</legend>{[{ value: '', label: 'Todos' }, ...SCOUT_PROFILES.map(value => ({ value, label: value })), { value: 'with', label: 'Com perfil' }, { value: 'without', label: 'Sem perfil' }].map(item => <button type="button" key={item.value} aria-pressed={draftProfile === item.value} onClick={() => setDraftProfile(item.value)}>{item.label}</button>)}</fieldset>
+      <FilterSelect label="Ordenar por" emptyLabel="Padrão (convocações)" options={SCOUT_TABLE_COLUMNS} value={draftOrder} onChange={setDraftOrder} inlineOptions />
     </CollectionFilterDialog>
     <Modal open={!!tiedLeaders} title={tiedLeaders ? `${tiedLeaders.title} · atletas empatados` : 'Atletas empatados'} onClose={() => setTiedLeaders(null)}>
       <p className="scout-help">Atletas com o mesmo resultado nesta categoria. Selecione um para ver sua ficha.</p>

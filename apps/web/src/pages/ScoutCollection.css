@@ -1,0 +1,141 @@
+/* Scout collection: shared summary, toolbar, desktop table and compact mobile cards. */
+.scout-category-content { min-width: 0; container-type: inline-size; }
+.scout-category-content .scout-overview { margin-bottom: 18px; }
+.scout-category-content .scout-leaders {
+  gap: 0;
+  border: 1px solid var(--borda);
+  border-radius: 9px;
+  background: var(--fundo-card);
+  overflow: hidden;
+}
+.scout-category-content .scout-leaders > button {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-content: center;
+  align-items: center;
+  gap: 3px 10px;
+  min-height: 80px;
+  padding: 12px 22px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.scout-category-content .scout-leaders > button + button { border-left: 1px solid var(--borda); }
+.scout-category-content .scout-leaders > button:not(:disabled):hover { background: var(--fundo-card-sec); }
+.scout-category-content .scout-leader-icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+}
+.scout-category-content .scout-leader-title {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.scout-category-content .scout-leader-name {
+  display: block;
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.scout-category-content .scout-leader-name small { margin-top: 2px; font-size: 10px; }
+.scout-category-content .scout-leaders strong { grid-column: 3; grid-row: 1 / span 2; font-size: 28px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.scout-category-content .scout-controls { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; margin-bottom: 14px; }
+.scout-category-content .scout-athletes-heading { justify-content: flex-start; gap: 14px; margin-bottom: 12px; }
+.scout-athlete-count { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.scout-athlete-count h2 { font-size: 14px; white-space: nowrap; }
+.scout-athlete-count p { margin: 0; font-size: 11px; white-space: nowrap; }
+.scout-athletes-heading .scout-index-help { margin: 0; font-size: 11px; }
+.scout-athletes-heading .scout-index-help > button { color: var(--primaria); min-height: 32px; }
+.scout-category-content .scout-active-filters { margin: 0 0 10px; padding: 2px 0; }
+.scout-category-content .scout-player-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scout-table-scroll { width: 100%; overflow-x: auto; border: 1px solid var(--borda); border-radius: 9px; background: var(--fundo-card); scrollbar-width: thin; }
+.scout-table-scroll:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
+.scout-table { width: 100%; min-width: 790px; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.scout-col-shirt { width: 7%; }
+.scout-col-name { width: 28%; }
+.scout-col-position { width: 12%; }
+.scout-col-age { width: 8%; }
+.scout-col-rating { width: 13%; }
+.scout-col-goals { width: 7%; }
+.scout-col-assists, .scout-col-saves { width: 8%; }
+.scout-col-profile { width: 9%; }
+.scout-table thead { background: color-mix(in srgb, var(--fundo-card) 82%, var(--fundo)); }
+.scout-table th, .scout-table td { padding: 0 10px; height: 50px; border-bottom: 1px solid var(--linha); text-align: left; white-space: nowrap; }
+.scout-table thead th { height: 42px; font-size: 10px; font-weight: 500; }
+.scout-table thead button { display: inline-flex; align-items: center; justify-content: flex-start; gap: 5px; min-height: 38px; max-width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font-size: inherit; font-weight: inherit; cursor: pointer; }
+.scout-table thead th[aria-sort=ascending], .scout-table thead th[aria-sort=descending] { color: var(--primaria); }
+.scout-sort-indicator { display: inline-grid; gap: 2px; flex-shrink: 0; opacity: .6; }
+.scout-sort-indicator i { display: block; width: 0; height: 0; border-right: 3px solid transparent; border-left: 3px solid transparent; border-bottom: 4px solid var(--texto-sec); }
+.scout-sort-indicator i + i { transform: rotate(180deg); }
+.scout-sort-indicator.is-ascending, .scout-sort-indicator.is-descending { opacity: 1; }
+.scout-sort-indicator.is-ascending i:first-child, .scout-sort-indicator.is-descending i:last-child { border-bottom-color: var(--primaria); }
+.scout-table tbody tr { cursor: pointer; }
+.scout-table tbody tr:hover > *, .scout-table tbody tr:focus-within > * { background: var(--fundo-card-sec); }
+.scout-table tbody tr:last-child > * { border-bottom: 0; }
+.scout-table-name { display: flex; align-items: center; min-height: 48px; width: 100%; padding: 0; border: 0; background: transparent; color: var(--texto); text-align: left; font-size: 12px; font-weight: 600; cursor: pointer; }
+.scout-table-name > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scout-table-position { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--texto-sec); }
+.scout-table-position > span { overflow: hidden; text-overflow: ellipsis; }
+.scout-table-position .position-icon { width: 17px !important; height: 17px !important; }
+.scout-table :is(td:nth-child(n+4):nth-child(-n+8), thead th:nth-child(n+4):nth-child(-n+8)) { text-align: center; }
+.scout-table :is(td:first-child, thead th:first-child) { text-align: center; }
+.scout-table-number, .scout-table-shirt { font-variant-numeric: tabular-nums; font-weight: 600; }
+.scout-table-number { font-size: 14px; }
+.scout-table-shirt { font-size: 15px; }
+.scout-table-profile { display: inline-block; max-width: 100%; padding: 3px 6px; border-radius: 4px; background: color-mix(in srgb, var(--scout-accent) 12%, transparent); color: color-mix(in srgb, var(--scout-accent) 65%, var(--texto)); font-size: 10px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.scout-category-content .scout-empty { min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px 16px; color: var(--texto-sec); text-align: center; }
+.scout-category-content .scout-empty p { margin: 0; }
+.scout-players-compact { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.scout-mobile-player { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 66px; padding: 10px; border: 0; background: transparent; color: var(--texto); text-align: left; cursor: pointer; }
+.scout-mobile-shirt { align-self: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.scout-mobile-identity { display: grid; gap: 5px; min-width: 0; }
+.scout-mobile-identity strong { font-size: 12px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scout-mobile-identity > span { display: flex; align-items: center; gap: 5px; color: var(--texto-sec); font-size: 10px; }
+.scout-mobile-identity .position-icon { width: 15px !important; height: 15px !important; }
+.scout-mobile-metrics { display: grid; grid-template-columns: repeat(3, minmax(25px, 1fr)); gap: 5px; }
+.scout-mobile-metrics > span { display: grid; gap: 3px; text-align: center; }
+.scout-mobile-metrics b { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.scout-mobile-metrics small { font-size: 8px; color: var(--texto-sec); }
+.scout-collection-loading { display: grid; gap: 16px; min-width: 0; }
+.scout-skeleton-summary, .scout-skeleton-toolbar, .scout-skeleton-rows { border: 1px solid var(--linha); border-radius: 9px; background: var(--fundo-card); }
+.scout-skeleton-summary { height: 80px; }
+.scout-skeleton-toolbar { height: 44px; }
+.scout-skeleton-rows > div { height: 50px; border-bottom: 1px solid var(--linha); }
+.scout-skeleton-rows > div:last-child { border-bottom: 0; }
+@media (max-width: 760px) {
+  .scout-category-content .scout-controls { grid-template-columns: minmax(0, 1fr) 40px; gap: 8px; margin-bottom: 8px; }
+  .scout-category-content .scout-controls .collection-filter-button { height: 40px; min-height: 40px; width: 40px; min-width: 40px; max-width: 40px; }
+  .scout-category-content .scout-athletes-heading { gap: 6px 8px; margin-bottom: 4px; flex-wrap: wrap; }
+  .scout-category-content .scout-index-help { margin-left: auto; flex-shrink: 0; }
+  .scout-category-content .scout-index-help > button { white-space: nowrap; }
+  .scout-category-content .scout-leaders > button { grid-template-columns: minmax(0, 1fr); grid-template-rows: 18px auto auto auto; justify-items: center; align-content: center; min-height: 110px; gap: 3px; padding: 10px 7px; text-align: center; }
+  .scout-category-content .scout-leader-icon { display: flex; grid-column: 1; grid-row: 1; width: 16px; height: 18px; }
+  .scout-category-content .scout-leader-icon .icon { width: 15px !important; height: 15px !important; }
+  .scout-category-content .scout-leader-title { grid-column: 1; grid-row: 2; max-width: 100%; font-size: 10px; }
+  .scout-category-content .scout-leader-name { grid-column: 1; grid-row: 4; max-width: 100%; font-size: 10px; }
+  .scout-category-content .scout-leader-name small { display: none; }
+  .scout-category-content .scout-leaders strong { grid-column: 1; grid-row: 3; font-size: 20px; }
+  .scout-category-content .scout-overview { margin-bottom: 14px; }
+  .scout-category-content .scout-order-tabs { gap: 6px; padding: 3px 0 8px; margin-bottom: 5px; }
+  .scout-category-content .scout-order-tabs button { min-height: 33px; padding: 6px 9px; font-size: 11px; }
+  .scout-skeleton-rows { display: grid; gap: 8px; border: 0; background: transparent; }
+  .scout-skeleton-rows > div { height: 66px; border: 1px solid var(--linha); border-radius: 9px; background: var(--fundo-card); }
+}
+@media (max-width: 380px) {
+  .scout-category-content .scout-leaders > button { padding: 9px 7px; }
+  .scout-mobile-player { gap: 6px; padding: 9px 8px; grid-template-columns: 26px minmax(0, 1fr) auto; }
+  .scout-mobile-metrics { gap: 3px; }
+}

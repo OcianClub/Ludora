@@ -1,0 +1,102 @@
+const assert = require('node:assert/strict');
+const { chromium } = require('playwright');
+const path = require('node:path');
+const base = 'http://127.0.0.1:5192';
+(async () => {
+  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  try {
+    for (const width of [320, 390, 760, 820, 1440]) {
+      const context = await browser.newContext({ viewport: { width, height: 950 } });
+      await context.addInitScript(() => {
+        localStorage.setItem('ludora_token', 'visual-test-only');
+        localStorage.setItem('ludora_usuario', JSON.stringify({ id: 1, nome: 'Teste' }));
+        localStorage.setItem('ludora_clube_id', '2');
+        localStorage.setItem('ludora_clube', JSON.stringify({ id: 2, nome: 'Ocian', meuPapel: 'ADMIN' }));
+        localStorage.setItem('ludora_tema', 'dark');
+      });
+      const page = await context.newPage(), errors = [];
+      page.on('pageerror', error => errors.push(error.message));
+      await page.route('**/*', route => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
+      let fixture;
+      await require('./visual-fixture.cjs').install(page, { playerCount: 32, decorate: data => { fixture = data; } });
+      let writes = 0, fail = false;
+      let reads = 0;
+      await page.route('**/jogadores?*', route => { if (new URL(route.request().url()).searchParams.has('fase')) reads++; return route.fallback(); });
+      await page.route('**/jogadores/100', route => {
+        if (route.request().method() !== 'PATCH') return route.fallback();
+        writes++;
+        if (fail) return route.fulfill({ status: 409, json: { error: 'Jogador em campo em uma partida ao vivo.' } });
+        const data = route.request().postDataJSON();
+        const player = fixture.jogadores.find(row => row.id === 100);
+        const other = fixture.jogadores.find(row => row.categoria_id === 1 && row.id !== 100 && row.numCamisa === data.numCamisa);
+        if (other && !data.confirmar_camisa) return route.fulfill({ status: 409, json: { error: 'Camisa em uso', conflito_camisa: { jogador_id: other.id, nome: other.nome, camisa: data.numCamisa, camisa_anterior: player.numCamisa, categoria: 'sub-7' } } });
+        if (other) other.numCamisa = player.numCamisa;
+        player.numCamisa = data.numCamisa;
+        return route.fulfill({ json: player });
+      });
+      await page.goto(base + '/jogadores?categoria=1');
+      const names = page.locator('.alunos-player-link:visible');
+      await page.waitForFunction(() => document.querySelectorAll('.alunos-player-link').length === 20);
+      assert.equal(await names.count(), 20);
+      const initialReads = reads;
+      assert.equal(await page.locator('.alunos-sub-toggle:visible').count(), width <= 760 ? 0 : 0);
+      const first = page.getByRole('button', { name: 'Definir camisa de Adam Hayes', exact: true });
+      await first.click();
+      const input = page.getByRole('textbox', { name: 'Camisa de Adam Hayes', exact: true });
+      await input.fill('99'); await input.press('Escape');
+      assert.equal(await input.count(), 0);
+      await first.click(); await input.fill('33'); await input.press('Enter');
+      await page.getByRole('textbox', { name: 'Camisa de Adam Hayes 2', exact: true }).waitFor();
+      await page.keyboard.press('Escape');
+      assert.equal(await page.getByRole('button', { name: 'Editar camisa de Adam Hayes', exact: true }).textContent(), '33');
+      assert.equal(writes, 1);
+      assert.equal(reads, initialReads, 'Salvar camisa avança sem consultar a lista ou os totais');
+      await page.getByRole('button', { name: 'Editar camisa de Adam Hayes', exact: true }).click();
+      await input.fill('1'); await input.press('Enter');
+      await page.getByRole('button', { name: 'Confirmar troca', exact: true }).click();
+      await page.getByRole('textbox', { name: 'Camisa de Adam Hayes 2', exact: true }).waitFor();
+      await page.keyboard.press('Escape');
+      assert.equal(await page.getByRole('button', { name: 'Editar camisa de Adam Hayes', exact: true }).textContent(), '01');
+      assert.equal(fixture.jogadores.find(row => row.id === 101).numCamisa, 33);
+      fail = true;
+      await page.getByRole('button', { name: 'Editar camisa de Adam Hayes', exact: true }).click();
+      await input.fill('44'); await input.press('Enter');
+      await page.getByRole('alert').filter({ hasText: 'Jogador em campo' }).waitFor();
+      assert.equal(fixture.jogadores.find(row => row.id === 100).numCamisa, 1);
+      await input.press('Escape'); fail = false;
+      await page.getByRole('button', { name: /Carregar mais jogadores/ }).click();
+      await page.waitForFunction(() => document.querySelectorAll('.alunos-player-link').length === 32);
+      await page.getByRole('tab', { name: 'SUB-8', exact: true }).click();
+      await page.waitForFunction(() => document.querySelectorAll('.alunos-player-link').length === 20 && [...document.querySelectorAll('.alunos-player-link')].every(el => +el.getAttribute('href').split('/').pop() >= 200));
+      await page.getByRole('tab', { name: 'Todos', exact: true }).click();
+      await page.locator('.alunos-sub-toggle').first().waitFor();
+      assert.equal(await page.locator('.alunos-sub-toggle').count(), 4);
+      assert.equal(await page.locator('.alunos-list:visible li').count(), 0);
+      await page.locator('.alunos-sub-toggle').first().click();
+      await page.locator('.alunos-list:visible li').first().waitFor();
+      assert.ok(await page.locator('.alunos-list:visible li').count() >= 20);
+      await page.getByRole('tab', { name: 'Base', exact: true }).click();
+      await page.getByRole('tab', { name: 'SUB-12', exact: true }).waitFor();
+      await page.waitForFunction(() => document.querySelectorAll('.alunos-player-link').length === 20 && [...document.querySelectorAll('.alunos-player-link')].every(el => +el.getAttribute('href').split('/').pop() >= 500));
+      await page.waitForTimeout(300);
+      assert.equal(await page.locator('.alunos-player-link:visible').count(), 20, 'categoria mantém os dados após concluir a atualização');
+      await page.locator('.alunos-missing-chip').click();
+      await page.waitForFunction(() => document.querySelectorAll('.alunos-player-link').length === 1);
+      assert.equal(await page.locator('.alunos-sub-toggle:visible').count(), 0);
+      await page.locator('.alunos-missing-chip').click();
+      await page.waitForFunction(() => document.querySelectorAll('.alunos-player-link').length === 20);
+      if (width > 760) {
+        const row = page.locator('.alunos-table tbody tr').first();
+        await row.hover();
+        assert.equal(await row.locator('.student-open').evaluate(el => getComputedStyle(el).opacity), '1');
+        assert.equal(await row.boundingBox().then(box => box.height), 56);
+      }
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: path.resolve('test-results/player-directory', `players-${width}.png`), fullPage: true });
+      assert.deepEqual(errors, []);
+      console.log(`PASS Jogadores ${width}: 20/+20, edição inline, Enter/próximo, Esc, sub e Todos`);
+      await context.close();
+    }
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

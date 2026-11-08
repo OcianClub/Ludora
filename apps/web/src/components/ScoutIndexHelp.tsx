@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Icon } from './Icon';
 import { Btn, Modal } from './UI';
 
-export function ScoutIndexHelp() {
+export function ScoutIndexHelp({ label = 'Como interpretar o Scout' }: { label?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="scout-index-help">
@@ -11,7 +11,7 @@ export function ScoutIndexHelp() {
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
       >
-        <Icon name="info" size={16} /> Como interpretar o Scout
+        <Icon name="info" size={16} /> {label}
       </button>
       <Modal
         open={open}

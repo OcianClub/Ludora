@@ -18,6 +18,13 @@
 .event-card-cartao_vermelho { background: var(--vermelho); }
 .event-card-cartao_azul { background: var(--primaria); }
 .editor-description { color: var(--texto-sec); font-size: 12px; line-height: 1.7; }
+.match-editor-modal .location-suggestions {
+  position: absolute;
+  inset: 100% 0 auto;
+  z-index: 2;
+  max-height: 180px;
+  overflow-y: auto;
+}
 .event-actions-panel > .editor-description { margin-top: 16px; }
 .editor-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 12px; }
 .selected-event { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--borda-botao); background: var(--fundo-botao); border-radius: 8px; }
@@ -48,6 +55,8 @@
   font-size: 22px;
   font-weight: 600;
 }
+.match-detail-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.match-detail-edit { min-height: 40px; white-space: nowrap; }
 .match-detail-close {
   display: grid;
   place-items: center;
@@ -62,6 +71,9 @@
 .match-detail-close:hover { background: var(--fundo-card); color: var(--texto); }
 .match-detail-mobile-title { display: none; }
 @media (max-width: 760px) {
+  .match-detail-header-actions { gap: 6px; }
+  .match-detail-edit { width: 36px; min-width: 36px; min-height: 36px; padding: 8px; }
+  .match-detail-edit > span:not(.icon) { display: none; }
   .partida-detalhe .match-detail-header {
     gap: 10px;
     padding-bottom: 12px;
@@ -70,6 +82,9 @@
   .partida-detalhe .match-detail-header h1 {
     font-size: 15px;
     line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .partida-detalhe .match-detail-close {
     width: 34px;

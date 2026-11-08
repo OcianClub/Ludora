@@ -7,7 +7,7 @@ const router = Router();
 router.use('/membros', exigirMembroDoClube, exigirAdminDoClube);
 router.get('/membros', async (req, res) => {
   const members = await prisma.usuarioClube.findMany({ where: { clube_id: (req as any).clubeId },
-    select: { id:true, papel:true, acesso_todas_categorias:true, usuario:{select:{id:true,nome:true}}, categorias:{select:{categoria_id:true}} }, orderBy:{id:'asc'} });
+    select: { id:true, papel:true, acesso_todas_categorias:true, usuario:{select:{id:true,nome:true,email:true}}, categorias:{select:{categoria_id:true}} }, orderBy:{id:'asc'} });
   res.json(members);
 });
 router.patch('/membros/:id', async (req, res) => {

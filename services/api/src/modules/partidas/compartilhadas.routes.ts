@@ -143,7 +143,8 @@ export function criarCompartilhadasRoutes(io: Server) {
         const validos = validarDataHorario(req.body.data, req.body.horario);
         dados = { ...dados, data: validos.data.toISOString().slice(0, 10), horario: validos.horario, local: String(req.body.local || '').trim().slice(0, 300), sugestao: { clube_id: ctx.clubeId, motivo: String(req.body.motivo || '').trim().slice(0, 500), criada_em: new Date().toISOString() } };
         const cat = await tx.categoria.findUniqueOrThrow({ where: { id: proposta.categoria_origem_id } });
-        const chave = await bloquearDuplicidade(tx, proposta.origem_id, proposta.destino_id, cat, dados, proposta.partida_id || undefined, proposta.id);
+        const mudouAgenda = !proposta.partida_id || !dados.base || dados.data !== dados.base.data || dados.horario !== dados.base.horario;
+        const chave = await bloquearDuplicidade(tx, proposta.origem_id, proposta.destino_id, cat, dados, proposta.partida_id || undefined, proposta.id, mudouAgenda);
         await tx.propostaPartida.update({ where: { id: proposta.id }, data: { dados: json(dados), chave, versao: { increment: 1 }, respondente_id: ctx.clubeId === proposta.origem_id ? proposta.destino_id : proposta.origem_id } });
         return { solicitacaoId: proposta.id };
       }
@@ -173,7 +174,8 @@ export function criarCompartilhadasRoutes(io: Server) {
           await tocar(tx, p);
           if (proposta.tipo === 'SUMULA') await tx.partida.update({ where: { id: p.id }, data: { sumula_clube_id: dados.novo_responsavel_id || proposta.destino_id } });
           else {
-            await bloquearDuplicidade(tx, proposta.origem_id, proposta.destino_id, cat, dados, p.id, proposta.id);
+            await bloquearDuplicidade(tx, proposta.origem_id, proposta.destino_id, cat, dados, p.id, proposta.id,
+              p.data.toISOString().slice(0, 10) !== dados.data || p.horario !== dados.horario);
             await tx.partida.update({ where: { id: p.id }, data: { ...validarDataHorario(dados.data, dados.horario), local: dados.local, status: 'AGENDADA' } });
             await tx.participantePartida.updateMany({ where: { partida_id: p.id }, data: { pronta: false } });
           }
@@ -265,11 +267,15 @@ export function criarCompartilhadasRoutes(io: Server) {
     const result = await transacao(async tx => {
       const { p, equipe } = await partida(tx, id, ctx, true);
       exigir(['AGENDADA', 'PREPARADA'].includes(p.status), 'Os dados do confronto não podem mudar após o início.');
+      if (req.body.versao != null) exigir(inteiro(req.body.versao, 0) === p.versao, 'A partida mudou em outro dispositivo. Atualize antes de editar.', 409);
       exigir((!req.body.categoria_id || [p.categoria_id, equipe!.categoria_id].includes(Number(req.body.categoria_id))) && (!req.body.mandante_id || Number(req.body.mandante_id) === p.mandante_id) && (!req.body.visitante_id || Number(req.body.visitante_id) === p.visitante_id), 'Para mudar os participantes ou a categoria, cancele e organize outro confronto.');
       const horario = validarDataHorario(req.body.data || p.data.toISOString().slice(0, 10), req.body.horario || p.horario);
       const dados = { data: horario.data.toISOString().slice(0, 10), horario: horario.horario, local: req.body.local === undefined ? p.local : String(req.body.local).trim().slice(0, 300), base: { data: p.data.toISOString().slice(0, 10), horario: p.horario, local: p.local } };
       const outro = p.participantes.find(e => e.clube_id !== ctx.clubeId);
-      const chave = await bloquearDuplicidade(tx, ctx.clubeId, outro?.clube_id || null, equipe!.categoria, { ...dados, mandante_id: p.mandante_id, visitante_id: p.visitante_id }, id);
+      const mudouAgenda = dados.data !== p.data.toISOString().slice(0, 10) || dados.horario !== p.horario;
+      // Ajustar somente o local não cria um novo conflito de horário. Mantém a
+      // proteção de propostas duplicadas sem impedir correções de jogos antigos.
+      const chave = await bloquearDuplicidade(tx, ctx.clubeId, outro?.clube_id || null, equipe!.categoria, { ...dados, mandante_id: p.mandante_id, visitante_id: p.visitante_id }, id, undefined, mudouAgenda);
       if (outro) return { solicitacao: await tx.propostaPartida.create({ data: { tipo: 'ALTERACAO', origem_id: ctx.clubeId, destino_id: outro.clube_id, respondente_id: outro.clube_id,
         categoria_origem_id: equipe!.categoria_id, categoria_destino_id: outro.categoria_id, dados: json(dados), partida_id: id, criado_por_id: ctx.usuarioId, chave } }) };
       await tocar(tx, p, req.body.versao);

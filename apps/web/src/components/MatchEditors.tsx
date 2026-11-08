@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { atualizarPartida, atualizarPlacarPartida, Partida, Time } from '../services/api';
 import { Btn, Input, Modal, Select } from './UI';
 import { Icon } from './Icon';
@@ -9,33 +10,35 @@ import { Toast } from './Toast';
 
 type EditorProps = { partida: Partida; onClose: () => void; onSaved: (partida: Partida) => void };
 
-export function MatchEditor({ partida, onClose, onSaved }: EditorProps & { times: Time[] }) {
-  const [form, setForm] = useState({ mandante_id: String(partida.mandante_id), visitante_id: String(partida.visitante_id), data: partida.data.slice(0, 10), horario: partida.horario || '', local: partida.local || '', emCasa: String(partida.emCasa) });
+export function MatchEditor({ partida, onClose, onSaved, approvalClub }: EditorProps & { times: Time[]; approvalClub?: string }) {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ data: partida.data.slice(0, 10), horario: partida.horario || '', local: partida.local || '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   async function save(event: React.FormEvent) {
     event.preventDefault();
     if (saving) return;
-    if (form.horario && !validTimeInput(form.horario)) { setError('Use um horário de 00:00 a 23:59.'); return; }
-    if (form.mandante_id === form.visitante_id) { setError('Escolha times diferentes para mandante e visitante.'); return; }
+    const date = new Date(`${form.data}T00:00:00Z`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(form.data) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== form.data) { setError('Escolha uma data válida para a partida.'); return; }
+    if (!validTimeInput(form.horario)) { setError('Use um horário de 00:00 a 23:59.'); return; }
     setSaving(true); setError('');
     try {
-      const updated = await atualizarPartida(partida.id, { data: form.data, horario: form.horario, local: form.local });
-      if (updated.solicitacao) { window.location.assign('/partidas/solicitacoes'); return; }
+      const updated = await atualizarPartida(partida.id, { data: form.data, horario: form.horario, local: form.local, ...('versao' in partida ? { versao: partida.versao } : {}) });
+      if (updated.solicitacao) { onClose(); navigate(`/partidas/solicitacoes?id=${encodeURIComponent(updated.solicitacao.id)}`); return; }
       onSaved(updated); onClose();
     } catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível salvar a partida.'); }
     finally { setSaving(false); }
   }
 
-  return <Modal open onClose={() => { if (!saving) onClose(); }} title="Editar partida">
-    <p className="editor-description">Atualize a data, o horário e o local. Em partidas compartilhadas, o outro clube precisa aceitar a alteração. Categoria: {partida.categoria?.nome || 'categoria da partida'}.</p>
+  return <Modal open className="match-editor-modal" onClose={() => { if (!saving) onClose(); }} title="Editar partida">
+    <p className="editor-description">{approvalClub ? `Altere a data, o horário e o local. O ${approvalClub} precisa aceitar os novos dados, mesmo que as escalações ainda não estejam confirmadas.` : 'Atualize a data, o horário e o local da partida.'} Categoria: {partida.categoria?.nome || 'categoria da partida'}.</p>
     <form onSubmit={save} className="form-grid">
       <MatchDateField value={form.data} onChange={data => setForm(f => ({ ...f, data }))} disabled={saving}/>
       <MatchTimeField value={form.horario} onChange={horario => setForm(f => ({ ...f, horario }))} disabled={saving}/>
       <div className="full"><LocationInput value={form.local} onChange={local => setForm(f => ({ ...f, local }))} disabled={saving}/></div>
       <p className="full" role="status">Mando automático: {partida.emCasa ? 'Em casa (mandante)' : 'Fora (visitante)'}</p>
       <Toast message={error} onClose={() => setError('')} />
-      <div className="editor-actions full"><Btn type="button" variant="ghost" disabled={saving} onClick={onClose}>Cancelar</Btn><Btn disabled={saving} type="submit">{saving ? 'Salvando...' : 'Salvar alterações'}</Btn></div>
+      <div className="editor-actions full"><Btn type="button" variant="ghost" disabled={saving} onClick={onClose}>Cancelar</Btn><Btn disabled={saving} type="submit">{saving ? 'Salvando...' : approvalClub ? 'Enviar alteração' : 'Salvar alterações'}</Btn></div>
     </form>
   </Modal>;
 }

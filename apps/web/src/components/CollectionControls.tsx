@@ -3,6 +3,7 @@ import { Btn, Modal } from './UI';
 import './CollectionControls.css';
 import './ResponsiveControls.css';
 import { PositionIcon } from './PositionIcon';
+import { Icon, type IconName } from './Icon';
 import { CollectionViewToggle } from './CollectionToolbar';
 import { useDropdownPlacement } from '../hooks/useDropdownPlacement';
 
@@ -12,7 +13,7 @@ export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (va
     options={[{ value: 'grid', label: 'Blocos', icon: 'grid' }, { value: 'list', label: 'Lista', icon: 'list' }]} />;
 }
 export function Choice({ label, value, options, onChange, disabled = false, placeholder = 'Selecionar', inlineOptions = false }: {
-  label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void; disabled?: boolean; placeholder?: string; inlineOptions?: boolean;
+  label: string; value: string; options: { value: string; label: string; icon?: IconName }[]; onChange: (value: string) => void; disabled?: boolean; placeholder?: string; inlineOptions?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -30,7 +31,7 @@ export function Choice({ label, value, options, onChange, disabled = false, plac
     <span className="field-label" id={`${id}-label`}>{label}</span>
     <button ref={trigger} type="button" className="field-input choice-trigger" aria-labelledby={`${id}-label ${id}-value`} aria-expanded={open && !disabled} aria-controls={open && !disabled ? `${id}-options` : undefined} disabled={disabled}
       onClick={() => setOpen(!open)} onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('[data-choice-option]')?.focus()); } }}>
-      <span id={`${id}-value`}>{options.find(o => o.value === value)?.label || placeholder}</span>
+      <span id={`${id}-value`} className="choice-value">{options.find(o => o.value === value)?.icon && <span className={`choice-option-icon choice-icon-${value.toLowerCase()}`}><Icon name={options.find(o => o.value === value)!.icon!} size={16}/></span>} {options.find(o => o.value === value)?.label || placeholder}</span>
       <svg className="choice-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
     </button>
     {open && !disabled && <div id={`${id}-options`} className="choice-options" style={placement} role="group" aria-labelledby={`${id}-label`} onKeyDown={e => {
@@ -39,7 +40,7 @@ export function Choice({ label, value, options, onChange, disabled = false, plac
         e.preventDefault(); const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button')]; const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
         buttons[e.key === 'Home' ? 0 : e.key === 'End' ? buttons.length - 1 : (index + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
       }
-    }}>{options.map(option => <button data-choice-option key={option.value} type="button" aria-pressed={option.value === value} onClick={() => { onChange(option.value); setOpen(false); trigger.current?.focus(); }}>{option.label}</button>)}</div>}
+    }}>{options.map(option => <button data-choice-option key={option.value} type="button" aria-pressed={option.value === value} onClick={() => { onChange(option.value); setOpen(false); trigger.current?.focus(); }}>{option.icon && <span className={`choice-option-icon choice-icon-${option.value.toLowerCase()}`}><Icon name={option.icon} size={16}/></span>}<span>{option.label}</span></button>)}</div>}
   </div>;
 }
 export function ConfirmDelete({ name, busy, error, onClose, onConfirm }: { name: string | null; busy: boolean; error: string; onClose: () => void; onConfirm: () => void }) {

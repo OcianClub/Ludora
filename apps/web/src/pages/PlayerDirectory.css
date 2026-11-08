@@ -1,0 +1,48 @@
+/* Directory controls share the Scout table's density. */
+.alunos-page .alunos-table { table-layout: fixed; font-size: 12px; }
+.alunos-page .alunos-table th { height: 42px; padding: 0 10px; font-size: 10px; }
+.alunos-page .alunos-table td { height: 56px; padding: 0 10px; font-size: 12px; }
+.alunos-page .alunos-cell-shirt { width: 76px; text-align: center; }
+.alunos-page .alunos-table th:first-child { width: 76px; text-align: center; }
+.alunos-page .alunos-cell-name { width: auto; }
+.alunos-page .alunos-table th:nth-child(2) { width: auto; }
+.alunos-page .alunos-table th:nth-child(3) { width: 22%; }
+.alunos-page .alunos-table th:nth-child(4) { width: 14%; }
+.alunos-page .alunos-table th:last-child { width: 110px; }
+.alunos-page .alunos-cell-open { text-align: right; }
+.alunos-page .alunos-player-link { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alunos-page .alunos-cell-open .student-open { display: inline-flex; gap: 5px; width: auto; padding: 0; color: var(--primaria); white-space: nowrap; opacity: 0; }
+.alunos-page .alunos-cell-open .student-open:hover { background: transparent; }
+.alunos-page .alunos-table tr:hover .student-open, .alunos-page .alunos-table tr:focus-within .student-open { opacity: 1; }
+.alunos-inline-shirt { display: inline-flex; position: relative; vertical-align: middle; flex-shrink: 0; }
+.alunos-inline-number, .alunos-inline-shirt > input { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 1px solid transparent; border-radius: 6px; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--texto); background: transparent; text-align: center; }
+.alunos-inline-number { cursor: pointer; background: var(--fundo-card-sec); }
+.alunos-inline-number.is-missing { border: 1px dashed var(--texto-sec); color: var(--texto-sec); background: transparent; }
+.alunos-inline-number.is-missing:hover { background: transparent; color: var(--texto); }
+.alunos-inline-number:hover { background: var(--fundo-card-sec); }
+.alunos-inline-shirt > input { border-color: var(--primaria); background: var(--fundo); outline: none; }
+.alunos-inline-shirt:focus-within { z-index: 3; }
+.alunos-shirt-edit-actions { position: absolute; top: 100%; left: 0; display: flex; background: var(--fundo-card); border: 1px solid var(--borda); border-radius: 5px; z-index: 4; }
+.alunos-shirt-edit-actions button { display: grid; place-items: center; min-width: 30px; min-height: 30px; border: 0; background: transparent; color: var(--texto); }
+.alunos-shirt-feedback { position: absolute; top: calc(100% + 34px); left: 0; width: min(270px, 70vw); white-space: normal; padding: 12px; border: 1px solid var(--borda); border-radius: 8px; background: var(--fundo-card); color: var(--texto); box-shadow: 0 8px 20px #0005; font-size: 12px; line-height: 1.5; z-index: 5; }
+.alunos-shirt-feedback button { margin: 8px 6px 0 0; padding: 7px; background: var(--fundo-card-sec); border: 1px solid var(--borda); border-radius: 5px; color: var(--texto); }
+.alunos-page .alunos-missing-chip, .alunos-page .alunos-missing-chip[aria-pressed="true"] { color: var(--texto-sec); background: transparent; border: 1px solid var(--borda); border-radius: 6px; padding: 6px 9px; font-size: 11px; }
+.alunos-page .alunos-missing-chip[aria-pressed="true"] { color: var(--texto); border-color: var(--texto-sec); }
+.alunos-page .alunos-filter-toggle { display: inline-flex; }
+.alunos-page .alunos-filters { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.alunos-page .alunos-missing-chip span { color: inherit; background: transparent; }
+.alunos-load-more { display: flex; justify-content: center; padding: 16px; }
+.alunos-page .alunos-directory:not(.alunos-directory--list) { border: 0; border-radius: 0; background: transparent; overflow: visible; }
+.alunos-page .alunos-table-scroll { border: 1px solid var(--linha); border-radius: 9px; background: var(--alunos-surface); }
+.alunos-sub-group:has(.alunos-inline-shirt:focus-within) { overflow: visible; }
+.alunos-list li { position: relative; }
+@media (hover: none) { .alunos-page .alunos-cell-open .student-open { opacity: 1; } }
+@media (max-width: 760px) {
+  .alunos-page .home-controls { margin-bottom: 14px; }
+  .alunos-page .alunos-sub-group.is-simple { border: 0; border-radius: 0; background: transparent; overflow: visible; }
+  .alunos-page .is-simple .alunos-list { padding: 0; }
+  .alunos-page .is-simple .alunos-list li { margin: 0; min-height: 60px; padding: 10px 0; border-radius: 0; border-bottom: 1px solid var(--linha); background: transparent; }
+  .alunos-page .alunos-list li > div { overflow-wrap: normal; }
+  .alunos-page .alunos-list p { font-size: 11px; }
+  .alunos-page .alunos-list .alunos-player-link { font-size: 12px; }
+}

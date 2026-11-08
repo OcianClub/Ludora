@@ -96,17 +96,17 @@ export async function validarDados(tx: Banco, ctx: Contexto, body: any, aceitarR
     emCasa: propria[0].id === mandanteId,
   } };
 }
-export async function bloquearDuplicidade(tx: Banco, origem: number, destino: number | null, categoria: { nome: string; faixaIdade: number; tipo?: string }, dados: any, ignorarPartida?: number, ignorarProposta?: string) {
+export async function bloquearDuplicidade(tx: Banco, origem: number, destino: number | null, categoria: { nome: string; faixaIdade: number; tipo?: string }, dados: any, ignorarPartida?: number, ignorarProposta?: string, conferirAgenda = true) {
   const par = [origem, destino || -dados.visitante_id - dados.mandante_id].sort((a, b) => a - b);
   const faixa = categoria.faixaIdade || Number(categoria.nome.match(/\d+/)?.[0]) || categoria.nome.toLowerCase();
   const chave = `${par.join(':')}:${categoria.tipo || 'categoria'}:${faixa}:${dados.data}:${dados.horario}`;
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${chave}))::text`;
   const data = new Date(`${dados.data}T00:00:00Z`);
-  const conflito = await tx.partida.findFirst({ where: {
+  const conflito = conferirAgenda ? await tx.partida.findFirst({ where: {
     id: ignorarPartida ? { not: ignorarPartida } : undefined, status: { not: 'CANCELADA' }, data, horario: dados.horario,
     OR: [{ participantes: { some: { clube_id: origem, categoria: { faixaIdade: categoria.faixaIdade, nome: categoria.nome } } } },
       ...(destino ? [{ participantes: { some: { clube_id: destino, categoria: { faixaIdade: categoria.faixaIdade, nome: categoria.nome } } } }] : [])],
-  } });
+  } }) : null;
   exigir(!conflito, `Já existe uma partida ou conflito de agenda neste horário${conflito ? ` (#${conflito.id})` : ''}.`, 409);
   const proposta = await tx.propostaPartida.findFirst({ where: { chave, status: 'PENDENTE', id: ignorarProposta ? { not: ignorarProposta } : undefined } });
   exigir(!proposta, 'Já existe uma proposta para este confronto. Consulte as solicitações recebidas e enviadas.', 409);

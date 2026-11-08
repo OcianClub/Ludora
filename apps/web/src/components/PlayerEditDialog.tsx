@@ -5,6 +5,7 @@ import { BirthDateField } from './BirthDateField';
 import { POSITIONS, PositionBadge, normalizePosition } from './CollectionControls';
 import { cleanName, digitsOnly, formatCpf } from '../utils/playerForm';
 import { Icon } from './Icon';
+import { formatShirtNumber, parseShirtNumber } from '../utils/lineupShirts';
 
 export type EditablePlayer = { id: number; nome: string; dtNasc: string; foto?: string | null; posicao: string; numCamisa?: number | null; cpf?: string };
 async function readPhoto(file: File): Promise<string> {
@@ -20,55 +21,58 @@ async function readPhoto(file: File): Promise<string> {
     return result;
   } finally { bitmap.close(); }
 }
-export function PlayerEditDialog({ player, onClose, onSaved }: { player: EditablePlayer; onClose: () => void; onSaved: () => void }) {
+export function PlayerEditDialog({ player, categoryName, onClose, onSaved }: { player: EditablePlayer; categoryName?: string; onClose: () => void; onSaved: () => void }) {
   const photoInput = useRef<HTMLInputElement>(null);
+  const saving = useRef(false);
   const [form, setForm] = useState({ nome: player.nome, dtNasc: player.dtNasc.slice(0,10), posicao: normalizePosition(player.posicao), numCamisa: player.numCamisa?.toString() || '', foto: player.foto || null });
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState(categoryName || '');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [conflict, setConflict] = useState<ConflitoCamisa | null>(null);
   useEffect(() => {
+    if (form.dtNasc === player.dtNasc.slice(0,10) && categoryName) { setCategory(categoryName); return; }
     let active = true; setCategory('');
+    if (!form.dtNasc) return;
     const timer = setTimeout(() => preverCategoria(form.dtNasc).then(result => { if (active) setCategory(result.categoria.nome); }).catch(err => { if (active) setError(err.message); }), 200);
     return () => { active = false; clearTimeout(timer); };
-  }, [form.dtNasc]);
+  }, [form.dtNasc, player.dtNasc, categoryName]);
   async function save(confirmation?: ConflitoCamisa) {
-    if (busy || photoBusy || !category) return;
-    setBusy(true); setError('');
+    if (saving.current || photoBusy || !category) return;
+    if (!form.nome.trim()) { setError('Informe o nome do jogador.'); return; }
+    if (form.numCamisa && parseShirtNumber(form.numCamisa) === null) { setError('A camisa deve ser um número de 1 a 99.'); return; }
+    saving.current = true; setBusy(true); setError('');
     const data: DadosJogador = { ...form, numCamisa: form.numCamisa ? Number(form.numCamisa) : null,
       ...(confirmation ? { confirmar_camisa: { jogador_id: confirmation.jogador_id, camisa_anterior: confirmation.camisa_anterior } } : {}) };
     try { await atualizarJogador(player.id, data); onSaved(); }
     catch (err) { if (err instanceof ErroJogador && err.conflito) setConflict(err.conflito); else setError(err instanceof Error ? err.message : 'Não foi possível salvar.'); }
-    finally { setBusy(false); }
+    finally { saving.current = false; setBusy(false); }
   }
-  return <Modal open title="Editar jogador" onClose={() => { if (!busy && !photoBusy) onClose(); }}>
-    <form noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
+  return <Modal open className="player-edit-dialog" title="Editar jogador" onClose={() => { if (!busy && !photoBusy) onClose(); }} footer={<div className="player-edit-footer"><Btn variant="ghost" type="button" disabled={busy || photoBusy} onClick={onClose}>Cancelar</Btn>{!conflict && <Btn type="submit" form="player-edit-form" disabled={busy || photoBusy || !category}>{busy ? 'Salvando…' : 'Salvar alterações'}</Btn>}</div>}>
+    <form id="player-edit-form" noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
       <fieldset className="form-grid alunos-fields" disabled={busy || photoBusy || !!conflict}>
         <div className="full player-photo-editor">
           <button type="button" className={`player-photo-trigger${form.foto ? ' has-photo' : ''}`} aria-label="Alterar foto do jogador" onClick={() => photoInput.current?.click()}>
             {form.foto ? <img src={form.foto} alt="Prévia da foto"/> : <Icon name="user" size={30}/>}
-            <span className="player-photo-copy"><Icon name="edit" size={15}/><span>Alterar foto</span></span>
+            <span className="player-photo-copy"><Icon name="edit" size={13}/></span>
           </button>
-          <small>JPEG, PNG ou WebP · até 8 MB</small>
+          <div className="player-photo-description"><strong>Foto do jogador</strong><small>Opcional · JPEG, PNG ou WebP até 8 MB</small><Btn variant="ghost" size="sm" type="button" onClick={() => photoInput.current?.click()}>Escolher foto</Btn>{form.foto && <Btn variant="ghost" size="sm" type="button" onClick={() => setForm(f => ({ ...f, foto: null }))}>Remover foto</Btn>}</div>
           <input ref={photoInput} type="file" hidden tabIndex={-1} aria-label="Selecionar foto do jogador" accept="image/jpeg,image/png,image/webp" onChange={async event => {
           const file = event.target.files?.[0]; if (!file) return;
           event.target.value = '';
           setPhotoBusy(true); setError(''); try { const foto = await readPhoto(file); setForm(current => ({ ...current, foto })); } catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível ler a foto.'); } finally { setPhotoBusy(false); }
           }}/>
-          {form.foto && <Btn variant="ghost" size="sm" type="button" onClick={() => setForm(f => ({ ...f, foto: null }))}>Remover foto</Btn>}
         </div>
         <Input label="Nome completo" className="full" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: cleanName(e.target.value) }))}/>
         {player.cpf !== undefined && <Input label="CPF · não editável" value={formatCpf(player.cpf)} readOnly className="full"/>}
         <BirthDateField value={form.dtNasc} onChange={dtNasc => { setConflict(null); setError(''); setForm(f => ({ ...f, dtNasc })); }}/>
-        <Input label="Camisa" inputMode="numeric" value={form.numCamisa} onChange={e => { setConflict(null); setForm(f => ({ ...f, numCamisa: digitsOnly(e.target.value).slice(0,2) })); }}/>
-        <p className="full" role="status">{category ? `Categoria: ${category.toUpperCase()}` : 'Verificando categoria…'}</p>
-        <div className="position-options full" role="group" aria-label="Posição">{POSITIONS.map(value => <button type="button" key={value} aria-pressed={form.posicao === value} onClick={() => setForm(f => ({ ...f, posicao: value }))}><PositionBadge position={value} showLabel/></button>)}</div>
+        <Input label="Camisa (opcional)" inputMode="numeric" maxLength={2} placeholder="01 a 99" value={form.numCamisa} onBlur={() => { const number = parseShirtNumber(form.numCamisa); if (number !== null) setForm(f => ({ ...f, numCamisa: formatShirtNumber(number) })); }} onChange={e => { setConflict(null); setError(''); setForm(f => ({ ...f, numCamisa: digitsOnly(e.target.value).slice(0,2) })); }}/>
+        <p className="full player-edit-category" role="status"><Icon name="team" size={16}/>{category ? <>Categoria <strong>{category.toUpperCase()}</strong></> : 'Verificando categoria…'}</p>
+        <div className="full"><span className="field-label">Posição</span><div className="position-options" role="group" aria-label="Posição">{POSITIONS.map(value => <button type="button" key={value} aria-pressed={form.posicao === value} onClick={() => setForm(f => ({ ...f, posicao: value }))}><PositionBadge position={value} showLabel/></button>)}</div></div>
       </fieldset>
       {photoBusy && <p role="status">Preparando foto…</p>}
       {conflict && <div className="alunos-conflict" role="alert"><p>A camisa {conflict.camisa} já pertence a {conflict.nome}. {conflict.camisa_anterior === null ? 'O outro jogador ficará sem camisa.' : `O outro jogador receberá a camisa ${conflict.camisa_anterior}.`}</p><Btn variant="ghost" type="button" disabled={busy} onClick={() => setConflict(null)}>Cancelar troca</Btn><Btn type="button" disabled={busy} onClick={() => void save(conflict)}>Confirmar troca</Btn></div>}
       {error && <p role="alert" className="notice-error">{error}</p>}
-      <div className="collection-dialog-actions"><Btn variant="ghost" type="button" disabled={busy || photoBusy} onClick={onClose}>Cancelar</Btn>{!conflict && <Btn type="submit" disabled={busy || photoBusy || !category}>{busy ? 'Salvando…' : 'Salvar jogador'}</Btn>}</div>
     </form>
   </Modal>;
 }

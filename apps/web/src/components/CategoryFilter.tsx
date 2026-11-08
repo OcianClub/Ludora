@@ -10,6 +10,7 @@ export type CategoryFilterProps = {
   onSelect: (name: string) => void;
   label?: string;
   hint?: string;
+  allOption?: { selected: boolean; onSelect: () => void };
 };
 
 export function PhaseFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -18,7 +19,7 @@ export function PhaseFilter({ value, onChange }: { value: string; onChange: (val
   </div>;
 }
 
-export function CategoryFilter({ categories, phase, selected, onPhase, onSelect, label = 'Categoria' }: CategoryFilterProps) {
+export function CategoryFilter({ categories, phase, selected, onPhase, onSelect, label = 'Categoria', allOption }: CategoryFilterProps) {
   const id = useId();
   const track = useRef<HTMLDivElement>(null);
   const available = categories.filter(category => category.tipo === phase)
@@ -45,7 +46,7 @@ export function CategoryFilter({ categories, phase, selected, onPhase, onSelect,
       left: active.offsetLeft - (container.clientWidth - active.clientWidth) / 2,
       behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
     });
-  }, [selected?.id, phase]);
+  }, [selected?.id, phase, allOption?.selected]);
 
   return <div className="home-controls">
     <div className="home-phase" role="tablist" aria-label="Fase" onKeyDown={event => {
@@ -63,15 +64,18 @@ export function CategoryFilter({ categories, phase, selected, onPhase, onSelect,
       <div className="home-sub-strip category-tabs" role="tablist" aria-label={label} ref={track} onKeyDown={event => {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault();
-        const index = available.findIndex(category => category.id === selected?.id);
-        const next = event.key === 'Home' ? 0 : event.key === 'End' ? available.length - 1 : Math.max(0, Math.min(available.length - 1, index + (event.key === 'ArrowLeft' ? -1 : 1)));
-        if (available[next]) {
-          onSelect(available[next].nome);
+        const offset = allOption ? 1 : 0;
+        const index = allOption?.selected ? 0 : available.findIndex(category => category.id === selected?.id) + offset;
+        const last = available.length - 1 + offset;
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? last : Math.max(0, Math.min(last, index + (event.key === 'ArrowLeft' ? -1 : 1)));
+        if (allOption && next === 0 || available[next - offset]) {
+          if (allOption && next === 0) allOption.onSelect(); else onSelect(available[next - offset].nome);
           track.current?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus({ preventScroll: true });
         }
       }}>
+        {allOption && <button type="button" role="tab" tabIndex={allOption.selected ? 0 : -1} aria-selected={allOption.selected} onClick={allOption.onSelect}>Todos</button>}
         {available.map((category, index) => <button type="button" role="tab" key={category.id}
-          aria-selected={selected?.id === category.id} tabIndex={selected?.id === category.id || !selected && index === 0 ? 0 : -1}
+          aria-selected={selected?.id === category.id} tabIndex={selected?.id === category.id || !selected && !allOption?.selected && index === 0 ? 0 : -1}
           onClick={() => onSelect(category.nome)}>{category.nome.toUpperCase()}</button>)}
         {!available.length && <span className="home-no-category">Nenhuma categoria nesta fase</span>}
       </div>
