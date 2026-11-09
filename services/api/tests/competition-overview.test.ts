@@ -40,6 +40,7 @@ test('arquivo HTTP preserva competições sem jogos, permite restaurar e bloquei
   mock(prisma.fpfsEvento, 'findMany', async () => oficial ? [{ id: 900, competicaoId: 1 }] : []);
   mock(prisma.competicao, 'findMany', async (q: any) => { reads.push(q); return []; });
   mock(prisma.clube, 'findMany', async () => []);
+  mock(prisma.clube, 'findUnique', async () => ({ id: 2 }));
   const app = express(); app.use(express.json()); app.use(router);
   const server = app.listen(0, '127.0.0.1'); await new Promise<void>(resolve => server.once('listening', resolve));
   t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
