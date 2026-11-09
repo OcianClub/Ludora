@@ -16,6 +16,7 @@ import { idPositivo } from '../../utils/id';
 import { chaveTime, resumirConfrontos } from './time-context';
 import { somenteAdministracaoPlataforma } from './gestao-times.policy';
 import { referenciasCompeticoes, timesVinculados } from '../paulista/service';
+import { resumirCompeticoes } from './competicao-resumo.service';
 
 const router = Router();
 
@@ -210,7 +211,7 @@ router.get('/competicoes', exigirClubePublico, async (req, res) => {
     const escopo = await obterEscopoCategoriasLeitura((req as any).usuarioId, clube_id);
     const competicoes = await prisma.competicao.findMany({ 
       where: {
-        arquivada: false,
+        ...(req.query.incluir_arquivadas === 'true' && (await obterEscopoCategorias((req as any).usuarioId, clube_id)).acessoTotal ? { NOT: { arquivada: true, clube_id: { not: clube_id } } } : { arquivada: false }),
         OR: [{ clube_id }, { partidas: { some: { participantes: { some: { clube_id } } } } }],
         ...(escopo.acessoTotal ? {} : {
           AND: [{ OR: [
@@ -225,13 +226,32 @@ router.get('/competicoes', exigirClubePublico, async (req, res) => {
     });
     const clubes = await prisma.clube.findMany({ where: { id: { in: [...new Set(competicoes.map(c => c.clube_id))] } }, select: { id: true, nome: true } });
     const oficiais = await referenciasCompeticoes(prisma, competicoes.map(c => c.id));
-    res.json(competicoes.map(c => ({ ...c, paulista_evento_id: oficiais.get(c.id), organizador: oficiais.has(c.id) ? { nome: 'Federação Paulista' } : clubes.find(clube => clube.id === c.clube_id), somente_leitura: oficiais.has(c.id) || c.clube_id !== clube_id })));
+    const resumos = req.query.resumo === 'true' ? await resumirCompeticoes(prisma, competicoes.filter(c => !oficiais.has(c.id)).map(c => c.id), escopo.acessoTotal ? {} : {
+      OR: [{ categoria_id: { in: escopo.categoriaIds } }, { participantes: { some: { clube_id, categoria_id: { in: escopo.categoriaIds } } } }],
+    }) : new Map();
+    res.json(competicoes.map(c => ({ ...c, resumo: resumos.get(c.id), paulista_evento_id: oficiais.get(c.id), organizador: oficiais.has(c.id) ? { nome: 'Federação Paulista' } : clubes.find(clube => clube.id === c.clube_id), somente_leitura: oficiais.has(c.id) || c.clube_id !== clube_id })));
   } catch (error: any) { res.status(500).json({ error: 'Erro ao buscar competições' }); }
+});
+
+router.patch('/competicoes/:id/arquivo', exigirGestorDoClube, exigirAcessoTotalCategorias, exigirCompeticaoDoClube, async (req, res) => {
+  if (typeof req.body?.arquivada !== 'boolean') return res.status(400).json({ error: 'Informe se deseja arquivar ou restaurar a competição.' });
+  try {
+    const oficiais = await referenciasCompeticoes(prisma, [Number(req.params.id)]);
+    if (oficiais.size) return res.status(403).json({ error: 'Competições da federação são somente leitura.' });
+    if (req.body.arquivada && await prisma.partida.count({ where: { competicao_id: Number(req.params.id), status: { in: ['AGENDADA', 'PREPARADA', 'AO_VIVO'] } } })) {
+      return res.status(409).json({ error: 'Há partidas agendadas, preparadas ou ao vivo. Finalize ou cancele esses jogos antes de arquivar a competição.' });
+    }
+    const item = await prisma.competicao.update({ where: { id: Number(req.params.id) }, data: { arquivada: req.body.arquivada } });
+    res.json(item);
+  } catch { res.status(500).json({ error: 'Não foi possível atualizar o arquivamento.' }); }
 });
 
 router.delete('/competicoes/:id', exigirGestorDoClube, exigirAcessoTotalCategorias, exigirCompeticaoDoClube, async (req, res) => {
   const id = Number(req.params.id);
   try {
+    if (await prisma.partida.count({ where: { competicao_id: id, status: { in: ['AGENDADA', 'PREPARADA', 'AO_VIVO'] } } })) {
+      return res.status(409).json({ error: 'Há partidas agendadas, preparadas ou ao vivo. Finalize ou cancele esses jogos antes de arquivar a competição.' });
+    }
     const totalPartidas = await prisma.partida.count({ where: { competicao_id: id } });
     if (totalPartidas > 0) {
       await prisma.competicao.update({ where: { id }, data: { arquivada: true } });

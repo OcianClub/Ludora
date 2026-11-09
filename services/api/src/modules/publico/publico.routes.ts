@@ -7,6 +7,7 @@ import { consultarHome, dataHomeValida } from '../partidas/home.service';
 import { escopoPartidas } from '../partidas/visibilidade';
 import { referenciasCompeticoes } from '../paulista/service';
 import { consultarAoVivo } from './ao-vivo.service';
+import { resumirCompeticoes } from '../cadastros/competicao-resumo.service';
 import { clubePublicoSelect, consultarPartidaPublica, partidaPublicaSelect, publicarPartida, competicaoPublicaSelect, escopoCompeticoesPublicas, classificarPartidas } from './publico.service';
 
 export function criarPublicoRoutes(banco: PrismaClient = prisma) {
@@ -66,11 +67,13 @@ export function criarPublicoRoutes(banco: PrismaClient = prisma) {
     if (!data?.clube) { res.status(404).json({ error: 'Partida não encontrada.' }); return; }
     res.json(data);
   }));
-  router.get('/publico/clubes/:clubeId/competicoes', clube, safe(async (_req, res) => {
+  router.get('/publico/clubes/:clubeId/competicoes', clube, safe(async (req, res) => {
     const rows = await banco.competicao.findMany({ where: escopoCompeticoesPublicas(res.locals.clube.id), select: competicaoPublicaSelect, orderBy: [{ ano: 'desc' }, { nome: 'asc' }] });
     const oficiais = await referenciasCompeticoes(banco, rows.map(row => row.id));
+    const resumos = req.query.resumo === 'true' ? await resumirCompeticoes(banco, rows.filter(row => !oficiais.has(row.id)).map(row => row.id)) : new Map();
     res.json(rows.map(({ clube: organizador, ...competition }) => ({
       ...competition,
+      resumo: resumos.get(competition.id),
       organizador,
       somente_leitura: true,
       paulista_evento_id: oficiais.get(competition.id),

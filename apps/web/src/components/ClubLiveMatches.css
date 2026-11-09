@@ -1,26 +1,27 @@
 .club-live-section { min-width: 0; }
 .club-live-section > h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; color: var(--texto); font-size: 17px; font-family: var(--font-corpo); font-weight: 600; }
-.club-live-section > h2 .icon { color: #E5485D; }
+.club-live-section > h2 .icon { color: var(--ao-vivo-indicador); }
 .club-live-carousel { position: relative; min-width: 0; }
 .club-live-track { display: flex; gap: 12px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 9px; }
 .club-live-track::-webkit-scrollbar { display: none; }
 .club-live-track:focus-visible { outline: 2px solid var(--primaria); outline-offset: 4px; }
-.club-live-match { display: flex; flex-direction: column; flex: 0 0 calc((100% - 24px) / 3); min-width: 0; gap: 14px; padding: 14px; border: 1px solid var(--linha); border-radius: 9px; background: var(--fundo-card); color: var(--texto); text-decoration: none; scroll-snap-align: start; scroll-margin: 3px; }
-.club-live-match:hover { background: color-mix(in srgb, var(--fundo-card) 85%, var(--fundo-card-sec)); border-color: var(--borda); }
+.club-live-match { display: flex; flex-direction: column; flex: 0 0 calc((100% - 24px) / 3); min-width: 0; gap: 14px; padding: 14px; border: 1px solid color-mix(in srgb, var(--ao-vivo-indicador) 24%, var(--linha)); border-radius: 9px; background: var(--fundo-card); color: var(--texto); text-decoration: none; scroll-snap-align: start; scroll-margin: 3px; }
+.club-live-match:hover { background: color-mix(in srgb, var(--fundo-card) 85%, var(--fundo-card-sec)); border-color: color-mix(in srgb, var(--ao-vivo-indicador) 50%, var(--linha)); }
 .club-live-match:focus-visible { outline: 2px solid var(--primaria); outline-offset: -3px; }
-.club-live-meta { display: flex; align-items: center; gap: 8px; }
+.club-live-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .club-live-meta small { color: var(--texto-sec); font-size: 10px; }
+.club-live-indicator { flex: 0 0 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--ao-vivo-indicador); }
 .club-live-scoreboard { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
 .club-live-scoreboard > div { display: grid; gap: 7px; justify-items: center; min-width: 0; text-align: center; }
 .club-live-scoreboard .club-badge { background: var(--fundo-card-sec); color: var(--texto); border: 1px solid var(--linha); border-radius: 8px; font-size: 19px; }
 .club-live-scoreboard strong { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 500; }
-.club-live-scoreboard > b { display: flex; align-items: center; gap: 7px; font-size: 25px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.club-live-scoreboard > b { display: flex; align-items: center; gap: 7px; font-size: 28px; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .club-live-scoreboard > b > span { color: var(--texto-sec); font-size: 15px; font-weight: 400; }
-.club-live-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; color: var(--texto-sec); font-size: 10px; }
+.club-live-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; color: var(--texto-sec); font-size: 11px; }
 .club-live-prev, .club-live-next { position: absolute; top: 50%; z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--borda); border-radius: 50%; background: var(--fundo-card-sec); color: var(--texto); transform: translateY(-50%); box-shadow: 0 3px 9px #0003; }
 .club-live-prev { left: -18px; }
 .club-live-next { right: -18px; }
-.club-live-carousel > button:disabled { color: var(--texto-sec); cursor: default; }
+.club-live-carousel > button:disabled { visibility: hidden; }
 .club-live-carousel > button:not(:disabled):hover { background: var(--fundo-card-claro); }
 .club-live-loading { display: flex; gap: 12px; overflow: hidden; }
 .club-live-loading > span { flex: 0 0 calc((100% - 24px) / 3); height: 164px; border-radius: 9px; background: var(--fundo-card); }

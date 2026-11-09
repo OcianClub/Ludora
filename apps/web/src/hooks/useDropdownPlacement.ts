@@ -10,6 +10,7 @@ export function useDropdownPlacement(
   open: boolean,
   inline: boolean,
   maxHeight = 264,
+  containInDialog = false,
 ) {
   const [placement, setPlacement] = useState<CSSProperties>();
 
@@ -21,8 +22,12 @@ export function useDropdownPlacement(
       const box = element.getBoundingClientRect();
       const top = viewport?.offsetTop || 0;
       const height = viewport?.height || innerHeight;
-      const below = Math.max(0, top + height - box.bottom - 18);
-      const above = Math.max(0, box.top - top - 18);
+      const boundary = containInDialog ? element.closest('.modal-body')?.getBoundingClientRect() : undefined;
+      const bottom = Math.min(top + height, boundary?.bottom ?? Infinity);
+      const start = Math.max(top, boundary?.top ?? 0);
+      const gutter = containInDialog ? 10 : 18;
+      const below = Math.max(0, bottom - box.bottom - gutter);
+      const above = Math.max(0, box.top - start - gutter);
       const upward = below < Math.min(200, above);
       const next: CSSProperties = {
         maxHeight: Math.min(maxHeight, upward ? above : below),
@@ -50,7 +55,7 @@ export function useDropdownPlacement(
       viewport?.removeEventListener('resize', position);
       viewport?.removeEventListener('scroll', position);
     };
-  }, [root, open, inline, maxHeight]);
+  }, [root, open, inline, maxHeight, containInDialog]);
 
   return inline ? undefined : placement;
 }

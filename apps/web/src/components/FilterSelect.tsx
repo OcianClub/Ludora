@@ -3,7 +3,7 @@ import { Icon } from './Icon';
 import './FilterSelect.css';
 import { useDropdownPlacement } from '../hooks/useDropdownPlacement';
 
-export function FilterSelect({ label, value, emptyLabel, options, onChange, inlineOptions = false, compactLabel }: {
+export function FilterSelect({ label, value, emptyLabel, options, onChange, inlineOptions = false, compactLabel, overlayInDialog = false }: {
   label: string;
   value: string;
   emptyLabel: string;
@@ -11,6 +11,7 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
   onChange: (value: string) => void;
   inlineOptions?: boolean;
   compactLabel?: string;
+  overlayInDialog?: boolean;
 }) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -19,8 +20,8 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
   const search = useRef({ text: '', time: 0 });
   const items = [{ value: '', label: emptyLabel }, ...options];
   const selected = Math.max(0, items.findIndex(item => String(item.value) === value));
-  const inline = inlineOptions || !!root.current?.closest('dialog[open]');
-  const placement = useDropdownPlacement(root, open, inline);
+  const inline = inlineOptions || (!overlayInDialog && !!root.current?.closest('dialog[open]'));
+  const placement = useDropdownPlacement(root, open, inline, 264, overlayInDialog);
   const activeIndex = Math.min(active, items.length - 1);
 
   useEffect(() => {

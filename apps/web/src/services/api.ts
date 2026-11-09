@@ -105,7 +105,10 @@ export interface Categoria { id: number; nome: string; tipo: string; clube_id: n
 export interface Time { id: number; nome: string; escudo?: string; arquivado?: boolean; categoria_id?: number; clube_representado_id?: number | null; clubeRepresentado?: Clube | null; }
 export interface Jogador { id: number; nome: string; cpf: string; dtNasc: string; posicao: string; numCamisa?: number; ativo: boolean; perfil_ml?: string; nota_geral?: number; categoria_id: number; escalacoes_atualizadas?: { partida_id: number; removidos: number[] }[]; }
 export interface Partida { semPerspectiva?: boolean; paulista_evento_id?: number; oficialPaulista?: import('../../../../packages/shared-types/src/paulista').JogoPaulista; organizador_id?: number; somente_leitura?: boolean; clube_origem_id?: number; id: number; mandante_id: number; visitante_id: number; gols_mandante: number; gols_visitante: number; data: string; horario?: string; local?: string; status: string; emCasa: boolean; categoria_id: number; competicao_id?: number; rodada?: number; grupo?: string | null; mandante?: Time; visitante?: Time; categoria?: Categoria; competicao?: Competicao | null; }
-export interface Competicao { paulista_evento_id?: number; id: number; nome: string; ano: number; tipo: string; clube_id: number; titulares_necessarios?: number; exigir_inscricao?: boolean; somente_leitura?: boolean; organizador?: { nome: string }; }
+export interface Competicao { paulista_evento_id?: number; id: number; nome: string; ano: number; tipo: string; clube_id: number; titulares_necessarios?: number; exigir_inscricao?: boolean; somente_leitura?: boolean; organizador?: { nome: string }; arquivada?: boolean;
+  resumo?: { total: number; finalizadas: number; ao_vivo: number; situacao: 'SEM_PARTIDAS' | 'AGENDADA' | 'EM_ANDAMENTO' | 'FINALIZADA'; categorias: string[];
+    proxima_partida: { id: number; data: string; horario: string | null; mandante: { nome: string }; visitante: { nome: string } } | null };
+}
 export type HomePartida = Omit<Partida, 'mandante_id' | 'visitante_id' | 'categoria_id' | 'categoria'> & {
   categoria: Categoria;
   competicao?: Competicao | null;
@@ -386,10 +389,16 @@ export async function fetchEstatisticasJogador(id: number): Promise<Estatisticas
 }
 
 // ── COMPETIÇÕES ──
-export async function fetchCompeticoes(): Promise<Competicao[]> {
-  const res = await apiFetch('/competicoes');
+export async function fetchCompeticoes(options?: { resumo?: boolean; incluirArquivadas?: boolean }): Promise<Competicao[]> {
+  const query = new URLSearchParams();
+  if (options?.resumo) query.set('resumo', 'true');
+  if (options?.incluirArquivadas) query.set('incluir_arquivadas', 'true');
+  const res = await apiFetch(`/competicoes${query.size ? `?${query}` : ''}`);
   if (!res.ok) throw new Error('Erro ao buscar competições');
   return res.json();
+}
+export async function arquivarCompeticao(id: number, arquivada: boolean): Promise<Competicao> {
+  return requestJson(`/competicoes/${id}/arquivo`, { method: 'PATCH', body: JSON.stringify({ arquivada }) });
 }
 export async function criarCompeticao(dados: { nome: string; ano: number; tipo: string }) {
   const res = await apiFetch('/competicoes', { method: 'POST', body: JSON.stringify(dados) });

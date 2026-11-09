@@ -1,0 +1,81 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import { prisma } from '../src/lib/prisma';
+import { JWT_SECRET, JWT_OPTIONS } from '../src/config/env';
+import router from '../src/modules/cadastros/cadastro.routes';
+import { resumirCompeticoes } from '../src/modules/cadastros/competicao-resumo.service';
+
+test('resumo em lote respeita escopo, ignora canceladas e não finaliza torneios sem jogos', async () => {
+  const queries: any[] = [];
+  const rows = [{ competicao_id: 1, status: 'FINALIZADA', categoria_id: 7, _count: { _all: 3 } }, { competicao_id: 1, status: 'AO_VIVO', categoria_id: 8, _count: { _all: 1 } }, { competicao_id: 2, status: 'FINALIZADA', categoria_id: 7, _count: { _all: 2 } }];
+  const banco: any = { partida: { groupBy: async (q: any) => { queries.push(q); return rows; }, findMany: async (q: any) => { queries.push(q); return [{ id: 9, competicao_id: 1, data: '2026-12-01', horario: '19:00', mandante: { nome: 'Ocian' }, visitante: { nome: 'Santos' } }]; } }, categoria: { findMany: async () => [{ id: 7, nome: 'sub-7' }, { id: 8, nome: 'sub-8' }] } };
+  const summaries = await resumirCompeticoes(banco, [1,2,3], { categoria_id: { in: [7,8] } });
+  assert.deepEqual(queries[0].where.AND[0], { categoria_id: { in: [7,8] } });
+  assert.equal(queries[0].where.AND[1].status.not, 'CANCELADA');
+  assert.deepEqual(queries[1].distinct, ['competicao_id']);
+  assert.deepEqual(queries[1].orderBy, [{ data: 'asc' }, { horario: 'asc' }, { id: 'asc' }]);
+  assert.equal(summaries.get(1).total, 4); assert.equal(summaries.get(1).finalizadas, 3); assert.equal(summaries.get(1).situacao, 'EM_ANDAMENTO');
+  assert.deepEqual(summaries.get(1).categorias, ['SUB-7','SUB-8']); assert.equal(summaries.get(1).proxima_partida.id, 9);
+  assert.equal(summaries.get(2).situacao, 'FINALIZADA'); assert.equal(summaries.get(3).situacao, 'SEM_PARTIDAS');
+  assert.equal(summaries.get(3).proxima_partida, null);
+  assert.equal((await resumirCompeticoes(banco, [])).size, 0); assert.equal(queries.length, 2);
+});
+
+test('arquivo HTTP preserva competições sem jogos, permite restaurar e bloqueia outros clubes e papéis', async t => {
+  let role = 'ADMIN', access = true, oficial = false; const writes: any[] = [], reads: any[] = [];
+  let games: { id: number; status: string }[] = [];
+  const previousFlag = process.env.PAULISTA_ENABLED; process.env.PAULISTA_ENABLED = 'true';
+  t.after(() => { if (previousFlag === undefined) delete process.env.PAULISTA_ENABLED; else process.env.PAULISTA_ENABLED = previousFlag; });
+  function mock(target: any, key: string, value: any) { const old = target[key]; target[key] = value; t.after(() => { target[key] = old; }); }
+  mock(prisma.usuario, 'findUnique', async () => ({ versao_sessao: 0 }));
+  mock(prisma.usuarioClube, 'findUnique', async () => ({ papel: role, acesso_todas_categorias: access, categorias: [] }));
+  mock(prisma.competicao, 'count', async ({ where }: any) => where.id === 1 && where.clube_id === 2 ? 1 : 0);
+  mock(prisma.competicao, 'update', async (q: any) => { writes.push(q); return { id: 1, ...q.data }; });
+  mock(prisma.competicao, 'delete', async () => { throw Error('Arquivamento não pode apagar'); });
+  mock(prisma.partida, 'count', async ({ where }: any) => where.status ? games.filter(game => where.status.in.includes(game.status)).length : games.length);
+  mock(prisma.partida, 'deleteMany', async () => { throw Error('Arquivamento não pode apagar partidas'); });
+  mock(prisma.evento, 'deleteMany', async () => { throw Error('Arquivamento não pode apagar eventos'); });
+  mock(prisma.fpfsEvento, 'findMany', async () => oficial ? [{ id: 900, competicaoId: 1 }] : []);
+  mock(prisma.competicao, 'findMany', async (q: any) => { reads.push(q); return []; });
+  mock(prisma.clube, 'findMany', async () => []);
+  const app = express(); app.use(express.json()); app.use(router);
+  const server = app.listen(0, '127.0.0.1'); await new Promise<void>(resolve => server.once('listening', resolve));
+  t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
+  const base = `http://127.0.0.1:${(server.address() as any).port}`;
+  const token = jwt.sign({ id: 1, versao_sessao: 0 }, JWT_SECRET, JWT_OPTIONS);
+  const send = (id: number, body: unknown) => fetch(`${base}/competicoes/${id}/arquivo`, { method: 'PATCH', headers: { authorization: `Bearer ${token}`, 'x-clube-id': '2', 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await send(1, { arquivada: true })).status, 200);
+  assert.deepEqual(writes[0].data, { arquivada: true });
+  assert.equal((await send(1, { arquivada: false })).status, 200);
+  assert.equal(writes[1].data.arquivada, false);
+  assert.equal((await send(1, { arquivada: 'true' })).status, 400);
+  assert.equal((await send(9, { arquivada: true })).status, 403);
+  role = 'TORCEDOR'; assert.equal((await send(1, { arquivada: true })).status, 403);
+  role = 'TECNICO'; access = false; assert.equal((await send(1, { arquivada: true })).status, 403);
+  role = 'ADMIN'; access = true; oficial = true; assert.equal((await send(1, { arquivada: true })).status, 403);
+  assert.equal(writes.length, 2);
+  oficial = false;
+  for (const status of ['AGENDADA', 'PREPARADA', 'AO_VIVO']) {
+    games = [{ id: 7, status }];
+    const response = await send(1, { arquivada: true });
+    assert.equal(response.status, 409, `bloqueia ${status}`);
+    assert.match((await response.json()).error, /Finalize ou cancele/);
+    const legacy = await fetch(`${base}/competicoes/1`, { method: 'DELETE', headers: { authorization: `Bearer ${token}`, 'x-clube-id': '2' } });
+    assert.equal(legacy.status, 409, `rota antiga também bloqueia ${status}`);
+  }
+  assert.equal(writes.length, 2, 'nenhuma alteração ao bloquear jogos em aberto');
+  games = [{ id: 7, status: 'FINALIZADA' }, { id: 8, status: 'CANCELADA' }];
+  const snapshot = structuredClone(games);
+  assert.equal((await send(1, { arquivada: true })).status, 200);
+  assert.deepEqual(games, snapshot, 'arquivar mantém jogos finalizados e cancelados');
+  assert.deepEqual(writes.at(-1).data, { arquivada: true }, 'somente o estado da competição muda');
+  games = [{ id: 7, status: 'AO_VIVO' }];
+  assert.equal((await send(1, { arquivada: false })).status, 200, 'restaurar não bloqueia acesso ao torneio');
+  const headers = { authorization: `Bearer ${token}`, 'x-clube-id': '2' };
+  assert.equal((await fetch(base+'/competicoes', { headers })).status, 200); assert.equal(reads.at(-1).where.arquivada, false);
+  assert.equal((await fetch(base+'/competicoes?incluir_arquivadas=true', { headers })).status, 200);
+  assert.deepEqual(reads.at(-1).where.NOT, { arquivada: true, clube_id: { not: 2 } }, 'não expõe arquivos de outros clubes');
+  role = 'TORCEDOR'; assert.equal((await fetch(base+'/competicoes?incluir_arquivadas=true', { headers })).status, 200); assert.equal(reads.at(-1).where.arquivada, false);
+});
