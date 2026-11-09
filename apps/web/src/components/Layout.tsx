@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Notifications } from './Notifications';
+import SupportButton from './SupportButton';
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Brand, ClubBadge } from './Brand';
@@ -111,7 +112,7 @@ function LayoutContent() {
     <div className="layout" data-sidebar-expanded={expanded} data-mobile-header={/^\/partidas\/\d+$/.test(location.pathname) ? 'match' : location.pathname === '/partidas/solicitacoes' ? 'requests' : undefined} ref={layoutRef}>
       <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
       
-      <aside className="sidebar" data-tooltip-disabled>
+      <aside className="sidebar">
         <div className="sidebar-top">
         <Link to="/dashboard" className="sidebar-brand" aria-label="Ludora — visão geral" aria-hidden={!expanded} tabIndex={expanded ? 0 : -1}>
           <Brand subtitle={false} />
@@ -127,10 +128,10 @@ function LayoutContent() {
             <ClubBadge src={clube?.escudo} name={clube?.nome} size={38} />
             <span className="current-club-copy"><strong>{clube?.nome || 'Seu clube'}</strong><small className="current-club-role">{role}</small></span>
           </Link>
-          <Link to="/selecionar-clube" className="sidebar-club-switch" aria-label="Trocar clube"><Icon name="switchClub" size={18} /></Link>
+          <Link to="/selecionar-clube" className="sidebar-club-switch" aria-label="Trocar clube" data-tooltip="Trocar clube"><Icon name="switchClub" size={18} /></Link>
         </div>
         
-        <nav id="sidebar-navigation" className="sidebar-nav" aria-label="Navegação principal">
+        <nav id="sidebar-navigation" className="sidebar-nav" aria-label="Navegação principal" data-tooltip-disabled>
           {NAV.slice(0, 4).map(item => (
             <NavLink
               key={item.to}
@@ -159,6 +160,7 @@ function LayoutContent() {
         </nav>
 
         <div className="sidebar-footer">
+          {!mobile && <SupportButton />}
           <AccountMenu />
           {!mobile && <Notifications />}
         </div>
@@ -175,7 +177,7 @@ function LayoutContent() {
               </span>
             </Link>
 
-            <Link to="/selecionar-clube" className="mobile-club-switch" aria-label="Trocar clube"><Icon name="switchClub" size={18} /></Link>
+            <Link to="/selecionar-clube" className="mobile-club-switch" aria-label="Trocar clube" data-tooltip="Trocar clube"><Icon name="switchClub" size={18} /></Link>
             <div className="workspace-actions">
               {mobile && <Notifications />}
             </div>
@@ -183,6 +185,7 @@ function LayoutContent() {
         </header>
 
         <main className="content" id="main-content" tabIndex={-1}>
+          {clube?.ativo === false && <p className="notice-error" role="status">Clube desativado. Histórico e consulta disponíveis. Alterações bloqueadas.</p>}
           <Outlet key={clube?.id || 'account'} />
         </main>
       </div>
@@ -225,6 +228,7 @@ function LayoutContent() {
           </section>
 
           <div className="mobile-more-account">
+            <SupportButton />
             <NavLink to="/perfil" className="mobile-more-item" onClick={() => setMoreOpen(false)}>
               <span className="mobile-more-item-icon"><Icon name="user" /></span>
               <span>Conta e preferências</span>

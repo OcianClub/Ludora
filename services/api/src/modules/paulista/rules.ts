@@ -19,6 +19,28 @@ export function verificarContinuidade(antes: SnapshotPaulista | null, novo: Snap
 export function diferencas(a: JogoPaulista, b: JogoPaulista) {
   return (['data', 'horario', 'local', 'golsMandante', 'golsVisitante', 'ocorrencia', 'sumulaId'] as const).flatMap(campo => a[campo] === b[campo] ? [] : [{ campo, antes: a[campo], depois: b[campo] }]);
 }
+export function resultadoNumerico(jogo: JogoPaulista) {
+  return !jogo.ocorrencia && Number.isSafeInteger(jogo.golsMandante) && Number.isSafeInteger(jogo.golsVisitante) &&
+    jogo.golsMandante! >= 0 && jogo.golsVisitante! >= 0;
+}
+
+export function classificarMudanca(antes: JogoPaulista, depois: JogoPaulista) {
+  const changes = diferencas(antes, depois);
+  const agenda = changes.filter(c => c.campo === 'data' || c.campo === 'horario' || c.campo === 'local');
+  const resultado = changes.filter(c => c.campo === 'golsMandante' || c.campo === 'golsVisitante' || c.campo === 'sumulaId');
+  return {
+    agenda,
+    resultado,
+    identidade: antes.mandanteId !== depois.mandanteId || antes.visitanteId !== depois.visitanteId || antes.faseId !== depois.faseId,
+    ocorrencia: antes.ocorrencia !== depois.ocorrencia,
+    tipoResultado: !resultado.length ? null : antes.sumulaId === null && !resultadoNumerico(antes) ? 'PUBLICACAO_RESULTADO' : 'CORRECAO_RESULTADO',
+  };
+}
+
+export function pendenciaDeCalendario(dados: unknown) {
+  const changes = (dados as { changes?: { campo: string }[] } | null)?.changes;
+  return Array.isArray(changes) && changes.some(c => ['data', 'horario', 'local'].includes(c.campo));
+}
 export function rankingCalculado(snapshot: SnapshotPaulista) {
   const groups = new Map<string, Map<number, { equipeId: number; pontos: number; jogos: number; golsPro: number; golsContra: number; saldo: number }>>();
   for (const j of snapshot.jogos) {

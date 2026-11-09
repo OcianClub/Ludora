@@ -77,6 +77,10 @@ test('painel Super Admin: autorização, proteção de dados e regras de seguran
 
   await t.test('sem token: 401; usuário comum (mesmo gestor de clube): 403; todas as rotas protegidas', async () => {
     const rotas: [string, string][] = [['GET', '/admin/me'], ['GET', '/admin/overview'], ['POST', '/admin/clubes'], ['PATCH', '/admin/clubes/3'],
+      ['GET', '/admin/cep/01001000'], ['GET', '/admin/clubes/cascas'], ['DELETE', '/admin/clubes/3'],
+      ['GET', '/admin/clubes/3/categorias/7/jogadores'], ['PATCH', '/admin/clubes/3/categorias/7/jogadores/1'],
+      ['GET', '/admin/clubes/cascas/2/previa'], ['GET', '/admin/clubes/3/jogadores/categoria'],
+      ['GET', '/admin/clubes/3/categorias/7/jogadores/1'], ['DELETE', '/admin/clubes/3/categorias/7/jogadores/1'],
       ['GET', '/admin/clubes/3/membros'], ['PUT', '/admin/clubes/3/membros/5'], ['DELETE', '/admin/clubes/3/membros/5'],
       ['GET', '/admin/clubes/3/convites'], ['POST', '/admin/clubes/3/convites'],
       ['POST', '/admin/clubes/3/convites/abc/revogar'], ['GET', '/admin/clubes/3/atividade'],
@@ -102,6 +106,27 @@ test('painel Super Admin: autorização, proteção de dados e regras de seguran
     assert.deepEqual((await r.json()).usuario, { ...DEV, papel_plataforma: 'SUPERADMIN' });
   });
 
+  await t.test('CEP usa fonte alternativa em caso de falha e respeita ausência confirmada na principal', async t => {
+    const original = globalThis.fetch;
+    let alternativas = 0;
+    t.mock.method(globalThis, 'fetch', async (entrada: string, opcoes?: RequestInit) => {
+      const url = new URL(entrada);
+      if (url.hostname === 'viacep.com.br') return url.pathname.includes('99999999')
+        ? Response.json({ erro: 'true' }) : new Response(null, { status: 503 });
+      if (url.hostname === 'brasilapi.com.br') {
+        alternativas++;
+        return Response.json({ city: 'São Paulo', state: 'SP', street: 'Praça da Sé', neighborhood: 'Sé' });
+      }
+      return original(entrada, opcoes);
+    });
+    const fallback = await chamar('GET', '/admin/cep/01001000', DEV.id);
+    assert.equal(fallback.status, 200);
+    assert.deepEqual(await fallback.json(), { cep: '01001000', logradouro: 'Praça da Sé', bairro: 'Sé', cidade: 'São Paulo', estado: 'SP' });
+    assert.equal((await chamar('GET', '/admin/cep/99999999', DEV.id)).status, 404);
+    assert.equal((await chamar('GET', '/admin/cep/123', DEV.id)).status, 400);
+    assert.equal(alternativas, 1);
+  });
+
   await t.test('usuários: seleção explícita, o hash da senha nunca é pedido nem devolvido', async () => {
     const r = await chamar('GET', '/admin/usuarios?busca=ana@x.com', DEV.id);
     assert.equal(r.status, 200);
@@ -121,7 +146,7 @@ test('painel Super Admin: autorização, proteção de dados e regras de seguran
   });
 
   await t.test('criar clube cria as 8 categorias padrão e vincula o administrador informado', async () => {
-    const r = await chamar('POST', '/admin/clubes', DEV.id, { nome: ' Escola Nova ', estado: 'sp', admin_email: 'dev@ludora.com' });
+    const r = await chamar('POST', '/admin/clubes', DEV.id, { nome: ' Escola Nova ', cnpj: '11222333000181', endereco: { cep: '01001000', logradouro: 'Praça da Sé', numero: '120', bairro: 'Sé', cidade: 'São Paulo', estado: 'SP' }, admin_email: 'dev@ludora.com' });
     assert.equal(r.status, 201);
     assert.equal(chamadas.clubeCreate.at(-1).data.nome, 'Escola Nova');
     assert.equal(chamadas.clubeCreate.at(-1).data.plano, 'TRIAL');

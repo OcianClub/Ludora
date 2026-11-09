@@ -26,7 +26,7 @@ async function choose(page,label,value){await page.getByRole('combobox',{name:ne
    page.on('pageerror',e=>errors.push(e.message));
    await page.route('**/competicoes**',route=>{
     const url=new URL(route.request().url());if(url.origin===base)return route.fallback();
-    localReads++;return route.fulfill({json:[{id:1,nome:'Torneio local não deve aparecer'}]});
+    localReads++;return route.fulfill({json:[{id:1,nome:'Torneio local de teste',ano:2025,tipo:'BASE',somente_leitura:true}]});
    });
    await page.route('**/paulista/**',route=>{
     const request=route.request(),url=new URL(request.url());if(url.origin===base)return route.fallback();
@@ -83,6 +83,14 @@ async function choose(page,label,value){await page.getByRole('combobox',{name:ne
    assert.match(await page.locator('.paulista-ranking-summary').innerText(),/17/,'links antigos conservam os dados e filtros');
    mode='disabled';await page.goto(base+'/competicoes');await page.getByRole('heading',{name:'Campeonato Paulista indisponível'}).waitFor();
    assert.equal(await page.getByText('Suas competições do clube continuam disponíveis.',{exact:true}).count(),0);
+   if(width===1440&&role==='ADMIN'){
+    await page.getByRole('button',{name:'Opções do campeonato'}).click();
+    await page.getByRole('menuitem',{name:'Competições anteriores',exact:true}).click();
+    await page.getByRole('heading',{name:'Competições anteriores',exact:true}).waitFor();
+    await page.getByText('Torneio local de teste',{exact:true}).waitFor();
+    await page.getByRole('link',{name:'Campeonato Paulista',exact:true}).click();
+    await page.getByRole('heading',{name:'Campeonato Paulista indisponível'}).waitFor();
+   }
    mode='empty';await page.goto(base+'/competicoes');await page.getByRole('heading',{name:'Nenhuma participação confirmada'}).waitFor();
    assert.deepEqual(writes,[],'nenhuma escrita nos dados oficiais');assert.deepEqual(errors,[]);
    console.log(`OK ${width}px/${role}: Paulista direto, abas, filtros, retorno, vazio e indisponível`);

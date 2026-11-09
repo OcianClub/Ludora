@@ -73,7 +73,8 @@
   color: var(--texto-sec);
   font-size: 13px;
 }
-.match-schedule .schedule-status-summary button[aria-selected="true"] {
+.match-schedule .schedule-status-summary button:is([aria-selected="true"], [aria-pressed="true"]) {
+  background: transparent;
   border-bottom-color: var(--primaria);
   color: var(--texto);
   font-weight: 600;
@@ -605,3 +606,22 @@
     grid-template-areas: "feature" "side";
   }
 }
+.support-trigger {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texto-sec);
+}
+.support-trigger:hover { background: var(--fundo-card-sec); color: var(--texto); }
+.support-trigger:focus-visible { outline: 2px solid var(--primaria); outline-offset: -2px; }
+.sidebar-footer:has(> .support-trigger) { height: 162px; }
+.sidebar-footer > .support-trigger { position: absolute; left: 18px; bottom: 109px; }
+.layout[data-sidebar-expanded="true"] .sidebar-footer:has(> .support-trigger) { height: 116px; }
+.layout[data-sidebar-expanded="true"] .sidebar-footer > .support-trigger { left: 12px; bottom: 64px; }
+.mobile-more-account > .support-trigger { margin-bottom: 4px; }

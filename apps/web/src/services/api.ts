@@ -1,3 +1,4 @@
+import { novoRequestId } from './requestId';
 import { cachedRead, invalidateReadCache, peekRead, readLifetime } from './readCache';
 import { BASE_URL } from './config';
 import { authRequest } from './authHttp';
@@ -74,6 +75,7 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
   if (connection) await connection;
   assertContext();
   const headers = new Headers(options.headers || {});
+  headers.set('x-request-id', novoRequestId());
   if (!headers.has('Content-Type') && options.method && !['GET', 'DELETE'].includes(options.method)) {
     headers.set('Content-Type', 'application/json');
   }
@@ -104,6 +106,7 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
 
 // ── Tipos ──
 export interface Clube {
+  ativo?: boolean;
   id: number;
   nome: string;
   escudo?: string;

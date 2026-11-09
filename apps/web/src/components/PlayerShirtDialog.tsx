@@ -5,7 +5,7 @@ import { Icon } from './Icon';
 import './PlayerShirtDialog.css';
 import { formatShirtNumber, parseShirtNumber } from '../utils/lineupShirts';
 
-export function PlayerShirtButton({ player, editable, onClick }: { player: Jogador; editable: boolean; onClick: () => void }) {
+export function PlayerShirtButton({ player, editable, onClick }: { player: { nome: string; numCamisa?: number | null } } & ({ editable: true; onClick: () => void } | { editable: false; onClick?: never })) {
   const empty = player.numCamisa == null;
   if (!editable) return <span className={`alunos-shirt${empty ? ' is-empty' : ''}`} aria-label={empty ? 'Sem camisa' : `Camisa ${formatShirtNumber(player.numCamisa)}`}>{formatShirtNumber(player.numCamisa)}</span>;
   return <button type="button" className={`alunos-shirt alunos-shirt-action${empty ? ' is-empty' : ''}`}

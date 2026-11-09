@@ -34,10 +34,12 @@ test('HTTP: mando, paginação e sugestões com autenticação real e persistên
   replace(prisma.usuario,'findUnique',async()=>({versao_sessao:0}));
   replace(prisma.clube,'findUnique',async()=>({id:2}));
   replace(prisma.clube,'findMany',async()=>[{id:3,nome:'Wolves',endereco:{logradouro:'Harbor Road',numero:'7',cidade:'Santos',estado:'SP',cep:'11000000'}},{id:2,nome:'Harbor',endereco:{logradouro:'Harbor Avenue',numero:'8',cidade:'Praia Grande',estado:'SP',cep:'11700000'}}]);
+  replace(prisma.manutencao,'findFirst',async()=>null);
+  replace(prisma.tarefaCadastroClube,'updateMany',async()=>({count:0}));
   replace(prisma.clube,'update',async(args:any)=>({id:2,...args.data}));
   replace(prisma.usuarioClube,'findUnique',async()=>({id:1,papel:role,acesso_todas_categorias:role==='ADMIN',categorias:[{categoria_id:9}]}));
   replace(prisma.usuarioClube,'findMany',async()=>[]); // no notification or push is sent
-  replace(prisma.categoria,'findUnique',async()=>({id:9,clube_id:2,tipo:'BASE',nome:'sub-12',faixaIdade:12}));
+  replace(prisma.categoria,'findUnique',async()=>({id:9,clube_id:2,tipo:'BASE',nome:'sub-12',faixaIdade:12,ativa:true}));
   replace(prisma.categoria,'count',async()=>1);
   replace(prisma.time,'findMany',async(args:any)=>[{id:1,clube_representado_id:external?4:2},{id:2,clube_representado_id:null}].filter(team=>args.where.id.in.includes(team.id)));
   replace(prisma.partida,'findFirst',async()=>null);

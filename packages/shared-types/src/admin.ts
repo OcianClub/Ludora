@@ -3,18 +3,23 @@
 // uma resposta em services/api/src/modules/admin, atualize aqui também.
 
 export type PapelClube = 'ADMIN' | 'TECNICO' | 'MESARIO' | 'TORCEDOR' | 'OLHEIRO';
-export type PapelPlataforma = 'USUARIO' | 'SUPERADMIN';
+export type PapelPlataforma = 'USUARIO' | 'SUPERADMIN' | 'SUPORTE' | 'DESENVOLVEDOR';
 export type PlanoClube = 'FREE' | 'DEMO' | 'TRIAL' | 'PRO';
 export type NivelLog = 'info' | 'warn' | 'error' | 'audit';
 
 export interface SuperAdminUsuario {
-  papel_plataforma: 'SUPERADMIN';
+  papel_plataforma: Exclude<PapelPlataforma, 'USUARIO'>;
   id: number;
   nome: string;
   email: string;
 }
 
+export type EnderecoCadastro = { cep: string; logradouro: string; numero: string; complemento: string; bairro: string; cidade: string; estado: string };
+
 export interface ClubeResumo {
+  ativo: boolean;
+  cnpj: string | null;
+  endereco: EnderecoCadastro | null;
   id: number;
   nome: string;
   escudo: string | null;
@@ -36,6 +41,12 @@ export interface VisaoGlobal {
 }
 
 export interface NovoClube {
+  casca_id?: number;
+  casca_ids?: number[];
+  cnpj: string;
+  endereco: EnderecoCadastro;
+  escudo_arquivo?: string | null;
+  subs: number[];
   nome: string;
   cidade?: string;
   estado?: string;
@@ -53,7 +64,7 @@ export interface MembroClube {
 }
 
 export interface MembrosDoClube {
-  categorias: { id: number; nome: string }[];
+  categorias: { id: number; nome: string; ativa: boolean; faixaIdade: number; tipo: 'INICIACAO' | 'BASE' }[];
   membros: MembroClube[];
 }
 
@@ -64,6 +75,8 @@ export interface DefinirPapel {
 }
 
 export interface UsuarioGlobal {
+  suspenso: boolean;
+  cargoLegado: boolean;
   papel_plataforma: PapelPlataforma;
   id: number;
   nome: string;

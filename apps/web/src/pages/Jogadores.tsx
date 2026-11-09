@@ -10,6 +10,7 @@ import { formatCpf, digitsOnly, cleanName } from '../utils/playerForm';
 import { Icon } from '../components/Icon';
 import { InfoNotice } from '../components/InfoNotice';
 import { InlinePlayerShirt } from '../components/InlinePlayerShirt';
+import { PlayerRosterCells } from '../components/PlayerRosterCells';
 import { Link, useSearchParams } from 'react-router-dom';
 import { playerAge } from '../utils/playerAge';
 import { CategoryFilter } from '../components/CategoryFilter';
@@ -464,19 +465,11 @@ export default function JogadoresPage() {
             {sortHeader('idade', 'Idade')}
             <th scope="col"><span className="sr-only">Acessar ficha</span></th>
           </tr></thead>
-          <tbody>{jogadores.map(aluno => {
-            const age = playerAge(aluno.dtNasc);
-            const ageLabel = Number.isFinite(age) ? `${age} anos` : 'Idade não informada';
-            return <tr key={aluno.id}>
-              <td className="alunos-cell-shirt"><InlinePlayerShirt player={aluno} editable={podeGerenciar} onSaved={shirtSaved} /></td>
-              <td className="alunos-cell-name">
-                <Link to={`/jogadores/${aluno.id}`} state={{ from: `/jogadores?${params}` }} className="alunos-player-link">{aluno.nome}</Link>
-              </td>
-              <td className="alunos-cell-position"><span><PositionBadge position={aluno.posicao}/>{normalizePosition(aluno.posicao)}</span></td>
-              <td className="alunos-cell-age">{ageLabel}</td>
-              <td className="alunos-cell-open"><Link className="student-open" to={`/jogadores/${aluno.id}`} state={{ from: `/jogadores?${params}` }} aria-label={`Abrir perfil de ${aluno.nome}`}><span>Ver ficha</span><Icon name="chevronRight" size={18}/></Link></td>
-            </tr>;
-          })}</tbody>
+          <tbody>{jogadores.map(aluno => <tr key={aluno.id}><PlayerRosterCells player={aluno}
+            shirt={<InlinePlayerShirt player={aluno} editable={podeGerenciar} onSaved={shirtSaved} />}
+            name={<Link to={`/jogadores/${aluno.id}`} state={{ from: `/jogadores?${params}` }} className="alunos-player-link">{aluno.nome}</Link>}
+            open={<Link className="student-open" to={`/jogadores/${aluno.id}`} state={{ from: `/jogadores?${params}` }} aria-label={`Abrir perfil de ${aluno.nome}`}><span>Ver ficha</span><Icon name="chevronRight" size={18}/></Link>}
+          /></tr>)}</tbody>
         </table>
         </div>
         {selectedRows?.error && <p role="alert" className="alunos-error">{selectedRows.error}</p>}

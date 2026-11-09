@@ -5,8 +5,12 @@ import { ThemeOptions } from '@web/components/ThemeOptions';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { AdminIcon, type AdminIconName } from './AdminIcon';
 import { ROTULO_ESTADO, useEstadoTempoReal } from './useTempoReal';
+import { NOMES_PAPEIS } from '../pages/Equipe';
 
 const NAV: { to: string; label: string; icon: AdminIconName }[] = [
+  { to: '/equipe', label: 'Área da equipe', icon: 'user' },
+  { to: '/chamados', label: 'Chamados', icon: 'clipboard' },
+  { to: '/manutencao', label: 'Manutenção', icon: 'info' },
   { to: '/visao', label: 'Visão global', icon: 'home' },
   { to: '/clubes', label: 'Clubes', icon: 'shield' },
   { to: '/paulista', label: 'Campeonato Paulista', icon: 'radar' },
@@ -38,7 +42,7 @@ export default function AdminLayout() {
         <span className="admin-sidebar-label">PLATAFORMA</span>
 
         <nav className="admin-nav" aria-label="Navegação principal">
-          {NAV.map(item => (
+          {NAV.filter(item => usuario?.papel_plataforma === 'SUPERADMIN' || (usuario?.papel_plataforma === 'SUPORTE' && item.to === '/manutencao') || ['/equipe', '/chamados', '/ajustes'].includes(item.to)).map(item => (
             <NavLink key={item.to} to={item.to} aria-label={item.label} className="admin-nav-link">
               <AdminIcon name={item.icon} />
               <span className="admin-nav-label">{item.label}</span>
@@ -62,12 +66,12 @@ export default function AdminLayout() {
 
       <div className="admin-workspace">
         <header className="admin-workspace-header">
-          <span className="admin-badge"><AdminIcon name="star" size={16} /> Acesso Super Admin</span>
+          <span className="admin-badge"><AdminIcon name="star" size={16} /> {usuario && NOMES_PAPEIS[usuario.papel_plataforma]}</span>
           <div className="admin-workspace-actions">
             {ambiente && <Link to="/ajustes" className={`admin-environment${ambiente === 'Produção' ? ' admin-environment-production' : ''}`}>{ambiente}</Link>}
-            <span className={`rt-pill rt-${estado}`} title="Conexão em tempo real com a API">
+            {usuario?.papel_plataforma === 'SUPERADMIN' && <span className={`rt-pill rt-${estado}`} title="Conexão em tempo real com a API">
               <span className="rt-dot" />{ROTULO_ESTADO[estado]}
-            </span>
+            </span>}
             <ThemeOptions />
           </div>
         </header>

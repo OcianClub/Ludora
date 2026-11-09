@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { EntradaLog } from '@ludora/shared-types';
 import { Btn, Card, Input, Modal, PapelBadge, Spinner } from '@web/components/UI';
+import { Toast } from '@web/components/Toast';
 import { requestJson } from '../services/api';
 
 interface Convite {
@@ -91,7 +92,7 @@ export function ClubeConvites({ clubeId }: { clubeId: number }) {
       </form>
       {entrega === 'codigo' && <p className="dica">Sem e-mail, a primeira pessoa que usar o código recebe o acesso.</p>}
       {erro && <div className="notice-error" role="alert">{erro}</div>}
-      {aviso && <div className="notice-ok" role="status">{aviso}</div>}
+      <Toast message={aviso} onClose={() => setAviso('')}/>
       {codigo && <div className="actions admin-invite-code">
         <code>{codigo}</code>
         <Btn variant="ghost" onClick={() => void navigator.clipboard.writeText(codigo).then(

@@ -1,0 +1,97 @@
+const { chromium, _electron } = require('playwright');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+
+async function main() {
+  const root = process.cwd();
+  const out = path.join(root, 'test-results/manutencao');
+  const local = path.join(root, '.local-demo/equipe');
+  const contas = JSON.parse(await fs.readFile(path.join(local, 'contas.json'), 'utf8'));
+  const { clube, chamadoId } = JSON.parse(await fs.readFile(path.join(local, 'manutencao.json'), 'utf8'));
+  const profile = await fs.mkdtemp(path.join(local, 'manutencao-profile-'));
+  await fs.mkdir(out, { recursive: true });
+  await fs.writeFile(path.join(profile, 'config.json'), JSON.stringify({ apiUrl: 'http://127.0.0.1:3018' }));
+  const wrapper = path.join(profile, 'launch.cjs');
+  await fs.writeFile(wrapper, `const { app } = require('electron'); app.setPath('userData', ${JSON.stringify(profile)}); require(${JSON.stringify(path.join(root, 'apps/desktop/out/main/index.js'))});`);
+  const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE; delete env.ELECTRON_RENDERER_URL;
+  const app = await _electron.launch({ executablePath: require(path.join(root, 'apps/desktop/node_modules/electron')), args: [wrapper], env });
+  let browser;
+  try {
+    const page = await app.firstWindow();
+    page.setDefaultTimeout(10000);
+    const staff = contas.find(c => c.papel === 'SUPORTE');
+    await page.getByLabel('E-mail', { exact: true }).fill(staff.email);
+    await page.getByLabel('Senha', { exact: true }).fill(staff.senha);
+    await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+    await page.getByRole('link', { name: 'Chamados', exact: true }).click();
+    await page.evaluate(id => { window.location.hash = `/chamados?id=${id}`; }, chamadoId);
+    await page.getByRole('link', { name: 'Pausar função do clube', exact: true }).click();
+    await page.getByRole('heading', { name: 'Chamado vinculado', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Nova pausa', exact: true }).click();
+    const modal = page.getByRole('dialog', { name: 'Pausar uma função' });
+    async function selecionar(campo, opcao) {
+      await modal.getByRole('group', { name: new RegExp(campo) }).getByText(opcao, { exact: true }).click();
+    }
+    await selecionar('Função', 'Criação de partidas');
+    await modal.getByText(`Alcance: ${clube.nome} · Clube deste chamado`, { exact: true }).waitFor();
+    await modal.getByText('Descrever motivo', { exact: true }).click();
+    await modal.getByLabel('Descreva o motivo').fill('Agenda em revisão pela equipe de operação.');
+    await modal.getByRole('button', { name: 'Revisar impacto', exact: true }).click();
+    await modal.getByText(/Consultas, histórico e scout/).waitFor();
+    await page.screenshot({ path: path.join(out, 'revisar-escuro.png') });
+    await modal.getByRole('button', { name: 'Confirmar pausa', exact: true }).click();
+    await modal.waitFor({ state: 'hidden' });
+    await page.getByRole('searchbox', { name: 'Buscar pausas' }).fill(clube.nome);
+    await page.getByText(`${clube.nome} · Em manutenção`, { exact: true }).waitFor();
+    await page.getByRole('radio', { name: 'Tema claro', exact: true }).click();
+    await page.screenshot({ path: path.join(out, 'pausa-claro.png') });
+
+    const login = await fetch('http://127.0.0.1:3018/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(contas.find(c => c.papel === 'USUARIO')) });
+    assert.equal(login.status, 200); const sessao = await login.json();
+    browser = await chromium.launch({ channel: 'msedge', headless: true });
+    const web = await browser.newPage({ viewport: { width: 1200, height: 820 } });
+    web.setDefaultTimeout(10000);
+    await web.addInitScript(({ s, c }) => {
+      localStorage.setItem('ludora_token', s.token); localStorage.setItem('ludora_usuario', JSON.stringify(s.usuario));
+      localStorage.setItem('ludora_clube_id', String(c.id)); localStorage.setItem('ludora_clube', JSON.stringify({ id: c.id, nome: c.nome, meuPapel: 'ADMIN' }));
+    }, { s: sessao, c: clube });
+    await web.goto('http://localhost:5198/partidas');
+    await web.getByRole('button', { name: 'Nova partida', exact: true }).filter({ visible: true }).click();
+    const partida = web.getByRole('dialog', { name: 'Organizar partida' });
+    await partida.getByRole('button', { name: 'Selecionar categoria da partida' }).click();
+    const categoria = web.getByRole('dialog', { name: 'Categoria da partida' });
+    await categoria.getByRole('radio', { name: 'SUB-12' }).click();
+    await categoria.getByRole('button', { name: 'Usar categoria' }).click();
+    await partida.getByRole('button', { name: 'Selecionar adversário', exact: true }).click();
+    await web.getByRole('dialog', { name: 'Selecionar adversário' }).getByRole('button', { name: /Valley Academy/ }).click();
+    await partida.getByRole('button', { name: 'Data', exact: true }).click();
+    await web.getByRole('dialog', { name: 'Data da partida' }).getByRole('group', { name: 'Dias do mês' }).locator('button:enabled').first().click();
+    await partida.getByLabel('Horário', { exact: true }).fill('1745');
+    await partida.getByRole('button', { name: 'Organizar partida', exact: true }).click();
+    const revisao = web.getByRole('dialog', { name: 'Revisar partida' });
+    await revisao.waitFor();
+    const response = web.waitForResponse(r => r.url().endsWith('/partidas') && r.request().method() === 'POST');
+    await revisao.getByRole('button', { name: 'Confirmar e criar' }).click();
+    assert.equal((await response).status(), 423);
+    await revisao.getByRole('alert').getByText(/em manutenção.*Protocolo/i).waitFor();
+    await web.screenshot({ path: path.join(out, 'web-bloqueio.png') });
+
+    await page.getByRole('button', { name: 'Reativar função', exact: true }).click();
+    const reativar = page.getByRole('dialog', { name: 'Reativar função' });
+    await reativar.getByText('Descrever motivo', { exact: true }).click();
+    await reativar.getByLabel('Descreva o motivo').fill('Validação concluída pela equipe.');
+    await reativar.getByRole('button', { name: 'Revisar impacto' }).click();
+    await reativar.getByRole('button', { name: 'Confirmar reativação' }).click();
+    await reativar.waitFor({ state: 'hidden' });
+    await page.getByRole('status').getByText('Função reativada. Histórico atualizado.').waitFor();
+    const criada = web.waitForResponse(r => r.url().endsWith('/partidas') && r.request().method() === 'POST');
+    await revisao.getByRole('button', { name: 'Confirmar e criar' }).click();
+    assert.equal((await criada).status(), 201);
+    await page.getByRole('link', { name: 'Voltar ao chamado', exact: true }).click();
+    await page.getByText(/Função pausada · Agenda em revisão/).waitFor();
+    await page.getByText(/Função reativada · Validação concluída/).waitFor();
+    console.log('PASS Electron vincula e reativa pausa; web mostra protocolo e conclui a criação; histórico registra as duas decisões.');
+  } finally { await browser?.close(); await app.close(); }
+}
+main().catch(e => { console.error(e.message); process.exitCode = 1; });

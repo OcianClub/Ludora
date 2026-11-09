@@ -119,6 +119,7 @@ export async function apiFetch(endpoint: string, options: OpcoesApi = {}) {
 
 export interface ClubeListado {
   id: number;
+  ativo?: boolean;
   nome: string;
   escudo: string | null;
   cidade: string | null;
@@ -200,6 +201,7 @@ export async function excluirConta() {
 // ==========================================
 
 export type TipoNotificacao =
+  | 'CADASTRO_CLUBE'
   | 'PARTIDA_AGENDADA'
   | 'GOL_PARTIDA'
   | 'RESULTADO_PARTIDA';

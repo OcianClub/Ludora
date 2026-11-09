@@ -1,3 +1,5 @@
+import { CLUBE_DESATIVADO } from '../../middlewares/permissoes.middleware';
+import { exigirOperacao } from '../manutencao/service';
 import { randomBytes } from 'crypto';
 import { Router, type Request, type Response } from 'express';
 
@@ -156,6 +158,8 @@ router.get('/convites', exigirGestorDoClube, exigirAdminDoClube, listarConvites)
 
 export async function criarConvite(req: Request, res: Response) {
   const clubeId = (req as any).clubeId as number;
+  if (await prisma.clube.count({ where: { id: clubeId, ativo: false } })) return res.status(423).json({ error: CLUBE_DESATIVADO, code: 'CLUBE_DESATIVADO' });
+  await exigirOperacao(['ENVIAR_CONVITES'], { clubes: [clubeId] });
   const usuarioId = (req as any).usuarioId as number;
 
   const email = String(req.body?.email || '')
@@ -430,6 +434,8 @@ router.post('/convites/:id/revogar', exigirGestorDoClube, exigirAdminDoClube, re
 
 export async function reenviarConvite(req: Request, res: Response) {
   const clubeId = (req as any).clubeId as number;
+  if (await prisma.clube.count({ where: { id: clubeId, ativo: false } })) return res.status(423).json({ error: CLUBE_DESATIVADO, code: 'CLUBE_DESATIVADO' });
+  await exigirOperacao(['ENVIAR_CONVITES'], { clubes: [clubeId] });
   const conviteId = String(req.params.id || '').trim();
 
   if (!conviteId || conviteId.length > 100) {

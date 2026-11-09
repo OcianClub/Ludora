@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react';
+import { Btn, Input, Modal } from '@web/components/UI';
+import { useEffect, useState, type FormEvent } from 'react';
 import { AuthShell } from '@web/components/AuthShell';
 import { AccessFeedback } from '@web/components/auth/AccessFeedback';
 import { AuthField } from '@web/components/auth/AuthField';
@@ -11,6 +12,23 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const access = useAccessForm();
+  const [servidor, setServidor] = useState('');
+  const [url, setUrl] = useState('');
+  const [configAberta, setConfigAberta] = useState(false);
+  const [erroConfig, setErroConfig] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  useEffect(() => { void window.ludora.config.obter().then(c => setServidor(c.apiUrl)).catch(() => undefined); }, []);
+  async function salvarServidor(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (salvando) return;
+    setSalvando(true); setErroConfig('');
+    try {
+      const r = await window.ludora.config.definirApiUrl(url);
+      if (!r.ok) throw new Error(r.erro);
+      setServidor(r.apiUrl); setConfigAberta(false); setSenha(''); access.setError('');
+    } catch (e) { setErroConfig((e as Error).message); }
+    finally { setSalvando(false); }
+  }
   const erroSenha = senha ? '' : 'Informe sua senha para entrar.';
 
   function enviar(event: FormEvent<HTMLFormElement>) {
@@ -22,7 +40,7 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Bem-vindo de volta"
-      subtitle="Entre com sua conta Super Admin para gerenciar a plataforma Ludora."
+      subtitle="Entre com sua conta de funcionário para acessar a plataforma Ludora."
       footer={
         <button className="btn btn-primary auth-btn" type="submit" form="login-form" disabled={access.busy} aria-busy={access.busy}>
           {access.busy ? 'Entrando…' : 'Entrar'}
@@ -42,6 +60,15 @@ export default function LoginPage() {
             error={access.feedback('senha', erroSenha)} />
         </fieldset>
       </form>
+      <p className="auth-link"><Btn variant="ghost" size="sm" type="button" disabled={access.busy} onClick={() => { setUrl(servidor); setErroConfig(''); setConfigAberta(true); }}>Configurar servidor</Btn></p>
+      <Modal open={configAberta} title="Servidor do Ludora" onClose={() => { if (!salvando) setConfigAberta(false); }} className="schedule-review-dialog"
+        footer={<div className="schedule-review-actions"><Btn type="submit" form="servidor-login" disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar servidor'}</Btn></div>}>
+        <form id="servidor-login" className="schedule-review" onSubmit={salvarServidor}>
+          <p>Confira o endereço antes de entrar. Use a API local para testes e o servidor oficial para sua conta de trabalho.</p>
+          <Input label="Endereço da API" type="url" value={url} required onChange={e => setUrl(e.target.value)}/>
+          {erroConfig && <p className="notice-error" role="alert">{erroConfig}</p>}
+        </form>
+      </Modal>
     </AuthShell>
   );
 }

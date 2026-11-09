@@ -55,11 +55,11 @@ function lerCamisa(valor: unknown): number | null {
   return Number(valor);
 }
 
-export async function salvarAluno(clubeId: number, usuarioId: number, entrada: any, id?: number) {
+export async function salvarAluno(clubeId: number, usuarioId: number, entrada: any, id?: number, painel?: { categoriaId: number }) {
   return transacaoElenco(async tx => {
-    const atual = id ? await tx.jogador.findFirst({ where: { id, categoria: { clube_id: clubeId } }, include: { categoria: true } }) : null;
+    const atual = id ? await tx.jogador.findFirst({ where: { id, categoria: { clube_id: clubeId }, ...(painel && { categoria_id: painel.categoriaId }) }, include: { categoria: true } }) : null;
     if (id && !atual) throw new ErroElenco(404, 'Jogador não encontrado neste clube.');
-    if (atual) await exigirCategoria(tx, usuarioId, clubeId, atual.categoria_id);
+    if (atual && !painel) await exigirCategoria(tx, usuarioId, clubeId, atual.categoria_id);
     if (atual && entrada.cpf !== undefined && entrada.cpf !== atual.cpf) throw new ErroElenco(400, 'O CPF não pode ser alterado.');
     if (entrada.foto !== undefined && !fotoValida(entrada.foto)) throw new ErroElenco(400, 'Use uma imagem JPEG, PNG ou WebP de até 130 KB.');
     const nome = entrada.nome === undefined ? atual?.nome ?? '' : typeof entrada.nome === 'string' ? entrada.nome.trim() : '';
@@ -69,7 +69,10 @@ export async function salvarAluno(clubeId: number, usuarioId: number, entrada: a
     if (typeof nascimento !== 'string') throw new ErroElenco(400, 'Data de nascimento obrigatória.');
     // Um PATCH de camisa não deve recategorizar nem revalidar dados antigos do atleta.
     const categoria = atual && entrada.dtNasc === undefined ? atual.categoria : await categoriaCalculada(tx, clubeId, nascimento);
-    if (!atual || categoria.id !== atual.categoria_id) await exigirCategoria(tx, usuarioId, clubeId, categoria.id);
+    if (!atual || categoria.id !== atual.categoria_id) {
+      if (!categoria.ativa) throw new ErroElenco(423, 'Categoria desativada para novos jogadores.');
+      if (!painel) await exigirCategoria(tx, usuarioId, clubeId, categoria.id);
+    }
     if (!atual && (typeof entrada.cpf !== 'string' || !/^[0-9.\-\s]+$/.test(entrada.cpf))) throw new ErroElenco(400, 'CPF deve conter somente números e a pontuação da máscara.');
     const cpf = atual?.cpf ?? (typeof entrada.cpf === 'string' ? entrada.cpf.replace(/\D/g, '') : '');
     if (!atual && cpf.length !== 11) throw new ErroElenco(400, 'Informe os 11 dígitos do CPF.');
@@ -123,6 +126,25 @@ export async function salvarAluno(clubeId: number, usuarioId: number, entrada: a
   });
 }
 
+export async function removerAluno(clubeId: number, usuarioId: number, id: number, painel?: { categoriaId: number }) {
+  return transacaoElenco(async tx => {
+    const jogador = await tx.jogador.findFirst({ where: { id, categoria: { clube_id: clubeId }, ...(painel && { categoria_id: painel.categoriaId }) },
+      select: { categoria_id: true, _count: { select: { escalacoes: true, eventos: true, competicoes: true, votosDestaque: true } } },
+    });
+    if (!jogador) throw new ErroElenco(404, 'Jogador não encontrado neste clube.');
+    if (!painel) await exigirCategoria(tx, usuarioId, clubeId, jogador.categoria_id);
+    if (await tx.escalacaoPartida.count({ where: { jogador_id: id, partida: { status: 'AO_VIVO' } } })) {
+      throw new ErroElenco(409, 'Este atleta está em uma partida ao vivo. Finalize a partida antes de desativá-lo.');
+    }
+    if (Object.values(jogador._count).some(Boolean)) {
+      await tx.jogador.update({ where: { id }, data: { ativo: false } });
+      return { desativado: true, mensagem: 'Atleta desativado. O histórico esportivo foi preservado.' };
+    }
+    await tx.jogador.delete({ where: { id } });
+    return { desativado: false, mensagem: 'Atleta excluído.' };
+  });
+}
+
 export async function atualizarTemporada(clubeId: number, agora = new Date()) {
   return transacaoElenco(async tx => {
     const alunos = await tx.jogador.findMany({ where: { categoria: { clube_id: clubeId }, ativo: true } });
@@ -143,7 +165,7 @@ export function iniciarAtualizacaoTemporada() {
     if (executando) return;
     executando = true;
     try {
-      const clubes = await prisma.clube.findMany({ select: { id: true } });
+      const clubes = await prisma.clube.findMany({ where: { ativo: true }, select: { id: true } });
       for (const clube of clubes) {
         try { await atualizarTemporada(clube.id); }
         catch { console.error(`Não foi possível atualizar a temporada do clube ${clube.id}; haverá nova tentativa.`); }

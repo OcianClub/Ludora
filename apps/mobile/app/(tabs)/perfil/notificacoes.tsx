@@ -51,6 +51,7 @@ function grupoData(data: string) {
 }
 
 const tipos: Record<Notificacao["tipo"], { icone: IconName; nome: string }> = {
+  CADASTRO_CLUBE: { icone: "info", nome: "Cadastro" },
   PARTIDA_AGENDADA: { icone: "calendar-outline", nome: "Agenda" },
   GOL_PARTIDA: { icone: "soccer", nome: "Gol" },
   RESULTADO_PARTIDA: { icone: "trophy", nome: "Resultado" },

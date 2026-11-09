@@ -57,7 +57,10 @@ export default defineConfig({
       // Uma única cópia de React mesmo importando arquivos de apps/web.
       dedupe: ['react', 'react-dom', 'react-router-dom'],
     },
-    server: { fs: { allow: [resolve(__dirname, '../..')] } },
+    server: {
+      ...(process.env.LUDORA_DESKTOP_DEV_API ? { port: 5174, strictPort: true } : {}),
+      fs: { allow: [resolve(__dirname, '../..')] },
+    },
     build: { rollupOptions: { input: resolve(__dirname, 'src/renderer/index.html') } },
   },
 });

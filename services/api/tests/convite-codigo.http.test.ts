@@ -12,6 +12,8 @@ test('convite por código mantém vínculo ao e-mail e exige administração', a
   let role = 'ADMIN';
   const writes: any[] = [];
   function replace(target: any, key: string, value: any) { const before = target[key]; target[key] = value; t.after(() => { target[key] = before; }); }
+  replace(prisma.clube, 'count', async () => 0);
+  replace(prisma.manutencao, 'findFirst', async () => null);
   replace(prisma.usuario, 'findUnique', async () => ({ versao_sessao: 0 }));
   replace(prisma.usuarioClube, 'findUnique', async () => ({ papel: role }));
   replace(prisma.categoria, 'count', async () => 1);

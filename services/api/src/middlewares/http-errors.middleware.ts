@@ -1,3 +1,4 @@
+import { responderPausa } from '../modules/manutencao/service';
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 
 export const protegerCacheHttp: RequestHandler = (req, res, next) => {
@@ -9,6 +10,8 @@ export const protegerCacheHttp: RequestHandler = (req, res, next) => {
 
 export const tratarErroHttp: ErrorRequestHandler = (error, _req, res, next) => {
   if (res.headersSent) return next(error);
+  if (responderPausa(error, res)) return;
+  res.locals.stackSuporte = error?.stack;
 
   const tipo = error?.type;
   const status = tipo === 'entity.too.large' ? 413

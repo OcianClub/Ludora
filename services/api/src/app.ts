@@ -1,3 +1,6 @@
+import { criarTarefasCadastroRoutes } from './modules/admin/tarefas-cadastro';
+import { criarManutencaoRoutes } from './modules/manutencao/routes';
+import { criarOperacoesSuporte } from './modules/suporte/operational.routes';
 import cors from 'cors';
 import express from 'express';
 import type { Server } from 'socket.io';
@@ -21,6 +24,9 @@ import { criarPalpitesRoutes } from './modules/partidas/palpites.routes';
 import scoutRoutes from './modules/scout/scout.routes';
 import { criarAdminRoutes } from './modules/admin/admin.routes';
 import { registrarRequisicoes } from './modules/admin/superadmin';
+import { criarEquipeRoutes } from './modules/admin/equipe';
+import { criarSuporteRoutes } from './modules/suporte/routes';
+import { correlacionarFalhas } from './modules/suporte/service';
 import locaisRoutes from './modules/partidas/locais.routes';
 import perfilJogadorRoutes from './modules/jogadores/perfil.routes';
 import perfilClubeRoutes from './modules/clubes/perfil-clube.routes';
@@ -37,6 +43,7 @@ export function criarApp(io: Server) {
   app.use(cors(corsOptions));
   app.use(comprimirConsultas);
   app.use(registrarRequisicoes);
+  app.use(correlacionarFalhas);
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -62,6 +69,11 @@ export function criarApp(io: Server) {
     res.status(200).json({ status: 'ok' });
   });
 
+  app.use(criarEquipeRoutes());
+  app.use(criarManutencaoRoutes());
+  app.use(criarOperacoesSuporte(io));
+  app.use(criarSuporteRoutes());
+  app.use(criarTarefasCadastroRoutes(io));
   app.use(criarAdminRoutes(io));
   app.use(criarPaulistaRoutes(io));
   app.use(protegerPaulista);

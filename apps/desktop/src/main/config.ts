@@ -4,7 +4,9 @@ import path from 'node:path';
 import { validarApiUrl } from '../shared/rules';
 
 // MAIN_VITE_* é injetado em tempo de build pelo electron-vite (ver .env.example).
-const PADRAO_DO_BUILD = (import.meta.env.MAIN_VITE_API_URL as string | undefined) || 'http://localhost:3000';
+const API_DA_PILHA_DEV = !app.isPackaged && process.env.ELECTRON_RENDERER_URL
+  ? process.env.LUDORA_DESKTOP_DEV_API : undefined;
+const PADRAO_DO_BUILD = API_DA_PILHA_DEV || (import.meta.env.MAIN_VITE_API_URL as string | undefined) || 'http://localhost:3000';
 
 export const API_URL_PADRAO = (() => {
   try {
@@ -17,6 +19,7 @@ export const API_URL_PADRAO = (() => {
 const arquivo = () => path.join(app.getPath('userData'), 'config.json');
 
 export function lerApiUrl(): string {
+  if (API_DA_PILHA_DEV) return API_URL_PADRAO;
   try {
     const bruto = JSON.parse(fs.readFileSync(arquivo(), 'utf8'));
     return validarApiUrl(bruto.apiUrl);
@@ -27,6 +30,9 @@ export function lerApiUrl(): string {
 
 export function salvarApiUrl(url: string): string {
   const valida = validarApiUrl(url);
+  if (API_DA_PILHA_DEV && valida !== API_URL_PADRAO) {
+    throw new Error('O pnpm dev usa a API local. Para escolher outro servidor, abra com pnpm dev:desktop.');
+  }
   fs.writeFileSync(arquivo(), JSON.stringify({ apiUrl: valida }, null, 2), 'utf8');
   return valida;
 }

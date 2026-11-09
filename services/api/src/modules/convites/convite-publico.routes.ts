@@ -1,3 +1,4 @@
+import { CLUBE_DESATIVADO } from '../../middlewares/permissoes.middleware';
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import * as bcrypt from 'bcrypt';
@@ -185,6 +186,7 @@ router.post(
         });
       }
 
+      if (await prisma.clube.count({ where: { id: convite.clube_id, ativo: false } })) return res.status(423).json({ error: CLUBE_DESATIVADO, code: 'CLUBE_DESATIVADO' });
       if (convite.status === 'REVOGADO') {
         return res.status(410).json({
           error: 'Este convite foi revogado',
@@ -441,6 +443,7 @@ router.post(
         });
       }
 
+      if (await prisma.clube.count({ where: { id: convite.clube_id, ativo: false } })) return res.status(423).json({ error: CLUBE_DESATIVADO, code: 'CLUBE_DESATIVADO' });
       if (convite.status === 'REVOGADO') {
         return res.status(410).json({
           error: 'Este convite foi revogado',

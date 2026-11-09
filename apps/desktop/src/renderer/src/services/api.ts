@@ -33,6 +33,9 @@ export const criarClube = (dados: NovoClube) =>
 
 // null limpa o campo no servidor; undefined deixa como está.
 export interface EdicaoClube {
+  cnpj?: string;
+  endereco?: NovoClube['endereco'];
+  escudo_arquivo?: string | null;
   nome?: string;
   cidade?: string | null;
   estado?: string | null;

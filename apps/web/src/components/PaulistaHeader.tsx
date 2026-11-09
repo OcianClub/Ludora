@@ -43,6 +43,7 @@ export function PaulistaHeader({ division, year, years, source, busy, home, onYe
           }
         }}>
           <button type="button" role="menuitem" className="paulista-reload" disabled={busy} onClick={() => { close(); onRefresh(); }}><Icon name="refresh" size={17}/>{busy ? 'Atualizando…' : 'Atualizar dados'}</button>
+          {home && <Link role="menuitem" to="?arquivo=1" onClick={close}><Icon name="trophy" size={17}/>Competições anteriores</Link>}
           {source && <a role="menuitem" className="paulista-source-link" href={source} target="_blank" rel="noreferrer" aria-label="Consultar fonte oficial em nova aba" onClick={close}><FederationGlobe/>Consultar fonte oficial<Icon name="arrow" size={14}/></a>}
         </div>}
       </div>

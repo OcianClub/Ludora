@@ -1,3 +1,4 @@
+import ConfirmarEmail from './pages/ConfirmarEmail';
 import { Page, preloadPage, LoginPage, RegistrarPage, SelecionarClubePage, DashboardPage, JogadoresPage, JogadorPerfil, ClubePerfil, TimesPage, SolicitacoesPartidas, PartidasPage, PartidaDetalhePage, CompeticoesPage, PaulistaPage, ElencoPage, PerfilPage, MembrosPage, RecuperarSenhaPage, ConvitePage } from './routePages';
 import { Fragment, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
@@ -52,6 +53,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Page><LoginPage /></Page>} />
           <Route path="/registrar" element={<Page><RegistrarPage /></Page>} />
+          <Route path="/confirmar-email" element={<ConfirmarEmail />} />
           <Route path="/recuperar-senha" element={<Page><RecuperarSenhaPage /></Page>} />
           <Route path="/convite" element={<Page><ConvitePage /></Page>} />
           <Route path="/convite/token/:codigo" element={<Page><ConvitePage /></Page>} />

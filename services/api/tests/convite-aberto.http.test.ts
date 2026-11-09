@@ -10,6 +10,8 @@ import routes from '../src/modules/convites/convite-publico.routes';
 test('código sem e-mail exige login, expira e permite um único aceite', async t => {
   let status = 'PENDENTE', email = '', expires = Date.now() + 7200000, writes = 0;
   function replace(target: any, key: string, value: any) { const before = target[key]; target[key] = value; t.after(() => { target[key] = before; }); }
+  replace(prisma.clube, 'count', async () => 0);
+  replace(prisma.manutencao, 'findFirst', async () => null);
   replace(prisma.usuario, 'findUnique', async () => ({ id: 1, nome: 'Pessoa', email: 'pessoa@example.test', versao_sessao: 0 }));
   replace(prisma.usuario, 'count', async () => 1);
   replace(prisma.conviteClube, 'findUnique', async () => ({ id: 'invite', clube_id: 2, email, papel: 'OLHEIRO', acesso_todas_categorias: false, status, expira_em: new Date(expires), categorias: [], clube: { id: 2, nome: 'Ocian' }, criadoPor: { nome: 'Admin' } }));

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Brand, ClubBadge } from './Brand';
 import { AccountMenu } from './AccountMenu';
 import { Notifications } from './Notifications';
+import SupportButton from './SupportButton';
 import { Icon, type IconName } from './Icon';
 import { subscribePublicClub } from '../services/matchRealtime';
 import './PublicLayout.css';
@@ -22,7 +23,8 @@ export function PublicHeader() {
   ];
   const active = (link: typeof links[number], isActive: boolean) => isActive || (link.icon === 'home' && pathname === '/dashboard') || (link.icon === 'ball' && pathname.startsWith('/partidas')) || (link.icon === 'trophy' && pathname.startsWith('/competicoes')) ? 'active' : '';
   return <>
-    <header className={`public-header${insideClub ? ' public-header-in-club' : ''}`}><div className="public-header-inner">
+    <header className={`public-header${insideClub ? ' public-header-in-club' : ''}`}>
+      <div className="public-header-inner">
       <div className="public-header-identity">
       <Link to="/selecionar-clube" className="public-brand" aria-label="Ludora · encontrar clubes"><Brand /></Link>
       {insideClub && clube && <div className="public-club-switcher">
@@ -33,6 +35,7 @@ export function PublicHeader() {
       <div className="public-header-actions">
         {insideClub && podeEntrarGestao && <button type="button" className="btn btn-ghost btn-sm public-manage" aria-label="Gerenciar clube" onClick={() => { mudarModo('gestao'); navigate('/dashboard'); }}><Icon name="settings" size={16} /><span>Gerenciar clube</span></button>}
         {insideClub && token && clubeSelecionado?.meuPapel && <Notifications />}
+        <SupportButton />
         <AccountMenu header />
       </div>
     </div></header>

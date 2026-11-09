@@ -1,3 +1,4 @@
+import { exigirOperacao } from '../manutencao/service';
 import { Router } from 'express';
 
 import { prisma } from '../../lib/prisma';
@@ -140,9 +141,9 @@ router.post('/times', exigirGestorDoClube, async (req, res) => {
     const categoriaId = idPositivo(categoria_id);
     if (!categoriaId) return res.status(400).json({ error: 'Categoria inválida' });
     const categoriaValida = await prisma.categoria.count({
-      where: { id: categoriaId, clube_id: (req as any).clubeId },
+      where: { id: categoriaId, clube_id: (req as any).clubeId, ativa: true },
     });
-    if (!categoriaValida) return res.status(403).json({ error: 'Categoria não pertence ao clube ativo' });
+    if (!categoriaValida) return res.status(403).json({ error: 'Categoria desativada ou fora do clube.' });
     if (!(await podeAcessarCategoria((req as any).usuarioId, (req as any).clubeId, categoriaId))) {
       return res.status(403).json({ error: 'Você não administra esta categoria' });
     }
@@ -178,6 +179,7 @@ router.get('/times', exigirClubePublico, async (req, res) => {
 router.delete('/times/:id', exigirGestorDoClube, somenteAdministracaoPlataforma);
 
 router.post('/competicoes', exigirGestorDoClube, exigirAcessoTotalCategorias, async (req, res) => {
+  await exigirOperacao(['CRIAR_COMPETICOES'], { clubes: [(req as any).clubeId] });
   const clube_id = (req as any).clubeId as number;
 
   const { nome, ano, tipo, titulares_necessarios, exigir_inscricao } = req.body;

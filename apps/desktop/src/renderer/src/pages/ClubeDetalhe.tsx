@@ -1,31 +1,38 @@
+import { ClubSubChoices, ClubeResumoCadastro, ENDERECO_VAZIO, EnderecoFields, enderecoCompleto, EscudoField, mascaraCnpj, SUBS } from '../components/ClubeCadastroFields';
+import { FilterSelect } from '@web/components/FilterSelect';
+import { requestJson } from '../services/api';
 import { ClubeAtividade, ClubeConvites } from '../components/ClubeOperacoes';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { MembroClube, MembrosDoClube, PapelClube, PlanoClube, UsuarioGlobal, VisaoGlobal } from '@ludora/shared-types';
-import { Btn, Card, Empty, Input, Modal, PapelBadge, Select, Spinner } from '@web/components/UI';
-import { atualizarClube, criarCategoriasPadrao, definirPapel, fetchMembros, fetchUsuarios, fetchVisaoGlobal, removerVinculo } from '../services/api';
+import { Btn, Card, Empty, Input, Modal, Spinner } from '@web/components/UI';
+import { Toast } from '@web/components/Toast';
+import { atualizarClube, definirPapel, fetchMembros, fetchUsuarios, fetchVisaoGlobal, removerVinculo } from '../services/api';
 import { PLANOS } from './Clubes';
 import { ClubBadge } from '@web/components/Brand';
 import { AdminIcon } from '../components/AdminIcon';
-
-const PAPEIS: { value: PapelClube; label: string }[] = [
-  { value: 'ADMIN', label: 'Administrador' },
-  { value: 'TECNICO', label: 'Técnico' },
-  { value: 'MESARIO', label: 'Mesário' },
-  { value: 'OLHEIRO', label: 'Olheiro' },
-  { value: 'TORCEDOR', label: 'Visitante' },
-];
+import { OptionTiles } from '../components/OptionTiles';
+import { MotivoTiles } from '../components/MotivoTiles';
+import { ClubeElenco } from '../components/ClubeElenco';
+import { ClubSettingsSection } from '@web/components/ClubSettingsSection';
+import { CategoryFilter } from '@web/components/CategoryFilter';
+import { Icon } from '@web/components/Icon';
+import { ExcluirIcone } from '../components/ExcluirIcone';
+import { CargoClube, PAPEIS_CLUBE } from '../components/CargoClube';
 const ESCRITA: PapelClube[] = ['TECNICO', 'MESARIO'];
 
 interface Edicao { usuarioId: number; nome: string; papel: PapelClube; todas: boolean; cats: number[] }
 
 export default function ClubeDetalhePage() {
   const clubeId = Number(useParams().id);
+  const navigate = useNavigate();
   const [clube, setClube] = useState<VisaoGlobal['clubes'][number] | null>(null);
   const [dados, setDados] = useState<MembrosDoClube | null>(null);
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
-  const [dadosClube, setDadosClube] = useState({ nome: '', cidade: '', estado: '', plano: 'TRIAL', escudo: '' });
+  const [dadosClube, setDadosClube] = useState({ nome: '', cnpj: '', endereco: ENDERECO_VAZIO, plano: 'TRIAL', escudo: null as string | null });
+  const [editandoClube, setEditandoClube] = useState(false);
+  const [salvandoClube, setSalvandoClube] = useState(false);
   const [edicao, setEdicao] = useState<Edicao | null>(null);
   const [adicionando, setAdicionando] = useState(false);
   const [busca, setBusca] = useState('');
@@ -33,7 +40,17 @@ export default function ClubeDetalhePage() {
   const [aba, setAba] = useState<'visao' | 'acessos' | 'estrutura' | 'convites' | 'atividade'>('visao');
   const [remocao, setRemocao] = useState<MembroClube | null>(null);
   const [removendo, setRemovendo] = useState(false);
-  const [criandoCategorias, setCriandoCategorias] = useState(false);
+  const [subNovo, setSubNovo] = useState('');
+  const [subAcao, setSubAcao] = useState<{ id: number; nome: string; acao: 'excluir' | 'desativar' | 'reativar' } | null>(null);
+  const [estadoAberto, setEstadoAberto] = useState(false);
+  const [motivoEstado, setMotivoEstado] = useState('');
+  const [motivoLivre, setMotivoLivre] = useState(false);
+  const [excluirAberto, setExcluirAberto] = useState(false);
+  const [confirmouExclusao, setConfirmouExclusao] = useState(false);
+  const [subAtivo, setSubAtivo] = useState('');
+  const [fase, setFase] = useState('');
+  const [operando, setOperando] = useState(false);
+  const [erroOperacao, setErroOperacao] = useState('');
 
   const carregar = useCallback(async () => {
     try {
@@ -41,7 +58,6 @@ export default function ClubeDetalhePage() {
       const c = visao.clubes.find(x => x.id === clubeId) ?? null;
       setClube(c);
       setDados(membros);
-      if (c) setDadosClube({ nome: c.nome, cidade: c.cidade ?? '', estado: c.estado ?? '', plano: c.plano, escudo: c.escudo ?? '' });
     } catch (e) { setErro((e as Error).message); }
   }, [clubeId]);
   useEffect(() => { void carregar(); }, [carregar]);
@@ -51,13 +67,24 @@ export default function ClubeDetalhePage() {
 
   async function salvarClube(e: React.FormEvent) {
     e.preventDefault();
+    if (!editandoClube || salvandoClube) return;
+    setSalvandoClube(true);
     try {
-      await atualizarClube(clubeId, {
-        nome: dadosClube.nome, cidade: dadosClube.cidade || null, estado: dadosClube.estado || null,
-        plano: dadosClube.plano as PlanoClube, escudo: dadosClube.escudo || null,
+      const atual = { ...ENDERECO_VAZIO, cidade: clube?.cidade || '', estado: clube?.estado || '', ...clube?.endereco };
+      const alterouEndereco = (Object.keys(ENDERECO_VAZIO) as (keyof typeof ENDERECO_VAZIO)[]).some(k => dadosClube.endereco[k] !== atual[k]);
+      if (alterouEndereco && !enderecoCompleto(dadosClube.endereco)) throw new Error('Complete os campos obrigatórios do endereço da sede.');
+      const atualizado = await atualizarClube(clubeId, {
+        nome: dadosClube.nome,
+        ...(dadosClube.cnpj ? { cnpj: dadosClube.cnpj } : {}),
+        ...(alterouEndereco ? { endereco: dadosClube.endereco } : {}),
+        plano: dadosClube.plano as PlanoClube,
+        ...(dadosClube.escudo !== clube?.escudo ? { escudo_arquivo: dadosClube.escudo } : {}),
       });
+      setClube(anterior => anterior ? { ...anterior, ...atualizado } : anterior);
+      setEditandoClube(false);
       ok('Clube atualizado.');
     } catch (err) { falha(err); }
+    finally { setSalvandoClube(false); }
   }
 
   function abrirEdicao(m: MembroClube) {
@@ -93,22 +120,45 @@ export default function ClubeDetalhePage() {
     try { setAchados(await fetchUsuarios(busca)); } catch (err) { falha(err); }
   }
 
-  async function adicionarCategorias() {
-    setCriandoCategorias(true);
+  async function executarOperacao(acao: 'categoria' | 'estado' | 'adicionar' | 'excluir') {
+    if (operando) return;
+    setOperando(true); setErroOperacao('');
+    const base = `/admin/clubes/${clubeId}`;
     try {
-      const { adicionadas } = await criarCategoriasPadrao(clubeId);
-      ok(adicionadas ? 'Categorias padrão adicionadas.' : 'As categorias padrão já estão configuradas.');
-    } catch (err) {
-      falha(err);
-    } finally {
-      setCriandoCategorias(false);
-    }
+      if (acao === 'excluir') {
+        await requestJson(base, { method: 'DELETE' });
+        navigate('/clubes', { replace: true });
+        return;
+      }
+      if (acao === 'estado' && clube) {
+        await requestJson(`${base}/estado`, { method: 'PATCH', body: { ativo: !clube.ativo, motivo: motivoEstado } });
+        setEstadoAberto(false);
+      } else if (acao === 'adicionar') {
+        await requestJson(`${base}/categorias`, { method: 'POST', body: { idade: Number(subNovo) } }); setSubNovo('');
+      } else if (subAcao) {
+        await requestJson(`${base}/categorias/${subAcao.id}`, subAcao.acao === 'excluir' ? { method: 'DELETE' } : { method: 'PATCH', body: { ativa: subAcao.acao === 'reativar' } });
+        setSubAcao(null);
+      }
+      ok('Alteração registrada.');
+    } catch (e) { setErroOperacao((e as Error).message); }
+    finally { setOperando(false); }
   }
 
   if (!dados || !clube) return erro ? <div className="notice-error" role="alert">{erro}</div> : <Spinner />;
   const idsMembros = new Set(dados.membros.map(m => m.usuario.id));
   const exigeCategorias = edicao && ESCRITA.includes(edicao.papel) && !edicao.todas;
   const administradores = dados.membros.filter(membro => membro.papel === 'ADMIN');
+  const categorias = dados.categorias;
+  const categoriaDaFase = (tipo: string) => categorias.filter(c => c.tipo === tipo).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true }))[0];
+  const faseAtiva = fase || (categoriaDaFase('INICIACAO') || !categoriaDaFase('BASE') ? 'INICIACAO' : 'BASE');
+  const subSelecionado = categorias.find(c => String(c.id) === subAtivo && c.tipo === faseAtiva) || categoriaDaFase(faseAtiva);
+  const endereco = { ...ENDERECO_VAZIO, cidade: clube.cidade || '', estado: clube.estado || '', ...clube.endereco };
+  const plano = PLANOS.find(p => p.value === clube.plano)?.label || clube.plano;
+  function abrirDados() {
+    if (!clube) return;
+    setDadosClube({ nome: clube.nome, cnpj: mascaraCnpj(clube.cnpj || ''), endereco, plano: clube.plano, escudo: clube.escudo });
+    setErro(''); setEditandoClube(true);
+  }
 
   return (
     <div>
@@ -118,7 +168,11 @@ export default function ClubeDetalhePage() {
           <ClubBadge src={clube.escudo} size={56} />
           <div><h1 className="page-title">{clube.nome}</h1><p className="page-sub">{[clube.cidade, clube.estado].filter(Boolean).join(' · ') || 'Localização não informada'}</p></div>
         </div>
-        <span className="plano-tag">{clube.plano}</span>
+        <div className="actions"><span className="plano-tag">{clube.ativo ? clube.plano : 'Indisponível'}</span>
+          {aba === 'visao' && !editandoClube && <Btn type="button" variant="ghost" size="sm" onClick={abrirDados}><Icon name="edit" size={16}/>Editar clube</Btn>}
+          {aba === 'visao' && editandoClube && !clube.membros && !clube.jogadores && !clube.competicoes && !clube.partidas &&
+            <ExcluirIcone label="Excluir clube" onClick={() => { setConfirmouExclusao(false); setErroOperacao(''); setExcluirAberto(true); }}/>}
+        </div>
       </div>
       <nav className="admin-club-tabs" aria-label="Ficha administrativa do clube">
         {([['visao', 'Visão geral'], ['acessos', 'Acessos'], ['estrutura', 'Estrutura'], ['convites', 'Convites'], ['atividade', 'Atividade']] as const).map(([id, label]) =>
@@ -126,47 +180,76 @@ export default function ClubeDetalhePage() {
         )}
       </nav>
       {erro && <div className="notice-error" role="alert">{erro}</div>}
-      {aviso && <div className="notice-ok" role="status">{aviso}</div>}
+      <Toast message={aviso} onClose={() => setAviso('')}/>
 
-      {aba === 'visao' && <>
-      <Card className="admin-club-onboarding">
-        <h2 className="section-title">Configuração inicial</h2>
-        <ul>
-          <li><AdminIcon name="check" size={16} /><span>Clube cadastrado</span></li>
-          <li><AdminIcon name={dados.categorias.length ? 'check' : 'alert'} size={16} /><span>{dados.categorias.length ? `${dados.categorias.length} categorias configuradas` : 'Categorias a configurar'}</span><Btn size="sm" variant="ghost" onClick={() => setAba('estrutura')}>Ver estrutura</Btn></li>
-          <li><AdminIcon name={administradores.length ? 'check' : 'alert'} size={16} /><span>{administradores.length ? administradores.map(m => m.usuario.nome).join(', ') : 'Administrador a definir'}</span><Btn size="sm" variant="ghost" onClick={() => setAba('acessos')}>Ver acessos</Btn>{!administradores.length && <Btn size="sm" onClick={() => setAba('convites')}>Convidar administrador</Btn>}</li>
-        </ul>
-      </Card>
-      <Card className="bloco">
-        <h2 className="section-title">Dados do clube</h2>
-        <form onSubmit={salvarClube} className="form-grid">
-          <Input label="Nome" value={dadosClube.nome} onChange={e => setDadosClube(f => ({ ...f, nome: e.target.value }))} required />
-          <Select label="Plano" emptyLabel="Plano" options={PLANOS} value={dadosClube.plano} onChange={e => setDadosClube(f => ({ ...f, plano: e.target.value }))} />
-          <Input label="Cidade" value={dadosClube.cidade} onChange={e => setDadosClube(f => ({ ...f, cidade: e.target.value }))} />
-          <Input label="UF" maxLength={2} value={dadosClube.estado} onChange={e => setDadosClube(f => ({ ...f, estado: e.target.value }))} />
-          <Input className="full" label="Escudo (URL https)" value={dadosClube.escudo} onChange={e => setDadosClube(f => ({ ...f, escudo: e.target.value }))} />
-          <div className="full" style={{ display: 'flex', justifyContent: 'flex-end' }}><Btn type="submit">Salvar dados</Btn></div>
-        </form>
-      </Card>
-      </>}
-
-      {aba === 'convites' && <ClubeConvites key={clube.id} clubeId={clube.id} />}
-      {aba === 'atividade' && <ClubeAtividade key={clube.id} clubeId={clube.id} />}
-
-      {aba === 'estrutura' && <Card>
-        <h2 className="section-title">Estrutura do clube</h2>
+      {aba === 'visao' && <div className="desktop-club-settings">
+      <ClubSettingsSection icon="team" title="Resumo do clube" description="Contas, elenco e atividade esportiva.">
         <dl className="admin-club-metrics">
+          <div><dt>Pessoas vinculadas</dt><dd>{clube.membros}</dd></div>
           <div><dt>Jogadores</dt><dd>{clube.jogadores}</dd></div>
           <div><dt>Partidas organizadas</dt><dd>{clube.partidas}</dd></div>
           <div><dt>Competições</dt><dd>{clube.competicoes}</dd></div>
         </dl>
-        <h3 className="section-title">Categorias</h3>
-        {dados.categorias.length ? <div className="chips">{dados.categorias.map(c => <span key={c.id} className="chip">{c.nome.toUpperCase()}</span>)}</div>
-          : <div>
-            <p className="dica">Este clube ainda não possui categorias cadastradas.</p>
-            <Btn size="sm" disabled={criandoCategorias} onClick={() => void adicionarCategorias()}>{criandoCategorias ? 'Adicionando…' : 'Adicionar categorias padrão'}</Btn>
-          </div>}
-      </Card>}
+      </ClubSettingsSection>
+      {!editandoClube ? <ClubeResumoCadastro nome={clube.nome} escudo={clube.escudo} cnpj={clube.cnpj} endereco={endereco} plano={plano}/> :
+        <form onSubmit={salvarClube} className="desktop-club-settings">
+          <ClubSettingsSection icon="shield" title="Editar identidade do clube" description="Revise o cadastro antes de salvar.">
+            <div className="form-grid">
+              <Input label="Nome" value={dadosClube.nome} onChange={e => setDadosClube(f => ({ ...f, nome: e.target.value }))} required/>
+              <FilterSelect label="Plano" emptyLabel="A definir" options={PLANOS} value={dadosClube.plano} onChange={plano => setDadosClube(f => ({ ...f, plano }))}/>
+              <Input className="full" label="CNPJ" inputMode="numeric" value={dadosClube.cnpj} onChange={e => setDadosClube(f => ({ ...f, cnpj: mascaraCnpj(e.target.value) }))}/>
+              <EscudoField value={dadosClube.escudo} nome={dadosClube.nome} onChange={escudo => setDadosClube(f => ({ ...f, escudo }))}/>
+            </div>
+          </ClubSettingsSection>
+          <EnderecoFields value={dadosClube.endereco} onChange={endereco => setDadosClube(f => ({ ...f, endereco }))}/>
+          <div className="schedule-review-actions"><Btn type="button" variant="ghost" disabled={salvandoClube} onClick={() => { setEditandoClube(false); setErro(''); }}>Cancelar edição</Btn><Btn type="submit" disabled={salvandoClube}>{salvandoClube ? 'Salvando…' : 'Salvar dados'}</Btn></div>
+        </form>}
+      <ClubSettingsSection icon="settings" title="Operação e acesso" description="Situação do cadastro e responsáveis pelo clube." className="admin-club-onboarding">
+        <ul>
+          <li><AdminIcon name={clube.ativo ? 'check' : 'alert'} size={16} /><span>{clube.ativo ? 'Clube ativo' : 'Clube indisponível'}</span><Btn size="sm" variant="ghost" onClick={() => { setMotivoEstado(''); setMotivoLivre(false); setErroOperacao(''); setEstadoAberto(true); }}>{clube.ativo ? 'Desativar clube' : 'Reativar clube'}</Btn></li>
+          {(!clube.cnpj || !clube.endereco?.numero || !clube.escudo) && <li><AdminIcon name="alert" size={16}/><span>Cadastro a completar · {[[!clube.cnpj, 'CNPJ'], [!clube.endereco?.numero, 'endereço'], [!clube.escudo, 'escudo']].filter(([falta]) => falta).map(([, label]) => label).join(', ')}</span></li>}
+          <li><AdminIcon name={dados.categorias.length ? 'check' : 'alert'} size={16} /><span>{dados.categorias.length ? `${dados.categorias.length} categorias configuradas` : 'Categorias a configurar'}</span><Btn size="sm" variant="ghost" onClick={() => setAba('estrutura')}>Ver estrutura</Btn></li>
+          <li><AdminIcon name={administradores.length ? 'check' : 'alert'} size={16} /><span>{administradores.length ? administradores.map(m => m.usuario.nome).join(', ') : 'Administrador a definir'}</span><Btn size="sm" variant="ghost" onClick={() => setAba('acessos')}>Ver acessos</Btn>{!administradores.length && <Btn size="sm" onClick={() => setAba('convites')}>Convidar administrador</Btn>}</li>
+        </ul>
+      </ClubSettingsSection>
+      </div>}
+
+      <Modal open={estadoAberto} title={clube.ativo ? 'Desativar clube?' : 'Reativar clube?'} onClose={() => { if (!operando) setEstadoAberto(false); }}>
+        <p>{clube.ativo ? 'A entrada no clube fica indisponível e o histórico é preservado.' : 'Os membros recuperam as ações autorizadas por seu cargo. Pausas de manutenção continuam valendo.'}</p>
+        <MotivoTiles label="Motivo da alteração" options={clube.ativo ? ['Pausa solicitada pelo clube', 'Cadastro em conferência', 'Encerramento do atendimento'] : ['Cadastro conferido', 'Retomada solicitada pelo clube']} value={motivoEstado} onChange={setMotivoEstado} custom={motivoLivre} setCustom={setMotivoLivre}/>
+        {erroOperacao && <p role="alert" className="notice-error">{erroOperacao}</p>}
+        <div className="schedule-review-actions"><Btn variant="ghost" disabled={operando} onClick={() => setEstadoAberto(false)}>Cancelar</Btn><Btn className={clube.ativo ? 'btn-danger-solid' : undefined} disabled={operando || motivoEstado.trim().length < 10} onClick={() => void executarOperacao('estado')}>{operando ? 'Registrando…' : 'Confirmar alteração'}</Btn></div>
+      </Modal>
+      <Modal open={excluirAberto} title="Excluir cadastro do clube?" onClose={() => { if (!operando) setExcluirAberto(false); }}>
+        <p>O cadastro de <strong>{clube.nome}</strong> será removido. Times adversários reaproveitados e seus jogos permanecem cadastrados.</p>
+        <label className="check"><input type="checkbox" checked={confirmouExclusao} onChange={e => setConfirmouExclusao(e.target.checked)}/> Confirmo a exclusão do cadastro.</label>
+        {erroOperacao && <p role="alert" className="notice-error">{erroOperacao}</p>}
+        <div className="schedule-review-actions"><Btn variant="ghost" disabled={operando} onClick={() => setExcluirAberto(false)}>Cancelar</Btn><Btn className="btn-danger-solid" disabled={operando || !confirmouExclusao} onClick={() => void executarOperacao('excluir')}>{operando ? 'Excluindo…' : 'Excluir clube'}</Btn></div>
+      </Modal>
+      <Modal open={!!subAcao} title={`${subAcao?.acao === 'excluir' ? 'Remover' : subAcao?.acao === 'desativar' ? 'Desativar' : 'Reativar'} ${subAcao?.nome.toUpperCase() || ''}?`} onClose={() => { if (!operando) setSubAcao(null); }}>
+        <p>{subAcao?.acao === 'excluir' ? 'A API vai conferir vínculos antes de remover a categoria.' : subAcao?.acao === 'desativar' ? 'Preserva o histórico e impede o cadastro de novos jogadores, times e confrontos neste SUB.' : 'Volta a permitir novos cadastros neste SUB.'}</p>
+        {erroOperacao && <p role="alert" className="notice-error">{erroOperacao}</p>}
+        <div className="schedule-review-actions"><Btn variant="ghost" disabled={operando} onClick={() => setSubAcao(null)}>Cancelar</Btn>
+          {subAcao?.acao === 'excluir' && erroOperacao && <Btn variant="ghost" disabled={operando} onClick={() => { setErroOperacao(''); setSubAcao({ ...subAcao, acao: 'desativar' }); }}>Desativar em vez de remover</Btn>}
+          <Btn variant={subAcao?.acao === 'excluir' ? 'danger' : 'primary'} disabled={operando} onClick={() => void executarOperacao('categoria')}>{operando ? 'Registrando…' : 'Confirmar'}</Btn></div>
+      </Modal>
+
+      {aba === 'convites' && <ClubeConvites key={clube.id} clubeId={clube.id} />}
+      {aba === 'atividade' && <ClubeAtividade key={clube.id} clubeId={clube.id} />}
+
+      {aba === 'estrutura' && <div className="desktop-club-structure">
+        <CategoryFilter categories={categorias} phase={faseAtiva} selected={subSelecionado} label="Categorias do clube"
+          onPhase={tipo => { setFase(tipo); setSubAtivo(String(categoriaDaFase(tipo)?.id ?? '')); }} onSelect={nome => setSubAtivo(String(categorias.find(c => c.tipo === faseAtiva && c.nome === nome)?.id ?? ''))}/>
+        {subSelecionado && <div className="club-roster"><div className="schedule-review-actions">
+          <Btn size="sm" variant="ghost" onClick={() => { setErroOperacao(''); setSubAcao({ id: subSelecionado.id, nome: subSelecionado.nome, acao: subSelecionado.ativa ? 'desativar' : 'reativar' }); }}>{subSelecionado.ativa ? 'Desativar categoria' : 'Reativar categoria'}</Btn>
+          <Btn size="sm" variant="ghost" onClick={() => { setErroOperacao(''); setSubAcao({ id: subSelecionado.id, nome: subSelecionado.nome, acao: 'excluir' }); }}>Remover categoria</Btn>
+        </div><ClubeElenco key={`${clubeId}:${subSelecionado.id}`} clubeId={clubeId} clubeNome={clube.nome} categoriaId={subSelecionado.id} categoriaNome={subSelecionado.nome} onAlterado={ok}
+          onCategoria={id => { const proximo = categorias.find(c => c.id === id); if (proximo) { setFase(proximo.tipo); setSubAtivo(String(id)); } }}/></div>}
+        {!dados.categorias.length && <p className="dica">Este clube ainda não tem categorias.</p>}
+        <div className="club-cep"><FilterSelect label="Adicionar SUB" emptyLabel="Escolher categoria" value={subNovo} options={SUBS.filter(s => !dados.categorias.some(c => c.faixaIdade === s)).map(s => ({ value: s, label: `SUB-${s}` }))} onChange={setSubNovo}/>
+        <Btn size="sm" disabled={!subNovo || operando} onClick={() => void executarOperacao('adicionar')}>Adicionar categoria</Btn></div>
+        {!subAcao && erroOperacao && <p className="notice-error" role="alert">{erroOperacao}</p>}
+      </div>}
 
       {aba === 'acessos' && <Card>
         <div className="bloco-topo">
@@ -181,9 +264,9 @@ export default function ClubeDetalhePage() {
                 {dados.membros.map(m => (
                   <tr key={m.usuario.id}>
                     <td><strong>{m.usuario.nome}</strong><br /><small className="text-sec">{m.usuario.email}</small></td>
-                    <td><PapelBadge papel={m.papel} /></td>
+                    <td><CargoClube papel={m.papel}/></td>
                     <td>{m.papel === 'ADMIN' || m.acesso_todas_categorias ? 'Todas' : ESCRITA.includes(m.papel) ? m.categorias.length : '—'}</td>
-                    <td><div className="actions"><Btn size="sm" variant="ghost" onClick={() => abrirEdicao(m)}>Alterar</Btn><Btn size="sm" variant="danger" onClick={() => setRemocao(m)}>Remover</Btn></div></td>
+                    <td><div className="actions"><Btn size="sm" variant="ghost" onClick={() => abrirEdicao(m)}>Alterar</Btn><Btn size="sm" variant="danger" className="btn-danger-solid" onClick={() => setRemocao(m)}>Remover</Btn></div></td>
                   </tr>
                 ))}
               </tbody>
@@ -196,25 +279,21 @@ export default function ClubeDetalhePage() {
         <p><strong>{remocao?.usuario.nome}</strong> perderá o vínculo e as permissões de <strong>{clube.nome}</strong>.</p>
         <div className="admin-club-actions">
           <Btn variant="ghost" disabled={removendo} onClick={() => setRemocao(null)}>Cancelar</Btn>
-          <Btn variant="danger" disabled={removendo} onClick={() => void remover()}>{removendo ? 'Removendo…' : 'Remover acesso'}</Btn>
+          <Btn variant="danger" className="btn-danger-solid" disabled={removendo} onClick={() => void remover()}>{removendo ? 'Removendo…' : 'Remover acesso'}</Btn>
         </div>
       </Modal>
 
       <Modal open={!!edicao} onClose={() => setEdicao(null)} title={edicao ? `Permissão · ${edicao.nome}` : ''}>
         {edicao && (
           <form onSubmit={salvarPapel} className="form-grid">
-            <Select className="full" label="Cargo" emptyLabel="Cargo" options={PAPEIS} value={edicao.papel} onChange={e => setEdicao({ ...edicao, papel: e.target.value as PapelClube })} />
+            <div className="full"><OptionTiles label="Cargo" options={[...PAPEIS_CLUBE]} value={edicao.papel} onChange={papel => setEdicao({ ...edicao, papel: papel as PapelClube })}/></div>
             {ESCRITA.includes(edicao.papel) && (
-              <label className="full check"><input type="checkbox" checked={edicao.todas} onChange={e => setEdicao({ ...edicao, todas: e.target.checked })} /> Acesso a todas as categorias</label>
+              <div className="full paulista-follow"><strong>Acesso a todas as categorias</strong><button type="button" className="settings-switch" role="switch" aria-label="Acesso a todas as categorias" aria-checked={edicao.todas} onClick={() => setEdicao({ ...edicao, todas: !edicao.todas })}><span className="settings-switch-thumb" aria-hidden="true"/></button></div>
             )}
             {exigeCategorias && (
-              <fieldset className="full cats">
-                <legend className="field-label">Categorias permitidas</legend>
-                {dados.categorias.map(c => (
-                  <label key={c.id} className="check"><input type="checkbox" checked={edicao.cats.includes(c.id)}
-                    onChange={e => setEdicao({ ...edicao, cats: e.target.checked ? [...edicao.cats, c.id] : edicao.cats.filter(x => x !== c.id) })} /> {c.nome}</label>
-                ))}
-              </fieldset>
+              <div className="full"><h3 className="club-settings-hint">Categorias permitidas</h3>
+                <ClubSubChoices options={dados.categorias} selected={edicao.cats} onChange={id => setEdicao({ ...edicao, cats: edicao.cats.includes(id) ? edicao.cats.filter(x => x !== id) : [...edicao.cats, id] })}/>
+              </div>
             )}
             <div className="full" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <Btn type="button" variant="ghost" onClick={() => setEdicao(null)}>Cancelar</Btn><Btn type="submit">Salvar</Btn>

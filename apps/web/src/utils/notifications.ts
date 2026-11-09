@@ -1,4 +1,4 @@
-export type NoticeType = 'PARTIDA_AGENDADA' | 'GOL_PARTIDA' | 'RESULTADO_PARTIDA';
+export type NoticeType = 'PARTIDA_AGENDADA' | 'GOL_PARTIDA' | 'RESULTADO_PARTIDA' | 'CADASTRO_CLUBE';
 export type Notice = {
   id: number;
   tipo?: NoticeType;
@@ -11,7 +11,7 @@ export type Notice = {
 };
 
 export const NOTICE_LABELS: Record<NoticeType, string> = {
-  PARTIDA_AGENDADA: 'Agenda', GOL_PARTIDA: 'Gol', RESULTADO_PARTIDA: 'Resultado',
+  PARTIDA_AGENDADA: 'Agenda', GOL_PARTIDA: 'Gol', RESULTADO_PARTIDA: 'Resultado', CADASTRO_CLUBE: 'Cadastro',
 };
 
 export function noticePresentation(notice: Notice): { label: string; icon: 'email' | 'edit' | 'broadcast' | 'cancel' | 'ball' | 'trophy' | 'calendar' | 'bell' } {
@@ -21,6 +21,7 @@ export function noticePresentation(notice: Notice): { label: string; icon: 'emai
   if (/cancelad/i.test(notice.titulo)) return { label: 'Cancelamento', icon: 'cancel' };
   if (notice.tipo === 'GOL_PARTIDA') return { label: 'Gol', icon: 'ball' };
   if (notice.tipo === 'RESULTADO_PARTIDA') return { label: 'Resultado', icon: 'trophy' };
+  if (notice.tipo === 'CADASTRO_CLUBE') return { label: 'Cadastro', icon: 'bell' };
   if (notice.tipo === 'PARTIDA_AGENDADA') return { label: 'Agenda', icon: 'calendar' };
   return { label: 'Atualização', icon: 'bell' };
 }

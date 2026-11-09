@@ -22,8 +22,11 @@ export function criarPublicoRoutes(banco: PrismaClient = prisma) {
   const clube: RequestHandler = safe(async (req, res, next) => {
     const id = idPositivo(req.params.clubeId);
     if (!id) { res.status(400).json({ error: 'Clube inválido.' }); return; }
-    const found = await banco.clube.findUnique({ where: { id }, select: clubePublicoSelect });
+    const found = await banco.clube.findUnique({ where: { id }, select: { ...clubePublicoSelect, ativo: true } });
     if (!found) { res.status(404).json({ error: 'Clube não encontrado.' }); return; }
+    if (found.ativo === false && req.route.path !== '/publico/clubes/:clubeId') {
+      res.status(423).json({ error: 'Clube indisponível no momento.', code: 'CLUBE_DESATIVADO' }); return;
+    }
     res.locals.clube = found; next();
   });
   router.get('/publico/clubes/:clubeId', clube, (_req, res) => { res.json(res.locals.clube); });

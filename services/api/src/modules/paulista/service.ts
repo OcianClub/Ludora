@@ -1,8 +1,9 @@
+import { exigirOperacao } from '../manutencao/service';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import type { JogoPaulista, SnapshotPaulista } from '../../../../../packages/shared-types/src/paulista';
-import { diferencas, nomeTime, verificarContinuidade } from './rules';
+import { classificarMudanca, nomeTime, pendenciaDeCalendario, resultadoNumerico, verificarContinuidade } from './rules';
 export const ativo = () => process.env.PAULISTA_ENABLED === 'true';
 export async function publicacaoPartida(banco: PrismaClient, partidaId: number) {
   if (!ativo()) return null;
@@ -17,11 +18,24 @@ export const json = (v: unknown) => JSON.parse(JSON.stringify(v)) as Prisma.Inpu
 export class FalhaPaulista extends Error { constructor(public status: number, message: string) { super(message); } }
 type Tx = Prisma.TransactionClient;
 const idade = (s: SnapshotPaulista) => Number(s.categoria.match(/\d+/)?.[0]);
+const PROJECAO = 'PROJECAO_LOCAL_PAULISTA';
+type Projecao = { id: number; versao: number; status: string; gols_mandante: number; gols_visitante: number };
+const projetado = (p: Projecao) => ({ partidaId: p.id, versao: p.versao, status: p.status, placar: [p.gols_mandante, p.gols_visitante] });
+
+function semContribuicao(local: Projecao, anterior: JogoPaulista | undefined, ultimaProjecao: unknown, contribuicoes: Set<number>) {
+  if (contribuicoes.has(local.id) || !['AGENDADA', 'FINALIZADA'].includes(local.status)) return false;
+  if (isDeepStrictEqual(ultimaProjecao, projetado(local))) return true;
+  if (local.versao !== 0) return false;
+  if (local.status === 'AGENDADA') return local.gols_mandante === 0 && local.gols_visitante === 0;
+  // No importador anterior a partida nascia finalizada com versão zero.
+  // A finalização pelo clube passa pela versão de operação e sua auditoria.
+  return !!anterior && resultadoNumerico(anterior) && local.gols_mandante === anterior.golsMandante && local.gols_visitante === anterior.golsVisitante;
+}
 async function audit(tx: Tx, eventoId: number, usuarioId: number | null, acao: string, dados: unknown) {
   return tx.fpfsAuditoria.create({ data: { eventoId, usuarioId, acao, dados: json(dados) } });
 }
 async function categoria(tx: Tx, clubeId: number, s: SnapshotPaulista) {
-  const cat = await tx.categoria.findFirst({ where: { clube_id: clubeId, faixaIdade: idade(s) } });
+  const cat = await tx.categoria.findFirst({ where: { clube_id: clubeId, faixaIdade: idade(s), ativa: true, clube: { ativo: true } } });
   if (!cat) throw new FalhaPaulista(409, `Clube ${clubeId} sem categoria ${s.categoria}; conferir cadastro antes de distribuir.`);
   return cat;
 }
@@ -45,11 +59,11 @@ async function casca(tx: Tx, s: SnapshotPaulista, equipeId: number, catId: numbe
   return time;
 }
 async function conferirPlacar(tx: Tx, jogo: { id: string; partidaId: number | null }, oficial: JogoPaulista) {
-  if (!jogo.partidaId || oficial.golsMandante === null || oficial.golsVisitante === null || oficial.ocorrencia) return;
+  if (!jogo.partidaId || !resultadoNumerico(oficial)) return;
   const local = await tx.partida.findUniqueOrThrow({ where: { id: jogo.partidaId } });
-  const diverge = local.status === 'FINALIZADA' && (local.gols_mandante !== oficial.golsMandante || local.gols_visitante !== oficial.golsVisitante);
+  const diverge = ['FINALIZADA', 'AO_VIVO'].includes(local.status) && (local.gols_mandante !== oficial.golsMandante || local.gols_visitante !== oficial.golsVisitante);
   if (diverge) await abrirPendencia(tx, jogo.id, 'PLACAR', { oficial: [oficial.golsMandante, oficial.golsVisitante], local: [local.gols_mandante, local.gols_visitante], partidaId: local.id });
-  else await tx.fpfsPendencia.updateMany({ where: { jogoId: jogo.id, tipo: 'PLACAR', estado: 'ABERTA' }, data: { estado: 'RESOLVIDA' } });
+  else await tx.fpfsPendencia.updateMany({ where: { jogoId: jogo.id, tipo: 'PLACAR', estado: { in: ['ABERTA', 'EM_REVISAO', 'AGUARDANDO_CLUBE'] } }, data: { estado: 'RESOLVIDA' } });
 }
 
 export async function registrarPlacarAtual(banco: PrismaClient, eventoId: number, jogoId: string) {
@@ -75,6 +89,7 @@ async function abrirPendencia(tx: Tx, jogoId: string, tipo: string, data: unknow
 export async function importar(banco: PrismaClient, s: SnapshotPaulista, usuarioId: number | null) {
   const hash = createHash('sha256').update(JSON.stringify(s)).digest('hex');
   return banco.$transaction(async tx => {
+    await exigirOperacao(['SINCRONIZAR_PAULISTA', 'AGENDA_OFICIAL'], { eventoId: s.id }, tx);
     const anterior = await tx.fpfsEvento.findUnique({ where: { id: s.id } });
     verificarContinuidade(anterior?.payload as unknown as SnapshotPaulista || null, s);
     const evento = await tx.fpfsEvento.upsert({ where: { id: s.id }, create: { id: s.id, ano: s.ano, titulo: s.titulo, divisao: s.divisao, categoria: s.categoria, payload: json(s), hash },
@@ -87,16 +102,31 @@ export async function importar(banco: PrismaClient, s: SnapshotPaulista, usuario
     }
     await tx.fpfsTime.createMany({ data: s.equipes.map(e => ({ eventoId: s.id, equipeId: e.id })), skipDuplicates: true });
     const anteriores = new Map((await tx.fpfsJogo.findMany({ where: { eventoId: s.id } })).map(j => [j.id, j]));
-    await tx.fpfsJogo.createMany({ data: s.jogos.filter(j => !anteriores.has(j.id)).map(j => ({ id: j.id, eventoId: s.id, faseId: j.faseId, sumulaId: j.sumulaId, oficial: json(j) })), skipDuplicates: true });
+    await tx.fpfsJogo.createMany({ data: s.jogos.filter(j => !anteriores.has(j.id)).map(j => ({ id: j.id, eventoId: s.id, faseId: j.faseId, sumulaId: j.sumulaId, oficial: json(j) })) });
     const atuais = new Map((await tx.fpfsJogo.findMany({ where: { eventoId: s.id } })).map(j => [j.id, j]));
-    const links = await tx.fpfsVinculo.findMany({ where: { equipeId: { in: s.equipes.map(e => e.id) } }, orderBy: { confirmadoEm: 'asc' } });
+    const links = await tx.fpfsVinculo.findMany({ where: { equipeId: { in: s.equipes.map(e => e.id) }, clube: { ativo: true, categorias: { some: { faixaIdade: idade(s), ativa: true } } } }, orderBy: { confirmadoEm: 'asc' } });
     const categorias = new Map<number, Awaited<ReturnType<typeof categoria>>>();
     for (const link of links) categorias.set(link.clubeId, await categoria(tx, link.clubeId, s));
     const times = new Map((await tx.fpfsTime.findMany({ where: { eventoId: s.id, timeId: { not: null } }, include: { time: true } })).filter(t => t.time).map(t => [t.equipeId, t.time!]));
     const partidaIds = [...atuais.values()].flatMap(j => j.partidaId ? [j.partidaId] : []);
-    const partidasAntes = new Map((await tx.partida.findMany({ where: { id: { in: partidaIds } } })).map(p => [p.id, p]));
-    const participacoesAntes = new Set((await tx.participantePartida.findMany({ where: { partida_id: { in: partidaIds } } })).map(e => `${e.partida_id}:${e.clube_id}`));
-    const placaresAbertos = new Set((await tx.fpfsPendencia.findMany({ where: { jogoId: { in: [...atuais.keys()] }, tipo: 'PLACAR', estado: 'ABERTA' }, select: { jogoId: true } })).map(p => p.jogoId));
+    const [partidas, participantes, eventosLocais, escalacoes, decisoesLocais, projecoes, placares] = await Promise.all([
+      tx.partida.findMany({ where: { id: { in: partidaIds } } }),
+      tx.participantePartida.findMany({ where: { partida_id: { in: partidaIds } } }),
+      tx.evento.findMany({ where: { partida_id: { in: partidaIds } }, distinct: ['partida_id'], select: { partida_id: true } }),
+      tx.escalacaoPartida.findMany({ where: { partida_id: { in: partidaIds } }, distinct: ['partida_id'], select: { partida_id: true } }),
+      tx.auditoriaPartida.findMany({ where: { partida_id: { in: partidaIds } }, distinct: ['partida_id'], select: { partida_id: true } }),
+      tx.fpfsAuditoria.findMany({ where: { eventoId: s.id, acao: PROJECAO }, orderBy: { id: 'asc' }, select: { dados: true } }),
+      tx.fpfsPendencia.findMany({ where: { jogoId: { in: [...atuais.keys()] }, OR: [{ tipo: 'IDENTIDADE' }, { tipo: 'PLACAR', estado: { in: ['ABERTA', 'EM_REVISAO', 'AGUARDANDO_CLUBE'] } }] }, select: { jogoId: true, tipo: true } }),
+    ]);
+    const partidasAntes = new Map(partidas.map(p => [p.id, p]));
+    const participacoesAntes = new Set(participantes.map(e => `${e.partida_id}:${e.clube_id}`));
+    const contribuicoes = new Set([...eventosLocais, ...escalacoes, ...decisoesLocais, ...participantes.filter(p => p.pronta || p.publicada_em)].map(p => p.partida_id));
+    const ultimaProjecao = new Map(projecoes.map(a => {
+      const d = a.dados as { jogoId: string; depois: unknown };
+      return [d.jogoId, d.depois];
+    }));
+    const placaresAbertos = new Set(placares.filter(p => p.tipo === 'PLACAR').map(p => p.jogoId));
+    const identidades = new Set(placares.filter(p => p.tipo === 'IDENTIDADE').map(p => p.jogoId));
     const equipeLocal = async (id: number, catId: number) => {
       if (!times.has(id)) times.set(id, await casca(tx, s, id, catId));
       return times.get(id)!;
@@ -111,41 +141,61 @@ export async function importar(banco: PrismaClient, s: SnapshotPaulista, usuario
     let criadas = 0, atualizadas = 0;
     for (const j of s.jogos) {
       const old = anteriores.get(j.id);
-      const changes = old ? diferencas(old.oficial as unknown as JogoPaulista, j) : [];
+      const publicado = old?.oficial as unknown as JogoPaulista | undefined;
+      const mudanca = publicado && classificarMudanca(publicado, j);
       let row = atuais.get(j.id)!;
-      if (old && !isDeepStrictEqual(old.oficial, json(j))) row = await tx.fpfsJogo.update({ where: { id: j.id }, data: { oficial: json(j), sumulaId: j.sumulaId } });
-      if (changes.length) {
-        await audit(tx, s.id, usuarioId, 'DADOS_OFICIAIS_ALTERADOS', { jogoId: j.id, changes }); atualizadas++;
-        await abrirPendencia(tx, j.id, 'ALTERACAO_OFICIAL', { changes, partidaId: row.partidaId });
-      }
       const envolvidos = links.filter(v => [j.mandanteId, j.visitanteId].includes(v.equipeId));
-      if (!envolvidos.length || !j.data || !j.horario || j.ocorrencia) continue;
+      const localAnterior = row.partidaId ? partidasAntes.get(row.partidaId) : undefined;
+      const segura = !!localAnterior && semContribuicao(localAnterior, publicado, ultimaProjecao.get(j.id), contribuicoes);
+      if (old && !isDeepStrictEqual(old.oficial, json(j))) row = await tx.fpfsJogo.update({ where: { id: j.id }, data: { oficial: json(j), sumulaId: j.sumulaId } });
+      if (mudanca && (mudanca.agenda.length || mudanca.resultado.length || mudanca.ocorrencia || mudanca.identidade)) {
+        await audit(tx, s.id, usuarioId, 'DADOS_OFICIAIS_ALTERADOS', { jogoId: j.id, ...mudanca, antes: publicado, depois: j }); atualizadas++;
+        if (mudanca.identidade && (envolvidos.length || localAnterior)) {
+          await abrirPendencia(tx, j.id, 'IDENTIDADE', { antes: [publicado!.mandanteId, publicado!.visitanteId], depois: [j.mandanteId, j.visitanteId], partidaId: row.partidaId });
+        }
+        if (mudanca.agenda.length && localAnterior && !segura) {
+          await abrirPendencia(tx, j.id, 'ALTERACAO_OFICIAL', { changes: mudanca.agenda, partidaId: row.partidaId });
+        }
+        if (mudanca.ocorrencia && localAnterior && !segura) {
+          await abrirPendencia(tx, j.id, 'OCORRENCIA_OFICIAL', { antes: publicado!.ocorrencia, depois: j.ocorrencia, partidaId: row.partidaId });
+        }
+      }
+      if (mudanca?.identidade || identidades.has(j.id)) continue;
+      if (!envolvidos.length || j.ocorrencia || (!row.partidaId && (!j.data || !j.horario))) continue;
       const cat = categorias.get(envolvidos[0].clubeId)!;
       const home = await equipeLocal(j.mandanteId, cat.id), away = await equipeLocal(j.visitanteId, cat.id);
       if (!row.partidaId) {
         // Mesmo dia não significa mesmo confronto. Homônimo do adversário é
         // sinal para revisão, nunca autorização para fundir registros.
-        const antigas = await tx.partida.findMany({ where: { categoria_id: cat.id, data: new Date(j.data), fpfsJogo: null }, include: { mandante: true, visitante: true } });
+        const antigas = await tx.partida.findMany({ where: { categoria_id: cat.id, data: new Date(j.data!), fpfsJogo: null }, include: { mandante: true, visitante: true } });
         const adversarioId = envolvidos[0].equipeId === j.mandanteId ? j.visitanteId : j.mandanteId;
         const adversario = s.equipes.find(e => e.id === adversarioId)!;
         const ambigua = antigas.find(p => p.mandante_id === home.id && p.visitante_id === away.id || p.mandante_id === away.id && p.visitante_id === home.id || [p.mandante, p.visitante].some(t => nomeTime(t.nome) === nomeTime(adversario.nome)));
         if (ambigua) throw new FalhaPaulista(409, `Partida local #${ambigua.id} com possível mesmo confronto no SUB/data: revisar legado antes de distribuir.`);
         const p = await tx.partida.create({ data: { categoria_id: cat.id, competicao_id: compId, mandante_id: home.id, visitante_id: away.id,
-          data: new Date(j.data), horario: j.horario, local: j.local, grupo: j.fase, sumula_clube_id: envolvidos[0].clubeId,
+          data: new Date(j.data!), horario: j.horario!, local: j.local, grupo: j.fase, sumula_clube_id: envolvidos[0].clubeId,
           emCasa: envolvidos[0].equipeId === j.mandanteId,
-          ...(j.golsMandante !== null && j.golsVisitante !== null ? { status: 'FINALIZADA', gols_mandante: j.golsMandante, gols_visitante: j.golsVisitante } : {}) } });
+          ...(resultadoNumerico(j) ? { status: 'FINALIZADA', gols_mandante: j.golsMandante!, gols_visitante: j.golsVisitante! } : {}) } });
         row = await tx.fpfsJogo.update({ where: { id: row.id }, data: { partidaId: p.id } }); criadas++;
-      } else if (changes.some(c => ['data', 'horario', 'local'].includes(c.campo))) {
-        const before = await tx.partida.findUniqueOrThrow({ where: { id: row.partidaId } });
-        await audit(tx, s.id, usuarioId, 'AGENDA_LOCAL_ATUALIZADA', { jogoId: j.id, antes: { data: before.data, horario: before.horario, local: before.local }, depois: j });
-        await tx.partida.update({ where: { id: row.partidaId }, data: { data: new Date(j.data), horario: j.horario, local: j.local, versao: { increment: 1 } } });
+        await audit(tx, s.id, usuarioId, PROJECAO, { jogoId: j.id, origem: 'FEDERACAO', antes: null, depois: projetado(p) });
+      } else if (localAnterior && segura) {
+        const agenda = !!mudanca?.agenda.length && !!j.data && !!j.horario;
+        const placar = resultadoNumerico(j) && (localAnterior.status !== 'FINALIZADA' || localAnterior.gols_mandante !== j.golsMandante || localAnterior.gols_visitante !== j.golsVisitante);
+        if (agenda || placar) {
+          const p = await tx.partida.update({ where: { id: row.partidaId }, data: {
+            ...(agenda ? { data: new Date(j.data!), horario: j.horario!, local: j.local } : {}),
+            ...(placar ? { status: 'FINALIZADA', gols_mandante: j.golsMandante!, gols_visitante: j.golsVisitante! } : {}),
+            versao: { increment: 1 },
+          } });
+          await audit(tx, s.id, usuarioId, PROJECAO, { jogoId: j.id, origem: 'FEDERACAO', antes: projetado(localAnterior), depois: projetado(p),
+            ...(agenda ? { agenda: mudanca?.agenda } : {}) });
+        }
       }
       for (const v of envolvidos) {
         const category = categorias.get(v.clubeId)!, teamId = v.equipeId === j.mandanteId ? home.id : away.id;
         if (!participacoesAntes.has(`${row.partidaId}:${v.clubeId}`)) await tx.participantePartida.create({ data: { partida_id: row.partidaId!, clube_id: v.clubeId, categoria_id: category.id, time_id: teamId } });
       }
-      const localAnterior = partidasAntes.get(row.partidaId!);
-      if (placaresAbertos.has(j.id) || localAnterior?.status === 'FINALIZADA' && (localAnterior.gols_mandante !== j.golsMandante || localAnterior.gols_visitante !== j.golsVisitante)) await conferirPlacar(tx, row, j);
+      if (placaresAbertos.has(j.id) || localAnterior && !segura) await conferirPlacar(tx, row, j);
     }
     if (anterior?.hash !== hash || criadas || atualizadas) await audit(tx, s.id, usuarioId, 'SINCRONIZACAO', { hash, versao: evento.versao, fonte: s.fonte, criadas, atualizadas, snapshot: s });
     return { criadas, atualizadas, total: s.jogos.length, versao: evento.versao };
@@ -163,6 +213,7 @@ export async function vincular(banco: PrismaClient, eventoId: number, equipeId: 
     if (existente) throw new FalhaPaulista(409, 'Desfaça/revise o vínculo anterior antes de associar outro clube.');
     if (await tx.fpfsVinculo.findFirst({ where: { clubeId, equipe: { times: { some: { eventoId } } } } })) throw new FalhaPaulista(409, 'Este clube já representa outra equipe no mesmo evento.');
     const aliases = await tx.fpfsTime.findMany({ where: { equipeId, timeId: { not: null } }, include: { time: true, evento: true } });
+    for (const id of new Set([eventoId, ...aliases.map(a => a.eventoId)])) await exigirOperacao(['AGENDA_OFICIAL'], { eventoId: id }, tx);
     for (const alias of aliases) {
       const c = await categoria(tx, clubeId, alias.evento.payload as unknown as SnapshotPaulista);
       const outro = await tx.time.findFirst({ where: { clube_representado_id: clubeId, categoria_id: c.id, id: { not: alias.timeId! } } });
@@ -180,8 +231,9 @@ export async function desfazerVinculo(banco: PrismaClient, eventoId: number, equ
   return banco.$transaction(async tx => {
     const link = await tx.fpfsVinculo.findUnique({ where: { equipeId } });
     if (!link) throw new FalhaPaulista(404, 'Vínculo não encontrado.');
-    const times = await tx.fpfsTime.findMany({ where: { equipeId, timeId: { not: null } }, select: { timeId: true } });
-    const ids = [...new Set(times.map(t => t.timeId!))];
+    const times = await tx.fpfsTime.findMany({ where: { equipeId }, select: { timeId: true, eventoId: true } });
+    for (const id of new Set([eventoId, ...times.map(t => t.eventoId)])) await exigirOperacao(['AGENDA_OFICIAL'], { eventoId: id }, tx);
+    const ids = [...new Set(times.flatMap(t => t.timeId === null ? [] : [t.timeId]))];
     const participacoes = await tx.participantePartida.findMany({ where: { clube_id: link.clubeId, time_id: { in: ids } } });
     const jogos = participacoes.map(p => p.partida_id);
     const [linhas, eventos] = await Promise.all([
@@ -199,6 +251,19 @@ export async function desfazerVinculo(banco: PrismaClient, eventoId: number, equ
     await audit(tx, eventoId, usuarioId, 'VINCULO_DESFEITO', { antes: link, timeIdsPreservados: ids, motivo });
   }, { isolationLevel: 'Serializable' });
 }
+export function divergenciaPlacar(j: {
+  id: string; oficial: unknown;
+  partida: { id: number; status: string; gols_mandante: number; gols_visitante: number } | null;
+  pendencias: { id: number; tipo: string; estado: string; dados: unknown }[];
+}) {
+  const o = j.oficial as JogoPaulista, p = j.partida;
+  if (j.pendencias.some(v => v.tipo === 'IDENTIDADE') || !p || !['FINALIZADA', 'AO_VIVO'].includes(p.status) || !resultadoNumerico(o) ||
+    (p.gols_mandante === o.golsMandante && p.gols_visitante === o.golsVisitante)) return null;
+  const dados = { oficial: [o.golsMandante, o.golsVisitante], local: [p.gols_mandante, p.gols_visitante], partidaId: p.id };
+  const saved = j.pendencias.find(v => v.tipo === 'PLACAR');
+  return { id: saved?.id || 0, jogoId: j.id, tipo: 'PLACAR', estado: saved && isDeepStrictEqual(saved.dados, dados) ? saved.estado : 'ABERTA', dados };
+}
+
 export async function painel(banco: PrismaClient, id: number) {
   const e = await banco.fpfsEvento.findUnique({ where: { id }, include: { jogos: { include: { pendencias: true, partida: true } } } });
   if (!e) throw new FalhaPaulista(404, 'Evento não importado.');
@@ -207,14 +272,10 @@ export async function painel(banco: PrismaClient, id: number) {
   // Consulta não escreve no banco. Divergências novas já aparecem; a sincronização
   // persiste a pendência com o histórico da consulta externa.
   const pendencias = e.jogos.flatMap(j => {
-    const o = j.oficial as unknown as JogoPaulista, p = j.partida;
-    if (!p || p.status !== 'FINALIZADA' || o.ocorrencia || o.golsMandante === null || o.golsVisitante === null || (p.gols_mandante === o.golsMandante && p.gols_visitante === o.golsVisitante)) return [];
-    const dados = { oficial: [o.golsMandante, o.golsVisitante], local: [p.gols_mandante, p.gols_visitante], partidaId: p.id };
-    const saved = j.pendencias.find(v => v.tipo === 'PLACAR');
-    const mesmo = saved && isDeepStrictEqual(saved.dados, dados);
-    return [{ id: saved?.id || 0, jogoId: j.id, tipo: 'PLACAR', estado: mesmo ? saved.estado : 'ABERTA', dados }];
+    const divergencia = divergenciaPlacar(j);
+    return divergencia ? [divergencia] : [];
   });
-  pendencias.push(...e.jogos.flatMap(j => j.pendencias.filter(p => p.tipo !== 'PLACAR') as any[]));
+  pendencias.push(...e.jogos.flatMap(j => j.pendencias.filter(p => p.tipo !== 'PLACAR' && (p.tipo !== 'ALTERACAO_OFICIAL' || pendenciaDeCalendario(p.dados))) as any[]));
   // Resumo permanente por jogo/clube: o marcador não some quando houver mais
   // de 30 complementações, sem enviar motivos livres ou IDs de usuários.
   const retroativos = await banco.$queryRaw<{ id: number; acao: string; criadoEm: Date; dados: any }[]>(Prisma.sql`

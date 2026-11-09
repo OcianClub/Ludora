@@ -71,7 +71,8 @@ export async function transacao<T>(callback: (tx: Banco) => Promise<T>) {
 export async function validarDados(tx: Banco, ctx: Contexto, body: any, aceitarRegistrada = false) {
   const catId = inteiro(body.categoria_id);
   const cat = await tx.categoria.findUnique({ where: { id: catId } });
-  exigir(cat && cat.clube_id === ctx.clubeId && (aceitarRegistrada || await acesso(tx, ctx, catId)), 'Você não administra esta categoria.', 403);
+  exigir(cat && cat.ativa, 'Categoria desativada para novos confrontos.', 423);
+  exigir(cat.clube_id === ctx.clubeId && (aceitarRegistrada || await acesso(tx, ctx, catId)), 'Você não administra esta categoria.', 403);
   const mandanteId = inteiro(body.mandante_id), visitanteId = inteiro(body.visitante_id);
   exigir(mandanteId !== visitanteId, 'Escolha dois times diferentes.');
   const times = await tx.time.findMany({ where: { id: { in: [mandanteId, visitanteId] }, categoria_id: catId, arquivado: false } });
@@ -81,7 +82,8 @@ export async function validarDados(tx: Banco, ctx: Contexto, body: any, aceitarR
   const adversario = times.find(t => t.id !== propria[0].id)!;
   let destino = null;
   if (adversario.clube_representado_id) {
-    const candidatas = await tx.categoria.findMany({ where: { clube_id: adversario.clube_representado_id, tipo: cat.tipo, OR: [{ nome: { equals: cat.nome, mode: 'insensitive' } }, ...(cat.faixaIdade > 0 ? [{ faixaIdade: cat.faixaIdade }] : [])] } });
+    exigir(await tx.clube.count({ where: { id: adversario.clube_representado_id, ativo: true } }), 'O clube adversário está desativado.', 423);
+    const candidatas = await tx.categoria.findMany({ where: { clube_id: adversario.clube_representado_id, ativa: true, tipo: cat.tipo, OR: [{ nome: { equals: cat.nome, mode: 'insensitive' } }, ...(cat.faixaIdade > 0 ? [{ faixaIdade: cat.faixaIdade }] : [])] } });
     destino = candidatas.find(c => c.nome.toLowerCase() === cat.nome.toLowerCase()) || (candidatas.length === 1 ? candidatas[0] : null);
     exigir(destino, 'O adversário ainda não possui uma categoria correspondente. Peça ao clube que a cadastre.');
   }

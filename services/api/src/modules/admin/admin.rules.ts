@@ -19,10 +19,10 @@ export function ehSuperAdmin(email: string | null | undefined, lista: Set<string
 export function papelPlataformaEfetivo(
   usuario: { papel_plataforma?: string; email?: string | null },
   lista = parseSuperAdmins(process.env.SUPERADMIN_EMAILS),
-): 'SUPERADMIN' | 'USUARIO' {
-  return usuario.papel_plataforma === 'SUPERADMIN' || ehSuperAdmin(usuario.email, lista)
-    ? 'SUPERADMIN'
-    : 'USUARIO';
+): 'SUPERADMIN' | 'SUPORTE' | 'DESENVOLVEDOR' | 'USUARIO' {
+  if (usuario.papel_plataforma === 'SUPERADMIN' || ehSuperAdmin(usuario.email, lista)) return 'SUPERADMIN';
+  if (usuario.papel_plataforma === 'SUPORTE' || usuario.papel_plataforma === 'DESENVOLVEDOR') return usuario.papel_plataforma;
+  return 'USUARIO';
 }
 
 // ─── Validações ───────────────────────────────────────────────────────────────

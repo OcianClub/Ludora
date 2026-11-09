@@ -6,6 +6,7 @@ import { PageSkeleton } from '../components/PageSkeleton';
 import { ClubBadge } from '../components/Brand';
 import { Icon } from '../components/Icon';
 import { Toast } from '../components/Toast';
+import { ClubSettingsSection } from '../components/ClubSettingsSection';
 import { CLUB_STATES, EMPTY_CLUB_ADDRESS, formatClubCep, normalizeClubForm, validateClubForm,
   type ClubAddress, type ClubForm, type ClubFormErrors } from '../utils/clubProfile';
 import './ClubePerfil.css';
@@ -100,22 +101,14 @@ export default function ClubePerfil() {
     </header>
 
     <form ref={formRef} onSubmit={save} noValidate>
-      <section className="club-settings-section" aria-labelledby="club-identity-title">
-        <div className="club-settings-section-heading">
-          <Icon name="shield" size={21} />
-          <div><h2 id="club-identity-title">Identidade do clube</h2><p>Como o clube aparece nas partidas e nas outras telas.</p></div>
-        </div>
+      <ClubSettingsSection icon="shield" title="Identidade do clube" description="Como o clube aparece nas partidas e nas outras telas.">
         <div className="club-crest-editor">
           <ClubBadge src={data.escudo} name={data.nome} size={72}/>
           <div><strong>{data.nome}</strong><p className="club-settings-hint">Nome e escudo são gerenciados pela administração do Ludora.</p></div>
         </div>
-      </section>
+      </ClubSettingsSection>
 
-      <section className="club-settings-section" aria-labelledby="club-address-title">
-        <div className="club-settings-section-heading">
-          <Icon name="location" size={21} />
-          <div><h2 id="club-address-title">Sede e endereço <span>Opcional</span></h2><p>Cadastre a localização de referência do clube.</p></div>
-        </div>
+      <ClubSettingsSection icon="location" title="Sede e endereço" optional description="Cadastre a localização de referência do clube.">
         <p className="club-address-note"><Icon name="info" size={18} />A sede aparece como sugestão ao organizar partidas. O local de cada jogo pode ser diferente.</p>
         <fieldset disabled={busy} className="club-address-grid">
           <legend className="sr-only">Endereço da sede</legend>
@@ -140,7 +133,7 @@ export default function ClubePerfil() {
             placeholder="Ex.: bloco B, quadra 2" maxLength={160} readOnly={!editable} error={errors.complemento} onChange={event => updateAddress('complemento', event.target.value)} />
         </fieldset>
         <p className="club-settings-hint">{editable ? 'Se cadastrar a sede, preencha CEP, cidade, UF e logradouro.' : 'Somente administradores podem alterar os dados do clube.'}</p>
-      </section>
+      </ClubSettingsSection>
 
       {error && <div className="club-settings-save-error" role="alert"><Icon name="alert" size={18} /><p>{error}</p></div>}
       {editable && <footer className="club-settings-actions">

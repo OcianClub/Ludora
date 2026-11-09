@@ -41,6 +41,8 @@ test('Times web: API somente leitura e confrontos limitados ao clube atual', asy
   mock(prisma.time, 'findMany', async ({ where }) => where.categoria?.clube_id === 2 ? initial.filter(j => j.categoria_id !== 99) : []);
   mock(prisma.time, 'findFirst', async ({ where }) => initial.find(j => j.id === where.id));
   mock(prisma.clube, 'findUnique', async () => club);
+  mock(prisma, '$transaction', async callback => callback(prisma));
+  mock(prisma.tarefaCadastroClube, 'updateMany', async () => ({ count: 0 }));
   mock(prisma.clube, 'update', async args => { writes.push(args); return { ...club, ...args.data }; });
   for (const method of ['create', 'update', 'updateMany', 'delete']) mock(prisma.time, method, async args => { writes.push(args); throw Error('Uma escrita não deveria ocorrer'); });
   const games = [

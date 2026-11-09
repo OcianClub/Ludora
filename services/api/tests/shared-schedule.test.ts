@@ -30,11 +30,11 @@ function matches(row: any, where: any): boolean {
 
 test('propostas e agenda compartilhada: duas perspectivas, respostas e permissões', async t => {
   const categories = [
-    { id: 7, nome: 'SUB-7', faixaIdade: 0, tipo: 'INICIACAO', clube_id: 2 },
-    { id: 88, nome: 'sub-7', faixaIdade: 7, tipo: 'INICIACAO', clube_id: 3 },
-    { id: 89, nome: 'SUB-8', faixaIdade: 8, tipo: 'INICIACAO', clube_id: 3 },
+    { id: 7, nome: 'SUB-7', faixaIdade: 0, tipo: 'INICIACAO', ativa: true, clube_id: 2 },
+    { id: 88, nome: 'sub-7', faixaIdade: 7, tipo: 'INICIACAO', ativa: true, clube_id: 3 },
+    { id: 89, nome: 'SUB-8', faixaIdade: 8, tipo: 'INICIACAO', ativa: true, clube_id: 3 },
   ];
-  const clubs = [{ id: 2, nome: 'Ocian', escudo: null }, { id: 3, nome: 'Santos', escudo: null }];
+  const clubs = [{ id: 2, nome: 'Ocian', escudo: null, ativo: true }, { id: 3, nome: 'Santos', escudo: null, ativo: true }];
   const teams = [
     { id: 20, nome: 'Ocian SUB-7', categoria_id: 7, clube_representado_id: 2, arquivado: false, clubeRepresentado: clubs[0] },
     { id: 30, nome: 'Santos SUB-7', categoria_id: 7, clube_representado_id: 3, arquivado: false, clubeRepresentado: clubs[1] },
@@ -57,6 +57,8 @@ test('propostas e agenda compartilhada: duas perspectivas, respostas e permissõ
   replace(prisma.usuarioClube, 'findUnique', async () => member ? { papel: role, acesso_todas_categorias: false, categorias: allowed.map(id => ({ categoria_id: id })) } : null);
   replace(prisma.usuarioClube, 'findMany', async () => []);
   replace(prisma.dispositivoPush, 'findMany', async () => []);
+  replace(prisma.clube, 'count', async ({ where }: any) => clubs.filter(c => matches(c, where)).length);
+  replace(prisma.manutencao, 'findFirst', async () => null);
   replace(prisma.clube, 'findMany', async () => clubs);
   replace(prisma.notificacao, 'create', async ({ data }: any) => { notifications.push(data); return data; });
   replace(prisma.propostaPartida, 'findUnique', async ({ where }: any) => proposals.find(p => p.id === where.id) || null);

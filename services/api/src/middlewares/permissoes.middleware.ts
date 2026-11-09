@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { idPositivo } from '../utils/id';
 import { escopoPartidas } from '../modules/partidas/visibilidade';
 
+export const CLUBE_DESATIVADO = 'Clube desativado. A consulta e o histórico continuam disponíveis. Novas alterações estão bloqueadas.';
 const PAPEIS_GESTORES = ['ADMIN', 'TECNICO', 'MESARIO'] as const;
 
 /**
@@ -72,6 +73,7 @@ export async function exigirMembroDoClube(
           clube_id: clubeId,
         },
       },
+      include: { clube: { select: { ativo: true } } },
     })
     .then(vinculo => {
       if (!vinculo) {
@@ -80,6 +82,9 @@ export async function exigirMembroDoClube(
           .json({ error: 'Você não acompanha este clube' });
       }
 
+      if (vinculo.clube?.ativo === false && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+        return res.status(423).json({ error: CLUBE_DESATIVADO, code: 'CLUBE_DESATIVADO' });
+      }
       (req as any).usuarioId = usuarioId;
       (req as any).clubeId = clubeId;
       (req as any).papelUsuario = vinculo.papel;
@@ -115,6 +120,7 @@ export async function exigirGestorDoClube(
           clube_id: clubeId,
         },
       },
+      include: { clube: { select: { ativo: true } } },
     })
     .then(vinculo => {
       if (!vinculo) {
@@ -130,6 +136,9 @@ export async function exigirGestorDoClube(
         });
       }
 
+      if (vinculo.clube?.ativo === false && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+        return res.status(423).json({ error: CLUBE_DESATIVADO, code: 'CLUBE_DESATIVADO' });
+      }
       (req as any).usuarioId = usuarioId;
       (req as any).clubeId = clubeId;
       (req as any).papelUsuario = vinculo.papel;

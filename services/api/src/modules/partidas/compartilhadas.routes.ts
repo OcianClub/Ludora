@@ -1,3 +1,4 @@
+import { exigirOperacao, responderPausa } from '../manutencao/service';
 import { Router, type Request, type Response } from 'express';
 import type { Server } from 'socket.io';
 import { prisma } from '../../lib/prisma';
@@ -15,6 +16,7 @@ export function criarCompartilhadasRoutes(io: Server) {
   const tratar = (fn: (req: Request, res: Response) => Promise<unknown>) => async (req: Request, res: Response) => {
     try { req.body ??= {}; await fn(req, res); }
     catch (error) {
+      if (responderPausa(error, res)) return;
       if (error instanceof FluxoInvalido || error instanceof FalhaPaulista) return res.status(error.status).json({ error: error.message });
       console.error('Fluxo de partidas:', error instanceof Error ? error.message : error);
       res.status(500).json({ error: 'Não foi possível concluir a operação. Atualize e tente novamente.' });
@@ -110,8 +112,10 @@ export function criarCompartilhadasRoutes(io: Server) {
 
   router.post('/partidas', exigirGestorDoClube, tratar(async (req, res) => {
     const ctx = contexto(req);
+    await exigirOperacao(['CRIAR_PARTIDAS'], { clubes: [ctx.clubeId] });
     const resultado = await transacao(async tx => {
       const v = await validarDados(tx, ctx, req.body);
+      await exigirOperacao(['CRIAR_PARTIDAS'], { clubes: [ctx.clubeId, ...(v.destino ? [v.destino.clube_id] : [])] }, tx);
       const chave = await bloquearDuplicidade(tx, ctx.clubeId, v.destino?.clube_id || null, v.cat, v.dados);
       if (v.destino) return { solicitacao: await tx.propostaPartida.create({ data: {
         origem_id: ctx.clubeId, destino_id: v.destino.clube_id, respondente_id: v.destino.clube_id,
@@ -152,6 +156,8 @@ export function criarCompartilhadasRoutes(io: Server) {
       if (acao === 'ACEITAR') {
         const cat = await tx.categoria.findUniqueOrThrow({ where: { id: proposta.categoria_origem_id } });
         if (proposta.tipo === 'CRIACAO') {
+          exigir(await tx.clube.count({ where: { id: { in: [proposta.origem_id, proposta.destino_id] }, ativo: true } }) === 2, 'Um dos clubes está desativado.', 423);
+          await exigirOperacao(['CRIAR_PARTIDAS'], { clubes: [proposta.origem_id, proposta.destino_id] }, tx);
           await bloquearDuplicidade(tx, proposta.origem_id, proposta.destino_id, cat, dados, undefined, proposta.id);
           const originalCtx = { usuarioId: proposta.criado_por_id, clubeId: proposta.origem_id };
           const v = await validarDados(tx, originalCtx, dados, true);

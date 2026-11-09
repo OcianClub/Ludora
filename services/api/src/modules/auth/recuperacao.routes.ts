@@ -1,3 +1,4 @@
+import { iniciarRecuperacao } from '../../services/iniciar-recuperacao';
 import { Router } from 'express';
 import * as bcrypt from 'bcrypt';
 import type { Server } from 'socket.io';
@@ -12,12 +13,9 @@ import {
 } from '../../services/email-recuperacao';
 import {
   codigoRecuperacaoValido,
-  gerarCodigoRecuperacao,
   hashCodigoRecuperacao,
   hashesRecuperacaoIguais,
-  INTERVALO_REENVIO_MS,
   MAX_TENTATIVAS_RECUPERACAO,
-  VALIDADE_RECUPERACAO_MS,
 } from './recuperacao.utils';
 
 const MENSAGEM_ENVIO =
@@ -50,48 +48,7 @@ export function criarRecuperacaoRoutes(
       });
     }
 
-    const usuario = await banco.usuario.findUnique({
-      where: { email },
-      select: { id: true },
-    });
-    if (!usuario) return res.status(202).json({ mensagem: MENSAGEM_ENVIO });
-
-    const codigo = gerarCodigoRecuperacao();
-    const agora = new Date();
-    const dados = {
-      codigo_hash: hashCodigoRecuperacao(usuario.id, codigo, JWT_SECRET),
-      criado_em: agora,
-      expira_em: new Date(agora.getTime() + VALIDADE_RECUPERACAO_MS),
-      tentativas: 0,
-      usado_em: null,
-    };
-
-    const atualizacao = await banco.recuperacaoSenha.updateMany({
-      where: {
-        usuario_id: usuario.id,
-        criado_em: { lte: new Date(agora.getTime() - INTERVALO_REENVIO_MS) },
-      },
-      data: dados,
-    });
-    const criacao = atualizacao.count
-      ? null
-      : await banco.recuperacaoSenha.createMany({
-          data: { usuario_id: usuario.id, ...dados },
-          skipDuplicates: true,
-        });
-
-    if (atualizacao.count || criacao?.count) {
-      try {
-        await enviarEmail(email, codigo);
-      } catch {
-        await banco.recuperacaoSenha.deleteMany({
-          where: { usuario_id: usuario.id, codigo_hash: dados.codigo_hash },
-        });
-        console.error(
-          'Não foi possível enviar um e-mail de recuperação de senha.'
-        );
-      }
-    }
+    await iniciarRecuperacao(email, banco, enviarEmail);
     return res.status(202).json({ mensagem: MENSAGEM_ENVIO });
   });
 

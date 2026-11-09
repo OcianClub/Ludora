@@ -4,7 +4,7 @@ const { categoriaPorNascimento, planejarTemporada, anoTemporada } = require('../
 const { salvarAluno, transacaoElenco, atualizarTemporada } = require('../dist/src/modules/jogadores/elenco.service.js');
 const { prisma } = require('../dist/src/lib/prisma.js');
 const agora = new Date('2026-10-18T15:00:00Z');
-const categorias = [{ id: 12, nome: 'sub-12', clube_id: 1 }, { id: 14, nome: 'sub-14', clube_id: 1 }, { id: 18, nome: 'sub-18', clube_id: 1 }];
+const categorias = [{ ativa: true, id: 12, nome: 'sub-12', clube_id: 1 }, { ativa: true, id: 14, nome: 'sub-14', clube_id: 1 }, { ativa: true, id: 18, nome: 'sub-18', clube_id: 1 }];
 const aluno = (id, ano, categoria_id, numCamisa, ativo = true) => ({ id, dtNasc: new Date(`${ano}-12-20T00:00:00Z`), categoria_id, numCamisa, ativo });
 
 test('usa ano da temporada, inclusive aniversário futuro, limites e data inválida', () => {

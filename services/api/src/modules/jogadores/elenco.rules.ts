@@ -17,13 +17,13 @@ export function categoriaPorNascimento(valor: string, agora = new Date()): strin
 }
 
 type Aluno = { id: number; dtNasc: Date; categoria_id: number; numCamisa: number | null; ativo: boolean };
-type Categoria = { id: number; nome: string };
+type Categoria = { id: number; nome: string; ativa?: boolean };
 export function planejarTemporada(alunos: Aluno[], categorias: Categoria[], agora = new Date()) {
   const planos = alunos.filter(a => a.ativo).map(aluno => {
     const nome = categoriaPorNascimento(aluno.dtNasc.toISOString().slice(0, 10), agora);
     const destino = nome ? categorias.find(c => c.nome.toLowerCase() === nome) : null;
     if (nome && !destino) throw new Error(`Categoria ${nome} não cadastrada no clube`);
-    return { aluno, destino: destino?.id ?? null };
+    return { aluno, destino: destino?.ativa === false ? aluno.categoria_id : destino?.id ?? null };
   });
   // Quem permanece na categoria tem prioridade. Entre transferidos, menor ID primeiro.
   planos.sort((a, b) => Number(a.destino !== a.aluno.categoria_id) - Number(b.destino !== b.aluno.categoria_id) || a.aluno.id - b.aluno.id);

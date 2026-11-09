@@ -1,6 +1,6 @@
 import { Router, type Response } from 'express';
 import type { Prisma } from '@prisma/client';
-import { salvarAluno, ErroElenco, categoriaCalculada, atualizarTemporada } from './elenco.service';
+import { salvarAluno, removerAluno, ErroElenco, categoriaCalculada, atualizarTemporada } from './elenco.service';
 import { anoTemporada } from './elenco.rules';
 
 import { prisma } from '../../lib/prisma';
@@ -206,17 +206,8 @@ router.patch('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async 
 
 router.delete('/jogadores/:id', exigirGestorDoClube, exigirJogadorDoClube, async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const aoVivo = await prisma.escalacaoPartida.count({ where: { jogador_id: id, partida: { status: 'AO_VIVO' } } });
-    if (aoVivo) return res.status(409).json({ error: 'Este atleta está em uma partida ao vivo. Finalize a partida antes de desativá-lo.' });
-    const historico = await prisma.escalacaoPartida.count({ where: { jogador_id: id } }) + await prisma.evento.count({ where: { jogador_id: id } });
-    if (historico) {
-      await prisma.jogador.update({ where: { id }, data: { ativo: false } });
-      return res.json({ mensagem: 'Atleta desativado. Escalações, eventos e histórico foram preservados.' });
-    }
-    await prisma.jogador.delete({ where: { id } });
-    res.json({ mensagem: 'Excluído com sucesso' });
-  } catch { res.status(500).json({ error: 'Não foi possível excluir o jogador. Tente novamente.' }); }
+    res.json(await removerAluno((req as any).clubeId, (req as any).usuarioId, Number(req.params.id)));
+  } catch (erro) { responderErro(res, erro); }
 });
 
 // ==========================================

@@ -41,7 +41,7 @@ function escolherHostLan(interfaces, ambiente = {}) {
     if (candidatos.some(item => item.endereco === apiHost)) return apiHost;
   } catch {}
   const prioridade = item =>
-    (/vpn|radmin|hamachi|vethernet|virtual|wsl|docker|hyper-v|^tun|^tap/i.test(item.nome) ? 100 : 0) +
+    (/vpn|radmin|hamachi|vethernet|virtual|wsl|docker|hyper-v|^tun|^tap/i.test(item.nome) ? 100 : /^wi-?fi\b|wireless|wlan/i.test(item.nome) ? -10 : 0) +
     (item.endereco.startsWith('192.168.') ? 0 : item.endereco.startsWith('10.') ? 1 : /^172\.(1[6-9]|2\d|3[01])\./.test(item.endereco) ? 2 : 3);
   candidatos.sort((a, b) => prioridade(a) - prioridade(b));
   return candidatos[0]?.endereco;
@@ -128,8 +128,14 @@ async function main() {
       const { parseProjectEnv } = require(require.resolve('@expo/env', { paths: [expoRoot] }));
       projeto = parseProjectEnv(cwd, { mode: 'development', silent: true }).env;
     } catch {}
-    const host = escolherHostLan(os.networkInterfaces(), { ...projeto, ...env });
+    const ambienteLan = { ...projeto, ...env };
+    if (env.LUDORA_API_PORT_LOCAL) delete ambienteLan.EXPO_PUBLIC_API_URL;
+    const host = escolherHostLan(os.networkInterfaces(), ambienteLan);
     if (host) env.REACT_NATIVE_PACKAGER_HOSTNAME = host;
+  }
+  if (env.LUDORA_API_PORT_LOCAL) {
+    const host = lan && env.REACT_NATIVE_PACKAGER_HOSTNAME || '127.0.0.1';
+    env.EXPO_PUBLIC_API_URL = `http://${host}:${env.LUDORA_API_PORT_LOCAL}`;
   }
   const encerramento = new AbortController();
   const child = spawn(

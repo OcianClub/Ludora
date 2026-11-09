@@ -1,8 +1,7 @@
 /* Complementos do desktop. Só usa tokens do tema (theme.ts / design-tokens):
    tudo o que é base visual vem dos CSS do web. */
 
-.admin-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--primaria);
-  background: var(--fundo-botao); border: 1px solid var(--borda-botao); border-radius: 999px; padding: 6px 12px; }
+.admin-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--texto-sec); }
 
 .rt-pill { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--texto-sec);
   border: 1px solid var(--borda); border-radius: 999px; padding: 6px 12px; background: var(--fundo-card); }
@@ -17,9 +16,8 @@
 .linha-clube small, .achado small { color: var(--texto-sec); font-size: 11px; }
 .linha-clube:hover strong { color: var(--primaria); }
 .plano-tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .8px; padding: 2px 8px; border-radius: 4px;
-  color: var(--primaria); background: var(--fundo-botao); border: 1px solid var(--borda-botao); }
+  color: var(--texto-sec); background: var(--fundo-card-sec); }
 
-.notice-ok { padding: 12px 16px; margin-bottom: 16px; border-radius: 8px; color: var(--primaria); background: var(--fundo-botao); border: 1px solid var(--borda-botao); }
 .dica { font-size: 12px; color: var(--texto-sec); }
 .voltar { display: inline-block; margin-bottom: 14px; font-size: 13px; color: var(--texto-sec); }
 .voltar:hover { color: var(--primaria); }
@@ -139,6 +137,9 @@
 .admin-club-onboarding li > span:not(.icon) { flex: 1; overflow-wrap: anywhere; }
 .admin-club-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 0 0 18px; }
 .admin-club-metrics dd { font-family: var(--font-titulo); font-size: 24px; }
+.admin-club-metrics > div { text-align: center; }
+.club-roster { margin-block: 18px; }
+.club-shell-choice { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .admin-environment {
   padding: 5px 9px;
   border-radius: 6px;
@@ -258,9 +259,262 @@
 .paulista-comparison { border: 1px solid var(--borda); border-radius: 6px; overflow: hidden; }
 .paulista-comparison > div { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; padding: 12px; border-bottom: 1px solid var(--borda); }
 .paulista-comparison > div:last-child { border-bottom: 0; }
-.paulista-comparison .comparison-head { background: var(--fundo-botao); font-size: 12px; }
+.paulista-comparison .comparison-head { background: var(--fundo-card-sec); font-size: 12px; }
 .paulista-audit { border-bottom: 1px solid var(--borda); padding: 12px 0; }
 .paulista-audit summary { cursor: pointer; }
 .paulista-audit dl { display: grid; gap: 12px; }
 .paulista-audit dt { color: var(--texto-sec); font-size: 12px; }
 .paulista-audit dd { margin: 5px 0 0; }
+
+.equipe-page { display: grid; gap: 20px; }
+.equipe-atalhos, .equipe-diagnostico { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 225px), 1fr)); gap: 12px; }
+.equipe-diagnostico { margin-top: 20px; }
+.equipe-diagnostico > div { padding: 12px 0; border-top: 1px solid var(--linha); }
+.equipe-diagnostico-heading { flex-wrap: wrap; }
+.equipe-diagnostico-heading .section-title { margin: 0; }
+.ticket-card.equipe-atalho { grid-template-columns: 40px minmax(0, 1fr) 16px; }
+.equipe-diagnostico dt { color: var(--texto-sec); font-size: 13px; margin-bottom: 8px; }
+.equipe-diagnostico dd { margin: 0; font-weight: 600; }
+.option-tiles { min-width: 0; padding: 0; margin: 0; border: 0; }
+.option-tiles legend { padding: 0; margin-bottom: 9px; font-size: 15px; font-weight: 650; color: var(--texto); }
+.option-tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 8px; }
+.option-tile-grid-scroll { max-height: 230px; overflow: auto; padding: 2px; }
+.option-tile { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 9px 12px; cursor: pointer; border: 1px solid transparent; border-radius: 8px; color: var(--texto-sec); background: var(--fundo); text-align: center; transition: background-color 150ms ease, color 150ms ease, transform 150ms ease; }
+.option-tile:hover { background: var(--fundo-card-sec); color: var(--texto); }
+.option-tile:has(input:checked) { background: var(--primaria); color: #fff; }
+.option-tile:has(.club-badge) { justify-content: flex-start; text-align: left; }
+.option-tile:not(:has(input:disabled)):active { transform: scale(.98); }
+.option-tile:has(input:focus-visible) { outline: 2px solid var(--primaria); outline-offset: -2px; }
+.option-tile:has(input:checked:focus-visible) { outline-color: #fff; }
+.option-tile input { position: absolute; inset: 0 auto auto 0; clip-path: inset(50%); pointer-events: none; width: 1px; height: 1px; }
+.option-tile-copy { min-width: 0; display: grid; gap: 3px; font-size: 14px; font-weight: 550; overflow-wrap: anywhere; }
+.option-tile-copy small { opacity: .85; }
+@media (prefers-reduced-motion: reduce) { .option-tile { transition: none; } .option-tile:active { transform: none; } }
+.option-tiles:disabled { opacity: .65; }
+.option-tiles:disabled .option-tile { cursor: default; }
+.chamado-manual-form { display: grid; gap: 20px; }
+.modal.chamado-manual-dialog { width: min(680px, calc(100vw - 24px)); max-width: 680px; }
+.chamado-manual-dialog .modal-footer { padding: 12px 20px; border-top: 1px solid var(--linha); }
+.modal.desktop-issue-dialog { width: min(950px, calc(100vw - 28px)); max-width: 950px; }
+.desktop-issue-dialog .chamado-manual-form { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.desktop-issue-dialog .full { grid-column: 1 / -1; }
+.desktop-issue-section { display: grid; gap: 14px; padding: 15px; border: 1px solid var(--linha); border-radius: 9px; }
+.desktop-issue-section h3 { font-size: 16px; }
+.desktop-issue-section .field-input { background: var(--fundo); }
+.desktop-issue-section .option-tile-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 106px), 1fr)); }
+@media (max-width: 700px) { .desktop-issue-dialog .chamado-manual-form { grid-template-columns: minmax(0, 1fr); } }
+.chamado-manual-clube { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.chamado-manual-clube > div { display: grid; gap: 4px; }
+.chamado-manual-clube span { font-size: 13px; color: var(--texto-sec); }
+
+.support-operations { margin-block: 20px; padding-block: 16px; border-block: 1px solid var(--border); }
+.support-operations details { padding-block: 12px; }
+.support-operations summary { cursor: pointer; font-weight: 600; color: var(--text); }
+.support-operations details > * + * { margin-top: 12px; }
+
+/* Fila operacional com os controles de coleção usados na agenda web. */
+.ticket-page { min-width: 0; }
+.ticket-page .page-header { margin-bottom: 20px; }
+.ticket-kicker { display: block; color: var(--primaria); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; }
+.ticket-page .ticket-toolbar.schedule-filter-primary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 240px) auto; margin-bottom: 12px; }
+.ticket-count { margin-block: 20px 10px; color: var(--texto-sec); font-size: 12px; }
+.ticket-day { display: grid; gap: 8px; margin-block: 18px 24px; }
+.ticket-day h2 { border-left: 2px solid var(--primaria); padding-left: 9px; margin-bottom: 3px; font: 600 12px var(--font-corpo); text-transform: uppercase; }
+.ticket-card { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto 18px; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--linha); border-radius: 9px; background: var(--fundo-card); color: var(--texto); text-align: left; }
+.ticket-card:hover { background: var(--fundo-card-sec); }
+.ticket-card:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
+.ticket-card-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 7px; background: var(--fundo-card-sec); color: var(--texto-sec); }
+.ticket-card-copy { min-width: 0; display: grid; gap: 4px; }
+.ticket-card-copy strong { font-size: 14px; overflow-wrap: anywhere; }
+.ticket-card small, .ticket-card time { color: var(--texto-sec); font-size: 11px; }
+.ticket-card-meta { display: grid; gap: 5px; justify-items: end; }
+.ticket-status { padding: 3px 7px; border-radius: 5px; background: var(--fundo-card-sec); color: var(--texto); font-size: 11px; font-weight: 600; }
+.ticket-status[data-high="true"] { background: var(--fundo-erro); color: var(--titulo-erro); }
+.ticket-back { margin-bottom: 12px; }
+.ticket-detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 300px); align-items: start; gap: 16px; }
+.ticket-detail-main { display: grid; gap: 12px; min-width: 0; }
+.ticket-section { display: grid; gap: 10px; overflow-wrap: anywhere; }
+.ticket-section h2 { margin: 0; font: 600 19px var(--font-titulo); }
+.ticket-section :is(p, small) { margin: 0; color: var(--texto-sec); }
+.ticket-section h3 { font-size: 14px; }
+.ticket-section textarea { width: 100%; resize: vertical; }
+.ticket-section summary { cursor: pointer; color: var(--texto); font-weight: 600; }
+.ticket-action-fields { display: grid; gap: 8px; margin-top: 10px; }
+.ticket-history article { border-top: 1px solid var(--linha); padding-top: 10px; }
+.ticket-history article p { margin-top: 5px; }
+.ticket-section .support-operations { margin: 0; padding: 0; border: 0; }
+.ticket-section .support-operations > h3 { margin: 0 0 8px; font: 600 19px var(--font-titulo); }
+@media (max-width: 1050px) { .ticket-detail { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) {
+  .ticket-page .ticket-toolbar.schedule-filter-primary { grid-template-columns: minmax(0, 1fr) auto; }
+  .ticket-toolbar .collection-search { grid-column: 1 / -1; }
+  .ticket-card { grid-template-columns: 34px minmax(0, 1fr) 16px; }
+  .ticket-card-icon { width: 34px; height: 34px; }
+  .ticket-card-meta { grid-column: 2; justify-items: start; display: flex; align-items: center; }
+  .ticket-card > svg:last-child, .ticket-card > .icon:last-child { grid-column: 3; grid-row: 1; }
+}
+
+.club-toolbar.schedule-filter-primary { grid-template-columns: minmax(0, 1fr) minmax(165px, 230px); }
+.club-directory { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); }
+.club-directory-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--linha); border-radius: 9px; background: var(--fundo-card); color: var(--texto); }
+.club-directory-card:hover { background: var(--fundo-card-sec); }
+.club-directory-meta { grid-column: 1 / -1; padding-top: 8px; border-top: 1px solid var(--linha); color: var(--texto-sec); font-size: 12px; }
+.club-address, .club-subs { min-width: 0; padding: 12px; border: 1px solid var(--linha); border-radius: 8px; }
+.club-address legend, .club-subs legend { padding-inline: 5px; font-weight: 600; }
+.club-cep { display: flex; gap: 8px; align-items: end; }
+.club-cep .field { flex: 1; min-width: 0; }
+.club-crest { display: flex; align-items: center; gap: 14px; padding: 12px; border: 1px solid var(--linha); border-radius: 8px; }
+.club-crest p { margin: 5px 0; }
+.club-subs > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.club-subs button { min-height: 38px; padding: 6px 11px; border: 1px solid var(--linha); border-radius: 7px; background: var(--fundo-card); color: var(--texto-sec); }
+.club-subs button[aria-pressed="true"] { background: var(--primaria); color: white; border-color: var(--primaria); }
+.club-category-list { display: grid; gap: 8px; margin-bottom: 16px; }
+.club-category-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; border: 1px solid var(--linha); border-radius: 8px; background: var(--fundo); padding: 10px; }
+.club-category-row small { display: block; color: var(--texto-sec); }
+
+.club-address .club-cep { flex-wrap: wrap; }
+.club-address .club-cep .field { min-width: 105px; }
+.club-create-dialog .modal-footer { padding: 12px 20px; border-top: 1px solid var(--linha); }
+.user-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-bottom: 10px; }
+.user-directory { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 10px; }
+.user-directory[data-view="list"] { grid-template-columns: minmax(0, 1fr); }
+.user-directory[data-view="grid"] { grid-template-columns: repeat(auto-fill, minmax(min(100%, 430px), 1fr)); }
+.user-inline-filters { display: grid; gap: 15px; padding: 14px; margin-block: 12px; border: 1px solid var(--linha); border-radius: 8px; }
+.user-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.user-list-heading .ticket-count { margin: 0; }
+.user-role { display: inline-flex; align-items: center; gap: 5px; color: var(--texto-sec); font-size: 11px; white-space: nowrap; }
+.user-role::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.user-role[data-role="SUPERADMIN"], .user-role[data-role="ADMIN"] { color: var(--primaria); }
+.user-role[data-role="TECNICO"], .user-role[data-role="SUPORTE"] { color: var(--amarelo); }
+.user-club-links > span { flex-wrap: nowrap; }
+.user-club-links > span > small { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.user-account-state { color: var(--texto-sec); }
+.user-active-dot { width: 8px; height: 8px; margin-inline: 4.5px; border-radius: 50%; background: currentColor; }
+.user-membership { display: grid; grid-template-columns: minmax(0, 1fr) minmax(95px, .48fr) auto auto; gap: 8px; align-items: center; padding-block: 8px; border-bottom: 1px solid var(--linha); }
+.user-membership > strong { overflow-wrap: anywhere; }
+.user-membership-head { color: var(--texto-sec); font-size: 12px; }
+.modal.user-details-dialog { width: min(760px, calc(100vw - 28px)); max-width: 760px; }
+.user-details-dialog .modal-title { font-size: 22px; }
+.user-email-line { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.user-email-line p { overflow-wrap: anywhere; }
+.desktop-icon-action { display: inline-grid; place-items: center; flex: none; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--texto-sec); }
+.desktop-icon-action:hover { color: var(--texto); background: var(--fundo-card-sec); }
+.desktop-icon-action:focus-visible { outline: 2px solid var(--primaria); outline-offset: -2px; }
+.desktop-icon-action--danger { color: var(--titulo-erro); }
+.desktop-icon-action--danger:hover { color: var(--titulo-erro); }
+.desktop-icon-action--danger:hover { background: transparent; }
+.desktop-club-settings { display: grid; gap: 16px; min-width: 0; }
+.desktop-club-settings > form { margin: 0; }
+.desktop-club-settings .club-settings-section { padding: 20px; }
+.desktop-club-settings .club-settings-section-heading { margin-bottom: 16px; }
+.desktop-club-settings .admin-club-metrics { margin-bottom: 0; }
+.desktop-club-settings .admin-club-metrics > div { background: var(--fundo); border-color: var(--linha); }
+.desktop-club-settings .admin-club-metrics dt { font-size: 12px; }
+.desktop-club-settings .admin-club-metrics dd { font-size: 30px; }
+.club-settings-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 14px 0 0; }
+.club-settings-facts > div { padding: 11px 13px; border: 1px solid var(--linha); border-radius: 8px; background: var(--fundo); }
+.club-settings-facts .full { grid-column: 1 / -1; }
+.club-settings-facts dt { color: var(--texto-sec); font-size: 12px; }
+.club-settings-facts dd { margin: 5px 0 0; font-weight: 550; overflow-wrap: anywhere; }
+.desktop-club-settings .club-address-state .filter-select { min-width: 0; }
+.modal.club-create-dialog { width: min(740px, calc(100vw - 28px)); max-width: 740px; }
+.modal.club-shell-dialog { width: min(820px, calc(100vw - 28px)); max-width: 820px; }
+.club-shell-dialog .modal-footer { padding: 12px 20px; border-top: 1px solid var(--linha); }
+.club-shell-dialog .club-settings-section { padding: 16px 18px; }
+.club-shell-dialog .club-settings-section-heading { margin-bottom: 14px; }
+.club-shell-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 265px), 1fr)); gap: 10px; }
+.club-shell-grid .ticket-card { grid-template-columns: 40px minmax(0, 1fr) 17px; }
+.club-shell-identity { display: flex; align-items: center; gap: 14px; }
+.club-shell-identity ul { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; list-style: none; }
+.club-shell-identity li { border-radius: 6px; background: var(--fundo); color: var(--texto); padding: 7px 10px; font-size: 12px; }
+.club-shell-matches { list-style: none; padding: 0; }
+.club-shell-matches li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--linha); }
+.club-shell-matches li:last-child { border-bottom: 0; }
+.club-shell-matches small { display: block; margin-top: 3px; color: var(--texto-sec); }
+.club-sub-choices { display: grid; gap: 13px; }
+.club-sub-group { border: 0; margin: 0; padding: 0; min-width: 0; }
+.club-sub-group legend { font-size: 13px; color: var(--texto-sec); margin-bottom: 8px; }
+.club-sub-group > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.club-sub-group button { min-height: 38px; padding: 6px; border: 1px solid var(--linha); border-radius: 8px; color: var(--texto-sec); background: var(--fundo); white-space: nowrap; font-size: 13px; font-weight: 600; transition: background-color 150ms, color 150ms; }
+.club-sub-group button[aria-pressed="true"] { background: var(--primaria); border-color: var(--primaria); color: white; }
+.club-sub-group button:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
+.desktop-club-structure .home-controls { position: static; justify-content: center; margin-block: 8px 14px; }
+.desktop-club-structure .home-category-picker { flex: 0 1 auto; border-left: 0; padding-left: 0; }
+.desktop-club-structure .home-controls .home-sub-strip button { text-align: center; min-width: 75px; }
+.desktop-club-structure > .club-cep { margin-top: 16px; justify-content: flex-end; }
+.desktop-roster-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 16px; }
+.desktop-roster-heading h2 { font-family: var(--font-titulo); font-size: 22px; }
+.desktop-roster-heading p { color: var(--texto-sec); font-size: 12px; }
+.desktop-club-roster .alunos-identity { display: flex; align-items: center; gap: 10px; }
+.desktop-club-roster .alunos-identity .player-portrait { width: 36px; height: 36px; border-radius: 8px; }
+.desktop-club-roster .alunos-identity small { display: block; color: var(--texto-sec); }
+.desktop-club-roster .desktop-link-button, .desktop-player-profile .player-back { border: 0; padding: 0; background: transparent; text-align: left; }
+.desktop-club-roster .student-open { border: 0; }
+.desktop-overview-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; margin: 0 0 22px; }
+.desktop-overview-metrics > div { padding: 15px; border-radius: 10px; border: 1px solid var(--linha); background: var(--fundo-card); text-align: center; }
+.desktop-overview-metrics dt { display: flex; align-items: center; justify-content: center; gap: 7px; color: var(--texto-sec); font-size: 12px; }
+.desktop-overview-metrics dd { margin: 8px 0 0; font-family: var(--font-titulo); font-size: 30px; color: var(--texto); }
+.desktop-overview-clubs { margin-top: 15px; }
+.desktop-overview-clubs .club-directory-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; text-align: center; margin: 0; }
+.desktop-overview-clubs .club-directory-meta dd { margin: 4px 0 0; color: var(--texto); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .club-sub-group button { transition: none; } }
+@media (max-width: 760px) {
+  .desktop-club-structure .home-controls .home-sub-strip button { min-width: 60px; }
+  .desktop-club-settings .club-settings-section { padding: 15px; }
+  .desktop-club-settings .club-settings-section-heading { flex-wrap: wrap; }
+}
+.user-add-club { justify-self: start; color: var(--primaria); }
+.paulista-follow[data-inativa="true"] strong { color: var(--texto-sec); }
+.btn.btn-danger-solid { background: #b91c38; border-color: transparent; color: #fff; }
+.btn.btn-danger-solid:hover { background: #9f1730; }
+.user-directory .ticket-card-copy small { overflow-wrap: anywhere; }
+.ticket-card.user-account-row { grid-template-columns: 40px minmax(0, 1.2fr) minmax(0, 1fr) auto 18px; }
+.user-platform-role, .user-account-state { display: inline-flex; align-items: center; gap: 5px; color: var(--texto-sec); font-size: 11px; }
+.user-platform-role { margin-top: 3px; }
+.user-account-state[data-suspensa="true"] { color: var(--titulo-erro); }
+.user-club-links { display: grid; gap: 5px; }
+.user-club-links > span { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.user-column-head { display: none; }
+@media (min-width: 761px) {
+  .user-directory[data-view="list"] { --user-columns: 40px minmax(0, 1.55fr) minmax(0, 1fr) minmax(90px, .65fr) 20px 18px; }
+  .user-directory[data-view="list"] .user-account-row, .user-column-head { grid-template-columns: var(--user-columns); }
+  .user-column-head { display: grid; padding: 0 14px; gap: 12px; color: var(--texto-sec); font-size: 12px; }
+  .user-column-head > :first-child { grid-column: 2; }
+  .user-directory[data-view="list"] .user-club-links { grid-column: 3 / 5; grid-template-columns: subgrid; column-gap: normal; }
+  .user-directory[data-view="list"] .user-club-links > span { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; column-gap: normal; }
+}
+.paulista-club-card, .paulista-divergencia { border: 1px solid var(--linha); border-radius: 9px; background: var(--fundo-card); }
+.paulista-club-card > summary { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; list-style: none; border-radius: 8px; }
+.paulista-club-card > summary::-webkit-details-marker { display: none; }
+.paulista-club-card > summary:hover { background: var(--fundo-card-sec); }
+.paulista-club-card > summary:focus-visible { outline: 2px solid var(--primaria); outline-offset: -2px; }
+.paulista-club-card > summary > .ticket-card-copy { flex: 1; }
+.paulista-club-card > summary > .club-badge { flex: none; border: 0; background: var(--fundo-card-sec); color: var(--texto-sec); }
+.paulista-club-card small { color: var(--texto-sec); font-size: 11px; }
+.paulista-club-card[open] > summary > .icon:last-child, .paulista-divergencia > button[aria-expanded="true"] > .icon:last-child { transform: rotate(90deg); }
+.paulista-club-content, .paulista-divergencia-body { display: grid; gap: 10px; padding: 14px; border-top: 1px solid var(--linha); }
+.paulista-divergencia > button { width: 100%; border: 0; }
+.paulista-divergencia-body { font-size: 13px; }
+.paulista-follow { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid var(--linha); }
+.paulista-follow p, .paulista-more-alerts { color: var(--texto-sec); font-size: 12px; }
+.paulista-more-alerts > summary { padding: 8px 0; cursor: pointer; }
+.paulista-source-icon { display: grid; place-items: center; width: 44px; height: 44px; color: var(--primaria); border-radius: 8px; }
+.paulista-source-icon:hover { background: var(--fundo-card-sec); }
+.paulista-score-review { display: grid; gap: 8px; }
+.paulista-score-review-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: center; border: 1px solid var(--linha); padding: 12px; border-radius: 8px; text-align: center; }
+.paulista-score-review-row > strong { grid-column: 1 / -1; color: var(--texto-sec); font-size: 12px; }
+.paulista-score-review-row > span { display: grid; gap: 5px; justify-items: center; overflow-wrap: anywhere; }
+.paulista-score-review-row > b { font: 600 25px var(--font-titulo); }
+@media (max-width: 900px) {
+  .ticket-card.user-account-row { grid-template-columns: 34px minmax(0, 1fr) auto 16px; }
+  .user-account-row .user-account-state { grid-column: 3; grid-row: 1; }
+  .user-account-row .user-club-links { grid-column: 2 / span 2; }
+  .user-account-row > svg:last-child, .user-account-row > .icon:last-child { grid-column: 4; grid-row: 1; }
+}
+.paulista-health { grid-template-columns: minmax(0, 1fr) auto; align-items: center; margin-bottom: 12px; }
+.paulista-health > p { grid-column: 1 / -1; }
+.paulista-admin button.club-directory-card { text-align: left; }
+
+.ticket-page .ticket-back { width: max-content; justify-self: start; }
+.schedule-review-dialog .modal-footer { padding: 12px 20px; border-top: 1px solid var(--linha); }
+.ticket-section .actions a.btn { padding: 8px 13px; }

@@ -26,6 +26,8 @@ test('identidades privilegiadas não podem ser adotadas sem confirmação de e-m
     target[key] = value;
     t.after(() => { target[key] = previous; });
   }
+  replace(prisma.clube, 'count', async () => 0);
+  replace(prisma.manutencao, 'findFirst', async () => null);
   replace(prisma.usuario, 'findUnique', async ({ where }: any) =>
     where.id ? { id: 1, email: currentEmail, versao_sessao: 0 } : null
   );

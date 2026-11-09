@@ -24,24 +24,32 @@ export function WorkspaceAccess({ children }: { children: ReactNode }) {
   const { clube } = useAuth();
   const { pathname } = useLocation();
   if (!clube && pathname !== '/perfil' && !/^\/partidas\/\d+$/.test(pathname)) return <Navigate to="/selecionar-clube" replace />;
+  if (clube?.ativo === false && pathname !== '/perfil' && !/^\/partidas\/\d+$/.test(pathname)) return <ClubeIndisponivel />;
   return <>{children}</>;
+}
+function ClubeIndisponivel() {
+  return <div className="public-access-state"><Icon name="shield" size={28}/><h2>Clube indisponível</h2><p>Este clube está temporariamente fora de acesso.</p><Link className="btn btn-ghost" to="/selecionar-clube">Voltar aos clubes</Link></div>;
 }
 export function PublicClubEntry() {
   const { clubeId } = useParams();
   const { token, definirClube } = useAuth();
   const [ready, setReady] = useState('');
+  const [indisponivel, setIndisponivel] = useState('');
   const [error, setError] = useState('');
   useEffect(() => {
     let active = true; setError('');
     (async () => {
       const club = await requestJson<Clube>(`/publico/clubes/${clubeId}`);
+      if (club.ativo === false) { if (active) { setReady(''); setIndisponivel(clubeId!); } return; }
       const personalized = token ? await fetchClubes().catch(() => []) : [];
       if (!active) return;
+      setIndisponivel('');
       definirClube(personalized.find(c => c.id === club.id) || club); setReady(clubeId!);
     })().catch(() => { if (active) setError('Não foi possível abrir este clube. Verifique o endereço e tente novamente.'); });
     return () => { active = false; };
   }, [clubeId, token, definirClube]);
   if (error) return <div className="public-access-state" role="alert"><p>{error}</p><Link to="/selecionar-clube">Voltar aos clubes</Link></div>;
+  if (indisponivel === clubeId) return <ClubeIndisponivel />;
   return ready === clubeId ? <Layout key={clubeId}/> : <div className="public-access-state" role="status">Abrindo clube…</div>;
 }
 export function PublicMatchEntry({ children }: { children: ReactNode }) {

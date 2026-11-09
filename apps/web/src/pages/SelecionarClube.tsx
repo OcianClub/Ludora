@@ -47,6 +47,7 @@ export default function SelecionarClubePage() {
   }, [tentativa, token]);
 
   function selecionar(clube: Clube) {
+    if (clube.ativo === false) return;
     definirClube(clube);
     navigate(`/clubes/${clube.id}`);
   }
@@ -115,17 +116,17 @@ export default function SelecionarClubePage() {
     const detalhes = cargo ? contextoAcesso(clube)
       : [local, typeof clube.seguidores === 'number' ? `${clube.seguidores} ${clube.seguidores === 1 ? 'seguidor' : 'seguidores'}` : ''].filter(Boolean).join(' · ');
     return <article className="club-picker-card" key={clube.id} data-club-id={clube.id}>
-      <button className="club-picker-main" type="button" onClick={() => selecionar(clube)} aria-label={`Acessar ${clube.nome}`} />
+      <button className="club-picker-main" type="button" disabled={clube.ativo === false} onClick={() => selecionar(clube)} aria-label={`Acessar ${clube.nome}`} />
       <ClubBadge src={clube.escudo} name={clube.nome} size={48}/>
       <div className="club-picker-info">
         <div className="club-picker-name"><strong>{clube.nome}</strong>{clube.id === clubeAtual?.id && <span className="club-picker-current">Atual</span>}</div>
-        {detalhes && <span className="club-picker-details">{detalhes}</span>}
+        {clube.ativo === false ? <span className="club-picker-details">Indisponível</span> : detalhes && <span className="club-picker-details">{detalhes}</span>}
         {cargo && papel && <div className="club-picker-tags">
           {cargo && papel && <span className={`club-picker-role role-${clube.meuPapel?.toLowerCase()}`}><Icon name={papel.icon} size={13}/>{papel.label}</span>}
         </div>}
       </div>
-      <span className="club-picker-chevron"><Icon name="chevronRight" size={18}/></span>
-      {!cargo && (descoberta ? <button type="button" className={`club-picker-follow${vinculado ? ' is-following' : ''}`} onClick={() => vinculado ? solicitarSaida(clube) : void acompanhar(clube)} disabled={seguindoId !== null} aria-label={`${vinculado ? 'Deixar de seguir' : 'Seguir'} ${clube.nome}`}>
+      {clube.ativo !== false && <span className="club-picker-chevron"><Icon name="chevronRight" size={18}/></span>}
+      {!cargo && (descoberta ? <button type="button" className={`club-picker-follow${vinculado ? ' is-following' : ''}`} onClick={() => vinculado ? solicitarSaida(clube) : void acompanhar(clube)} disabled={seguindoId !== null || (!vinculado && clube.ativo === false)} aria-label={`${vinculado ? 'Deixar de seguir' : 'Seguir'} ${clube.nome}`}>
         {seguindoId === clube.id ? 'Aguarde…' : vinculado ? <>Seguindo <Icon name="checkAll" size={14}/></> : 'Seguir'}
       </button> : <button type="button" className="club-picker-favorite" aria-pressed={vinculado} aria-label={`Deixar de seguir ${clube.nome}`} onClick={() => solicitarSaida(clube)} disabled={seguindoId !== null}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg>

@@ -144,7 +144,7 @@ const CartaoClube = memo(function CartaoClube({
         style={styles.acessar}
         activeOpacity={0.8}
         onPress={() => onAcessar(clube)}
-        disabled={desabilitado}
+        disabled={desabilitado || clube.ativo === false}
         accessibilityRole="button"
         accessibilityLabel={`Acessar ${clube.nome}`}
       >
@@ -157,7 +157,7 @@ const CartaoClube = memo(function CartaoClube({
             {atual && <Text style={styles.atual}>Atual</Text>}
           </View>
           <Text style={styles.detalhes} numberOfLines={2}>
-            {detalhes}
+            {clube.ativo === false ? "Indisponível" : detalhes}
           </Text>
           {(papel || !!clube.partidasAoVivo) && (
             <View style={styles.tags}>
@@ -266,7 +266,7 @@ export default function ClubesExplorer({
   );
   const acessar = useCallback(
     async (clube: ClubeListado) => {
-      if (operando.current) return;
+      if (operando.current || clube.ativo === false) return;
       operando.current = true;
       setProcessandoId(clube.id);
       setErro("");

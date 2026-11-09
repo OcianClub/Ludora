@@ -9,15 +9,30 @@ export function participacaoAtleta(id: number, clubeId: number, categories: numb
   return { status: { in: ['AO_VIVO', 'FINALIZADA'] }, AND: [{ OR: [{ categoria: { clube_id: clubeId }, ...(categories ? { categoria_id: { in: categories } } : {}) }, { participantes: { some: { clube_id: clubeId, ...(categories ? { categoria_id: { in: categories } } : {}) } } }] }],
     OR: [{ jogadores_escalonados: { some: { jogador_id: id } } }, { eventos: { some: { jogador_id: id } } }] };
 }
-const matchSelect = (id: number, clubeId: number) => ({ id: true, data: true, horario: true, local: true, status: true, gols_mandante: true, gols_visitante: true,
+const matchBaseSelect = { id: true, data: true, horario: true, local: true, status: true, gols_mandante: true, gols_visitante: true,
+  mandante: { select: { nome: true, escudo: true, clubeRepresentado: { select: { escudo: true } } } },
+  visitante: { select: { nome: true, escudo: true, clubeRepresentado: { select: { escudo: true } } } },
+  competicao: { select: { id: true, nome: true, ano: true } } } satisfies Prisma.PartidaSelect;
+const matchSelect = (id: number, clubeId: number) => ({ ...matchBaseSelect,
   mandante_id: true, visitante_id: true, emCasa: true, categoria: { select: { clube_id: true } },
   participantes: { where: { clube_id: clubeId }, select: { time_id: true } },
   jogadores_escalonados: { where: { jogador_id: id }, select: { time_id: true, titular_inicial: true } },
   eventos: { where: { jogador_id: id }, select: { tipo: true, gol_contra: true, time_id: true } },
-  mandante: { select: { nome: true, escudo: true, clubeRepresentado: { select: { escudo: true } } } },
-  visitante: { select: { nome: true, escudo: true, clubeRepresentado: { select: { escudo: true } } } },
-  competicao: { select: { id: true, nome: true, ano: true } } } satisfies Prisma.PartidaSelect);
+} satisfies Prisma.PartidaSelect);
 const order = [{ data: 'desc' }, { horario: 'desc' }, { id: 'desc' }] satisfies Prisma.PartidaOrderByWithRelationInput[];
+const competitionsForPlayer = (id: number, matches: Prisma.PartidaWhereInput): Prisma.CompeticaoWhereInput => ({ OR: [
+  { jogadores_inscritos: { some: { jogador_id: id } } }, { partidas: { some: matches } },
+] });
+export async function previaEsportivaAtleta(id: number, clubeId: number) {
+  const matches = participacaoAtleta(id, clubeId, null);
+  const competitions = competitionsForPlayer(id, matches);
+  const [totalPartidas, partidas, totalCompeticoes, campeonatos] = await prisma.$transaction([
+    prisma.partida.count({ where: matches }), prisma.partida.findMany({ where: matches, select: matchBaseSelect, orderBy: order, take: 3 }),
+    prisma.competicao.count({ where: competitions }), prisma.competicao.findMany({ where: competitions,
+      select: { id: true, nome: true, ano: true, tipo: true }, orderBy: [{ ano: 'desc' }, { id: 'desc' }], take: 3 }),
+  ]);
+  return { totalPartidas, partidas, totalCompeticoes, campeonatos };
+}
 const router = Router();
 router.get(['/jogadores/:id', '/jogadores/:id/partidas', '/jogadores/:id/campeonatos'], exigirClubePublico, async (req, res) => {
   const id = idPositivo(req.params.id), clubeId = (req as any).clubeId as number, usuarioId = (req as any).usuarioId as number;
@@ -56,9 +71,7 @@ router.get(['/jogadores/:id', '/jogadores/:id/partidas', '/jogadores/:id/campeon
       });
     }
     // Championships include explicit enrollment or actual participation, never the whole club calendar.
-    const competitions: Prisma.CompeticaoWhereInput = { OR: [
-      { jogadores_inscritos: { some: { jogador_id: id } } }, { partidas: { some: matches } },
-    ] };
+    const competitions = competitionsForPlayer(id, matches);
     if (req.path.endsWith('/partidas')) {
       const status = typeof req.query.status === 'string' ? req.query.status : '';
       if (status && !['AGENDADA','PREPARADA','AO_VIVO','FINALIZADA','CANCELADA'].includes(status)) return res.status(400).json({ error: 'Situação inválida.' });

@@ -1,3 +1,4 @@
+import { CLUBE_DESATIVADO } from '../../middlewares/permissoes.middleware';
 import { Router } from 'express';
 
 import { getUsuarioId } from '../../auth/jwt';
@@ -58,6 +59,7 @@ router.get('/clubes', async (req, res) => {
     const formatados = clubes.map((c: any) => ({
       id: c.id,
       nome: c.nome,
+      ativo: c.ativo,
       escudo: c.escudo,
       cidade: c.cidade,
       estado: c.estado,
@@ -88,6 +90,9 @@ router.post('/clubes/:id/seguir', async (req, res) => {
 
   const clube_id = Number(req.params.id);
   try {
+    const clube = await prisma.clube.findUnique({ where: { id: clube_id }, select: { ativo: true } });
+    if (!clube) return res.status(404).json({ error: 'Clube não encontrado.' });
+    if (!clube.ativo) return res.status(423).json({ error: CLUBE_DESATIVADO, code: 'CLUBE_DESATIVADO' });
     const vinculo = await prisma.usuarioClube.upsert({
       where: { usuario_id_clube_id: { usuario_id: usuarioId, clube_id } },
       update: {},

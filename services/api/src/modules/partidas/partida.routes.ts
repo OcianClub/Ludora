@@ -1,3 +1,4 @@
+import { exigirOperacao } from '../manutencao/service';
 import { criarCompartilhadasRoutes } from './compartilhadas.routes';
 import { Router } from 'express';
 import type { Server } from 'socket.io';
@@ -119,6 +120,7 @@ export function criarPartidaRoutes(io: Server) {
   // ==========================================
 
   router.post('/partidas', exigirGestorDoClube, async (req, res) => {
+    await exigirOperacao(['CRIAR_PARTIDAS'], { clubes: [(req as any).clubeId] });
     const {
       mandante_id,
       visitante_id,
@@ -160,6 +162,7 @@ export function criarPartidaRoutes(io: Server) {
           .status(403)
           .json({ error: 'Categoria não pertence ao clube ativo' });
       }
+      if (!categoria.ativa) return res.status(423).json({ error: 'Categoria desativada para novos confrontos.' });
       if (
         !(await podeAcessarCategoria(
           (req as any).usuarioId,

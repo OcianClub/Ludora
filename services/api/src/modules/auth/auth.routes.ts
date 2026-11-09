@@ -35,6 +35,8 @@ router.post('/auth/login', limitarAuth, async (req, res) => {
   if (!senhaValida)
     return res.status(401).json({ error: 'E-mail ou senha inválidos' });
 
+  if (usuario.suspenso) return res.status(403).json({ error: 'Acesso suspenso. Procure o suporte Ludora.' });
+
   const token = jwt.sign(
     { id: usuario.id, versao_sessao: usuario.versao_sessao },
     JWT_SECRET,
@@ -46,6 +48,7 @@ router.post('/auth/login', limitarAuth, async (req, res) => {
     nome: vinculo.clube.nome,
     escudo: vinculo.clube.escudo,
     papel: vinculo.papel,
+    ativo: vinculo.clube.ativo,
   }));
 
   res.json({
@@ -82,6 +85,7 @@ router.get('/usuarios/me', exigirAutenticacao, async (req, res) => {
             clube: {
               select: {
                 id: true,
+                ativo: true,
                 nome: true,
                 escudo: true,
                 cidade: true,

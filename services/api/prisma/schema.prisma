@@ -11,6 +11,10 @@ datasource db {
 // ── NOVOS MODELOS MULTI-TENANT ──
 
 model Clube {
+  tarefasCadastro TarefaCadastroClube[]
+  cnpj String? @unique
+  ativo Boolean @default(true)
+  chamados SuporteChamado[]
   id        Int      @id @default(autoincrement())
   nome      String
   escudo    String?
@@ -62,6 +66,8 @@ model UsuarioClubeCategoria {
 // ── MODELOS ATUALIZADOS ──
 
 model Usuario {
+  suspenso Boolean @default(false)
+  chamados SuporteChamado[]
   id                  Int               @id @default(autoincrement())
   nome                String
   email               String            @unique
@@ -107,6 +113,7 @@ model RecuperacaoSenha {
 }
 
 model Categoria {
+  ativa Boolean @default(true)
   id                 Int                     @id @default(autoincrement())
   clube_id           Int
   nome               String
@@ -604,6 +611,86 @@ model FpfsAuditoria {
 
 // ── ENUMS ATUALIZADOS ──
 
+model SuporteChamado {
+  id String @id @default(cuid())
+  requestId String @unique
+  origem String
+  assunto String
+  descricao String
+  impacto String
+  tipo String
+  prioridade String
+  fila String
+  regra String
+  restrito Boolean @default(false)
+  status String @default("NOVO")
+  clubeId Int?
+  clube Clube? @relation(fields: [clubeId], references: [id], onDelete: SetNull)
+  usuarioId Int?
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  responsavelId Int?
+  rota String
+  servico String
+  versao String
+  fingerprint String? @unique
+  ocorrencias Int @default(1)
+  clubesAfetados Json @default("[]")
+  detalhesTecnicos Json?
+  criadoEm DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+  revisarEm DateTime
+  revisao Int @default(0)
+  historico SuporteHistorico[]
+  acoes SuporteAcao[]
+  recuperacoes RecuperacaoExcepcional[]
+  manutencoes Manutencao[]
+  @@index([fila, status, criadoEm])
+  @@index([clubeId, usuarioId])
+}
+
+model SuporteHistorico {
+  id Int @id @default(autoincrement())
+  chamadoId String
+  chamado SuporteChamado @relation(fields: [chamadoId], references: [id], onDelete: Restrict)
+  operadorId Int?
+  acao String
+  motivo String
+  publico Boolean @default(false)
+  dados Json?
+  criadoEm DateTime @default(now())
+  @@index([chamadoId, criadoEm])
+}
+
+model SuporteAcao {
+  requestId String @id
+  chamadoId String
+  chamado SuporteChamado @relation(fields: [chamadoId], references: [id], onDelete: Restrict)
+  operadorId Int
+  tipo String
+  alvo String
+  resultado String @default("EM_EXECUCAO")
+  criadoEm DateTime @default(now())
+  @@index([alvo, criadoEm])
+}
+
+model RecuperacaoExcepcional {
+  id String @id @default(cuid())
+  chamadoId String
+  chamado SuporteChamado @relation(fields: [chamadoId], references: [id], onDelete: Restrict)
+  usuarioId Int
+  solicitanteId Int
+  aprovadorId Int?
+  emailAnterior String
+  novoEmail String
+  justificativa String
+  verificacao String?
+  status String @default("AGUARDANDO_APROVACAO")
+  tokenHash String? @unique
+  expiraEm DateTime?
+  criadoEm DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+}
+
 enum StatusConvite {
   PENDENTE
   ACEITO
@@ -613,6 +700,8 @@ enum StatusConvite {
 enum PapelPlataforma {
   USUARIO
   SUPERADMIN
+  SUPORTE
+  DESENVOLVEDOR
 }
 
 enum PapelUsuario {
@@ -652,7 +741,65 @@ enum TipoEvento {
 }
 
 enum TipoNotificacao {
+  CADASTRO_CLUBE
   PARTIDA_AGENDADA
   GOL_PARTIDA
   RESULTADO_PARTIDA
+}
+
+model Manutencao {
+  id String @id @default(cuid())
+  operacao String
+  escopo String
+  alvoId Int
+  ativa Boolean @default(true)
+  motivo String
+  operadorId Int
+  inicio DateTime @default(now())
+  revisarEm DateTime
+  revisao Int @default(0)
+  chamadoId String?
+  chamado SuporteChamado? @relation(fields: [chamadoId], references: [id], onDelete: SetNull)
+  historico ManutencaoHistorico[]
+  @@unique([operacao, escopo, alvoId])
+  @@index([chamadoId])
+}
+
+model ManutencaoHistorico {
+  id Int @id @default(autoincrement())
+  manutencaoId String
+  manutencao Manutencao @relation(fields: [manutencaoId], references: [id], onDelete: Restrict)
+  operadorId Int
+  motivo String
+  antes Json?
+  depois Json
+  criadoEm DateTime @default(now())
+  @@index([manutencaoId, criadoEm])
+}
+
+model TarefaCadastroClube {
+  id String @id @default(cuid())
+  clubeId Int
+  clube Clube @relation(fields: [clubeId], references: [id], onDelete: Restrict)
+  motivo String
+  estado String @default("PENDENTE")
+  mensagem String
+  operadorId Int
+  destinatarios Json
+  criadoEm DateTime @default(now())
+  encerradoEm DateTime?
+  encerradoPor Int?
+  justificativa String?
+  @@unique([clubeId, motivo])
+}
+
+model AuditoriaContaInterna {
+  id Int @id @default(autoincrement())
+  usuarioId Int
+  operadorId Int
+  motivo String
+  antes Json
+  depois Json
+  criadoEm DateTime @default(now())
+  @@index([usuarioId, criadoEm])
 }

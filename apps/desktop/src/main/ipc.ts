@@ -38,26 +38,27 @@ export function registrarIpc(obterJanela: () => BrowserWindow | null) {
     });
   };
 
-  // Confirma no servidor que o token pertence a um Super Admin.
+  // Confirma no servidor o papel interno atual do funcionário.
   type Validacao = { usuario: SuperAdminUsuario } | { erro: string; rede: boolean };
-  async function validarSuperAdmin(token: string): Promise<Validacao> {
-    const me = await chamarApi<{ usuario?: SuperAdminUsuario; error?: string }>('GET', '/admin/me', undefined, { token });
+  async function validarFuncionario(token: string): Promise<Validacao> {
+    const me = await chamarApi<{ usuario?: SuperAdminUsuario; error?: string }>('GET', '/admin/equipe/me', undefined, { token });
     if (me.ok && me.data.usuario) return { usuario: me.data.usuario };
-    if (me.status === 403) return { erro: 'Esta conta não tem acesso ao painel Super Admin.', rede: false };
-    return { erro: me.data.error ?? 'Não foi possível validar o acesso.', rede: me.status === 0 };
+    if (me.status === 403) return { erro: 'Esta conta não tem acesso ao painel interno Ludora.', rede: false };
+    return { erro: me.data.error ?? 'Não foi possível validar o acesso.', rede: me.status === 0 || me.status >= 500 };
   }
 
   ipcMain.handle(CANAIS.authRestaurar, async (evento): Promise<ResultadoLogin | null> => {
     janelaOuErro(evento);
     const sessao = sessaoAtual() ?? carregarDoDisco();
     if (!sessao) return null;
-    const validacao = await validarSuperAdmin(sessao.token);
+    const validacao = await validarFuncionario(sessao.token);
     if (!('usuario' in validacao)) {
       // API fora do ar não é motivo para descartar a sessão; token inválido é.
       if (!validacao.rede) limparSessao();
       return null;
     }
-    comecarLogs(sessao.token);
+    if (validacao.usuario.papel_plataforma === 'SUPERADMIN') comecarLogs(sessao.token);
+    else pararLogs();
     return { ok: true, usuario: validacao.usuario, persistente: armazenamentoSeguro() };
   });
 
@@ -72,12 +73,13 @@ export function registrarIpc(obterJanela: () => BrowserWindow | null) {
       return { ok: false, erro: login.data.error ?? 'Não foi possível entrar.' };
     }
 
-    // Só guardamos o token depois que o servidor confirma o acesso de Super Admin.
-    const validacao = await validarSuperAdmin(login.data.token);
+    // Só guardamos o token depois que o servidor confirma o acesso interno.
+    const validacao = await validarFuncionario(login.data.token);
     if (!('usuario' in validacao)) return { ok: false, erro: validacao.erro };
 
     const persistente = salvarSessao({ token: login.data.token, usuario: validacao.usuario });
-    comecarLogs(login.data.token);
+    if (validacao.usuario.papel_plataforma === 'SUPERADMIN') comecarLogs(login.data.token);
+    else pararLogs();
     return { ok: true, usuario: validacao.usuario, persistente };
   });
 

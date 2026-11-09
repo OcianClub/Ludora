@@ -21,6 +21,12 @@ import { intervaloAgenda, type PeriodoAgenda } from '../utils/scheduleFilters';
 import './Paulista.css';
 
 type Evento = { id: number; ano: number; categoria: string; divisao: string };
+const tituloAviso: Record<string, string> = { PLACAR: 'Placar divergente', ALTERACAO_OFICIAL: 'Mudança de calendário', IDENTIDADE: 'Identidade em conferência', OCORRENCIA_OFICIAL: 'Ocorrência em conferência' };
+const mensagemAviso: Record<string, string> = {
+  AGUARDANDO_CLUBE: 'A equipe Ludora pediu que o clube confira a súmula e os acontecimentos da partida.',
+  EM_REVISAO: 'Encaminhado para análise pela equipe Ludora.',
+  CONFERIDA: 'A equipe Ludora registrou a conferência da publicação.',
+};
 const faixa = (categoria: string) => Number(categoria.match(/\d+/)?.[0]) <= 10 ? 'INICIACAO' : 'BASE';
 const dayFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' });
 const monthFormatter = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' });
@@ -223,7 +229,15 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
         </section>}
         {tab === 'classificacao' && <PaulistaStandings snapshot={active.snapshot} minhas={minhas} fase={params.get('tabela') || ''} grupo={params.get('grupo') || ''} onFilter={filtros} filtersTarget={compact ? null : standingsFiltersTarget}/>}
         {tab === 'chaveamento' && <section>{chave ? <>{summary.chaves.length > 1 && <FilterSelect label="Chaves publicadas do clube" value={chave} emptyLabel="Selecionar" onChange={v => filtros({ chave: v })} options={summary.chaves.map(v => ({ value: v, label: nomeOficial(v) }))}/>}<PaulistaBracket key={`${active.snapshot.id}:${chave}`} snapshot={active.snapshot} chave={chave} minhas={minhas} onOpen={abrirJogo}/></> : <p className="collection-empty">A federação ainda não publicou a chave eliminatória do seu SUB. A posição na tabela não determina uma medalha.</p>}</section>}
-        {tab === 'avisos' && <section><h2>Dados em conferência</h2>{pendencias.map(p => <article className="paulista-notice" key={`${p.jogoId}:${p.tipo}`}><strong>{p.tipo === 'PLACAR' ? 'Resultado oficial e anotação do clube' : 'Alteração oficial em revisão'}</strong>{p.tipo === 'PLACAR' && <p>Federação: {p.dados.oficial.join(' × ')} · Clube: {p.dados.local.join(' × ')}</p>}<p>{p.estado === 'EM_REVISAO' ? 'Revisão solicitada ao clube: confira a súmula e os acontecimentos na partida. Os registros dos atletas foram preservados.' : 'Os registros dos atletas foram preservados. A equipe Ludora acompanha a revisão.'}</p>{p.dados.partidaId && <Link to={`/partidas/${p.dados.partidaId}`}>Ver partida</Link>}</article>)}{!pendencias.length && <p>Nenhuma pendência para este clube.</p>}</section>}
+        {tab === 'avisos' && <section><h2>Dados em conferência</h2>{pendencias.map(p => {
+          const jogo = active.snapshot.jogos.find(j => j.id === p.jogoId);
+          return <article className="paulista-notice" key={`${p.jogoId}:${p.tipo}`}>
+          <strong>{tituloAviso[p.tipo] || 'Alteração oficial em revisão'}</strong>
+          {jogo && <p>{nomeOficial(teams.get(jogo.mandanteId)?.nome || 'Mandante')} × {nomeOficial(teams.get(jogo.visitanteId)?.nome || 'Visitante')}</p>}
+          {p.tipo === 'PLACAR' && <p>Federação {p.dados.oficial.join(' × ')} · Clube {p.dados.local.join(' × ')}</p>}
+          <p>{mensagemAviso[p.estado] || 'A equipe Ludora acompanha a revisão.'} Os registros dos atletas foram preservados.</p>
+          {p.dados.partidaId && <Link to={`/partidas/${p.dados.partidaId}`}>Ver partida</Link>}
+        </article>; })}{!pendencias.length && <p>Nenhuma pendência para este clube.</p>}</section>}
       </>}
     </>}
     <CollectionFilterDialog open={filtroAberto} title="Filtrar jogos oficiais" onClose={() => setFiltroAberto(false)} onClear={() => setRascunho({ etapa: 'todas', situacao: 'todas', periodo: 'all', ordem: 'asc' })} onApply={() => { filtros(rascunho); setFiltroAberto(false); }}>

@@ -20,6 +20,13 @@ test('Paulista: legado antes/depois da migration, importação idempotente, vín
   await new Promise<void>(r => server.once('listening', r));
   t.after(async () => { await new Promise<void>(r => io.close(() => r())); await prisma.$disconnect(); });
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  // O piloto ainda testa a leitura antes das tabelas FPFS. As migrations
+  // operacionais devem existir para carregar o cliente Prisma desta versão.
+  for (const nome of (await fs.readdir('prisma/migrations')).filter(n => /^2026110[89]/.test(n)).sort()) {
+    const file = path.resolve('prisma/migrations', nome, 'migration.sql');
+    const resultado = spawnSync(process.execPath, [require.resolve('prisma/build/index.js'), 'db', 'execute', '--file', file, '--schema', 'prisma/schema.prisma'], { env: process.env, encoding: 'utf8' });
+    assert.equal(resultado.status, 0, resultado.stderr);
+  }
   const user = await prisma.usuario.create({ data: { nome: 'Pilot Operator', email: 'pilot@example.test', senha: 'not-used', papel_plataforma: 'SUPERADMIN' } });
   const visitor = await prisma.usuario.create({ data: { nome: 'Pilot Viewer', email: 'viewer@example.test', senha: 'not-used' } });
   const a = await prisma.clube.create({ data: { nome: 'Harbor FC · TESTE', cidade: 'Praia Grande', estado: 'SP' } });

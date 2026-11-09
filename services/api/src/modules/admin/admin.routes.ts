@@ -1,3 +1,8 @@
+import type { Prisma } from '@prisma/client';
+import { concluirTarefasCadastro } from './tarefas-cadastro';
+import { dependenciasCategoria, lerCnpj, lerEnderecoCadastro, lerEscudo, lerSubs } from './cadastro-clube';
+import { sanitizar } from '../suporte/rules';
+import { responderPausa } from '../manutencao/service';
 import axios from 'axios';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
@@ -23,6 +28,9 @@ import {
 import { criarConvite, listarConvites, revogarConvite } from '../convites/convite-admin.routes';
 import { limitarOperacaoPesada } from '../../middlewares/rate-limit.middleware';
 import { exigirSuperAdmin, logs } from './superadmin';
+import { categoriaCalculada, ErroElenco, removerAluno, salvarAluno } from '../jogadores/elenco.service';
+import { notificarCamisas } from '../jogadores/elenco.realtime';
+import { previaEsportivaAtleta } from '../jogadores/perfil.routes';
 
 class ErroHttp extends Error {
   constructor(public status: number, mensagem: string) {
@@ -37,7 +45,10 @@ const rota = (handler: Handler) => async (req: Request, res: Response) => {
   try {
     await handler(req, res);
   } catch (erro) {
+    if (responderPausa(erro, res)) return;
+    if (erro instanceof ErroElenco) return res.status(erro.status).json({ error: erro.message, ...erro.detalhes });
     if (erro instanceof ErroHttp) return res.status(erro.status).json({ error: erro.message });
+    if ((erro as any)?.code === 'P2002' && String((erro as any).meta?.target).includes('cnpj')) return res.status(409).json({ error: 'Já existe um clube com este CNPJ.' });
     if ((erro as any)?.code === 'P2034') {
       return res.status(409).json({ error: 'Outra alteração ocorreu. Atualize e tente novamente.' });
     }
@@ -116,6 +127,9 @@ export function criarAdminRoutes(io: Server) {
       clubes: clubes.map(c => ({
         id: c.id,
         nome: c.nome,
+        ativo: c.ativo,
+        cnpj: c.cnpj,
+        endereco: c.endereco,
         escudo: c.escudo,
         cidade: c.cidade,
         estado: c.estado,
@@ -131,10 +145,69 @@ export function criarAdminRoutes(io: Server) {
   }));
 
   // ── Clubes ────────────────────────────────────────────────────────────────
+  router.get('/admin/cep/:cep', limitarOperacaoPesada, rota(async (req, res) => {
+    const cep = String(req.params.cep);
+    if (!/^\d{8}$/.test(cep)) throw new ErroHttp(400, 'Informe oito dígitos do CEP.');
+    let naoEncontrado = false;
+    const consulta = (url: string) => fetch(url, { signal: AbortSignal.timeout(3500), redirect: 'error' });
+    try {
+      const resposta = await consulta(`https://viacep.com.br/ws/${cep}/json/`);
+      if (resposta.ok) {
+        const dados = await resposta.json() as { erro?: boolean | string; logradouro?: string; bairro?: string; localidade?: string; uf?: string };
+        naoEncontrado = dados.erro === true || dados.erro === 'true';
+        if (!naoEncontrado && dados.localidade && dados.uf) {
+          return res.json({ cep, logradouro: dados.logradouro || '', bairro: dados.bairro || '', cidade: dados.localidade, estado: dados.uf });
+        }
+      }
+    } catch { /* Consulta alternativa abaixo. */ }
+    if (naoEncontrado) throw new ErroHttp(404, 'CEP não localizado. Confira os dígitos ou preencha o endereço manualmente.');
+    try {
+      const resposta = await consulta(`https://brasilapi.com.br/api/cep/v1/${cep}`);
+      if (resposta.ok) {
+        const dados = await resposta.json() as { street?: string; neighborhood?: string; city?: string; state?: string };
+        if (dados.city && dados.state) return res.json({ cep, logradouro: dados.street || '', bairro: dados.neighborhood || '', cidade: dados.city, estado: dados.state });
+      }
+    } catch { /* Mantém a opção de preencher manualmente. */ }
+    throw new ErroHttp(503, 'Consulta de CEP indisponível. Preencha o endereço manualmente.');
+  }));
+  const cascaDisponivel = { clube_representado_id: null, arquivado: false, fpfsTime: { none: {} } } satisfies Prisma.TimeWhereInput;
+  const cascaSelect = { id: true, nome: true, escudo: true, categoria: { select: { nome: true, clube_id: true, clube: { select: { nome: true } } } } } satisfies Prisma.TimeSelect;
+  router.get('/admin/clubes/cascas', rota(async (req, res) => {
+    const nome = String(req.query.nome || '').trim().slice(0, 80);
+    res.json(await prisma.time.findMany({
+      where: { ...cascaDisponivel, ...(nome ? { nome: { contains: nome, mode: 'insensitive' } } : {}) },
+      orderBy: [{ nome: 'asc' }, { id: 'asc' }], take: 60,
+      select: cascaSelect,
+    }));
+  }));
+  router.get('/admin/clubes/cascas/:id/previa', rota(async (req, res) => {
+    const id = idDe(req.params.id, 'Time');
+    const principal = await prisma.time.findFirst({ where: { ...cascaDisponivel, id }, select: cascaSelect });
+    if (!principal) throw new ErroHttp(404, 'Esse time não está mais disponível.');
+    const times = principal.categoria ? await prisma.time.findMany({
+      where: { ...cascaDisponivel, nome: { equals: principal.nome, mode: 'insensitive' }, categoria: { clube_id: principal.categoria.clube_id } },
+      select: cascaSelect, orderBy: { id: 'asc' },
+    }) : [principal];
+    const ids = times.map(t => t.id);
+    const jogos = await prisma.partida.findMany({
+      where: { OR: [{ mandante_id: { in: ids } }, { visitante_id: { in: ids } }] },
+      orderBy: [{ data: 'desc' }, { horario: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }], take: 5,
+      select: { id: true, data: true, horario: true, status: true, mandante: { select: { id: true, nome: true, escudo: true } }, visitante: { select: { id: true, nome: true, escudo: true } }, categoria: { select: { nome: true } } },
+    });
+    res.json({ time: principal, times, jogos });
+  }));
   router.post('/admin/clubes', rota(async (req, res) => {
-    const dados = validar(() => validarClube(req.body, { criando: true }));
+    const { nome, plano } = validar(() => validarClube({ nome: req.body?.nome, plano: req.body?.plano }, { criando: true }));
+    const cnpj = validar(() => lerCnpj(req.body?.cnpj));
+    const endereco = validar(() => lerEnderecoCadastro(req.body?.endereco));
+    const escudo = validar(() => lerEscudo(req.body?.escudo_arquivo));
     const adminEmail = String(req.body?.admin_email || '').trim().toLowerCase();
-    const criarCategorias = req.body?.categorias_padrao !== false;
+    const cascaId = req.body?.casca_id == null ? null : idDe(req.body.casca_id, 'Time existente');
+    const idsEntrada = req.body?.casca_ids;
+    if (idsEntrada !== undefined && (!cascaId || !Array.isArray(idsEntrada) || !idsEntrada.length || idsEntrada.length > 100)) throw new ErroHttp(400, 'Selecione o grupo de times na prévia.');
+    const cascaIds: number[] = idsEntrada === undefined ? (cascaId ? [cascaId] : []) : [...new Set<number>(idsEntrada.map((id: unknown) => idDe(id, 'Time existente')))];
+    if (cascaId && !cascaIds.includes(cascaId)) throw new ErroHttp(400, 'O time principal precisa fazer parte do grupo.');
+    const subs = validar(() => lerSubs(req.body?.subs ?? (req.body?.categorias_padrao === false ? [] : [...SUBS_PADRAO])));
 
     const clube = await prisma.$transaction(async tx => {
       const dono = adminEmail
@@ -145,12 +218,21 @@ export function criarAdminRoutes(io: Server) {
       }
 
       const novo = await tx.clube.create({
-        data: { nome: dados.nome!, cidade: dados.cidade, estado: dados.estado, plano: dados.plano ?? 'TRIAL', escudo: dados.escudo },
+        data: { nome: nome!, cnpj, cidade: endereco.cidade, estado: endereco.estado, endereco, plano: plano ?? 'TRIAL', escudo },
       });
+      if (cascaId) {
+        const principal = await tx.time.findFirst({ where: { ...cascaDisponivel, id: cascaId }, select: cascaSelect });
+        if (!principal) throw new ErroHttp(409, 'Esse time já foi vinculado ou passou a ter um vínculo oficial.');
+        const grupo = principal.categoria ? { nome: { equals: principal.nome, mode: 'insensitive' as const }, categoria: { clube_id: principal.categoria.clube_id } } : { id: cascaId };
+        if (!principal.categoria && cascaIds.length > 1) throw new ErroHttp(400, 'Um time sem categoria só pode ser vinculado sozinho.');
+        const alterada = await tx.time.updateMany({ where: { ...cascaDisponivel, AND: [grupo, { id: { in: cascaIds } }] }, data: { clube_representado_id: novo.id } });
+        if (alterada.count !== cascaIds.length) throw new ErroHttp(409, 'Os times mudaram desde a prévia. Confira a lista novamente.');
+        await tx.auditoriaVinculoTime.createMany({ data: cascaIds.map(id => ({ time_id: id, clube_novo_id: novo.id, usuario_id: (req as any).usuarioId, motivo: 'Time reaproveitado no cadastro do clube.' })) });
+      }
 
-      if (criarCategorias) {
+      if (subs.length) {
         await tx.categoria.createMany({
-          data: SUBS_PADRAO.map(idade => ({
+          data: subs.map(idade => ({
             nome: `sub-${idade}`,
             faixaIdade: idade,
             tipo: tipoCategoriaPorIdade(idade),
@@ -164,7 +246,7 @@ export function criarAdminRoutes(io: Server) {
         });
       }
       return novo;
-    });
+    }, { isolationLevel: 'Serializable' });
 
     auditar(req, `Clube criado: #${clube.id} ${clube.nome} (${clube.plano})`, clube.id);
     res.status(201).json(clube);
@@ -172,13 +254,22 @@ export function criarAdminRoutes(io: Server) {
 
   router.patch('/admin/clubes/:id', rota(async (req, res) => {
     const id = idDe(req.params.id, 'Clube');
-    const dados = validar(() => validarClube(req.body, { criando: false }));
+    const dados = { ...validar(() => validarClube(req.body, { criando: false })),
+      ...(req.body?.cnpj !== undefined ? { cnpj: validar(() => lerCnpj(req.body.cnpj)) } : {}),
+      ...(req.body?.endereco !== undefined ? { endereco: validar(() => lerEnderecoCadastro(req.body.endereco)) } : {}),
+      ...(req.body?.escudo_arquivo !== undefined ? { escudo: validar(() => lerEscudo(req.body.escudo_arquivo)) } : {}),
+    };
+    if (dados.endereco) { dados.cidade = dados.endereco.cidade; dados.estado = dados.endereco.estado; }
     if (Object.keys(dados).length === 0) throw new ErroHttp(400, 'Nada para atualizar');
 
     const existe = await prisma.clube.findUnique({ where: { id }, select: { id: true } });
     if (!existe) throw new ErroHttp(404, 'Clube não encontrado');
 
-    const clube = await prisma.clube.update({ where: { id }, data: dados });
+    const clube = await prisma.$transaction(async tx => {
+      const atualizado = await tx.clube.update({ where: { id }, data: dados });
+      await concluirTarefasCadastro(tx, atualizado);
+      return atualizado;
+    });
     auditar(req, `Clube atualizado: #${id} (${Object.keys(dados).join(', ')})`, id);
     res.json(clube);
   }));
@@ -198,6 +289,113 @@ export function criarAdminRoutes(io: Server) {
     });
     if (count) auditar(req, `Categorias padrão adicionadas: clube #${clubeId} (${count})`, clubeId);
     res.json({ adicionadas: count });
+  }));
+
+  router.patch('/admin/clubes/:id/estado', rota(async (req, res) => {
+    const id = idDe(req.params.id, 'Clube');
+    const { ativo, motivo } = req.body || {};
+    if (typeof ativo !== 'boolean' || typeof motivo !== 'string' || motivo.trim().length < 10 || motivo.length > 300) throw new ErroHttp(400, 'Informe o estado e o motivo da alteração.');
+    const anterior = await prisma.clube.findUnique({ where: { id }, select: { ativo: true } });
+    if (!anterior) throw new ErroHttp(404, 'Clube não encontrado.');
+    if (anterior.ativo !== ativo) {
+      if (!ativo && await prisma.partida.count({ where: { status: 'AO_VIVO', OR: [{ categoria: { clube_id: id } }, { participantes: { some: { clube_id: id } } }] } })) throw new ErroHttp(409, 'Encerre as partidas ao vivo antes de desativar o clube.');
+      await prisma.clube.update({ where: { id }, data: { ativo } });
+      auditar(req, `Clube ${ativo ? 'reativado' : 'desativado'}: ${sanitizar(motivo, 300)}`, id);
+    }
+    res.json({ ativo });
+  }));
+  router.delete('/admin/clubes/:id', rota(async (req, res) => {
+    const id = idDe(req.params.id, 'Clube');
+    await prisma.$transaction(async tx => {
+      const clube = await tx.clube.findUnique({ where: { id }, select: { _count: { select: { usuarios: true, competicoes: true, equipesPartida: true, fpfsVinculo: true, tarefasCadastro: true } } } });
+      if (!clube) throw new ErroHttp(404, 'Clube não encontrado.');
+      if (clube._count.usuarios || await tx.jogador.count({ where: { categoria: { clube_id: id } } })) {
+        throw new ErroHttp(409, 'Este clube tem pessoas ou jogadores vinculados. Desative o clube para manter os registros.');
+      }
+      if (Object.values(clube._count).some(Boolean) || await tx.partida.count({ where: { OR: [{ categoria: { clube_id: id } }, { sumula_clube_id: id }] } })) {
+        throw new ErroHttp(409, 'Este clube tem histórico esportivo, tarefas ou vínculos oficiais. Desative o clube para preservar os registros.');
+      }
+      const times = await tx.time.findMany({ where: { clube_representado_id: id }, select: { id: true } });
+      if (times.length) await tx.auditoriaVinculoTime.createMany({ data: times.map(time => ({ time_id: time.id, clube_anterior_id: id, usuario_id: (req as any).usuarioId, motivo: 'Cadastro de clube excluído. O time e seus jogos foram preservados.' })) });
+      await tx.clube.delete({ where: { id } });
+    }, { isolationLevel: 'Serializable' });
+    auditar(req, `Clube sem dependências removido: #${id}`, id);
+    res.json({ ok: true });
+  }));
+  const jogadorResumo = { id: true, nome: true, posicao: true, numCamisa: true, ativo: true, foto: true, dtNasc: true } satisfies Prisma.JogadorSelect;
+  router.get('/admin/clubes/:id/jogadores/categoria', rota(async (req, res) => {
+    const clubeId = idDe(req.params.id, 'Clube');
+    res.json({ categoria: await categoriaCalculada(prisma, clubeId, String(req.query.nascimento ?? '')) });
+  }));
+  router.get('/admin/clubes/:id/categorias/:categoriaId/jogadores', rota(async (req, res) => {
+    const clubeId = idDe(req.params.id, 'Clube'), categoriaId = idDe(req.params.categoriaId, 'Categoria');
+    const busca = String(req.query.busca || '').trim().slice(0, 80);
+    const offset = Number(req.query.offset ?? 0);
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000) throw new ErroHttp(400, 'Página de jogadores inválida.');
+    const categoria = await prisma.categoria.findFirst({ where: { id: categoriaId, clube_id: clubeId }, select: {
+      jogadores: { where: busca ? { nome: { contains: busca, mode: 'insensitive' } } : undefined,
+        orderBy: [{ nome: 'asc' }, { id: 'asc' }], skip: offset, take: 26, select: jogadorResumo },
+    } });
+    if (!categoria) throw new ErroHttp(404, 'Categoria não encontrada no clube.');
+    res.json(categoria.jogadores);
+  }));
+  router.get('/admin/clubes/:id/categorias/:categoriaId/jogadores/:jogadorId', rota(async (req, res) => {
+    const clubeId = idDe(req.params.id, 'Clube'), categoriaId = idDe(req.params.categoriaId, 'Categoria'), jogadorId = idDe(req.params.jogadorId, 'Jogador');
+    const jogador = await prisma.jogador.findFirst({ where: { id: jogadorId, categoria_id: categoriaId, categoria: { clube_id: clubeId } },
+      select: { ...jogadorResumo, cpf: true, categoria: { select: { id: true, nome: true, tipo: true } } },
+    });
+    if (!jogador) throw new ErroHttp(404, 'Jogador não encontrado neste clube e categoria.');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ ...jogador, ...await previaEsportivaAtleta(jogadorId, clubeId) });
+  }));
+  router.patch('/admin/clubes/:id/categorias/:categoriaId/jogadores/:jogadorId', rota(async (req, res) => {
+    const clubeId = idDe(req.params.id, 'Clube'), categoriaId = idDe(req.params.categoriaId, 'Categoria'), jogadorId = idDe(req.params.jogadorId, 'Jogador');
+    if (req.body?.cpf !== undefined) throw new ErroHttp(400, 'O CPF não pode ser alterado.');
+    const { nome, posicao, numCamisa, confirmar_camisa, foto, dtNasc } = req.body || {};
+    const dados = Object.fromEntries(Object.entries({ nome, posicao, numCamisa, confirmar_camisa, foto, dtNasc }).filter(([, valor]) => valor !== undefined));
+    if (!Object.keys(dados).length) throw new ErroHttp(400, 'Informe ao menos uma alteração no cadastro esportivo.');
+    const usuarioId = (req as any).usuarioId;
+    const salvo = await salvarAluno(clubeId, usuarioId, dados, jogadorId, { categoriaId });
+    void notificarCamisas(io, clubeId, salvo).catch(() => console.error('Falha ao sincronizar camisas após salvar.'));
+    auditar(req, `Cadastro esportivo do jogador #${jogadorId} atualizado`, clubeId);
+    res.json({ id: salvo.id, categoria_id: salvo.categoria_id, nome: salvo.nome, posicao: salvo.posicao, numCamisa: salvo.numCamisa, ativo: salvo.ativo });
+  }));
+  router.delete('/admin/clubes/:id/categorias/:categoriaId/jogadores/:jogadorId', rota(async (req, res) => {
+    const clubeId = idDe(req.params.id, 'Clube'), categoriaId = idDe(req.params.categoriaId, 'Categoria'), jogadorId = idDe(req.params.jogadorId, 'Jogador');
+    const resultado = await removerAluno(clubeId, (req as any).usuarioId, jogadorId, { categoriaId });
+    auditar(req, `Jogador #${jogadorId} ${resultado.desativado ? 'desativado' : 'excluído'}`, clubeId);
+    res.json(resultado);
+  }));
+  router.post('/admin/clubes/:id/categorias', rota(async (req, res) => {
+    const clubeId = idDe(req.params.id, 'Clube');
+    const subs = validar(() => lerSubs([req.body?.idade]));
+    if (!await prisma.clube.findUnique({ where: { id: clubeId } })) throw new ErroHttp(404, 'Clube não encontrado.');
+    const idade = subs[0];
+    const existente = await prisma.categoria.findFirst({ where: { clube_id: clubeId, OR: [{ faixaIdade: idade }, { nome: { equals: `sub-${idade}`, mode: 'insensitive' } }] } });
+    if (existente) throw new ErroHttp(409, 'Este SUB já está cadastrado. Reative se necessário.');
+    const cat = await prisma.categoria.create({ data: { clube_id: clubeId, nome: `sub-${idade}`, faixaIdade: idade, tipo: tipoCategoriaPorIdade(idade) } });
+    auditar(req, `Categoria ${cat.nome} adicionada`, clubeId);
+    res.status(201).json(cat);
+  }));
+  router.patch('/admin/clubes/:id/categorias/:categoriaId', rota(async (req, res) => {
+    const clubeId = idDe(req.params.id, 'Clube'), id = idDe(req.params.categoriaId, 'Categoria');
+    if (typeof req.body?.ativa !== 'boolean') throw new ErroHttp(400, 'Informe o estado da categoria.');
+    const atualizada = await prisma.categoria.updateMany({ where: { id, clube_id: clubeId }, data: { ativa: req.body.ativa } });
+    if (!atualizada.count) throw new ErroHttp(404, 'Categoria não encontrada no clube.');
+    auditar(req, `Categoria ${id} ${req.body.ativa ? 'reativada' : 'desativada'}`, clubeId);
+    res.json({ ok: true });
+  }));
+  router.delete('/admin/clubes/:id/categorias/:categoriaId', rota(async (req, res) => {
+    const clubeId = idDe(req.params.id, 'Clube'), id = idDe(req.params.categoriaId, 'Categoria');
+    await prisma.$transaction(async tx => {
+      const dependencias = await dependenciasCategoria(tx, clubeId, id);
+      if (!dependencias) throw new ErroHttp(404, 'Categoria não encontrada no clube.');
+      const bloqueios = Object.entries(dependencias).filter(([, total]) => total > 0).map(([tipo, total]) => `${total} ${tipo}`);
+      if (bloqueios.length) throw new ErroHttp(409, `Há ${bloqueios.join(', ')}. Desative a categoria para preservar o histórico.`);
+      await tx.categoria.delete({ where: { id } });
+    }, { isolationLevel: 'Serializable' });
+    auditar(req, `Categoria sem vínculos removida: ${id}`, clubeId);
+    res.json({ ok: true });
   }));
 
   // ── Membros e permissões ──────────────────────────────────────────────────
@@ -223,7 +421,7 @@ export function criarAdminRoutes(io: Server) {
   router.get('/admin/clubes/:id/membros', rota(async (req, res) => {
     const clubeId = idDe(req.params.id, 'Clube');
     const [categorias, membros] = await Promise.all([
-      prisma.categoria.findMany({ where: { clube_id: clubeId }, select: { id: true, nome: true }, orderBy: { faixaIdade: 'asc' } }),
+      prisma.categoria.findMany({ where: { clube_id: clubeId }, select: { id: true, nome: true, ativa: true, faixaIdade: true, tipo: true }, orderBy: { faixaIdade: 'asc' } }),
       prisma.usuarioClube.findMany({
         where: { clube_id: clubeId },
         orderBy: { id: 'asc' },
@@ -310,10 +508,17 @@ export function criarAdminRoutes(io: Server) {
     const limite = validarLimite(req.query.limite, 50, 200);
     const lista = parseSuperAdmins(process.env.SUPERADMIN_EMAILS);
 
+    const filtros: Prisma.UsuarioWhereInput[] = [];
+    const clubeId = idPositivo(req.query.clube);
+    const papel = ['ADMIN', 'TECNICO', 'MESARIO', 'OLHEIRO', 'TORCEDOR'].find(v => v === req.query.papel) as Prisma.UsuarioClubeWhereInput['papel'];
+    if (clubeId || papel) filtros.push({ clubes: { some: { ...(clubeId ? { clube_id: clubeId } : {}), ...(papel ? { papel } : {}) } } });
+    if (req.query.estado === 'ATIVA' || req.query.estado === 'SUSPENSA') filtros.push({ suspenso: req.query.estado === 'SUSPENSA' });
+    const interno = (['SUPERADMIN', 'SUPORTE', 'DESENVOLVEDOR', 'USUARIO'] as const).find(v => v === req.query.interno);
+    if (interno === 'SUPERADMIN') filtros.push({ OR: [{ papel_plataforma: interno }, { email: { in: [...lista] } }] });
+    else if (interno) filtros.push({ papel_plataforma: interno, email: { notIn: [...lista] } });
+    if (busca) filtros.push({ OR: [{ nome: { contains: busca, mode: 'insensitive' } }, { email: { contains: busca, mode: 'insensitive' } }] });
     const usuarios = await prisma.usuario.findMany({
-      where: busca
-        ? { OR: [{ nome: { contains: busca, mode: 'insensitive' } }, { email: { contains: busca, mode: 'insensitive' } }] }
-        : undefined,
+      where: { AND: filtros },
       orderBy: { id: 'desc' },
       take: limite,
       // Seleção explícita: o hash da senha nunca sai do banco.
@@ -323,6 +528,7 @@ export function criarAdminRoutes(io: Server) {
         email: true,
         criadoEm: true,
         papel_plataforma: true,
+        suspenso: true,
         clubes: { select: { papel: true, clube: { select: { id: true, nome: true } } } },
       },
     });
@@ -333,9 +539,32 @@ export function criarAdminRoutes(io: Server) {
       email: u.email,
       criadoEm: u.criadoEm,
       papel_plataforma: papelPlataformaEfetivo(u, lista),
+      suspenso: u.suspenso,
+      cargoLegado: lista.has(u.email.toLowerCase()),
       superadmin: papelPlataformaEfetivo(u, lista) === 'SUPERADMIN',
       clubes: u.clubes.map(v => ({ clube_id: v.clube.id, nome: v.clube.nome, papel: v.papel })),
     })));
+  }));
+
+  router.patch('/admin/usuarios/:id/controle', rota(async (req, res) => {
+    const usuarioId = idDe(req.params.id, 'Usuário');
+    const operadorId = (req as any).usuarioId as number;
+    const { cargo, suspenso, motivo } = req.body || {};
+    const novoCargo = (['USUARIO', 'SUPORTE', 'DESENVOLVEDOR', 'SUPERADMIN'] as const).find(v => v === cargo);
+    if (!novoCargo || typeof suspenso !== 'boolean' || typeof motivo !== 'string' || motivo.trim().length < 10 || motivo.length > 300) throw new ErroHttp(400, 'Escolha cargo e situação e explique a alteração.');
+    if (operadorId === usuarioId) throw new ErroHttp(403, 'Outro administrador precisa revisar o seu próprio acesso.');
+    const alterou = await prisma.$transaction(async tx => {
+      const [u, operador] = await Promise.all([tx.usuario.findUnique({ where: { id: usuarioId } }), tx.usuario.findUnique({ where: { id: operadorId } })]);
+      if (!operador || operador.suspenso || papelPlataformaEfetivo(operador) !== 'SUPERADMIN') throw new ErroHttp(403, 'Sua permissão mudou. Entre novamente.');
+      if (!u) throw new ErroHttp(404, 'Usuário não encontrado.');
+      if (parseSuperAdmins(process.env.SUPERADMIN_EMAILS).has(u.email.toLowerCase())) throw new ErroHttp(409, 'Conta de administração legada. Revise a lista SUPERADMIN_EMAILS antes de alterar por aqui.');
+      if (u.papel_plataforma === novoCargo && u.suspenso === suspenso) return false;
+      await tx.usuario.update({ where: { id: usuarioId }, data: { papel_plataforma: novoCargo, suspenso, versao_sessao: { increment: 1 } } });
+      await tx.auditoriaContaInterna.create({ data: { usuarioId, operadorId, motivo: sanitizar(motivo, 300), antes: { cargo: u.papel_plataforma, suspenso: u.suspenso }, depois: { cargo: novoCargo, suspenso } } });
+      return true;
+    }, { isolationLevel: 'Serializable' });
+    if (alterou) desconectarSessoes(io, usuarioId);
+    res.json({ ok: true, alterou });
   }));
 
   router.post('/admin/usuarios/:id/revogar-sessoes', rota(async (req, res) => {

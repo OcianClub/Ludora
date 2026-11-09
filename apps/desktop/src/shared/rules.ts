@@ -28,7 +28,7 @@ export function validarApiUrl(valor: string): string {
  * Sem pontos no caminho, o que bloqueia "../" e variações codificadas.
  */
 export function caminhoApiPermitido(caminho: unknown): caminho is string {
-  if (typeof caminho !== 'string' || caminho.length > 300) return false;
+  if (typeof caminho !== 'string' || caminho.length > 1024) return false;
   const [pathname, query, resto] = caminho.split('?');
   if (resto !== undefined) return false;
   const rotaOk = pathname === '/auth/login' || /^\/admin(\/[A-Za-z0-9_-]+)+$/.test(pathname);
