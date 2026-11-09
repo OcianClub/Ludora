@@ -104,16 +104,16 @@ async function checkDialog(page, selector, width) {
         assert.ok(await page.evaluate(() => localStorage.getItem('ludora_token')));
         fail = false;
         await page.locator('.delete-account-dialog').getByRole('button', { name: 'Excluir minha conta', exact: true }).click();
-        await page.waitForURL('**/login');
-        await page.locator('.auth-form').waitFor();
+        await page.waitForURL('**/selecionar-clube');
+        await page.getByRole('heading', { name: 'Encontre o seu clube' }).waitFor();
         assert.equal(deletes, 2);
         assert.equal(tokenAtLogout, undefined);
       }
       if (width === 1440) {
         await page.getByRole('button', { name: 'Sair da conta', exact: true }).click();
         await page.getByRole('button', { name: 'Confirmar saída' }).click();
-        await page.waitForURL('**/login');
-        await page.locator('.auth-form').waitFor();
+        await page.waitForURL('**/selecionar-clube');
+        await page.getByRole('heading', { name: 'Encontre o seu clube' }).waitFor();
         assert.equal(deletes, 0, 'Sair da conta nunca exclui a conta');
         assert.equal(tokenAtLogout, undefined);
       }

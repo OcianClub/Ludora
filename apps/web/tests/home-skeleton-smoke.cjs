@@ -24,6 +24,7 @@ fs.mkdirSync(output, { recursive: true });
       });
       await page.goto(base + '/dashboard', { waitUntil: 'domcontentloaded' });
       await page.getByRole('status', { name: 'Carregando visão geral' }).waitFor();
+      await page.locator('.dashboard .page-sub').waitFor({ state: 'attached' });
       const bounds = await page.locator('.home-skeleton').evaluate(el => {
         const outer = el.getBoundingClientRect();
         return { overflow: document.documentElement.scrollWidth > innerWidth,

@@ -128,7 +128,7 @@ async function fixture(page, role = 'ADMIN') {
       for (const route of ['/clubes/2/partidas', '/clubes/2/competicoes', '/partidas/105', '/partidas/100', '/partidas/107']) {
         console.log('Checking', width, route);
         await page.goto(base + route, { waitUntil: 'domcontentloaded' });
-        if (route.includes('competicoes')) await page.getByText('[DEMO] Copa Ocian Base', { exact: true }).first().waitFor();
+        if (route.includes('competicoes')) await page.getByRole('heading', { name: 'Entre para continuar' }).waitFor();
         else if (route.endsWith('/partidas')) await page.locator('.match-card').first().waitFor();
         else try { await page.getByRole('heading', { name: /Ocian|Detalhes da partida|Resumo da partida/ }).first().waitFor(); }
         catch (error) { console.log(await page.locator('body').innerText(), f.unexpected, f.errors); throw error; }

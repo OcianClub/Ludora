@@ -40,7 +40,7 @@ async function writer(context) {
       });
       await page.goto(base + '/selecionar-clube');
       await page.getByRole('button', { name: 'Acessar Santos', exact: true }).click();
-      await page.waitForURL('**/dashboard');
+      await page.waitForURL('**/clubes/3');
       release();
       await page.waitForFunction(() => JSON.parse(localStorage.getItem('ludora_usuario')).nome === 'Perfil confirmado');
       const selected = await page.evaluate(() => ({ id: localStorage.getItem('ludora_clube_id'), club: JSON.parse(localStorage.getItem('ludora_clube')) }));
@@ -54,8 +54,9 @@ async function writer(context) {
       await other.evaluate(() => {
         for (const key of ['ludora_token', 'ludora_usuario', 'ludora_clube', 'ludora_clube_id']) localStorage.removeItem(key);
       });
-      await page.waitForURL('**/login');
-      await page.getByRole('button', { name: 'Entrar', exact: true }).waitFor();
+      await page.waitForFunction(() => !localStorage.getItem('ludora_usuario'));
+      await page.getByRole('button', { name: 'Menu da conta', exact: true }).click();
+      await page.getByRole('link', { name: 'Entrar na conta', exact: true }).waitFor();
       assert.equal(await page.evaluate(() => localStorage.getItem('ludora_usuario')), null);
       passed++;
       console.log('PASS logout em outra aba encerra acesso e remove dados salvos');

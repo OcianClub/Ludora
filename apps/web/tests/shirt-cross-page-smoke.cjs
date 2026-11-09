@@ -68,19 +68,14 @@ const { Server } = require(path.resolve(__dirname, '../../../services/api/node_m
       const [students, preparation, finished] = pages;
       const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5191';
       await Promise.all([students.goto(base + '/jogadores'), preparation.goto(base + '/partidas/106'), finished.goto(base + '/partidas/107')]);
-      if (width < 760) {
-        const sub = students.getByRole('button', { name: /SUB-7.*jogadores/i });
-        await sub.waitFor();
-        if (await sub.getAttribute('aria-expanded') !== 'true') await sub.click();
-      }
       await preparation.getByRole('navigation', { name: 'Etapas da preparação' }).getByRole('button', { name: 'Escalação', exact: true }).click();
       await preparation.getByRole('button', { name: 'Convocar Atleta 7', exact: true }).click(); // Rascunho ainda não salvo.
       const historicalShirt = finished.locator('.lineup-row').filter({ hasText: 'Atleta 1' }).locator('.lineup-shirt');
       await historicalShirt.waitFor();
       assert.equal((await historicalShirt.innerText()).trim(), '01');
       await students.getByRole('button', { name: 'Editar camisa de Atleta 1', exact: true }).click();
-      await students.getByRole('textbox', { name: 'Número da camisa', exact: true }).fill('9');
-      await students.getByRole('button', { name: 'Salvar camisa', exact: true }).click();
+      await students.getByRole('textbox', { name: 'Camisa de Atleta 1', exact: true }).fill('9');
+      await students.getByRole('textbox', { name: 'Camisa de Atleta 1', exact: true }).press('Enter');
       await preparation.waitForFunction(() => document.querySelector('[data-lineup-id="100"] .lineup-shirt')?.textContent.trim() === '09');
       assert.equal(await preparation.locator('[data-lineup-id="106"]').count(), 1, 'atualização externa preserva convocação não salva');
       assert.equal((await historicalShirt.innerText()).trim(), '01', 'partida encerrada mantém a camisa histórica');
@@ -95,8 +90,8 @@ const { Server } = require(path.resolve(__dirname, '../../../services/api/node_m
       assert.equal(await preparation.locator('[data-lineup-id="106"]').count(), 1);
       // Transferir a camisa de um reserva também o retira, sem apagar outro rascunho.
       await students.getByRole('button', { name: 'Definir camisa de Atleta 1', exact: true }).click();
-      await students.getByRole('textbox', { name: 'Número da camisa', exact: true }).fill('6');
-      await students.getByRole('button', { name: 'Salvar camisa', exact: true }).click();
+      await students.getByRole('textbox', { name: 'Camisa de Atleta 1', exact: true }).fill('6');
+      await students.getByRole('textbox', { name: 'Camisa de Atleta 1', exact: true }).press('Enter');
       await students.getByRole('button', { name: 'Confirmar troca', exact: true }).click();
       await preparation.waitForFunction(() => !document.querySelector('[data-lineup-id="105"]'));
       assert.equal(await preparation.locator('[data-lineup-id="106"]').count(), 1);

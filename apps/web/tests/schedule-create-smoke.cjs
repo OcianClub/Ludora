@@ -39,7 +39,7 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5188';
       await page.goto(base + '/partidas');
       await page.getByRole('button', { name: 'Nova partida', exact: true }).filter({ visible: true }).click();
       const form = page.getByRole('dialog', { name: 'Organizar partida', exact: true });
-      assert.equal(await page.locator('body').evaluate(el => getComputedStyle(el).overflow), 'hidden');
+      assert.equal(await page.locator('html').evaluate(el => getComputedStyle(el).overflow), 'hidden');
       if (width < 600) {
         const bounds = await form.boundingBox();
         assert.equal(bounds.y, 0);
@@ -53,7 +53,7 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5188';
       assert.equal(await categories.getByRole('heading', { name: 'Base', exact: true }).count(), 1);
       await categories.getByRole('radio', { name: 'SUB-7', exact: true }).click();
       await categories.getByRole('button', { name: 'Usar categoria', exact: true }).click();
-      assert.equal(await page.locator('body').evaluate(el => getComputedStyle(el).overflow), 'hidden', 'Fechar um modal filho mantém o fundo bloqueado');
+      assert.equal(await page.locator('html').evaluate(el => getComputedStyle(el).overflow), 'hidden', 'Fechar um modal filho mantém o fundo bloqueado');
       assert.equal(await form.getByRole('button', { name: 'Selecionar categoria da partida' }).evaluate(el => el === document.activeElement), true);
       if (width < 600) {
         await page.setViewportSize({ width, height: 520 });
@@ -142,7 +142,7 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5188';
       }
       await review.waitFor({ state: 'hidden' });
       await page.waitForURL('**/partidas/solicitacoes?id=created-proposal');
-      assert.notEqual(await page.locator('body').evaluate(el => getComputedStyle(el).overflow), 'hidden');
+      assert.notEqual(await page.locator('html').evaluate(el => getComputedStyle(el).overflow), 'hidden');
       assert.equal(posts, width === 320 ? 2 : 1);
       console.log(`PASS ${width}px ${theme}: contraste, cards, seleção, validação, revisão e ${width === 320 ? 'falha e recuperação' : 'confirmação'} simulada`);
       await context.close();

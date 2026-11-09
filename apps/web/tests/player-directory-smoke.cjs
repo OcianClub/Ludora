@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 const path = require('node:path');
-const base = 'http://127.0.0.1:5192';
+const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5192';
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {

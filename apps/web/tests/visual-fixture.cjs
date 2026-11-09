@@ -21,6 +21,13 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
   await page.route('http://localhost:3000/**',async route=>{
     const pathname=new URL(route.request().url()).pathname;
     const query=new URL(route.request().url()).searchParams;
+    const publicClub = pathname.match(/^\/publico\/clubes\/(\d+)(?:\/(categorias|times|partidas(?:\/home)?|competicoes))?$/);
+    if (publicClub) {
+      const club = clubes.find(item => item.id === Number(publicClub[1]));
+      if (!club) return route.fulfill({ status: 404, json: { error: 'Clube não encontrado' } });
+      const data = { categorias, times, partidas, 'partidas/home': partidas, competicoes };
+      return route.fulfill({ json: publicClub[2] ? data[publicClub[2]] : { ...club, meuPapel: null } });
+    }
     if (/^\/(?:publico\/)?partidas\/\d+\/destaques-votos$/.test(pathname)) return route.fulfill({json:{partida_id:Number(pathname.split('/').at(-2)),revisao:0,status:'AO_VIVO',aberta:false,total:0,resultados:[],meuVoto:null}});
     if (/^\/(?:publico\/)?partidas\/\d+\/palpite$/.test(pathname)) return route.fulfill({json:{partida_id:Number(pathname.split('/').at(-2)),revisao:0,status:'AO_VIVO',aberta:true,total:0,votos:{MANDANTE:0,EMPATE:0,VISITANTE:0},percentuais:{MANDANTE:0,EMPATE:0,VISITANTE:0},meuVoto:null}});
     if(pathname==='/publico/partidas/ao-vivo') return route.fulfill({json:partidas.filter(p=>p.status==='AO_VIVO').map(p=>({

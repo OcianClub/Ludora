@@ -19,9 +19,9 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5189';
       await p.route('**/*', r => new URL(r.request().url()).origin === base ? r.continue() : r.abort());
       await require('./visual-fixture.cjs').install(p);
       await p.route('http://localhost:3000/membros', r => r.fulfill({ json: [
-        { id: 3, papel: 'TECNICO', usuario: { id: 3, nome: 'Zeca' }, acesso_todas_categorias: false, categorias: [{ categoria_id: 1 }] },
-        { id: 2, papel: 'OLHEIRO', usuario: { id: 2, nome: 'Ana' }, acesso_todas_categorias: false, categorias: [] },
-        { id: 1, papel: 'ADMIN', usuario: { id: 1, nome: 'Meu usuário' }, acesso_todas_categorias: true, categorias: [] }
+        { id: 3, papel: 'TECNICO', usuario: { id: 3, nome: 'Zeca', email: 'zeca@example.test' }, acesso_todas_categorias: false, categorias: [{ categoria_id: 1 }] },
+        { id: 2, papel: 'OLHEIRO', usuario: { id: 2, nome: 'Ana', email: 'ana@example.test' }, acesso_todas_categorias: false, categorias: [] },
+        { id: 1, papel: 'ADMIN', usuario: { id: 1, nome: 'Meu usuário', email: 'meu@example.test' }, acesso_todas_categorias: true, categorias: [] }
       ] }));
       let canceled = false;
       await p.route('http://localhost:3000/convites**', r => {
@@ -30,7 +30,7 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5189';
       });
       await p.goto(base + '/membros');
       await p.locator('.members-person').first().waitFor();
-      assert.match(await p.locator('.members-person').first().innerText(), /Meu usuário/);
+      assert.match(await p.locator('.members-person').first().innerText(), /meu@example.test/);
       assert.equal(await p.locator('.member-avatar').count(), 0);
       assert.equal(await p.locator('.members-row-self .members-initials').innerText(), 'MU');
       assert.equal(await p.locator('.members-initials').first().evaluate(el => getComputedStyle(el).borderRadius), '50%');
@@ -46,7 +46,7 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5189';
         await filters.getByRole('button', { name: 'Técnico', exact: true }).click();
         await filters.getByRole('button', { name: 'Aplicar filtros' }).click();
         assert.equal(await p.locator('.members-person').count(), 1);
-        assert.match(await p.locator('.members-person').innerText(), /Zeca/);
+        assert.match(await p.locator('.members-person').innerText(), /zeca@example.test/);
         await filterButton.click();
         filters = p.getByRole('dialog', { name: 'Filtrar pessoas' });
         await filters.getByRole('button', { name: 'Limpar filtros' }).click();
@@ -62,10 +62,10 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5189';
         for (const name of ['Pessoa', 'Cargo', 'Acesso']) {
           for (const direction of ['crescente', 'decrescente', 'padrão']) {
             await p.getByRole('button', { name: `${name}: ordenar em ordem ${direction}`, exact: true }).click();
-            assert.match(await p.locator('.members-person').first().innerText(), /Meu usuário/);
+            assert.match(await p.locator('.members-person').first().innerText(), /meu@example.test/);
           }
         }
-        assert.match(await p.locator('.members-person').nth(1).innerText(), /Zeca/);
+        assert.match(await p.locator('.members-person').nth(1).innerText(), /zeca@example.test/);
       }
       await p.getByRole('searchbox', { name: 'Buscar pessoa' }).focus();
       assert.equal(await p.getByRole('searchbox').evaluate(el => getComputedStyle(el).outlineStyle), 'none');
@@ -76,7 +76,9 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5189';
       const options = access.locator('.choice-options');
       assert.equal(await options.evaluate(el => getComputedStyle(el).position), 'static');
       await options.getByRole('button', { name: 'Visitante', exact: true }).focus();
+      await p.keyboard.press('Escape');
       await access.getByRole('button', { name: 'Fechar janela' }).click();
+      await access.waitFor({ state: 'detached' });
       await p.getByRole('button', { name: /Convites/ }).click();
       const dateLines = await p.locator('td[data-label="Validade"]').evaluate(cell => { const range = document.createRange(); range.selectNodeContents(cell); return range.getClientRects().length; });
       assert.equal(dateLines, 1);

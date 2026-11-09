@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clearSavedSession, reconcileClubAccess } from '../src/services/authSession.ts';
+import { clearSavedSession, reconcileClubAccess, clubAccessScope } from '../src/services/authSession.ts';
+
+test('escopo muda com cargo ou categorias permitidas, sem depender da ordem ou do nome do clube', () => {
+  const club = { id: 3, nome: 'Santos', meuPapel: 'TECNICO', categoriasAcesso: [{ id: 1 }, { id: 2 }] };
+  assert.equal(clubAccessScope(club), clubAccessScope({ ...club, nome: 'Novo nome', categoriasAcesso: [...club.categoriasAcesso].reverse() }));
+  for (const changed of [{ ...club, meuPapel: 'MESARIO' }, { ...club, acessoTodasCategorias: true }, { ...club, categoriasAcesso: [{ id: 2 }] }, { ...club, id: 4 }]) {
+    assert.notEqual(clubAccessScope(club), clubAccessScope(changed));
+  }
+});
 
 test('perda do vínculo remove todas as permissões salvas sem bloquear consulta pública', () => {
   const selected = { id: 3, nome: 'Santos', meuPapel: 'TECNICO', acessoTodasCategorias: true, categoriasAcesso: [{ id: 12, nome: 'sub-7' }] };

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { configureApiConnection, createApiConnection } = require('../src/services/apiConnection.ts');
+const { configureApiConnection, createApiConnection, getApiConnectionState, reportApiConnection } = require('../src/services/apiConnection.ts');
 const { authRequest } = require('../src/services/authHttp.ts');
 
 const healthy = () => new Response(JSON.stringify({ status: 'ok' }));
@@ -125,4 +125,39 @@ test('falha no health não bloqueia o login nem repete a sondagem em cada requis
   assert.deepEqual(await authRequest(url, { method: 'POST' }), { token: 'teste' });
   assert.deepEqual(await authRequest(url, { method: 'POST' }), { token: 'teste' });
   assert.equal(probes, 1);
+});
+
+test('sucesso da consulta real recupera erro do health sem reenviar a operação', async t => {
+  t.mock.method(globalThis, 'fetch', async () => { throw new TypeError('offline'); });
+  configureApiConnection('https://actual.onrender.com');
+  await flush();
+  assert.equal(getApiConnectionState(), 'error');
+  reportApiConnection('https://other.onrender.com/usuarios');
+  assert.equal(getApiConnectionState(), 'error');
+  reportApiConnection('https://actual.onrender.com/usuarios');
+  assert.equal(getApiConnectionState(), 'ready');
+});
+
+test('confirmação real não volta a lenta nem falha quando a sondagem antiga termina', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let fail;
+  t.mock.method(globalThis, 'fetch', () => new Promise((_, reject) => { fail = reject; }));
+  const connection = createApiConnection('https://actual.onrender.com');
+  const waiting = connection.wait();
+  await flush();
+  connection.markReady();
+  t.mock.timers.tick(5000);
+  assert.equal(connection.getState(), 'ready');
+  fail(new TypeError('health indisponível'));
+  await waiting;
+  assert.equal(connection.getState(), 'ready');
+});
+
+test('backend local não herda aviso ou sondagem de Render configurado anteriormente', async t => {
+  const fetch = t.mock.method(globalThis, 'fetch', async () => healthy());
+  configureApiConnection('https://actual.onrender.com');
+  await flush();
+  configureApiConnection('http://localhost:3000');
+  assert.equal(getApiConnectionState(), 'idle');
+  assert.equal(fetch.mock.callCount(), 1);
 });
