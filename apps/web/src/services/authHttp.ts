@@ -1,5 +1,5 @@
 import { fetchJsonResponse, RequestError } from './http';
-import { waitForApiConnection } from './apiConnection';
+import { waitForApiConnection, reportApiConnection } from './apiConnection';
 
 export class AuthError extends Error {
   status: number;
@@ -25,6 +25,7 @@ export async function authRequest<T>(
     const connection = waitForApiConnection(url, options.signal);
     if (connection) await connection;
     const response = await fetchJsonResponse(url, options, timeout);
+    reportApiConnection(url);
     const body = await response.json().catch(() => null);
     if (!response.ok) {
       const message = response.status === 429

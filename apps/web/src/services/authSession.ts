@@ -1,5 +1,10 @@
 import type { Clube } from './api';
 
+export function clubAccessScope(club: Pick<Clube, 'id' | 'meuPapel' | 'acessoTodasCategorias' | 'categoriasAcesso'> | null) {
+  return JSON.stringify([club?.id, club?.meuPapel, !!club?.acessoTodasCategorias,
+    (Array.isArray(club?.categoriasAcesso) ? club.categoriasAcesso : []).map(category => category?.id).filter(Number.isSafeInteger).sort((a, b) => a - b)]);
+}
+
 export function reconcileClubAccess(selected: Clube, memberships: Clube[]): Clube {
   return memberships.find(item => item.id === selected.id) || {
     ...selected,

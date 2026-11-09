@@ -1,10 +1,10 @@
 import { cachedRead, invalidateReadCache, peekRead, readLifetime } from './readCache';
 import { BASE_URL } from './config';
 import { authRequest } from './authHttp';
-import { fetchJsonResponse } from './http';
-import { waitForApiConnection } from './apiConnection';
-import { clearSavedSession } from './authSession';
-import { navigationMode, publicEndpoint } from './publicAccess';
+import { fetchJsonResponse, RequestError } from './http';
+import { waitForApiConnection, reportApiConnection } from './apiConnection';
+import { clearSavedSession, clubAccessScope } from './authSession';
+import { navigationMode, publicEndpoint, rememberAccess } from './publicAccess';
 import { contextoScoutValido, type ContextoScout } from '../../../mobile/src/utils/contextoScout';
 export { BASE_URL } from './config';
 
@@ -17,9 +17,19 @@ export class ApiResponseError extends Error {
 
 export async function requestJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const response = await apiFetch(endpoint, options);
+  if (response.status === 204 || response.status === 205) return undefined as T;
   const body = await response.json();
-  if (!response.ok) throw new ApiResponseError(body.error || 'Não foi possível concluir a solicitação', response.status);
+  if (!response.ok) throw new ApiResponseError(body?.error || 'Não foi possível concluir a solicitação', response.status);
   return body;
+}
+
+async function requestList<T>(endpoint: string, options: RequestInit = {}): Promise<T[]> {
+  const body = await requestJson<unknown>(endpoint, options);
+  if (!Array.isArray(body) || body.some(item => !item || typeof item !== 'object' || Array.isArray(item))) {
+    invalidateApiReads(endpoint);
+    throw new RequestError('O servidor retornou uma lista inválida. Tente carregar novamente.', 'response');
+  }
+  return body as T[];
 }
 
 export function excluirMinhaConta(): Promise<{ mensagem: string }> {
@@ -43,43 +53,51 @@ export function getClubeId(): number | null {
 export function setClubeId(id: number) { localStorage.setItem('ludora_clube_id', String(id)); }
 export function removeClubeId() { localStorage.removeItem('ludora_clube_id'); }
 
-function readScope() { return `${BASE_URL}:${getToken() || ''}:${getClubeId() || ''}:${navigationMode()}\n`; }
+function readScope() {
+  let club: Clube | null = null;
+  try { club = JSON.parse(localStorage.getItem('ludora_clube') || 'null'); } catch { /* Sem contexto salvo válido. */ }
+  return `${BASE_URL}:${getToken() || ''}:${getClubeId() || ''}:${navigationMode()}:${clubAccessScope(club)}\n`;
+}
 export function cachedJson<T>(endpoint: string): T | undefined { return peekRead<T>(readScope() + endpoint, true); }
 export function invalidateApiReads(endpoint = '') { invalidateReadCache(readScope() + endpoint); }
 
 // ── Fetch central ──
 async function apiFetch(endpoint: string, options: RequestInit = {}) {
-  const mode = navigationMode();
-  const target = !options.method || options.method.toUpperCase() === 'GET' ? publicEndpoint(endpoint, getClubeId()) : endpoint;
+  const token = getToken();
+  const clubeId = getClubeId();
+  const scope = readScope();
+  const assertContext = () => {
+    if (readScope() !== scope) throw new DOMException('O clube ou a sessão foi alterado durante a solicitação', 'AbortError');
+  };
+  const target = !options.method || options.method.toUpperCase() === 'GET' ? publicEndpoint(endpoint, clubeId) : endpoint;
   const connection = waitForApiConnection(`${BASE_URL}${endpoint}`, options.signal);
   if (connection) await connection;
+  assertContext();
   const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type') && options.method && !['GET', 'DELETE'].includes(options.method)) {
     headers.set('Content-Type', 'application/json');
   }
-  const token = getToken();
   if (token && !target.startsWith('/publico/')) headers.set('Authorization', `Bearer ${token}`);
-  const clubeId = getClubeId();
   if (clubeId) headers.set('x-clube-id', String(clubeId));
 
   const method = (options.method || 'GET').toUpperCase();
   const lifetime = readLifetime(endpoint);
   const res = method === 'GET' && lifetime > 0 && !options.headers && options.cache !== 'no-store'
     ? await cachedRead(
-      readScope() + endpoint,
+      scope + endpoint,
       signal => fetchJsonResponse(`${BASE_URL}${target}`, { ...options, headers, signal }),
       lifetime,
       options.signal,
     )
     : await fetchJsonResponse(`${BASE_URL}${target}`, { ...options, headers });
+  reportApiConnection(`${BASE_URL}${target}`);
   if (res.ok && method !== 'GET' && !/^\/partidas\/\d+\/palpite$/.test(endpoint) && !endpoint.startsWith('/notificacoes') && endpoint !== '/usuarios/me/notificacoes') invalidateReadCache(`${BASE_URL}:${token || ''}:`);
-  if (getToken() !== token || getClubeId() !== clubeId || navigationMode() !== mode) {
-    throw new DOMException('O clube ou a sessão foi alterado durante a solicitação', 'AbortError');
-  }
+  assertContext();
   if (res.status === 401 && token && getToken() === token && !endpoint.startsWith('/auth/')) {
+    rememberAccess();
     invalidateReadCache();
     clearSavedSession();
-    window.location.href = '/login';
+    window.location.href = '/login?motivo=sessao';
   }
   return res;
 }
@@ -178,9 +196,7 @@ export function atualizarPreferenciasPush(clubeId: number, preferencias: Partial
 
 // ── CLUBES ──
 export async function fetchClubes(): Promise<Clube[]> {
-  const res = await apiFetch('/clubes');
-  if (!res.ok) throw new Error('Erro ao buscar clubes');
-  return res.json();
+  return requestList<Clube>('/clubes');
 }
 export async function seguirClube(id: number) {
   const res = await apiFetch(`/clubes/${id}/seguir`, { method: 'POST' });
@@ -194,16 +210,12 @@ export function deixarDeSeguirClube(id: number): Promise<{ ok: boolean; seguidor
 
 // ── CATEGORIAS ──
 export async function fetchCategorias(signal?: AbortSignal): Promise<Categoria[]> {
-  const res = await apiFetch('/categorias', { signal });
-  if (!res.ok) throw new Error('Erro ao buscar categorias');
-  return res.json();
+  return requestList<Categoria>('/categorias', { signal });
 }
 
 // ── TIMES ──
-export async function fetchTimes(incluirArquivados = false): Promise<Time[]> {
-  const res = await apiFetch(`/times${incluirArquivados ? '?incluir_arquivados=true' : ''}`);
-  if (!res.ok) throw new Error('Erro ao buscar times');
-  return res.json();
+export async function fetchTimes(incluirArquivados = false, signal?: AbortSignal): Promise<Time[]> {
+  return requestList<Time>(`/times${incluirArquivados ? '?incluir_arquivados=true' : ''}`, { signal });
 }
 export async function criarTime(dados: { nome: string; escudo?: string; categorias_ids?: number[] }) {
   const res = await apiFetch('/times', {
@@ -294,20 +306,26 @@ export function renomearTime(id: number, nome: string): Promise<{ items: Time[];
 }
 
 // ── JOGADORES ──
+export async function fetchResumoCamisas(signal?: AbortSignal) {
+  const endpoint = '/jogadores?resumo=true';
+  const rows = await requestList<{ categoria_id: number; semCamisa: number }>(endpoint, { signal });
+  if (rows.some(row => !Number.isSafeInteger(row.categoria_id) || row.categoria_id <= 0 || !Number.isSafeInteger(row.semCamisa) || row.semCamisa < 0)) {
+    invalidateApiReads(endpoint);
+    throw new RequestError('Não foi possível confirmar as pendências de camisas. Tente novamente.', 'response');
+  }
+  return rows;
+}
+
 export async function fetchJogadores(): Promise<Jogador[]> {
-  const res = await apiFetch('/jogadores');
-  if (!res.ok) throw new Error('Erro ao buscar jogadores');
-  return res.json();
+  return requestList<Jogador>('/jogadores');
 }
 export async function fetchJogadoresPerfis(categoria_id?: number, signal?: AbortSignal): Promise<PerfilJogador[]> {
   const q = categoria_id ? `?categoria_id=${categoria_id}` : '';
-  const res = await apiFetch(`/jogadores/perfis${q}`, { signal });
-  if (!res.ok) throw new Error('Erro ao buscar perfis');
-  return normalizeProfiles(await res.json());
+  return normalizeProfiles(await requestList(`/jogadores/perfis${q}`, { signal }));
 }
 export function cachedClubProfiles(): PerfilJogador[] | undefined {
   const rows = cachedJson<unknown[]>('/jogadores/perfis');
-  return rows ? normalizeProfiles(rows) : undefined;
+  return Array.isArray(rows) ? normalizeProfiles(rows) : undefined;
 }
 function normalizeProfiles(dados: unknown[]): PerfilJogador[] {
   return dados.map((j: any) => ({
@@ -431,9 +449,7 @@ export async function fetchPartidas(params?: { categoria_id?: number; mes?: numb
   if (params?.mes) q.append('mes', String(params.mes));
   if (params?.status) q.append('status', params.status);
   if (params?.competicao_id) q.append('competicao_id', String(params.competicao_id));
-  const res = await apiFetch(`/partidas?${q}`);
-  if (!res.ok) throw new Error('Erro ao buscar partidas');
-  return res.json();
+  return requestList<Partida>(`/partidas?${q}`);
 }
 export async function criarPartida(dados: Partial<Partida> & { mandante_id: number; visitante_id: number; data: string; categoria_id: number }) {
   let res: Response;

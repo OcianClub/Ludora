@@ -425,7 +425,7 @@ export default function JogadoresPage() {
       return (
     <section className={`alunos-directory${listView || allSubs ? ' alunos-directory--list' : ''}${smallScreen && !allSubs ? ' alunos-directory--simple' : ''}`} aria-labelledby={`alunos-list-heading-${selectedCategory.id}`} aria-busy={loading}>
       <h2 id={`alunos-list-heading-${selectedCategory.id}`} className="sr-only" tabIndex={-1} ref={offset === 0 ? listHeading : undefined}>Lista de jogadores</h2>
-      {erroLista || (!allSubs && selectedRows?.error && !selectedRows.items.length) ? <div role="alert" className="alunos-error">{erroLista || selectedRows?.error}<Btn variant="ghost" onClick={() => setVersao(v => v + 1)}>Tentar novamente</Btn></div> : loading && (!jogadores.length || listView) ? <LoadingSkeleton kind="table" /> : listView || allSubs ? <div className="alunos-sub-list">
+      {erroLista || (!allSubs && selectedRows?.error && !selectedRows.items.length) ? <div role="alert" className="alunos-error">{erroLista || selectedRows?.error}<Btn variant="ghost" onClick={() => setVersao(v => v + 1)}>Tentar novamente</Btn></div> : loading && !jogadores.length ? <LoadingSkeleton kind="table" /> : listView || allSubs ? <div className="alunos-sub-list">
         {displayed.filter(category => !allSubs || !shirtFilter || (counts.find(value => value.categoria_id === category.id)?.total || 0) > 0).map(category => {
           const rows = categoryRows[category.id];
           const count = counts.find(value => value.categoria_id === category.id)?.total || 0;

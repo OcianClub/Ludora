@@ -7,8 +7,10 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
   let pending: Promise<void> | undefined;
   let readyAt = 0;
   let failedAt = 0;
+  let lastError: RequestError | undefined;
   const listeners = new Set<() => void>();
   const update = (value: ConnectionState) => {
+    if (state === value) return;
     state = value;
     listeners.forEach(listener => listener());
   };
@@ -21,7 +23,7 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
     }
     update('connecting');
     const controller = new AbortController();
-    const slow = setTimeout(() => update('slow'), slowAfter);
+    const slow = setTimeout(() => { if (state === 'connecting') update('slow'); }, slowAfter);
     const deadline = setTimeout(() => controller.abort(), timeout);
     pending = (async () => {
       await Promise.resolve();
@@ -33,14 +35,19 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
         });
         if (!response.ok || (await response.json())?.status !== 'ok') throw new Error();
         readyAt = Date.now();
+        lastError = undefined;
         update('ready');
       } catch {
+        // Uma resposta de outra consulta já pode ter confirmado a conexão.
+        if (state === 'ready') return;
         failedAt = Date.now();
-        update('error');
-        throw new RequestError(
-          'Não foi possível conectar ao servidor. Ele pode estar iniciando; tente novamente em instantes.',
+        lastError = new RequestError(
+          controller.signal.aborted ? 'O servidor demorou para responder. Tente conectar novamente.' :
+            'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
           controller.signal.aborted ? 'timeout' : 'network',
         );
+        update('error');
+        throw lastError;
       } finally {
         clearTimeout(slow);
         clearTimeout(deadline);
@@ -66,6 +73,12 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
 
   return {
     prepare,
+    markReady() {
+      readyAt = Date.now();
+      lastError = undefined;
+      update('ready');
+    },
+    getError: () => lastError,
     wait,
     async waitForRequest(signal?: AbortSignal | null) {
       if (signal?.aborted) throw signal.reason || new DOMException('Consulta cancelada', 'AbortError');
@@ -88,6 +101,8 @@ let configured: ReturnType<typeof createApiConnection> | undefined;
 let apiBase = '';
 
 export function configureApiConnection(baseUrl: string) {
+  configured = undefined;
+  apiBase = '';
   try {
     if (!new URL(baseUrl).hostname.endsWith('.onrender.com')) return;
   } catch { return; }
@@ -102,3 +117,8 @@ export function waitForApiConnection(url: string, signal?: AbortSignal | null) {
 
 export const subscribeApiConnection = (listener: () => void) => configured?.subscribe(listener) || (() => undefined);
 export const getApiConnectionState = () => configured?.getState() || 'idle';
+export const getApiConnectionError = () => configured?.getError();
+export const retryApiConnection = () => configured?.prepare().catch(() => undefined);
+export function reportApiConnection(url: string) {
+  if (configured && url.startsWith(`${apiBase}/`)) configured.markReady();
+}

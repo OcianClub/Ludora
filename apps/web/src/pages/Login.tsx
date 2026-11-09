@@ -12,7 +12,8 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as { email?: string; message?: string; convite?: string; conviteAberto?: boolean } | null;
+  const state = (location.state || (new URLSearchParams(location.search).get('motivo') === 'sessao'
+    ? { message: 'Sua sessão expirou. Entre novamente para continuar.' } : null)) as { email?: string; message?: string; convite?: string; conviteAberto?: boolean } | null;
   const [email, setEmail] = useState(state?.email ?? '');
   const [senha, setSenha] = useState('');
   const access = useAccessForm();

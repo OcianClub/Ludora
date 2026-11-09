@@ -18,7 +18,7 @@ export interface PropostaPartida {
   origem: Clube; destino: Clube; criado_em: string; motivo?: string;
   dados: { novo_responsavel_id?: number; motivo?: string; data: string; horario: string; local?: string; emCasa?: boolean; categoria_id?: number; sugestao?: { clube_id: number; motivo?: string; criada_em: string } };
 }
-export const carregarGestao = (id: number) => requestJson<GestaoPartida>(`/partidas/${id}/gestao`);
+export const carregarGestao = (id: number, signal?: AbortSignal) => requestJson<GestaoPartida>(`/partidas/${id}/gestao`, { signal });
 export const carregarPropostas = (signal?: AbortSignal) => requestJson<PropostaPartida[]>('/partidas/solicitacoes', { signal });
 export const comandoPartida = <T = unknown>(id: number, endpoint: string, dados: unknown, method = 'POST') => requestJson<T>(`/partidas/${id}/${endpoint}`, { method, body: JSON.stringify(dados) });
 export const responderProposta = (proposta: PropostaPartida, acao: string, dados: object = {}) => requestJson<{ partidaId?: number }>(`/partidas/solicitacoes/${proposta.id}/responder`, { method: 'POST', body: JSON.stringify({ versao: proposta.versao, acao, ...dados }) });

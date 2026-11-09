@@ -42,7 +42,7 @@ export function PublicClubEntry() {
     return () => { active = false; };
   }, [clubeId, token, definirClube]);
   if (error) return <div className="public-access-state" role="alert"><p>{error}</p><Link to="/selecionar-clube">Voltar aos clubes</Link></div>;
-  return ready === clubeId ? <Layout /> : <div className="public-access-state" role="status">Abrindo clube…</div>;
+  return ready === clubeId ? <Layout key={clubeId}/> : <div className="public-access-state" role="status">Abrindo clube…</div>;
 }
 export function PublicMatchEntry({ children }: { children: ReactNode }) {
   const { id } = useParams();

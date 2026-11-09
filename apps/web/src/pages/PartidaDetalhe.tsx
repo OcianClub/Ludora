@@ -1,4 +1,5 @@
 import { Toast } from '../components/Toast';
+import { PageSkeleton } from '../components/PageSkeleton';
 import { PaulistaMatchNotice } from '../components/PaulistaMatchNotice';
 import { nomeOficial } from '../utils/paulistaView';
 import { useEffect, useRef, useState } from 'react';
@@ -58,6 +59,7 @@ export default function PartidaDetalhePage() {
   const [jogadores, setJogadores] = useState<Pick<PerfilJogador, 'id' | 'nome' | 'numCamisa' | 'posicao'>[]>([]);
   const [times, setTimes] = useState<Time[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [loadError, setLoadError] = useState('');
   const [syncError, setSyncError] = useState('');
   const [realtimeState, setRealtimeState] = useState<RealtimeState>('connecting');
@@ -128,10 +130,10 @@ export default function PartidaDetalhePage() {
       if (result.removed.length) setNotice('Jogador removido da escalação por ficar sem camisa. Defina outro número para convocá-lo novamente.');
     }
   }
-  async function carregarElenco(data: GestaoPartida) {
+  async function carregarElenco(data: GestaoPartida, signal?: AbortSignal) {
     const mine = data.equipes.find(e => e.id === data.minhaEquipeId);
     return data.podePreparar && mine && (data.podeAnotarOficial || ['AGENDADA', 'PREPARADA'].includes(data.partida.status))
-      ? requestJson<typeof jogadores>(`/jogadores?categoria_id=${mine.categoria_id}&convocacao=true`) : undefined;
+      ? requestJson<typeof jogadores>(`/jogadores?categoria_id=${mine.categoria_id}&convocacao=true`, { signal }) : undefined;
   }
   async function atualizarDados(manterRascunho = false) {
     const data = await carregarGestao(Number(id));
@@ -152,17 +154,20 @@ export default function PartidaDetalhePage() {
   useEffect(() => {
     let active = true;
     let unsubscribe = () => {};
+    const controller = new AbortController();
     setLoading(true); setLoadError(''); setGestao(null); setEtapa(0); setLineupDirty(false); setSwapSource(null);
     let refreshing = false;
+    let initialized = false;
     let refreshQueued = false;
     let refreshTimer: number | null = null;
     async function refresh() {
+      if (!initialized) return;
       if (refreshing) { refreshQueued = true; return; }
       refreshing = true;
       const version = ++refreshVersion.current;
       try {
-        const data = await carregarGestao(Number(id));
-        const players = await carregarElenco(data);
+        const data = await carregarGestao(Number(id), controller.signal);
+        const players = await carregarElenco(data, controller.signal);
         if (active && version === refreshVersion.current) { aplicarGestao(data, dirtyRef.current, players); setSyncError(''); }
       } catch { if (active) setSyncError('Não foi possível sincronizar. Confira sua conexão e tente recarregar.'); }
       finally {
@@ -179,10 +184,11 @@ export default function PartidaDetalhePage() {
     document.addEventListener('visibilitychange', resume);
     void (async () => {
       try {
-        const [data, teams] = await Promise.all([carregarGestao(Number(id)), fetchTimes()]);
-        const players = await carregarElenco(data);
+        const [data, teams] = await Promise.all([carregarGestao(Number(id), controller.signal), fetchTimes(false, controller.signal).catch(() => [])]);
+        const players = await carregarElenco(data, controller.signal);
         if (!active) return;
         aplicarGestao(data, false, players); setTimes(teams);
+        initialized = true;
         setEtapa(readPreparationStep(data, preparationKey));
         if (!['AGENDADA', 'PREPARADA'].includes(data.partida.status)) rememberPreparationStep(preparationKey, null);
         if (clube) unsubscribe = subscribeToMatch({ baseUrl: BASE_URL, token: token || '', clubId: clube.id, matchId: Number(id),
@@ -195,8 +201,8 @@ export default function PartidaDetalhePage() {
       } catch (e) { if (active) setLoadError((e as Error).message || 'Não foi possível carregar a partida.'); }
       finally { if (active) setLoading(false); }
     })();
-    return () => { active = false; unsubscribe(); if (refreshTimer !== null) window.clearTimeout(refreshTimer); window.clearInterval(poll); document.removeEventListener('visibilitychange', resume); };
-  }, [id, token, clube?.id, usuario?.id]);
+    return () => { active = false; controller.abort(); unsubscribe(); if (refreshTimer !== null) window.clearTimeout(refreshTimer); window.clearInterval(poll); document.removeEventListener('visibilitychange', resume); };
+  }, [id, token, clube?.id, usuario?.id, loadAttempt]);
 
   async function mudarStatus() {
     if (!partida || savingStatus || !podeGerenciar) return;
@@ -286,8 +292,8 @@ export default function PartidaDetalhePage() {
     });
   }
 
-  if (loading) return <LoadingSkeleton kind="match" />;
-  if (loadError) return <div role="alert" style={{ padding: 40 }}>{loadError}</div>;
+  if (loading) return <PageSkeleton page="match" contentOnly/>;
+  if (loadError) return <div className="route-load-error" role="alert"><Icon name="alert" size={28}/><p>{loadError}</p><Btn variant="ghost" onClick={() => setLoadAttempt(value => value + 1)}>Tentar novamente</Btn></div>;
   if (!partida) return <div style={{ color: 'var(--texto-sec)', padding: 40 }}>Partida não encontrada</div>;
 
   const mandante = partida.mandante || times.find(t => t.id === partida.mandante_id);

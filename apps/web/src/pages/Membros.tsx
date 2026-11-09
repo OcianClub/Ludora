@@ -60,7 +60,7 @@ export default function MembrosPage() {
   useEffect(() => {
     let active = true;
     setSelected(null); setInviteOpen(false); setRevoke(null); setFiltersOpen(false);
-    setError(''); setNotice(''); setLoading(true);
+    setError(''); setNotice(''); setLoading(!members.length);
     if (clube?.meuPapel !== 'ADMIN') { setLoading(false); return; }
     Promise.all([requestJson<Member[]>('/membros'), fetchCategorias()])
       .then(([people, cats]) => { if (active) { setMembers(people); setCategories(cats); } })
@@ -72,7 +72,7 @@ export default function MembrosPage() {
   useEffect(() => {
     if (clube?.meuPapel !== 'ADMIN') return;
     let active = true;
-    setInviteLoading(true); setInviteError(''); setInvites([]);
+    setInviteLoading(!invites.length); setInviteError('');
     requestJson<{ convites: Invite[] }>('/convites?limite=100')
       .then(data => { if (active) setInvites(data.convites); })
       .catch(() => { if (active) setInviteError('Não foi possível carregar os convites. Tente novamente.'); })

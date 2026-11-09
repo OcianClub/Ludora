@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { cachedJson, cachedClubProfiles, fetchCategorias, type PerfilJogador, type Categoria } from '../services/api';
 import { Btn, Modal } from '../components/UI';
 import { ScoutIndexHelp } from '../components/ScoutIndexHelp';
+import { ScoutSkeleton } from '../components/PageSkeleton';
 import { POSITIONS, normalizePosition } from '../components/CollectionControls';
 import { PositionIcon } from '../components/PositionIcon';
 import { ScoutPlayerDetail } from '../components/ScoutPlayerDetail';
@@ -81,8 +82,8 @@ export default function ElencoPage() {
     setError('');
     Promise.all([loadClubProfiles(version > 0, controller.signal), fetchCategorias(controller.signal)]).then(([data, cats]) => {
       if (active) { setPlayers(data); setCategories(cats); }
-    }).catch(() => {
-      if (active) setError('Não foi possível carregar o elenco. Verifique sua conexão e tente novamente.');
+    }).catch(failure => {
+      if (active) setError(failure instanceof Error ? failure.message : 'Não foi possível carregar o elenco. Verifique sua conexão e tente novamente.');
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; controller.abort(); };
   }, [clube?.id, version]);
@@ -125,7 +126,7 @@ export default function ElencoPage() {
   function renderCategory(offset: number) {
     const item = phaseCategories[categoryIndex + offset];
     const data = item && categoryData.get(item.id);
-    if (!data || loading) return null;
+    if (!data || (loading && !players.length)) return null;
     const { categoryPlayers, filtered } = data;
     const leaders = getLeaders(categoryPlayers);
     const category = item;
@@ -216,8 +217,9 @@ export default function ElencoPage() {
           const next = phaseCategories.find(item => item.nome === name);
           if (next) change({ categoria_id: String(next.id), atleta: '' });
         }} />
-      {loading ? <div className="scout-collection-loading" role="status" aria-label="Carregando elenco"><div className="scout-skeleton-summary"/><div className="scout-skeleton-toolbar"/><div className="scout-skeleton-rows">{[1, 2, 3, 4, 5, 6].map(id => <div key={id}/>)}</div></div> : error ? <div role="alert" className="notice-error"><p>{error}</p><Btn variant="ghost" onClick={() => setVersion(value => value + 1)}>Tentar novamente</Btn></div> : null}
-      {!loading && renderCategory(0)}
+      {loading && !players.length ? <ScoutSkeleton/> : null}
+      {error && <div role="alert" className="notice-error"><p>{error}</p><Btn variant="ghost" onClick={() => setVersion(value => value + 1)}>Tentar novamente</Btn></div>}
+      {(!loading || players.length > 0) && renderCategory(0)}
     <CollectionFilterDialog open={filtersOpen} title="Filtrar elenco" className="scout-filter-dialog" onClose={() => setFiltersOpen(false)}
       onClear={() => { setDraftPosition(''); setDraftRecords(''); setDraftProfile(''); setDraftOrder(''); }}
       onApply={() => {

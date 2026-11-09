@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { requestJson } from '../services/api';
+import { fetchResumoCamisas } from '../services/api';
 import { loadClubProfiles } from '../services/clubProfiles';
 import { hasAssessment } from '../utils/scoutPlayers';
 
@@ -15,15 +15,17 @@ export function ClubPendingProvider({ children }: { children: ReactNode }) {
     const clubId = clube.id;
     let active = true;
     let running = false;
+    let queued = false;
     let controller: AbortController | null = null;
     async function refresh(event?: Event) {
-      if (running) return;
+      if (running) { queued ||= Boolean(event); return; }
       running = true;
-      controller = new AbortController();
-      const timer = window.setTimeout(() => controller?.abort(), 15_000);
+      const current = new AbortController();
+      controller = current;
+      const timer = window.setTimeout(() => current.abort(), 15_000);
       const [shirts, profiles] = await Promise.allSettled([
-        requestJson<{ categoria_id: number; semCamisa: number }[]>('/jogadores?resumo=true', { signal: controller.signal }),
-        loadClubProfiles(Boolean(event), controller.signal),
+        fetchResumoCamisas(current.signal),
+        loadClubProfiles(Boolean(event), current.signal),
       ]);
       clearTimeout(timer);
       if (active) {
@@ -31,9 +33,12 @@ export function ClubPendingProvider({ children }: { children: ReactNode }) {
         if (profiles.status === 'fulfilled') profiles.value.forEach(player => {
           if (!hasAssessment(player)) unassessed!.set(player.categoria_id, (unassessed!.get(player.categoria_id) || 0) + 1);
         });
-        setData({ clubId, missing: shirts.status === 'fulfilled' ? new Map(shirts.value.map(row => [row.categoria_id, row.semCamisa])) : null, unassessed });
+        setData(previous => ({ clubId,
+          missing: shirts.status === 'fulfilled' ? new Map(shirts.value.map(row => [row.categoria_id, row.semCamisa])) : previous?.clubId === clubId ? previous.missing : null,
+          unassessed: unassessed || (previous?.clubId === clubId ? previous.unassessed : null) }));
       }
       running = false;
+      if (active && queued) { queued = false; void refresh(new Event('ludora:players-changed')); }
     }
     void refresh();
     window.addEventListener('ludora:players-changed', refresh);

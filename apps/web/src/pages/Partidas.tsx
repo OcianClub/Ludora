@@ -253,25 +253,29 @@ export default function PartidasPage() {
     setLoadError('');
     setLoadWarning('');
     if (!background) setLoading(!cachedJson('/partidas?') || !cachedJson('/categorias'));
-    return Promise.allSettled([fetchPartidas(), fetchTimes(), fetchCategorias(), fetchCompeticoes()])
-      .then(([p, t, c, comp]) => {
+    // Opções do formulário não bloqueiam a consulta da agenda.
+    void Promise.allSettled([fetchTimes(), fetchCompeticoes()]).then(([t, comp]) => {
+      if (version !== loadVersion.current) return;
+      if (t.status === 'fulfilled') setTimes(t.value);
+      if (comp.status === 'fulfilled') setCompeticoes(comp.value);
+      if (t.status === 'rejected' || comp.status === 'rejected') setLoadWarning('Algumas opções de criação estão temporariamente indisponíveis. A agenda continua disponível.');
+    });
+    return Promise.allSettled([fetchPartidas(), fetchCategorias()])
+      .then(([p, c]) => {
         if (version !== loadVersion.current) return;
         if (p.status === 'rejected') throw p.reason;
         setPartidas(p.value);
-        if (t.status === 'fulfilled') setTimes(t.value); else if (!background) setTimes([]);
-        if (c.status === 'fulfilled') setCategorias(c.value); else if (!background) setCategorias([]);
-        if (comp.status === 'fulfilled') setCompeticoes(comp.value); else if (!background) setCompeticoes([]);
-        const indisponiveis = [t.status === 'rejected' && 'times', c.status === 'rejected' && 'categorias', comp.status === 'rejected' && 'competições'].filter(Boolean);
-        if (indisponiveis.length) setLoadWarning('As partidas foram carregadas, mas alguns filtros e opções de criação estão temporariamente indisponíveis.');
+        if (c.status === 'fulfilled') setCategorias(c.value);
+        else setLoadWarning('As partidas foram carregadas, mas os filtros de categoria estão temporariamente indisponíveis.');
         return true;
       })
-      .catch(() => {
+      .catch(failure => {
         if (version !== loadVersion.current) return;
         const message = navigator.onLine
-          ? 'Não foi possível buscar as partidas agora. O servidor pode estar temporariamente indisponível.'
+          ? failure instanceof Error ? failure.message : 'Não foi possível buscar as partidas agora. O servidor pode estar temporariamente indisponível.'
           : 'Você está sem conexão. Reconecte-se à internet e tente novamente.';
-        if (background) setLoadWarning(message);
-        else { setPartidas([]); setLoadError(message); }
+        if (background || partidas.length) setLoadWarning(message);
+        else setLoadError(message);
         return false;
       })
       .finally(() => { if (version === loadVersion.current) setLoading(false); });

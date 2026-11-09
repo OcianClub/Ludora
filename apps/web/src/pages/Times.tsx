@@ -8,7 +8,8 @@ import { useClubCategory } from '../hooks/useClubCategory';
 import { FilterSelect } from '../components/FilterSelect';
 import { Icon } from '../components/Icon';
 import { TeamInsights } from '../components/TeamInsights';
-import { Btn, Modal, LoadingSkeleton } from '../components/UI';
+import { Btn, Modal } from '../components/UI';
+import { PageSkeleton } from '../components/PageSkeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { teamKey, teamName } from '../utils/teamIdentity';
 import './Times.css';
@@ -23,7 +24,7 @@ export default function TimesPage() {
   const [params, setParams] = useSearchParams();
   const [times, setTimes] = useState<Time[]>(() => cachedJson<Time[]>('/times') || []);
   const [categorias, setCategorias] = useState<Categoria[]>(() => cachedJson<Categoria[]>('/categorias') || []);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedJson('/times') || !cachedJson('/categorias'));
   const [error, setError] = useState('');
   const [version, setVersion] = useState(0);
   const [scope, setScope] = useState<Scope>('all');
@@ -43,13 +44,13 @@ export default function TimesPage() {
   }, []);
   useEffect(() => {
     let active = true;
-    setLoading(true); setError(''); setSelected(null); setExpanded([]);
+    setLoading(!cachedJson('/times') || !cachedJson('/categorias')); setError('');
     Promise.all([fetchTimes(), fetchCategorias()]).then(([rows, cats]) => {
       if (active) {
         setTimes(rows.filter(time => !time.arquivado));
         setCategorias([...cats].sort((a, b) => numberOf(a) - numberOf(b)));
       }
-    }).catch(() => { if (active) setError('Não foi possível carregar os times. Confira sua conexão e tente novamente.'); })
+    }).catch(failure => { if (active) setError(failure instanceof Error ? failure.message : 'Não foi possível carregar os times. Confira sua conexão e tente novamente.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [clube?.id, version]);
@@ -134,7 +135,8 @@ export default function TimesPage() {
     <div className="teams-results"><span>{visible.length} {visible.length === 1 ? 'time' : 'times'}</span>
       {!mobile && <CollectionViewToggle value={view} onChange={setView} options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'list', label: 'Lista', icon: 'list' }]}/>}
     </div>
-    {loading ? <LoadingSkeleton kind="cards"/> : error ? <div role="alert" className="teams-empty"><Icon name="alert" size={28}/><p>{error}</p><Btn variant="ghost" onClick={() => setVersion(v => v + 1)}>Tentar novamente</Btn></div> : <>
+    {error && <div role="alert" className="teams-empty"><Icon name="alert" size={28}/><p>{error}</p><Btn variant="ghost" onClick={() => setVersion(v => v + 1)}>Tentar novamente</Btn></div>}
+    {loading && !times.length ? <PageSkeleton page="teams" contentOnly/> : <>
       {sections.filter(section => section.items.length).map(section => section.key === 'external' ? <details className="teams-section" key={section.key} aria-labelledby={'teams-' + section.key}>
         <summary><h2 id={'teams-' + section.key}>{section.title}</h2><span>{section.items.length}</span><Icon name="chevronRight" size={17}/></summary>
         <div className={'teams-grid' + (!mobile && view === 'list' ? ' is-list' : '')}>{section.items.map(renderTeam)}</div>
@@ -142,7 +144,7 @@ export default function TimesPage() {
         <div className="teams-section-heading"><h2 id={'teams-' + section.key}>{section.title}</h2><span>{section.items.length}</span></div>
         <div className={'teams-grid' + (!mobile && view === 'list' ? ' is-list' : '')}>{section.items.map(renderTeam)}</div>
       </section>)}
-      {!visible.length && <div className="teams-empty"><Icon name="shield" size={30}/><h2>Nenhum time encontrado</h2><p>Não há times disponíveis para os filtros selecionados.</p>
+      {!error && !visible.length && <div className="teams-empty"><Icon name="shield" size={30}/><h2>Nenhum time encontrado</h2><p>Não há times disponíveis para os filtros selecionados.</p>
         {search && <Btn variant="ghost" onClick={() => { setSearch(''); setScope('all'); }}>Limpar busca</Btn>}</div>}
     </>}
     <Modal open={!!selectedGroup} title={selectedGroup?.name || 'Time'} className="teams-drawer" onClose={() => setSelected(null)}

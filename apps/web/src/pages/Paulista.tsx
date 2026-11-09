@@ -71,7 +71,7 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
   }, [params, setParams]);
   useEffect(() => {
     const controller = new AbortController();
-    let active = true; setLoading(true); setErro('');
+    let active = true; setLoading(!(painel && meta && painelDaSelecao(painel, meta, clube?.id))); setErro('');
     requestJson<{ ativo: boolean; bancoPronto: boolean }>('/paulista/status', { signal: controller.signal }).then(async status => {
       if (!active) return;
       const enabled = status.ativo && status.bancoPronto; setReady(enabled);
@@ -90,8 +90,10 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
   useEffect(() => {
     if (!ready || !evento || !eventos.some(e => String(e.id) === evento)) return;
     const controller = new AbortController();
-    let active = true; setLoading(true); setErro(''); setPainel(null);
     const esperado = eventos.find(e => String(e.id) === evento)!;
+    const preserved = !!painel && painelDaSelecao(painel, esperado, clube?.id);
+    let active = true; setLoading(!preserved); setErro('');
+    if (!preserved) setPainel(null);
     requestJson<PainelPaulista>(`/paulista/eventos/${evento}`, { signal: controller.signal }).then(p => {
       if (!active) return;
       if (!painelDaSelecao(p, esperado, clube?.id)) throw new Error('Os dados recebidos não correspondem ao clube, categoria e divisão selecionados. Atualize para tentar novamente.');

@@ -5,10 +5,11 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import { TooltipLayer } from './components/Tooltip';
 import { WorkspaceAccess, ManagementAccess, AccessRequired, PublicClubEntry, PublicMatchEntry } from './components/PublicAccess';
+import { clubAccessScope } from './services/authSession';
 
 function Protegida({ children }: { children: React.ReactNode }) {
-  const { token, modo } = useAuth();
-  return <WorkspaceAccess><Fragment key={`${token}:${modo}`}>{children}</Fragment></WorkspaceAccess>;
+  const { token, modo, clubeSelecionado } = useAuth();
+  return <WorkspaceAccess><Fragment key={`${token}:${modo}:${clubAccessScope(clubeSelecionado)}`}>{children}</Fragment></WorkspaceAccess>;
 }
 
 function RouteNavigation() {

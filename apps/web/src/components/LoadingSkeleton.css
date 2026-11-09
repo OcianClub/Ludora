@@ -54,8 +54,15 @@
 }
 
 .loading-skeleton--cards .loading-skeleton-item {
-  min-height: 176px;
+  display:grid;
+  gap:18px;
+  min-height: 250px;
 }
+.loading-skeleton-teams { display:flex; align-items:center; justify-content:space-around; gap:16px; width:100%; }
+.loading-skeleton-teams > .loading-skeleton-mark { width:52px; height:52px; }
+.loading-skeleton-score { width:64px; height:32px; }
+.loading-skeleton-action { width:100%; height:38px; }
+.loading-skeleton-cell { width:48px; height:14px; margin-inline:12px; }
 
 .loading-skeleton--table {
   gap: 0;
@@ -77,8 +84,14 @@
 }
 
 .loading-skeleton--form .loading-skeleton-item {
+  display:grid;
+  gap:12px;
   min-height: 84px;
+  border:0;
+  padding-inline:0;
+  background:transparent;
 }
+.loading-skeleton-field { width:100%; height:44px; border:1px solid var(--borda); background:var(--fundo-card); }
 
 .loading-skeleton--form .loading-skeleton-mark {
   display: none;
@@ -87,6 +100,9 @@
 .loading-skeleton--match .loading-skeleton-item:first-child {
   min-height: 220px;
 }
+.loading-skeleton--match { grid-template-columns:minmax(0,1.45fr) minmax(0,1fr); align-items:start; }
+.loading-skeleton--match .loading-skeleton-item { display:grid; gap:20px; min-height:160px; }
+.loading-skeleton--match .loading-skeleton-item:first-child { grid-row:span 2; min-height:320px; }
 
 @keyframes skeleton-breathe {
   from { opacity: .45; }
@@ -100,6 +116,8 @@
 }
 
 @media (max-width: 600px) {
+  .loading-skeleton--match { grid-template-columns:minmax(0,1fr); }
+  .loading-skeleton-cell { width:24px; margin-inline:4px; }
   .loading-skeleton--cards {
     grid-template-columns: minmax(0, 1fr);
   }
