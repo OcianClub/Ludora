@@ -135,8 +135,11 @@ export default function TimesPage() {
       {!mobile && <CollectionViewToggle value={view} onChange={setView} options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'list', label: 'Lista', icon: 'list' }]}/>}
     </div>
     {loading ? <LoadingSkeleton kind="cards"/> : error ? <div role="alert" className="teams-empty"><Icon name="alert" size={28}/><p>{error}</p><Btn variant="ghost" onClick={() => setVersion(v => v + 1)}>Tentar novamente</Btn></div> : <>
-      {sections.filter(section => section.items.length).map(section => <section className="teams-section" key={section.key} aria-labelledby={'teams-' + section.key}>
-        <h2 id={'teams-' + section.key}>{section.title}<span>{section.items.length}</span></h2>
+      {sections.filter(section => section.items.length).map(section => section.key === 'external' ? <details className="teams-section" key={section.key} aria-labelledby={'teams-' + section.key}>
+        <summary><h2 id={'teams-' + section.key}>{section.title}</h2><span>{section.items.length}</span><Icon name="chevronRight" size={17}/></summary>
+        <div className={'teams-grid' + (!mobile && view === 'list' ? ' is-list' : '')}>{section.items.map(renderTeam)}</div>
+      </details> : <section className="teams-section" key={section.key} aria-labelledby={'teams-' + section.key}>
+        <div className="teams-section-heading"><h2 id={'teams-' + section.key}>{section.title}</h2><span>{section.items.length}</span></div>
         <div className={'teams-grid' + (!mobile && view === 'list' ? ' is-list' : '')}>{section.items.map(renderTeam)}</div>
       </section>)}
       {!visible.length && <div className="teams-empty"><Icon name="shield" size={30}/><h2>Nenhum time encontrado</h2><p>Não há times disponíveis para os filtros selecionados.</p>

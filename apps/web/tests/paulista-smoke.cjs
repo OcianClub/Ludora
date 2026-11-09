@@ -58,15 +58,11 @@ async function choose(page, label, value) {
       });
       try {
         await page.goto(base + '/competicoes');
-        await page.getByRole('heading', { name: 'Competições', exact: true }).waitFor();
-        assert.equal(await page.getByRole('link', { name: 'Paulista · fonte oficial', exact: true }).count(), 0);
-        if (width > 760) await choose(page, 'Organização', 'Paulista · Federação');
-        else { await page.getByRole('button', { name: /^Filtros/ }).click(); await choose(page, 'Organização', 'Paulista · Federação'); await page.getByRole('button', { name: 'Aplicar filtros', exact: true }).click(); }
-        assert.equal(await page.locator('.competition-card').count(), 1);
-        await page.getByRole('link', { name: new RegExp('^Abrir Paulista') }).click();
+        assert.equal(await page.locator('.competition-card').count(), 0);
+        assert.equal(await page.getByRole('button', { name: 'Nova competição', exact: true }).count(), 0);
         await page.getByRole('heading', { name: 'Campeonato Paulista', exact: true }).waitFor();
-        await page.locator('.paulista-position > strong').filter({ hasText: '12º' }).waitFor();
-        assert.equal(await page.locator('.paulista-season-facts dd').first().innerText(), '33');
+        await page.locator('.paulista-participation-position > strong').filter({ hasText: '12º' }).waitFor();
+        assert.equal(await page.locator('.paulista-campaign-metrics dd').first().innerText(), '33');
         await page.getByLabel('Divisão oficial A2', { exact: true }).waitFor();
         assert.equal(await page.getByText('Conferência calculada pelo Ludora · 3/1/0 e saldo', { exact: true }).count(), 0);
         assert.equal(await page.getByText('Operação do piloto · Super Admin', { exact: true }).count(), 0);
@@ -94,21 +90,15 @@ async function choose(page, label, value) {
         assert.equal(await page.locator('.paulista-table-scroll tr.is-own td').first().innerText(), '2º');
         await page.getByRole('button', { name: 'Chaveamento', exact: true }).click();
         await page.getByRole('heading', { name: 'Chave Prata', exact: true }).waitFor();
+        const mapButton = page.getByRole('button', { name: 'Mapa', exact: true });
+        if (await mapButton.count()) await mapButton.click();
+        await page.locator('.react-flow__edge-path').first().waitFor({ state: 'attached' });
         assert.equal(await page.locator('.paulista-bracket-game').count(), 7);
-        assert.equal(await page.locator('.paulista-connectors path').count(), 5);
-        assert.equal(await page.locator('.paulista-bracket-column').count(), 3);
+        assert.equal(await page.locator('.react-flow__edge-path').count(), 6);
+        assert.equal(await page.locator('.paulista-flow-phase').count(), 3);
         assert.equal(await page.locator('.paulista-bracket-game').filter({ hasText: /OURO|BRONZE|#365/ }).count(), 0);
-        await page.locator('.paulista-bracket-scroll').focus(); await page.keyboard.press('ArrowRight');
-        await page.locator('.paulista-bracket-scroll').evaluate(e => e.scrollLeft = 0);
+        await page.getByRole('button', { name: 'Ajustar à tela', exact: true }).click();
         await page.screenshot({ path: path.join(out, `bracket-${width}-${theme}.png`) });
-        if (width === 390) {
-          const scroller = page.locator('.paulista-bracket-scroll'); await scroller.evaluate(e => e.scrollLeft = 0);
-          const b = await scroller.boundingBox(), y = Math.min(b.y + 70, 700); const cdp = await context.newCDPSession(page);
-          await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + b.width - 20, y }] });
-          for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: b.x + b.width - 20 - i * 30, y }] });
-          await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-          assert.ok(await scroller.evaluate(e => e.scrollLeft > 0), 'Toque permite percorrer o chaveamento.'); await cdp.detach();
-        }
         await page.getByRole('button', { name: 'Jogos', exact: true }).click();
         await page.getByText('25 jogos encontrados · por data', { exact: true }).waitFor();
         assert.equal(await page.locator('.match-card').count(), 25);
@@ -133,7 +123,7 @@ async function choose(page, label, value) {
         assert.equal(after.partida.gols_mandante, before.partida.gols_mandante); assert.equal(after.partida.gols_visitante, before.partida.gols_visitante);
         assert.deepEqual(after.paulista.jogo, before.paulista.jogo); assert.equal(after.eventos.length, before.eventos.length + 1);
         assert.equal(await page.getByRole('button', { name: 'Editar dados', exact: true }).count(), 0);
-        await page.goBack(); await page.waitForURL(/competicoes\/paulista/);
+        await page.goBack(); await page.waitForURL(/competicoes(?:\/paulista)?/);
         await page.goto(base + '/partidas?status=FINALIZADA&fase=INICIACAO');
         await page.getByRole('heading', { name: 'Partidas', exact: true }).waitFor(); await page.locator('.match-official-label').first().waitFor();
         await page.goto(base + '/competicoes/paulista?evento=900&aba=jogos'); await page.getByRole('tab', { name: 'SUB-8', exact: true }).waitFor();

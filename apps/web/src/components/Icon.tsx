@@ -2,6 +2,7 @@ import email from '../../../../packages/icons/src/svg/email.svg?raw';
 import home from '../../../../packages/icons/src/svg/home.svg?raw';
 import ball from '../../../../packages/icons/src/svg/bola.svg?raw';
 import team from '../../../../packages/icons/src/svg/grupo.svg?raw';
+import people from '../../../../packages/icons/src/svg/people.svg?raw';
 import player from '../../../../packages/icons/src/svg/chuteira.svg?raw';
 import shirt from '../../../../packages/icons/src/svg/mdi-tshirt-crew-outline.svg?raw';
 import alert from '../../../../packages/icons/src/svg/mdi-alert-circle-outline.svg?raw';
@@ -34,7 +35,7 @@ import radar from '../../../../packages/icons/src/svg/mdi-radar.svg?raw';
 import broadcast from '../../../../packages/icons/src/svg/broadcast.svg?raw';
 import handshake from '../../../../packages/icons/src/svg/mdi-handshake.svg?raw';
 
-const drawings = { email, home, ball, team, player, shirt, alert, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus, bell, checkAll, settings, clock, radar, broadcast, handshake };
+const drawings = { email, home, ball, team, people, player, shirt, alert, shield, trophy, search, location, arrow, logout, switchClub, user, calendar, live, eye, eyeOff, edit, whistle, defense, trash, plus, minus, chevronRight, chevronLeft, bus, bell, checkAll, settings, clock, radar, broadcast, handshake };
 const icons = Object.fromEntries(Object.entries(drawings).map(([name, svg]) => [name, `data:image/svg+xml,${encodeURIComponent(svg)}`])) as Record<keyof typeof drawings, string>;
 export type IconName = keyof typeof drawings | 'grid' | 'list' | 'filters' | 'table' | 'desktop' | 'phone' | 'sun' | 'moon' | 'sidebarExpand' | 'sidebarCollapse' | 'info' | 'cancel' | 'archive' | 'undo' | 'share' | 'refresh';
 

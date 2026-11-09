@@ -33,7 +33,7 @@ const root = path.resolve(__dirname, '../../..'), base = 'http://localhost:5173'
           for (const identity of own) {
             await page.goto(base + `/competicoes/paulista?evento=${identity.eventoId}`);
             await page.getByLabel(`Divisão oficial ${identity.divisao}`, { exact: true }).waitFor();
-            await page.locator('.paulista-position > strong').filter({ hasText: `${identity.classificacao.find(r => /CLASSIFICA/i.test(r.fase)).posicao}º` }).waitFor();
+            await page.locator('.paulista-participation-position > strong').filter({ hasText: `${identity.classificacao.find(r => /CLASSIFICA/i.test(r.fase)).posicao}º` }).waitFor();
           }
         }
         const start = own.find(p => p.categoria === 'Sub-7');
@@ -44,7 +44,7 @@ const root = path.resolve(__dirname, '../../..'), base = 'http://localhost:5173'
         if (width === 390) await sub12.tap(); else { await sub12.focus(); await page.keyboard.press('Enter'); }
         const target = own.find(p => p.categoria === 'Sub-12');
         await page.getByLabel(`Divisão oficial ${target.divisao}`, { exact: true }).waitFor();
-        await page.locator('.paulista-position > strong').filter({ hasText: `${target.classificacao.find(r => /CLASSIFICA/i.test(r.fase)).posicao}º` }).waitFor();
+        await page.locator('.paulista-participation-position > strong').filter({ hasText: `${target.classificacao.find(r => /CLASSIFICA/i.test(r.fase)).posicao}º` }).waitFor();
         const globe = page.getByRole('link', { name: /^Abrir página oficial da Federação/ });
         assert.equal(await globe.getAttribute('href'), `https://eventos.admfutsal.com.br/evento/${target.eventoId}`);
         if (width === 1366) { await globe.hover(); await page.getByRole('tooltip').waitFor(); await page.mouse.move(0, 0); }

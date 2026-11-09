@@ -50,7 +50,7 @@ function LayoutContent() {
   const role = clube?.meuPapel ? ROLE_LABELS[clube.meuPapel] || clube.meuPapel : 'Visualização pública';
   const gerenciaClube = ['ADMIN', 'TECNICO', 'MESARIO'].includes(clube?.meuPapel || '');
   const extraLinks: typeof NAV = [...NAV.slice(4), ...(clube?.meuPapel === 'ADMIN'
-    ? [{ to: '/membros', label: 'Pessoas e acessos', icon: 'user' as IconName },
+    ? [{ to: '/membros', label: 'Pessoas e acessos', icon: 'people' as IconName },
       { to: '/clube', label: 'Configurações do clube', icon: 'settings' as IconName }] : [])];
   const moreActive = extraLinks.some(item => location.pathname.startsWith(item.to));
   function toggleSidebar() {

@@ -2,6 +2,7 @@ import { Component, Suspense, lazy, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
 import { StandaloneLoading } from './components/StandaloneLoading';
+import { PaulistaSkeleton } from './components/PaulistaSkeleton';
 
 const loaders = {
   '/login': () => import('./pages/Login'),
@@ -73,11 +74,13 @@ class PageBoundary extends Component<{ children: ReactNode }, { failed: boolean 
 }
 
 export function Page({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const standalone = ['/login', '/registrar', '/recuperar-senha', '/selecionar-clube'].includes(pathname) || pathname.startsWith('/convite');
+  const competition = pathname === '/competicoes' || pathname === '/competicoes/paulista';
   return (
     <PageBoundary key={pathname}>
-      <Suspense fallback={standalone ? <StandaloneLoading pathname={pathname} /> :
+      <Suspense fallback={standalone ? <StandaloneLoading pathname={pathname} /> : competition ?
+        <div className="paulista-skeleton-route"><PaulistaSkeleton tab={new URLSearchParams(search).get('aba') || 'visao'}/></div> :
         <div className="route-loading">
           <LoadingSkeleton label="Abrindo tela" count={3} />
         </div>

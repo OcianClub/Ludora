@@ -97,7 +97,8 @@ function lockPageScroll() {
     const previous = bodyStyles.map(property => body.style[property]);
     root.style.scrollbarGutter = 'stable';
     root.style.overflow = 'hidden';
-    body.style.overflow = 'hidden';
+    // Only the viewport should be locked. With body { height: 100% }, hiding
+    // its overflow creates a second scroll container and jumps the background to 0.
     restorePageScroll = () => {
       root.style.overflow = rootOverflow;
       root.style.scrollbarGutter = rootGutter;

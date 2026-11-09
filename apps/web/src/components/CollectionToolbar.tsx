@@ -15,12 +15,13 @@ export function CollectionSearch({ value, onChange, label, placeholder, id, clas
   </div>;
 }
 
-export function CollectionFilterButton({ onClick, label = 'Filtros', count = 0, className = '' }: {
-  onClick: () => void; label?: string; count?: number; className?: string;
+export function CollectionFilterButton({ onClick, label = 'Filtros', text, count = 0, className = '' }: {
+  onClick: () => void; label?: string; text?: string; count?: number; className?: string;
 }) {
   return <Btn variant="ghost" className={`collection-control collection-filter-button compact-filter-button ${className}`}
     onClick={onClick} aria-label={label} data-tooltip={label} aria-haspopup="dialog">
     <Icon name="filters" size={18}/>
+    {text && <span className="collection-filter-label">{text}</span>}
     {count > 0 && <span className="compact-filter-count">{count}</span>}
   </Btn>;
 }

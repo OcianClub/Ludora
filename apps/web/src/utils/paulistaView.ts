@@ -1,24 +1,26 @@
-import type { JogoPaulista, SnapshotPaulista } from '../../../../packages/shared-types/src/paulista';
+import type { JogoPaulista, SnapshotPaulista, PainelPaulista } from '../../../../packages/shared-types/src/paulista';
 import type { Partida } from '../services/api';
 import { teamName } from './teamIdentity';
+import { chavePublicada, etapaPublicada, caminhoPublicado, agendaProvisoria, type ChavePaulista } from './paulistaBracket';
+export { chavePublicada, etapaPublicada, caminhoPublicado } from './paulistaBracket';
 
-const normalizar = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase();
+/** Never present a previous club/category response under the newly selected filter. */
+export function painelDaSelecao(painel: PainelPaulista, evento: { id: number; ano: number; categoria: string; divisao: string }, clubeId: number | undefined) {
+  const s = painel.snapshot;
+  return painel.evento.id === evento.id && s.id === evento.id && s.ano === evento.ano
+    && s.categoria === evento.categoria && s.divisao === evento.divisao
+    && painel.vinculos.some(v => v.clubeId === clubeId && s.equipes.some(e => e.id === v.equipeId));
+}
+
 export function nomeOficial(nome: string) {
   const limpo = teamName(nome);
   if (limpo !== limpo.toLocaleUpperCase('pt-BR')) return limpo;
   return limpo.split(' ').map((word, i) => ['ADC', 'AA', 'FC', 'SP'].includes(word) || /^[A-Z](?:\.[A-Z])+\.?$/.test(word) ? word : i && /^(DE|DA|DO|DOS|DAS|E)$/.test(word) ? word.toLowerCase() : word.charAt(0) + word.slice(1).toLocaleLowerCase('pt-BR')).join(' ');
 }
-export function chavePublicada(nome: string): 'OURO' | 'PRATA' | 'BRONZE' | null {
-  const chaves = normalizar(nome).match(/\b(OURO|PRATA|BRONZE)\b/g) || [];
-  return new Set(chaves).size === 1 ? chaves[0] as 'OURO' | 'PRATA' | 'BRONZE' : null;
-}
-export function etapaPublicada(nome: string) {
-  const s = normalizar(nome);
-  return /OITAVAS/.test(s) ? 0 : /QUARTAS/.test(s) ? 1 : /SEMIFINA/.test(s) ? 2 : /\bFINA(L|IS)\b/.test(s) ? 3 : -1;
-}
 export const ordemData = (a: JogoPaulista, b: JogoPaulista) => `${a.data || '9999'} ${a.horario || '99:99'}`.localeCompare(`${b.data || '9999'} ${b.horario || '99:99'}`) || a.id.localeCompare(b.id);
 export const temResultado = (j: JogoPaulista) => !j.ocorrencia && j.golsMandante !== null && j.golsVisitante !== null;
 export function estadoJogo(j: JogoPaulista) {
+  if (agendaProvisoria(j)) return 'Data e horário aguardam confirmação';
   if (j.ocorrencia === 'WO') return 'W.O. publicado';
   if (j.ocorrencia === 'ADIADA') return 'Adiada · aguarde nova confirmação';
   if (temResultado(j)) return 'Resultado oficial';
@@ -27,36 +29,13 @@ export function estadoJogo(j: JogoPaulista) {
 export function resumoClube(s: SnapshotPaulista, ids: Set<number>, hoje: string) {
   const jogos = s.jogos.filter(j => ids.has(j.mandanteId) || ids.has(j.visitanteId)).sort(ordemData);
   const classificacao = s.classificacao.find(r => ids.has(r.equipeId) && /CLASSIFICA/i.test(r.fase));
-  const proxima = jogos.find(j => j.data && j.data >= hoje && !j.ocorrencia && !temResultado(j));
+  const proxima = jogos.find(j => j.data && j.data >= hoje && !j.ocorrencia && !temResultado(j) && !agendaProvisoria(j));
   const ultimo = [...jogos].reverse().find(j => temResultado(j) || j.ocorrencia === 'WO');
   const chaves = [...new Set([
     ...jogos.map(j => chavePublicada(j.fase)),
     ...s.classificacao.filter(r => ids.has(r.equipeId)).map(r => chavePublicada(`${r.fase} ${r.grupo}`)),
-  ].filter((v): v is 'OURO' | 'PRATA' | 'BRONZE' => !!v))];
+  ].filter((v): v is ChavePaulista => !!v))];
   return { jogos, classificacao, proxima, ultimo, chaves, pendentes: jogos.filter(j => j.ocorrencia !== 'WO' && !temResultado(j) && j.id !== proxima?.id) };
-}
-
-// Agrupa colunas para apresentação. Cada jogo conserva id e faseId.
-export function caminhoPublicado(s: SnapshotPaulista, chave: string) {
-  const jogos = s.jogos.filter(j => chavePublicada(j.fase) === chave).sort(ordemData);
-  const etapas = [...new Set(jogos.map(j => etapaPublicada(j.fase)))].sort((a, b) => a - b);
-  const colunas = etapas.map(etapa => ({ etapa, titulo: ['Oitavas de final', 'Quartas de final', 'Semifinais', 'Final'][etapa] || 'Confrontos publicados', jogos: jogos.filter(j => etapaPublicada(j.fase) === etapa) }));
-  const conexoes: { de: string; para: string; equipeId: number }[] = [];
-  for (const origem of jogos) {
-    const etapa = etapaPublicada(origem.fase);
-    if (etapa < 0 || !temResultado(origem) || origem.golsMandante === origem.golsVisitante) continue;
-    const par = jogos.filter(j => etapaPublicada(j.fase) === etapa && [j.mandanteId, j.visitanteId].every(id => [origem.mandanteId, origem.visitanteId].includes(id)));
-    if (par.length !== 1) continue; // Não adivinhar agregado de ida/volta.
-    const seguintes = jogos.filter(j => etapaPublicada(j.fase) === etapa + 1 && origem.data && j.data && j.data >= origem.data);
-    const candidatos = [origem.mandanteId, origem.visitanteId].map(id => ({ id, destino: seguintes.filter(j => j.mandanteId === id || j.visitanteId === id) }));
-    if (candidatos.some(c => c.destino.length > 1)) continue;
-    const presentes = candidatos.filter(c => c.destino.length === 1).map(c => ({ id: c.id, jogo: c.destino[0] }));
-    const vencedor = origem.golsMandante! > origem.golsVisitante! ? origem.mandanteId : origem.visitanteId;
-    if (presentes[0]?.id !== vencedor || jogos.filter(j => etapaPublicada(j.fase) === etapa && [j.mandanteId, j.visitanteId].includes(vencedor)).length !== 1) continue;
-    // Presença única na etapa publicada comprova a continuidade, não o ranking.
-    if (presentes.length === 1) conexoes.push({ de: origem.id, para: presentes[0].jogo.id, equipeId: presentes[0].id });
-  }
-  return { colunas, conexoes };
 }
 
 export function situacaoPublicacao(j: JogoPaulista, local?: Partida['status']): Partida['status'] {

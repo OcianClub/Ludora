@@ -34,7 +34,14 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
   }, [open]);
 
   useEffect(() => {
-    if (open) document.getElementById(`${id}-option-${activeIndex}`)?.scrollIntoView({ block: 'nearest' });
+    if (!open) return;
+    const option = document.getElementById(`${id}-option-${activeIndex}`);
+    const list = option?.parentElement;
+    if (!option || !list) return;
+    // Scroll only the options. scrollIntoView also moves the dialog/page behind it.
+    const item = option.getBoundingClientRect(), box = list.getBoundingClientRect();
+    if (item.top < box.top) list.scrollTop -= box.top - item.top;
+    else if (item.bottom > box.bottom) list.scrollTop += item.bottom - box.bottom;
   }, [activeIndex, open, id]);
 
   function choose(index: number) {

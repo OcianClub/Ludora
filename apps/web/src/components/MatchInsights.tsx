@@ -39,7 +39,6 @@ export function MatchInsights({ data, selectedPeriod, placement }: {
           </dd></div>;
         })}</dl>
         <section className="match-insights-card-summary" aria-label="Cartões registrados">
-          <h3>Cartões</h3>
           <dl>{MATCH_METRICS.filter(([key]) => key.startsWith('CARTAO_')).map(([key, label]) => <div key={key}>
             <dt><i className={`match-insights-card-icon ${key.toLowerCase()}`} aria-hidden="true" />{label}</dt>
             <dd><strong>{teams[0].totals[key]}</strong><span aria-hidden="true">–</span><strong>{teams[1].totals[key]}</strong></dd>

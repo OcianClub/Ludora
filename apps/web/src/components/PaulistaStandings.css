@@ -1,0 +1,135 @@
+.paulista-standings { display:grid; gap:18px; min-width:0; }
+.paulista-standings .paulista-table-heading { gap:12px 20px; }
+.paulista-standings .eyebrow { font-size:9px; }
+.paulista-standings .paulista-table-heading h2 { margin-top:5px; }
+.paulista-standings .paulista-table-filters .field { margin:0; }
+.paulista-standings .paulista-table-filters .field-label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.paulista-ranking-layout { display:grid; grid-template-columns:minmax(0,1fr); gap:20px; align-items:start; min-width:0; }
+.paulista-ranking-layout.has-club { grid-template-columns:minmax(0,1fr) 248px; }
+.paulista-ranking-table { min-width:0; }
+.paulista-standings .paulista-table-scroll table { min-width:680px; font-size:12px; }
+.paulista-standings .paulista-table-scroll th,.paulista-standings .paulista-table-scroll td { padding:12px 9px; }
+.paulista-standings .paulista-rank-position { width:50px; }
+.paulista-standings .paulista-rank-club { width:34%; }
+.paulista-standings .paulista-table-scroll thead { background:var(--fundo-card); font-size:10px; }
+.paulista-standings .paulista-table-scroll tbody td:nth-child(3) { font-size:14px; }
+.paulista-standings .paulista-ranking-team { gap:8px; min-width:0; }
+.paulista-standings .paulista-ranking-team small { font-size:9px; }
+.paulista-ranking-band { --band-color:var(--texto-sec); }
+.paulista-ranking-band.band-ouro { --band-color:var(--paulista-ouro); }
+.paulista-ranking-band.band-prata { --band-color:var(--paulista-prata); }
+.paulista-ranking-band.band-bronze { --band-color:var(--paulista-bronze); }
+.paulista-ranking-band.band-rubi { --band-color:var(--paulista-rubi); }
+.paulista-standings .paulista-table-scroll .paulista-ranking-band > th,
+.paulista-standings .paulista-table-scroll .paulista-ranking-band:hover > th { padding:9px 14px; background:var(--fundo); text-align:left; font-size:10px; }
+.paulista-ranking-band-label { display:inline-flex; align-items:center; gap:9px; white-space:nowrap; }
+.paulista-ranking-band-label > span { color:var(--band-color); font-weight:700; }
+.paulista-ranking-band-label > span::before { content:''; display:inline-block; vertical-align:middle; width:5px; height:5px; margin-right:7px; border-radius:50%; background:var(--band-color); }
+.paulista-ranking-band small { color:var(--texto-sec); font-size:10px; font-weight:400; }
+.paulista-standings tr[data-key=ouro] > td:first-child { box-shadow:inset 2px 0 var(--paulista-ouro); }
+.paulista-standings tr[data-key=prata] > td:first-child { box-shadow:inset 2px 0 var(--paulista-prata); }
+.paulista-standings tr[data-key=bronze] > td:first-child { box-shadow:inset 2px 0 var(--paulista-bronze); }
+.paulista-standings tr[data-key=rubi] > td:first-child { box-shadow:inset 2px 0 var(--paulista-rubi); }
+.paulista-standings .paulista-table-scroll tr.is-own > td:first-child { box-shadow:inset 3px 0 var(--primaria); }
+.paulista-ranking-summary { display:grid; gap:18px; padding:20px; border:1px solid color-mix(in srgb,var(--primaria) 60%,var(--borda)); border-radius:9px; background:var(--fundo-card); min-width:0; }
+.paulista-standing-identity { display:flex; align-items:center; gap:10px; min-width:0; }
+.paulista-standing-identity > div { min-width:0; display:grid; gap:4px; }
+.paulista-standing-identity .eyebrow { color:var(--texto-sec); }
+.paulista-standing-identity strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:16px; }
+.paulista-standing-identity .club-badge { background:var(--fundo-card-sec); border:1px solid var(--linha); color:var(--texto); flex-shrink:0; }
+.paulista-standing-position { display:flex; gap:12px; align-items:center; }
+.paulista-standing-position > b { font:600 58px/1 var(--font-titulo); white-space:nowrap; letter-spacing:-1px; }
+.paulista-standing-position > span { color:var(--texto-sec); font-size:11px; line-height:1.5; }
+.paulista-standing-position small { display:block; font-size:10px; margin-top:4px; }
+.paulista-standing-key { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.paulista-standing-key .paulista-medal { gap:6px; font-size:11px; padding:5px 8px; border:1px solid color-mix(in srgb,currentColor 40%,transparent); border-radius:5px; background:color-mix(in srgb,currentColor 5%,var(--fundo-card)); }
+.paulista-standing-key svg { width:15px; height:15px; }
+.paulista-standing-key > small { font-size:10px; color:var(--texto-sec); white-space:nowrap; }
+.paulista-standing-stats { display:grid; gap:11px; margin:0; padding-top:16px; border-top:1px solid var(--linha); }
+.paulista-standing-stats > div { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.paulista-standing-stats dt { color:var(--texto-sec); font-size:12px; }
+.paulista-standing-stats dd { margin:0; font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
+.paulista-standing-record > div:first-child { display:flex; justify-content:space-between; gap:10px; font-size:11px; color:var(--texto-sec); }
+.paulista-standing-record strong { font-size:12px; white-space:nowrap; }
+.paulista-standing-record strong > :nth-child(1) { color:var(--primaria); }
+.paulista-standing-record strong > :nth-child(2) { color:var(--paulista-ouro); }
+.paulista-standing-record strong > :nth-child(3) { color:#E5485D; }
+.paulista-standing-record-bar { display:flex; height:5px; overflow:hidden; margin-top:8px; background:var(--linha); border-radius:4px; }
+.paulista-standing-record-bar > span { flex-basis:0; background:var(--primaria); }
+.paulista-standing-record-bar > :nth-child(2) { background:var(--resultado-empate); }
+.paulista-standing-record-bar > :nth-child(3) { background:#E5485D; }
+.paulista-ranking-summary > .btn { width:100%; font-size:11px; }
+.paulista-standings-info { margin:0; color:var(--texto-sec); font-size:11px; }
+.paulista-standings-info summary { cursor:pointer; width:fit-content; padding:5px 0; }
+.paulista-standings-info p { max-width:720px; line-height:1.7; margin:8px 0 0; }
+@container paulista (max-width:1080px) {
+  .paulista-ranking-layout.has-club { grid-template-columns:minmax(0,1fr); }
+  .paulista-ranking-summary { order:-1; grid-template-columns:minmax(150px,1fr) minmax(170px,1fr) minmax(170px,1fr); gap:14px 24px; align-items:center; padding:18px 20px; }
+  .paulista-standing-identity { grid-column:1; }
+  .paulista-standing-position { grid-column:2; grid-row:1; }
+  .paulista-standing-position > b { font-size:46px; }
+  .paulista-standing-key { grid-column:1; grid-row:2; justify-content:flex-start; }
+  .paulista-standing-stats { grid-column:3; grid-row:1 / 3; border:0; padding:0; }
+  .paulista-standing-record { grid-column:2; grid-row:2; }
+  .paulista-ranking-summary > .btn { grid-column:1 / -1; justify-self:start; width:auto; }
+}
+@container paulista (max-width:760px) {
+  .paulista-standings .paulista-table-heading { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; }
+  .paulista-table-identity { display:grid; gap:5px; min-width:0; }
+  .paulista-table-title { display:flex; align-items:baseline; justify-content:space-between; gap:12px; min-width:0; }
+  .paulista-standings .paulista-table-title h2 { margin:0; }
+  .paulista-standings .paulista-table-title p { flex-shrink:0; margin:0; white-space:nowrap; }
+  .paulista-standings .paulista-table-filters { display:grid; grid-template-columns:minmax(0,1fr); width:100%; }
+  .paulista-standings .paulista-table-filters .field { width:100%; min-width:0; max-width:none; }
+  .paulista-standings .paulista-rank-club { width:188px; }
+  .paulista-standings .paulista-table-scroll tr > :nth-child(2) { left:50px; border-right:0; }
+  .paulista-standings .paulista-table-scroll tr > :nth-child(2)::after { content:''; position:absolute; top:0; bottom:-1px; right:-16px; width:16px; background:linear-gradient(to right,var(--sticky-edge-color,var(--fundo-card)),transparent); pointer-events:none; }
+  .paulista-standings .paulista-table-scroll tbody tr:hover { --sticky-edge-color:color-mix(in srgb,var(--texto) 4%,var(--fundo-card)); }
+  .paulista-standings .paulista-table-scroll tbody tr.is-own { --sticky-edge-color:color-mix(in srgb,var(--primaria) 7%,var(--fundo-card)); }
+  .paulista-standings .paulista-table-scroll tbody tr.is-own:hover { --sticky-edge-color:color-mix(in srgb,var(--primaria) 10%,var(--fundo-card)); }
+  .paulista-standings .paulista-table-scroll tbody tr.is-own.is-located { --sticky-edge-color:color-mix(in srgb,var(--primaria) 22%,var(--fundo-card)); }
+  .paulista-ranking-band-label { position:sticky; left:14px; }
+  .paulista-standings .paulista-table-scroll thead tr > :nth-child(-n+2) { background:var(--fundo-card); }
+  .paulista-ranking-summary { grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr); gap:12px 16px; padding:18px; }
+  .paulista-standing-identity { grid-column:1; grid-row:1; align-self:end; }
+  .paulista-standing-identity strong { font-size:17px; }
+  .paulista-standing-position { grid-column:2; grid-row:1 / 3; display:grid; justify-items:end; justify-self:end; align-self:center; gap:5px; text-align:right; }
+  .paulista-standing-position > b { font-size:54px; }
+  .paulista-standing-position > span { font-size:11px; }
+  .paulista-standing-position small { margin-top:2px; }
+  .paulista-standing-key { grid-column:1; grid-row:2; display:grid; justify-items:start; gap:5px; align-self:start; }
+  .paulista-standing-stats { grid-column:1 / -1; grid-row:3; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding-top:14px; border-top:1px solid var(--linha); gap:12px; }
+  .paulista-standing-stats > div { display:grid; grid-template-columns:minmax(0,1fr); justify-content:normal; gap:6px; text-align:center; justify-items:center; }
+  .paulista-standing-stats > div + div { border-left:1px solid var(--linha); }
+  .paulista-standing-stats dt { font-size:11px; }
+  .paulista-standing-stats dd { font-size:18px; }
+  .paulista-standing-record { grid-column:1 / -1; grid-row:4; }
+  .paulista-ranking-summary > .btn { grid-row:5; width:100%; }
+}
+@container paulista (max-width:380px) {
+  .paulista-standings .paulista-table-heading { align-items:start; }
+  .paulista-standings .paulista-table-filters { gap:8px; }
+  .paulista-standings .paulista-rank-club { width:142px; }
+  .paulista-standing-position { gap:7px; }
+  .paulista-standing-position > b { font-size:48px; }
+  .paulista-standing-position > span { font-size:10px; }
+  .paulista-standing-position small { font-size:9px; }
+  .paulista-standing-identity { gap:8px; }
+  .paulista-standing-identity strong { font-size:14px; }
+}
+
+/* Numeric alignment stays unchanged; team and points carry the emphasis. */
+.paulista-standings .paulista-table-scroll tbody tr.is-own.is-located > * { background:color-mix(in srgb,var(--primaria) 22%,var(--fundo-card)); }
+.paulista-standings .paulista-table-scroll tr.is-located:focus { outline:0; }
+@container paulista (min-width:761px) {
+ .paulista-standings .paulista-table-scroll { max-height:min(72vh,760px); overflow:auto; scroll-padding-top:48px; }
+ .paulista-standings .paulista-table-scroll thead th { position:sticky; top:0; z-index:3; background:var(--fundo-card-sec); box-shadow:0 1px var(--borda); }
+ .paulista-standings .paulista-table-scroll tbody th[scope=row] { font-weight:600; }
+ .paulista-standings .paulista-table-scroll tbody td { color:var(--paulista-metadata); font-weight:400; }
+ .paulista-standings .paulista-table-scroll tbody td:nth-child(3) { color:var(--texto); font-size:14px; font-weight:700; }
+ .paulista-standings .paulista-table-scroll tr.is-own > * { color:var(--texto); }
+ .paulista-standing-position > span,.paulista-standing-stats dt { color:var(--paulista-metadata); }
+}
+@container paulista (min-width:1081px) {
+ .paulista-ranking-summary { position:sticky; top:76px; }
+}

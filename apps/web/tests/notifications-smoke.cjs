@@ -101,6 +101,15 @@ const output = path.resolve(__dirname, '../../../test-results/web-notifications'
         await dialog.getByRole('button', { name: `Excluir notificação: ${first.titulo}`, exact: true }).click();
         assert.equal(await dialog.locator('.notification-row').count(), 5);
         assert.ok(state.rows.some(item => item.id === first.id), 'Exclusão aguarda o prazo para desfazer');
+        const undo = dialog.locator('.notification-undo');
+        assert.ok(await undo.evaluate(el => {
+          const message = el.querySelector('.notification-undo-message'), icon = message.querySelector('.icon').getBoundingClientRect();
+          const text = message.querySelector('span:not(.icon)').getBoundingClientRect(), button = el.querySelector('button').getBoundingClientRect(), box = el.getBoundingClientRect();
+          return icon.x >= box.x && text.x - icon.right <= 10 && text.right <= button.x && Math.abs(button.right - box.right) < 1;
+        }), 'Lixeira e texto à esquerda; desfazer à direita, sem sobreposição');
+        const progress = undo.locator('.notification-undo-progress > span');
+        assert.ok(await progress.evaluate(el => el.getAnimations().some(animation => animation.playState === 'running' && animation.effect.getTiming().duration > 0)), 'Barra contínua mostra o prazo real de desfazer');
+        await page.screenshot({ path: path.join(output, `notifications-undo-${width}.png`) });
         await dialog.getByRole('button', { name: 'Desfazer', exact: true }).click();
         assert.equal(await dialog.locator('.notification-row').count(), 6);
         state.fail = true;

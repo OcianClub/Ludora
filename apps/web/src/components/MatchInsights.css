@@ -27,8 +27,7 @@
 .match-insights-bars i { display: block; height: 100%; background: var(--primaria); border-radius: 4px; }
 .match-insights-bars>span:last-child i { background: #9d87c7; }
 .match-insights-card-summary { margin-top:20px; padding-top:16px; border-top:1px solid var(--linha); }
-.match-insights-card-summary h3 { margin:0; font:600 12px var(--font-corpo); }
-.match-insights-card-summary dl { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:12px; }
+.match-insights-card-summary dl { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
 .match-insights-card-summary dl>div { min-width:0; }
 .match-insights-card-summary dt { display:flex; align-items:center; justify-content:center; gap:5px; color:var(--live-muted,var(--texto-sec)); font-size:11px; white-space:nowrap; }
 .match-insights-card-summary dd { display:flex; align-items:center; justify-content:center; gap:10px; margin:8px 0 0; font-size:15px; font-variant-numeric:tabular-nums; }

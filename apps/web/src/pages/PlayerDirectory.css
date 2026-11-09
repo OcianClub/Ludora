@@ -33,7 +33,15 @@
 .alunos-page .alunos-missing-chip span { color: inherit; background: transparent; }
 .alunos-load-more { display: flex; justify-content: center; padding: 16px; }
 .alunos-page .alunos-directory:not(.alunos-directory--list) { border: 0; border-radius: 0; background: transparent; overflow: visible; }
-.alunos-page .alunos-table-scroll { border: 1px solid var(--linha); border-radius: 9px; background: var(--alunos-surface); }
+.alunos-page .alunos-table-scroll {
+  --alunos-surface: var(--fundo-card);
+  --alunos-header: color-mix(in srgb, var(--fundo-card) 82%, var(--fundo));
+  --alunos-row-hover: var(--fundo-card-sec);
+  --alunos-separator: var(--linha);
+  border: 1px solid var(--borda);
+  border-radius: 9px;
+  background: var(--alunos-surface);
+}
 .alunos-sub-group:has(.alunos-inline-shirt:focus-within) { overflow: visible; }
 .alunos-list li { position: relative; }
 @media (hover: none) { .alunos-page .alunos-cell-open .student-open { opacity: 1; } }

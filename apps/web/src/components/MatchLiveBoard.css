@@ -899,6 +899,7 @@
   }
 }
 @media (max-width: 760px) {
+  .live-lineups .shared-lineup-tabs { width: 100%; }
   .match-live-board {
     gap: 18px;
   }

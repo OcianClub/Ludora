@@ -53,7 +53,7 @@ async function prepare(
   width,
   height,
   theme = 'dark',
-  { longContent = false, role = 'ADMIN' } = {},
+  { longContent = false, role = 'ADMIN', clubeNome = 'Ocian' } = {},
 ) {
   const context = await browser.newContext({
     viewport: { width, height },
@@ -62,7 +62,7 @@ async function prepare(
     colorScheme: theme,
   });
   await context.addInitScript(
-    ({ theme, role }) => {
+    ({ theme, role, clubeNome }) => {
       localStorage.setItem('ludora_token', 'responsive-test-only');
       localStorage.setItem(
         'ludora_usuario',
@@ -74,12 +74,12 @@ async function prepare(
       );
       localStorage.setItem(
         'ludora_clube',
-        JSON.stringify({ id: 2, nome: 'Ocian', meuPapel: role }),
+        JSON.stringify({ id: 2, nome: clubeNome, meuPapel: role }),
       );
       localStorage.setItem('ludora_clube_id', '2');
       localStorage.setItem('ludora_tema', theme);
     },
-    { theme, role },
+    { theme, role, clubeNome },
   );
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
@@ -95,6 +95,7 @@ async function prepare(
     role,
     decorate: (fixture) => {
       data = fixture;
+      fixture.clubes[0].nome = clubeNome;
       if (longContent) {
         fixture.clubes[0].nome =
           'Associação Esportiva Comunitária de Praia Grande';

@@ -87,7 +87,7 @@
   font-weight: 400;
 }
 .members-table-wrap {
-  border: 1px solid var(--linha);
+  border: 1px solid var(--borda);
   border-radius: 10px;
   background: var(--fundo-card);
   overflow: visible;
@@ -99,7 +99,7 @@
   table-layout: auto;
 }
 .members-table th {
-  background: color-mix(in srgb, var(--fundo-card) 80%, var(--fundo-card-sec));
+  background: color-mix(in srgb, var(--fundo-card) 82%, var(--fundo));
   padding: 13px 16px;
   font-size: 12px;
   color: var(--texto-sec);
@@ -123,8 +123,9 @@
 .members-table tr:last-child td {
   border-bottom: 0;
 }
-.members-table tbody tr:hover td {
-  background: color-mix(in srgb, var(--fundo-card) 95%, var(--texto) 5%);
+.members-table tbody tr:hover td,
+.members-table tbody tr:focus-within td {
+  background: var(--fundo-card-sec);
 }
 .members-person {
   display: flex;
@@ -150,7 +151,8 @@
 .members-table tbody tr.members-row-self {
   background: color-mix(in srgb, var(--fundo-card) 93%, var(--primaria) 7%);
 }
-.members-table tbody tr.members-row-self:hover td {
+.members-table tbody tr.members-row-self:hover td,
+.members-table tbody tr.members-row-self:focus-within td {
   background: color-mix(in srgb, var(--fundo-card) 89%, var(--primaria) 11%);
 }
 .members-access-subs {

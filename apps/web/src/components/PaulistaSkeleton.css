@@ -1,0 +1,47 @@
+.paulista-skeleton { width:100%; min-width:0; }
+.paulista-skeleton-route { width:100%; min-width:0; container-type:inline-size; container-name:paulista; }
+.paulista-skeleton > div { display:grid; gap:18px; }
+.paulista-skeleton-line,.paulista-skeleton-badge,.paulista-skeleton-score { display:block; flex:none; background:var(--fundo-card-sec); border-radius:5px; }
+.paulista-skeleton-line { width:70%; max-width:300px; height:12px; }
+.paulista-skeleton-line.is-short { width:42%; max-width:130px; height:10px; }
+.paulista-skeleton-badge { width:36px; height:36px; border-radius:8px; }
+.paulista-skeleton-score { width:48px; height:36px; }
+.paulista-skeleton-tabs { display:flex; gap:24px; padding:16px 0; border-bottom:1px solid var(--linha); }
+.paulista-skeleton-tabs > span { width:88px; }
+.paulista-skeleton-card { display:grid; align-content:start; gap:20px; padding:22px; border:1px solid var(--borda); border-radius:10px; background:var(--fundo-card); min-width:0; }
+.paulista-skeleton-team { display:flex; align-items:center; gap:10px; min-width:0; }
+.paulista-skeleton-team > .paulista-skeleton-line { flex:1; }
+.paulista-skeleton-hero { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; min-height:120px; }
+.paulista-skeleton-hero > div { display:grid; gap:18px; }
+.paulista-skeleton-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); border:1px solid var(--borda); border-radius:10px; padding:18px; background:var(--fundo-card); }
+.paulista-skeleton-metrics > div { display:grid; justify-items:center; gap:12px; }
+.paulista-skeleton-columns { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:18px; }
+.paulista-skeleton-search { display:flex; align-items:center; gap:12px; min-height:44px; }
+.paulista-skeleton-search > .paulista-skeleton-line { flex:1; max-width:none; height:42px; }
+.paulista-skeleton-games,.paulista-skeleton-rounds { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.paulista-skeleton-rounds { display:none; }
+.paulista-skeleton-map { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:30px; min-height:760px; padding:40px 24px; border:1px solid var(--borda); border-radius:10px; }
+.paulista-skeleton-map > div { display:flex; flex-direction:column; justify-content:space-around; gap:20px; min-width:0; }
+.paulista-skeleton-map .paulista-skeleton-card { gap:12px; padding:16px; }
+.paulista-skeleton-map .paulista-skeleton-card > .paulista-skeleton-line:not(:first-child) { display:none; }
+.paulista-skeleton-map .paulista-skeleton-contest { padding-block:0; }
+.paulista-skeleton-contest { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:16px; padding-block:14px; }
+.paulista-skeleton-contest .paulista-skeleton-team { flex-direction:column; }
+.paulista-skeleton-contest .paulista-skeleton-team > .paulista-skeleton-line { flex:none; height:10px; width:60px; max-width:100%; }
+.paulista-skeleton-ranking { display:flex; justify-content:space-between; align-items:center; }
+.paulista-skeleton-table { border:1px solid var(--borda); border-radius:10px; overflow:hidden; background:var(--fundo-card); }
+.paulista-skeleton-table > div { display:grid; grid-template-columns:40px minmax(0,1fr) 60px 60px; align-items:center; gap:16px; padding:14px 18px; border-bottom:1px solid var(--linha); }
+.paulista-skeleton-table > div:last-child { border:0; }
+@container paulista (max-width:1000px) { .paulista-skeleton-games { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@container paulista (max-width:760px) {
+ .paulista-skeleton-card { padding:18px; }
+ .paulista-skeleton-tabs { gap:12px; }
+ .paulista-skeleton-tabs > span { flex:1; width:auto; }
+ .paulista-skeleton-columns,.paulista-skeleton-games,.paulista-skeleton-rounds { grid-template-columns:minmax(0,1fr); }
+ .paulista-skeleton-rounds { display:grid; }
+ .paulista-skeleton-map { display:none; }
+ .paulista-skeleton-hero { min-height:260px; }
+ .paulista-skeleton-hero > div { gap:28px; }
+ .paulista-skeleton-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+ .paulista-skeleton-table > div { gap:10px; grid-template-columns:22px minmax(0,1fr) 28px 28px; padding-inline:14px; }
+}

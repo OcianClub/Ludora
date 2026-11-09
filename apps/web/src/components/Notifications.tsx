@@ -13,6 +13,13 @@ import './Notifications.css';
 
 type NoticeResponse = { notificacoes: Notice[]; totalNaoLidas: number; proximoCursor?: number | null };
 const emptyData: NoticeResponse = { notificacoes: [], totalNaoLidas: 0, proximoCursor: null };
+const DELETE_UNDO_MS = 6000;
+
+function DeleteUndoProgress({ deadline }: { deadline: number }) {
+  // One continuous animation, tied to the real deadline rather than a ticking render.
+  const [duration] = useState(() => Math.max(0, deadline - Date.now()));
+  return <span className="notification-undo-progress" aria-hidden="true"><span style={{ animationDuration: `${duration}ms` }}/></span>;
+}
 
 export function Notifications() {
   const { clube, token } = useAuth();
@@ -37,7 +44,7 @@ export function Notifications() {
   const [type, setType] = useState<NoticeType | ''>('');
   const [confirmation, setConfirmation] = useState<'all' | 'read' | null>(null);
   const [message, setMessage] = useState('');
-  const pendingDeletes = useRef(new Map<number, { timer: number; scope: number }>());
+  const pendingDeletes = useRef(new Map<number, { timer: number; scope: number; deadline: number }>());
   const [pendingIds, setPendingIds] = useState<number[]>([]);
   const commitDelete = useRef<(notice: Notice) => Promise<void>>(async () => {});
 
@@ -204,7 +211,7 @@ export function Notifications() {
       pendingDeletes.current.delete(notice.id);
       setPendingIds(previous => previous.filter(id => id !== notice.id));
     };
-    pendingDeletes.current.set(notice.id, { timer: window.setTimeout(() => void commit(), 6000), scope: currentScope });
+    pendingDeletes.current.set(notice.id, { timer: window.setTimeout(() => void commit(), DELETE_UNDO_MS), scope: currentScope, deadline: Date.now() + DELETE_UNDO_MS });
     setPendingIds(previous => [...previous, notice.id]);
     setMessage('');
   }
@@ -222,6 +229,7 @@ export function Notifications() {
   )).map(group => ({ ...group, bundles: bundleCorrections(group.notices) })), [data.notificacoes, filter, type, pendingIds]);
   const unreadCount = Math.max(0, data.totalNaoLidas - data.notificacoes.filter(notice => !notice.lida && pendingIds.includes(notice.id)).length);
   const readCount = data.notificacoes.filter(notice => notice.lida).length;
+  const undoDeadline = Math.min(...pendingIds.map(id => pendingDeletes.current.get(id)?.deadline ?? Infinity));
   const emptyTitle = data.proximoCursor ? 'Nenhum aviso encontrado nesta página'
     : filter === 'unread' ? 'Nenhum aviso não lido'
     : type ? 'Nenhum aviso deste tipo' : 'Nenhuma notificação por enquanto';
@@ -240,8 +248,8 @@ export function Notifications() {
       </button>
       <Modal open={open} onClose={() => { setOpen(false); setConfirmation(null); }} title="Notificações"
         id={dialogId} className="notifications-drawer" footer={pendingIds.length > 0 && <div className="notification-undo" role="status">
-          <Icon name="trash" size={18} />
-          <span>{pendingIds.length === 1 ? 'Notificação removida' : `${pendingIds.length} notificações removidas`}</span>
+          <DeleteUndoProgress key={undoDeadline} deadline={undoDeadline}/>
+          <div className="notification-undo-message"><Icon name="trash" size={18} /><span>{pendingIds.length === 1 ? 'Notificação removida' : `${pendingIds.length} notificações removidas`}</span></div>
           <button type="button" disabled={busy} onClick={undoDelete}><Icon name="undo" size={16} />Desfazer</button>
         </div>} headerActions={clube?.meuPapel && <details className="notification-menu"
           onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}
