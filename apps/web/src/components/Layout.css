@@ -197,11 +197,14 @@
 .sidebar-footer {
   position: relative;
   height: 117px;
-  margin-top: auto;
   border-top: 1px solid var(--linha);
   flex-shrink: 0;
   transition: height var(--sidebar-motion) var(--sidebar-ease);
 }
+.sidebar-help { margin-top: auto; padding: 12px; flex-shrink: 0; }
+.sidebar-help > .support-trigger { width: 100%; text-align: left; }
+.sidebar-help .nav-icon { width: 36px; height: 36px; }
+.sidebar-help .nav-label { min-width: 0; }
 .layout[data-sidebar-expanded="true"] .sidebar-footer { height: 73px; }
 .sidebar-club {
   position: relative;
@@ -280,7 +283,7 @@
 }
 .layout[data-sidebar-expanded="true"] .sidebar-footer .notifications-trigger.profile-link { left: calc(100% - 50px); bottom: 17px; }
 
-.mobile-more-account { padding-top: 16px; border-top: 1px solid var(--linha); }
+.mobile-more-account { display: grid; gap: 8px; padding-top: 16px; border-top: 1px solid var(--linha); }
 .mobile-more-account > .mobile-more-item { width: 100%; border: 1px solid var(--linha); border-radius: 12px; background: var(--fundo-card); }
 .mobile-more-account > .mobile-more-item > span:nth-child(2) { flex: 1; }
 .sidebar-usuario {
@@ -650,6 +653,12 @@
     border-radius: 12px;
     background: var(--fundo-card);
   }
+  .mobile-more-club .club-badge {
+    border: 0;
+    background: var(--fundo-card-sec);
+    color: var(--texto);
+    font-weight: 600;
+  }
   .mobile-more-club > span:last-child {
     display: flex;
     min-width: 0;
@@ -696,6 +705,7 @@
     color: var(--texto);
     font-size: 14px;
     font-weight: 550;
+    text-align: left;
   }
   .mobile-more-item + .mobile-more-item {
     border-top: 1px solid var(--linha);
@@ -713,12 +723,27 @@
     color: var(--texto-sec);
   }
   .mobile-more-item.active {
-    color: var(--primaria);
+    color: var(--texto);
   }
   .mobile-more-item.active .mobile-more-item-icon {
-    background: var(--fundo-botao);
-    color: var(--primaria);
+    background: var(--fundo-card-sec);
+    color: var(--texto-sec);
   }
+  .mobile-more-account > .support-trigger {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 20px;
+    justify-items: stretch;
+    min-height: 46px;
+    padding: 4px 12px;
+    border: 0;
+    background: transparent;
+    color: var(--texto-sec);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .mobile-more-account > .support-trigger .mobile-more-item-icon { background: transparent; }
+  .mobile-more-account > .support-trigger .mobile-more-item-icon > svg { width: 18px; height: 18px; }
+  .mobile-more-account > .support-trigger:hover { background: var(--fundo-card); color: var(--texto); }
   @keyframes mobile-more-enter {
     from { transform: translateY(100%); }
     to { transform: translateY(0); }

@@ -1,6 +1,6 @@
 import { FilterSelect } from '@web/components/FilterSelect';
 import { useEffect, useState } from 'react';
-import { Btn, Input, Spinner } from '@web/components/UI';
+import { Btn, Input, Spinner } from './AdminUI';
 import { requestJson } from '../services/api';
 type Convite = { id: string; destinatario: string; status: string; criadoEm: string; podeReenviar: boolean };
 type Data = { provedorConfigurado: boolean; conta: { id: number; destinatario: string; recuperacao: string } | null; acoes: { requestId: string; tipo: string; resultado: string; criadoEm: string }[]; recuperacoes: { id: string; status: string; novoEmail: string; justificativa: string; solicitanteId: number }[] };

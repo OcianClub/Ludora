@@ -16,7 +16,7 @@ export class ApiResponseError extends Error {
   }
 }
 
-export async function requestJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export async function requestJson<T>(endpoint: string, options: RequestInit & { semClube?: boolean } = {}): Promise<T> {
   const response = await apiFetch(endpoint, options);
   if (response.status === 204 || response.status === 205) return undefined as T;
   const body = await response.json();
@@ -63,7 +63,7 @@ export function cachedJson<T>(endpoint: string): T | undefined { return peekRead
 export function invalidateApiReads(endpoint = '') { invalidateReadCache(readScope() + endpoint); }
 
 // ── Fetch central ──
-async function apiFetch(endpoint: string, options: RequestInit = {}) {
+async function apiFetch(endpoint: string, { semClube = false, ...options }: RequestInit & { semClube?: boolean } = {}) {
   const token = getToken();
   const clubeId = getClubeId();
   const scope = readScope();
@@ -80,7 +80,8 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
     headers.set('Content-Type', 'application/json');
   }
   if (token && !target.startsWith('/publico/')) headers.set('Authorization', `Bearer ${token}`);
-  if (clubeId) headers.set('x-clube-id', String(clubeId));
+  if (clubeId && !semClube) headers.set('x-clube-id', String(clubeId));
+  if (semClube) headers.delete('x-clube-id');
 
   const method = (options.method || 'GET').toUpperCase();
   const lifetime = readLifetime(endpoint);

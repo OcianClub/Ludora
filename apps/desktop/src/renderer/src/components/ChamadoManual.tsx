@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CollectionSearch } from '@web/components/CollectionToolbar';
-import { Btn, Input, Modal } from '@web/components/UI';
+import { Btn, Input, Modal } from './AdminUI';
 import { ClubBadge } from '@web/components/Brand';
 import { novoRequestId } from '@web/services/requestId';
 import { requestJson } from '../services/api';

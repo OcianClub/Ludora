@@ -4,7 +4,7 @@ import type { EstadoTempoReal } from '../../../shared/bridge';
 export const ROTULO_ESTADO: Record<EstadoTempoReal, string> = {
   parado: 'Parado',
   conectando: 'Conectando…',
-  conectado: 'Ao vivo',
+  conectado: 'Conectado',
   desconectado: 'Desconectado',
   erro: 'Sem conexão',
 };
@@ -14,7 +14,7 @@ export function useEstadoTempoReal(): EstadoTempoReal {
   const [estado, setEstado] = useState<EstadoTempoReal>('parado');
   useEffect(() => {
     let ativo = true;
-    window.ludora.logs.historico().then(h => ativo && setEstado(h.estado));
+    window.ludora.logs.historico().then(h => ativo && setEstado(h.estado)).catch(() => ativo && setEstado('erro'));
     const parar = window.ludora.logs.aoMudarEstado(setEstado);
     return () => { ativo = false; parar(); };
   }, []);

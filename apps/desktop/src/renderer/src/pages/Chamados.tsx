@@ -4,7 +4,7 @@ import { CollectionFilterButton, CollectionFilterDialog, CollectionSearch } from
 import { FilterSelect } from '@web/components/FilterSelect';
 import { SchedulePeriodDialog } from '@web/components/SchedulePeriodDialog';
 import { Icon } from '@web/components/Icon';
-import { Btn, Card, LoadingSkeleton, Modal, Spinner } from '@web/components/UI';
+import { Btn, Card, DesktopState, LoadingSkeleton, Modal, Spinner } from '../components/AdminUI';
 import { Toast } from '@web/components/Toast';
 import '@web/pages/Partidas.css';
 import SupportOperations from '../components/SupportOperations';
@@ -191,15 +191,15 @@ export default function ChamadosPage() {
         <div className="schedule-filter-fields">
           <Escolhas label="Origem" value={rascunho.origem || ''} options={[{ value: '', label: 'Todas' }, ...origens]} onChange={origem => setRascunho({ ...rascunho, origem })}/>
           <Escolhas label="Prioridade" value={rascunho.prioridade || ''} options={[{ value: '', label: 'Todas' }, ...prioridades]} onChange={prioridade => setRascunho({ ...rascunho, prioridade })}/>
-          <FilterSelect inlineOptions label="Situação" emptyLabel="Todas as situações" options={estados} value={rascunho.status || ''} onChange={status => setRascunho({ ...rascunho, status })}/>
-          <FilterSelect inlineOptions label="Tipo" emptyLabel="Todos os tipos" options={tipos} value={rascunho.tipo || ''} onChange={tipo => setRascunho({ ...rascunho, tipo })}/>
-          <FilterSelect inlineOptions label="Clube" emptyLabel="Todos os clubes" options={opcoes?.clubes || []} value={rascunho.clube || ''} onChange={clube => setRascunho({ ...rascunho, clube })}/>
-          <FilterSelect inlineOptions label="Responsável" emptyLabel="Qualquer responsável" options={opcoes?.responsaveis || []} value={rascunho.responsavel || ''} onChange={responsavel => setRascunho({ ...rascunho, responsavel })}/>
+          <FilterSelect overlayInDialog label="Situação" emptyLabel="Todas as situações" options={estados} value={rascunho.status || ''} onChange={status => setRascunho({ ...rascunho, status })}/>
+          <FilterSelect overlayInDialog label="Tipo" emptyLabel="Todos os tipos" options={tipos} value={rascunho.tipo || ''} onChange={tipo => setRascunho({ ...rascunho, tipo })}/>
+          <FilterSelect overlayInDialog label="Clube" emptyLabel="Todos os clubes" options={opcoes?.clubes || []} value={rascunho.clube || ''} onChange={clube => setRascunho({ ...rascunho, clube })}/>
+          <FilterSelect overlayInDialog label="Responsável" emptyLabel="Qualquer responsável" options={opcoes?.responsaveis || []} value={rascunho.responsavel || ''} onChange={responsavel => setRascunho({ ...rascunho, responsavel })}/>
         </div>
       </CollectionFilterDialog>}
-      {carregando ? <LoadingSkeleton kind="cards"/> : !erro && <>
+      {carregando ? <LoadingSkeleton kind="rows" label="Carregando chamados"/> : !erro && <>
         <p className="ticket-count">{lista.length === 200 ? '200 chamados mais recentes' : `${lista.length} ${lista.length === 1 ? 'chamado' : 'chamados'}`}</p>
-        {!lista.length && <div className="schedule-empty"><span><Icon name="search" size={23}/></span><div><h2>Nenhum chamado encontrado</h2><p>{query ? 'Ajuste a busca ou limpe os filtros.' : 'Novos relatos e ocorrências aparecerão aqui.'}</p></div></div>}
+        {!lista.length && <DesktopState icon="headset" title="Nenhum chamado encontrado" description={query ? 'Ajuste a busca ou limpe os filtros.' : 'Novos relatos e ocorrências aparecerão aqui.'}/>}
         {[...grupos].map(([data, itens]) => <section className="ticket-day" key={data}>
           <h2>{data === hoje ? 'Hoje' : dataLonga(data)}</h2>
           {itens.map(c => <button className="ticket-card" key={c.id} type="button" onClick={() => alterar({ id: c.id })}>
@@ -211,7 +211,7 @@ export default function ChamadosPage() {
         </section>)}
       </>}
     </>}
-    {erro && <div className="schedule-load-error" role="alert"><span><Icon name="alert" size={22}/></span><div><strong>Não foi possível concluir</strong><p>{erro}</p></div><Btn variant="ghost" onClick={() => setAtualizacao(n => n + 1)}>Atualizar</Btn></div>}
+    {erro && <DesktopState error title="Não foi possível concluir" description={erro} onRetry={() => setAtualizacao(n => n + 1)}/>}
     {id && carregando && !atual && <Spinner/>}
     {id && atual && <div className="ticket-detail">
       <div className="ticket-detail-main">

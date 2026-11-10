@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 
 async function main() {
   const pasta = path.resolve('../../.local-demo/equipe');
@@ -86,6 +86,19 @@ async function main() {
     if (mensagens) {
       await testarOperacoes(prisma, contas, mensagens, senha => bcrypt.hash(senha, 10));
 
+    }
+    if (process.argv.includes('--completo')) {
+      // A API precisa continuar atendendo enquanto os testes filhos usam HTTP.
+      for (const arquivo of ['suporte.integration.ts', 'manutencao.integration.ts', 'paulista-operacional.integration.ts']) {
+        await new Promise<void>((resolve, reject) => {
+          const child = spawn(process.execPath, [require.resolve('tsx/cli'), path.join(__dirname, arquivo)], {
+            env: process.env, stdio: 'inherit', windowsHide: true,
+          });
+          child.once('error', reject);
+          child.once('exit', code => code === 0 ? resolve() : reject(new Error(`${arquivo} terminou com código ${code}`)));
+        });
+      }
+      console.log('PASS integração completa no PostgreSQL local isolado.');
     }
     if (process.argv.includes('--serve')) {
       manterServidor = true;

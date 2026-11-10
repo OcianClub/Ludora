@@ -1,4 +1,4 @@
-import { Btn, Input, Modal } from '@web/components/UI';
+import { Btn, Input, Modal } from '../components/AdminUI';
 import { useEffect, useState, type FormEvent } from 'react';
 import { AuthShell } from '@web/components/AuthShell';
 import { AccessFeedback } from '@web/components/auth/AccessFeedback';

@@ -620,8 +620,3 @@
 }
 .support-trigger:hover { background: var(--fundo-card-sec); color: var(--texto); }
 .support-trigger:focus-visible { outline: 2px solid var(--primaria); outline-offset: -2px; }
-.sidebar-footer:has(> .support-trigger) { height: 162px; }
-.sidebar-footer > .support-trigger { position: absolute; left: 18px; bottom: 109px; }
-.layout[data-sidebar-expanded="true"] .sidebar-footer:has(> .support-trigger) { height: 116px; }
-.layout[data-sidebar-expanded="true"] .sidebar-footer > .support-trigger { left: 12px; bottom: 64px; }
-.mobile-more-account > .support-trigger { margin-bottom: 4px; }

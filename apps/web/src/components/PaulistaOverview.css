@@ -124,7 +124,10 @@
  .paulista-campaign-metrics > div:nth-child(odd) { border-left:0; }
  .paulista-campaign-metrics dd { font-size:28px; }
  .paulista-campaign-metrics > div { padding-inline:8px; }
- .paulista-record dd { gap:8px; }
+ .paulista-campaign-metrics > div:nth-child(n+3) dt { min-height:36px; display:flex; align-items:center; justify-content:center; }
+ .paulista-record dd { gap:clamp(4px,1.6cqw,8px); }
+ .paulista-record dd > span { white-space:nowrap; }
+ .paulista-record small { margin-left:3px; }
  .paulista-journey,.paulista-nearby { padding:18px 14px; }
  .paulista-journey li { gap:9px; }
  .paulista-journey-match { padding:10px 8px; gap:4px; }

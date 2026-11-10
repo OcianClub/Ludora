@@ -1,4 +1,4 @@
-import { Input } from '@web/components/UI';
+import { Input } from './AdminUI';
 import { OptionTiles } from './OptionTiles';
 
 export function MotivoTiles({ label = 'Motivo', options, value, onChange, custom, setCustom }: {

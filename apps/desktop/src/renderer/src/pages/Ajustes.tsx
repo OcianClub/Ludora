@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Btn, Card, Input } from '@web/components/UI';
+import { useCallback, useEffect, useState } from 'react';
+import { Btn, Card, DesktopState, Input, LoadingSkeleton } from '../components/AdminUI';
 import type { ConfigApp } from '../../../shared/bridge';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 
@@ -8,8 +8,14 @@ export default function AjustesPage() {
   const [config, setConfig] = useState<ConfigApp | null>(null);
   const [url, setUrl] = useState('');
   const [erro, setErro] = useState('');
+  const [erroConfig, setErroConfig] = useState('');
 
-  useEffect(() => { window.ludora.config.obter().then(c => { setConfig(c); setUrl(c.apiUrl); }); }, []);
+  const carregarConfig = useCallback(() => {
+    setErroConfig('');
+    return window.ludora.config.obter().then(c => { setConfig(c); setUrl(c.apiUrl); })
+      .catch(() => setErroConfig('Não foi possível consultar a configuração deste aplicativo.'));
+  }, []);
+  useEffect(() => { void carregarConfig(); }, [carregarConfig]);
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
@@ -20,7 +26,7 @@ export default function AjustesPage() {
     await sair();
   }
 
-  if (!config) return null;
+  if (!config) return erroConfig ? <DesktopState error title="Não foi possível abrir os ajustes" description={erroConfig} onRetry={() => void carregarConfig()}/> : <LoadingSkeleton kind="form" label="Carregando ajustes" count={2}/>;
   return (
     <div>
       <div className="page-header"><div><h1 className="page-title">Ajustes</h1><p className="page-sub">Ludora Admin {config.versao} · {config.plataforma}</p></div></div>

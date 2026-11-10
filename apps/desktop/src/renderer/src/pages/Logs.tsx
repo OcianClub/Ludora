@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EntradaLog, NivelLog } from '@ludora/shared-types';
-import { Btn, Input, Select } from '@web/components/UI';
+import { Btn, Input, Select } from '../components/AdminUI';
 import { useEstadoTempoReal } from '../components/useTempoReal';
 
 const LIMITE = 1000;
@@ -61,7 +61,7 @@ export default function LogsPage() {
         <div><h1 className="page-title">Logs ao vivo</h1><p className="page-sub">Requisições da API e ações do painel · caminhos sem query e sem dados de corpo</p></div>
       </div>
 
-      <div className="filter-bar">
+      <div className="filter-bar desktop-log-filters">
         <Select label="Nível" emptyLabel="Tudo" options={NIVEIS} value={nivel} onChange={e => setNivel(e.target.value)} />
         <Input label="Filtrar texto" placeholder="/partidas, 500, Clube criado…" value={texto} onChange={e => setTexto(e.target.value)} />
         <Btn variant="ghost" onClick={() => setPausado(p => !p)}>{pausado ? 'Retomar' : 'Pausar'}</Btn>

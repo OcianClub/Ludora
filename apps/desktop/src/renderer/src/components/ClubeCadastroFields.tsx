@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { EnderecoCadastro } from '@ludora/shared-types';
-import { Btn, Input } from '@web/components/UI';
+import { Btn, Input } from './AdminUI';
 import { ClubBadge } from '@web/components/Brand';
 import { FilterSelect } from '@web/components/FilterSelect';
 import { Icon } from '@web/components/Icon';

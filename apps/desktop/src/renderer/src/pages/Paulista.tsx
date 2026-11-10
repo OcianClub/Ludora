@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CollectionFilterButton, CollectionFilterDialog, CollectionSearch } from '@web/components/CollectionToolbar';
 import { FilterSelect } from '@web/components/FilterSelect';
-import { Btn, Card, Input, LoadingSkeleton, Modal } from '@web/components/UI';
+import { Btn, Card, DesktopState, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { Toast } from '@web/components/Toast';
 import { ClubBadge } from '@web/components/Brand';
 import { Icon } from '@web/components/Icon';
@@ -173,9 +173,9 @@ export default function PaulistaAdmin() {
         {evento && <a className="paulista-source-icon" href={`https://eventos.admfutsal.com.br/evento/${evento.id}/jogos`} target="_blank" rel="noreferrer"
           aria-label="Abrir fonte oficial" data-tooltip="Abrir fonte oficial da Federação"><FederationGlobe/></a>}</div>
     </header>
-    {erro && <div className="schedule-load-error" role="alert"><span><Icon name="alert" size={24}/></span><div><strong>Não foi possível carregar a integração</strong><p>{erro}</p></div></div>}
+    {erro && <DesktopState error title="Não foi possível carregar a integração" description={erro} onRetry={() => void carregar()}/>}
     <Toast message={aviso} onClose={() => setAviso('')}/>
-    {!resumo && !erro && <LoadingSkeleton kind="cards"/>}
+    {!resumo && !erro && <LoadingSkeleton kind="rows" label="Carregando integração Paulista"/>}
     {resumo && !evento && <>
       <Card className="ticket-section paulista-health"><div><h2>{tituloSaude}</h2><p>Descoberta {quando(resumo.rotina?.descobertaEm)} · Próxima {quando(resumo.rotina?.proximaEm)}</p></div>
         <Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${base}/verificar`, titulo: 'Executar rotina pendente', body: {}, rotina: true, impacto: 'Processa as consultas que já estão agendadas. Uma falha preserva a última versão válida.' })}>Executar rotina pendente</Btn>
@@ -192,7 +192,7 @@ export default function PaulistaAdmin() {
         {tarefas.length > 5 && <div><Btn size="sm" variant="ghost" aria-expanded={todosAlertas} onClick={() => setTodosAlertas(v => !v)}>{todosAlertas ? 'Mostrar menos alertas' : `Ver os outros ${tarefas.length - 5} alertas`}</Btn></div>}
       </section>
       <section className="ticket-day"><h2>Clubes</h2>
-        {!clubes.length && !semClube.length && <div className="schedule-empty"><span><Icon name="search" size={22}/></span><div><h2>Nenhum clube encontrado</h2><p>Revise os filtros ou a busca.</p></div></div>}
+        {!clubes.length && !semClube.length && <DesktopState icon="search" title="Nenhum clube encontrado" description="Revise os filtros ou a busca."/>}
         {clubes.map(c => {
           const subs = new Set(c.eventos.map(e => e.categoria)).size;
           return <details className="paulista-club-card" key={c.id} open={c.id === clubeSelecionado?.id || undefined}>
@@ -231,7 +231,7 @@ export default function PaulistaAdmin() {
             })}><span className="settings-switch-thumb" aria-hidden="true"/></button>
         </div>}
       </Card>
-      {detalhando && <LoadingSkeleton kind="cards"/>}
+      {detalhando && <LoadingSkeleton kind="rows" label="Carregando detalhes do evento"/>}
       {painel && <section className="ticket-day"><h2>Divergências e calendário</h2>
         {!alertasEvento.length && <p className="dica">Nenhuma divergência registrada para esta seleção.</p>}
         {alertasEvento.map(p => {

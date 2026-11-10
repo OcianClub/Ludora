@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon, type IconName } from '@web/components/Icon';
-import { Btn, Card, LoadingSkeleton } from '@web/components/UI';
+import { Btn, Card, DesktopState, LoadingSkeleton } from '../components/AdminUI';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 
 export const NOMES_PAPEIS = {
@@ -44,8 +44,8 @@ export default function EquipePage() {
     <Card><div className="page-header equipe-diagnostico-heading"><div><h2 className="section-title">Diagnóstico dos serviços</h2>
       {dados && !erro && <p className="page-sub">Última consulta {new Date(dados.consultadoEm).toLocaleString('pt-BR')}</p>}</div>
       <Btn variant="ghost" disabled={carregando} onClick={() => void carregar()}><Icon name="refresh" size={16}/>Atualizar diagnóstico</Btn></div>
-      {erro && <p className="notice-error" role="alert">{erro}</p>}
-      {carregando ? <LoadingSkeleton kind="cards" count={3}/> : dados && !erro && <dl className="equipe-diagnostico">
+      {erro && <DesktopState error title="Não foi possível verificar os serviços" description={erro} onRetry={() => void carregar()}/>}
+      {carregando ? <LoadingSkeleton kind="stats" count={3} label="Verificando serviços"/> : dados && !erro && <dl className="equipe-diagnostico">
         <div><dt>Banco de dados</dt><dd>Disponível · {dados.latenciaMs} ms</dd></div>
         <div><dt>Envio de e-mail</dt><dd>{dados.emailConfigurado ? 'Provedor configurado; entrega depende de cada envio' : 'Provedor não configurado'}</dd></div>
         <div><dt>Integração Paulista</dt><dd>{dados.paulistaHabilitado ? 'Habilitada' : 'Desabilitada neste ambiente'}</dd></div>

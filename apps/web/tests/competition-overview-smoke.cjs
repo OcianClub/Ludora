@@ -42,11 +42,36 @@ async function choose(page,label,value){await page.getByRole('combobox',{name:ne
    await page.goto(base+'/competicoes');
    await page.locator('.paulista-participation-position>strong').getByText('2º',{exact:true}).waitFor();
    assert.equal(await page.getByRole('heading',{name:'Campeonato Paulista',exact:true}).count(),1);
+   if(width<=390){
+    const metrics=page.locator('.paulista-campaign-metrics>div');
+    const campaign=await metrics.nth(2).locator('dd').boundingBox();
+    const balance=await metrics.nth(3).locator('dd').boundingBox();
+    assert.ok(Math.abs(campaign.y-balance.y)<=1,'campanha e saldo alinhados na mesma linha');
+    assert.equal(await page.locator('.paulista-campaign-strip').evaluate(el=>el.scrollWidth>el.clientWidth),false,'indicadores sem overflow');
+    if(role==='ADMIN'){
+     await page.getByRole('button',{name:'Mais opções de navegação'}).click();
+     const more=page.getByRole('dialog',{name:'Mais opções',exact:true});
+     const teams=more.getByRole('link',{name:'Times',exact:true}),competitions=more.getByRole('link',{name:'Competições',exact:true});
+     assert.equal(await teams.evaluate(el=>getComputedStyle(el).color),await competitions.evaluate(el=>getComputedStyle(el).color),'competição usa o mesmo tom dos outros itens');
+     const support=more.getByRole('button',{name:'Suporte e ajuda',exact:true});
+     const account=more.getByRole('button',{name:'Menu da conta',exact:true});
+     const supportText=await support.locator('>span').nth(1).boundingBox();
+     const accountText=await account.locator('>span').nth(1).boundingBox();
+     await page.screenshot({path:`test-results/mobile-more-refined-${width}.png`});
+     assert.ok(Math.abs(supportText.x-accountText.x)<=2,`textos de suporte e conta alinhados à esquerda (${supportText.x}/${accountText.x})`);
+     assert.equal(await support.evaluate(el=>getComputedStyle(el).textAlign),'left');
+     assert.equal(await support.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)','suporte sem card de fundo');
+     assert.equal(await more.locator('.club-badge').evaluate(el=>getComputedStyle(el).borderTopWidth),'0px');
+     await page.screenshot({path:`test-results/mobile-more-refined-${width}.png`});
+     await more.getByRole('button',{name:'Fechar janela'}).click();
+    }
+   }
    assert.equal(await page.locator('.competition-card,.competition-tabs').count(),0);
    assert.equal(await page.getByRole('button',{name:'Nova competição',exact:true}).count(),0);
    assert.equal(await page.locator('.paulista-back').count(),0,'entrada não volta para a mesma tela');
    assert.equal(localReads,0,'entrada não consulta competições locais');
    await page.getByRole('button',{name:'Opções do campeonato'}).click();
+   assert.equal(await page.getByRole('menuitem',{name:'Competições anteriores',exact:true}).count(),0,'menu não oferece competições locais anteriores');
    assert.equal(await page.locator('.paulista-source-link').getAttribute('href'),'https://eventos.admfutsal.com.br/evento/900');
    await page.keyboard.press('Escape');
    await page.getByRole('button',{name:'Classificação',exact:true}).click();
@@ -84,12 +109,10 @@ async function choose(page,label,value){await page.getByRole('combobox',{name:ne
    mode='disabled';await page.goto(base+'/competicoes');await page.getByRole('heading',{name:'Campeonato Paulista indisponível'}).waitFor();
    assert.equal(await page.getByText('Suas competições do clube continuam disponíveis.',{exact:true}).count(),0);
    if(width===1440&&role==='ADMIN'){
-    await page.getByRole('button',{name:'Opções do campeonato'}).click();
-    await page.getByRole('menuitem',{name:'Competições anteriores',exact:true}).click();
-    await page.getByRole('heading',{name:'Competições anteriores',exact:true}).waitFor();
-    await page.getByText('Torneio local de teste',{exact:true}).waitFor();
-    await page.getByRole('link',{name:'Campeonato Paulista',exact:true}).click();
+    await page.goto(base+'/competicoes?arquivo=1');
     await page.getByRole('heading',{name:'Campeonato Paulista indisponível'}).waitFor();
+    assert.equal(await page.getByRole('heading',{name:'Competições anteriores',exact:true}).count(),0,'link antigo não reabre a tela removida');
+    assert.equal(localReads,0,'link antigo não consulta competições locais');
    }
    mode='empty';await page.goto(base+'/competicoes');await page.getByRole('heading',{name:'Nenhuma participação confirmada'}).waitFor();
    assert.deepEqual(writes,[],'nenhuma escrita nos dados oficiais');assert.deepEqual(errors,[]);

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ClubeResumo, MembrosDoClube, PapelClube, UsuarioGlobal } from '@ludora/shared-types';
 import { ClubBadge } from '@web/components/Brand';
 import { CollectionSearch } from '@web/components/CollectionToolbar';
-import { Btn, Modal } from '@web/components/UI';
+import { Btn, Modal } from './AdminUI';
 import { definirPapel, fetchMembros } from '../services/api';
 import { OptionTiles } from './OptionTiles';
 import { ClubSubChoices } from './ClubeCadastroFields';

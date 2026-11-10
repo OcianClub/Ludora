@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { ClubeResumo, UsuarioGlobal, VisaoGlobal } from '@ludora/shared-types';
-import { Btn, Input, LoadingSkeleton, Modal } from '@web/components/UI';
+import { Btn, DesktopState, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { ClubBadge } from '@web/components/Brand';
 import { Toast } from '@web/components/Toast';
-import { CollectionFilterButton, CollectionSearch, CollectionViewToggle } from '@web/components/CollectionToolbar';
+import { CollectionFilterButton, CollectionFilterDialog, CollectionSearch, CollectionViewToggle } from '@web/components/CollectionToolbar';
 import { Icon } from '@web/components/Icon';
 import CadastroPendente from '../components/CadastroPendente';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
@@ -116,19 +116,19 @@ export default function UsuariosPage() {
       {clubeAtivo && <h2>{clubeAtivo.nome}</h2>}
       <div className="user-toolbar"><CollectionSearch label={clubesVisiveis ? 'Buscar clubes' : 'Buscar usuários'} placeholder={clubesVisiveis ? 'Nome do clube…' : 'Nome ou e-mail…'} value={ler('busca')} onChange={busca => alterar({ busca: busca.slice(0, 80) }, true)}/>
         {!clubesVisiveis && <CollectionFilterButton label="Mais filtros" count={ativos.length} onClick={() => setFiltros(filtros ? null : Object.fromEntries(chaves.map(k => [k, ler(k)])))}/>}</div>
-      {filtros && !clubesVisiveis && <section className="user-inline-filters" aria-label="Filtrar usuários">
+      {filtros && !clubesVisiveis && <CollectionFilterDialog open title="Filtrar usuários" onClose={() => setFiltros(null)} onClear={() => setFiltros({})}
+        onApply={() => { alterar(Object.fromEntries(chaves.filter(k => aba !== 'clubes' || k !== 'clube').map(k => [k, filtros[k] || '']))); setFiltros(null); }}>
         {chaves.filter(k => aba !== 'clubes' || k !== 'clube').map(k => <OptionTiles key={k} label={labels[k]} options={[{ value: '', label: 'Todos' }, ...options[k]]} value={filtros[k] || ''} onChange={v => setFiltros({ ...filtros, [k]: v })} scroll={k === 'clube'}/>)}
-        <div className="actions"><Btn variant="ghost" onClick={() => setFiltros({})}>Limpar seleção</Btn><Btn onClick={() => { alterar(Object.fromEntries(chaves.filter(k => aba !== 'clubes' || k !== 'clube').map(k => [k, filtros[k] || '']))); setFiltros(null); }}>Aplicar filtros</Btn></div>
-      </section>}
+      </CollectionFilterDialog>}
       {!!ativos.length && <div className="schedule-active-filters" aria-label="Filtros ativos">{ativos.map(k => <button key={k} onClick={() => alterar({ [k]: '' })}>{options[k].find(o => String(o.value) === ler(k))?.label || labels[k]}<Icon name="minus" size={14}/></button>)}</div>}
       {clubesVisiveis ? <div className="user-directory" data-view="grid">{clubes.filter(c => c.nome.toLowerCase().includes(ler('busca').trim().toLowerCase())).map(c =>
         <button key={c.id} type="button" className="ticket-card equipe-atalho" onClick={() => alterar({ clube: String(c.id), busca: '' })}>
           <ClubBadge src={c.escudo} name={c.nome} size={34}/><span className="ticket-card-copy"><strong>{c.nome}</strong><small>{c.membros} {c.membros === 1 ? 'conta' : 'contas'}</small></span><Icon name="chevronRight" size={16}/>
         </button>)}{erroClubes && <p role="alert">{erroClubes}</p>}</div>
-        : erro ? <div className="schedule-load-error" role="alert"><div><strong>Falha ao consultar usuários</strong><p>{erro}</p></div><Btn onClick={() => setRefresh(n => n + 1)}>Tentar novamente</Btn></div> : !usuarios ? <LoadingSkeleton kind="cards"/> : <>
+        : erro ? <DesktopState error title="Falha ao consultar usuários" description={erro} onRetry={() => setRefresh(n => n + 1)}/> : !usuarios ? <LoadingSkeleton kind="rows" label="Carregando usuários"/> : <>
         <div className="user-list-heading"><p className="ticket-count">{usuarios.length === 50 ? '50 contas mais recentes · refine a busca para encontrar outras' : `${usuarios.length} conta(s)`}</p>
           <CollectionViewToggle label="Visualização das contas" value={ler('vista') || 'list'} onChange={v => alterar({ vista: v })} options={[{ value: 'list', label: 'Linhas', icon: 'list' }, { value: 'grid', label: 'Blocos', icon: 'grid' }]}/></div>
-        {!usuarios.length && <div className="schedule-empty"><span><Icon name="search" size={23}/></span><div><h2>Nenhuma conta encontrada</h2><p>Revise a busca e os filtros.</p></div></div>}
+        {!usuarios.length && <DesktopState title="Nenhuma conta encontrada" description="Revise a busca e os filtros." icon="people"/>}
         {grupos.filter(g => g.contas.length).map(g => <section key={g.titulo} className="ticket-day"><h2>{g.titulo}</h2>
           <div className="user-directory" data-view={ler('vista') || 'list'}>
           {ler('vista') !== 'grid' && <div className="user-column-head"><span>Conta</span><span>Clube</span><span>Cargo</span></div>}

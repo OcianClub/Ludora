@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useBlocker, useNavigate } from 'react-router-dom';
 import type { ClubeResumo, PlanoClube, VisaoGlobal } from '@ludora/shared-types';
 import { ClubBadge } from '@web/components/Brand';
-import { Btn, Empty, Input, Modal, Spinner } from '@web/components/UI';
+import { Btn, DesktopState, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { AdminIcon } from '../components/AdminIcon';
 import { criarClube, fetchVisaoGlobal } from '../services/api';
 import { CandidatosClube, type Candidato } from '../components/CandidatosClube';
@@ -97,8 +97,8 @@ export default function ClubesPage() {
     }
   }
 
-  if (erro) return <div className="notice-error" role="alert">{erro} <Btn size="sm" variant="ghost" onClick={carregar}>Tentar novamente</Btn></div>;
-  if (!clubes) return <Spinner />;
+  if (erro) return <DesktopState error title="Não foi possível carregar os clubes" description={erro} onRetry={carregar}/>;
+  if (!clubes) return <LoadingSkeleton kind="cards" label="Carregando clubes"/>;
   const normalizar = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   const filtrados = clubes.filter(c => (!planoFiltro || c.plano === planoFiltro)
     && normalizar([c.nome, c.cidade, c.estado].filter(Boolean).join(' ')).includes(normalizar(busca)));
@@ -116,7 +116,7 @@ export default function ClubesPage() {
         <FilterSelect label="Plano" emptyLabel="Todos os planos" options={PLANOS} value={planoFiltro} onChange={setPlanoFiltro}/>
       </div>
       <p className="ticket-count" role="status">{filtrados.length} de {clubes.length} clubes</p>
-      {filtrados.length === 0 ? <Empty icon="🛡" message="Nenhum clube encontrado" /> : <div className="club-directory">
+      {filtrados.length === 0 ? <DesktopState icon="shield" title="Nenhum clube encontrado" description={busca || planoFiltro ? 'Ajuste a busca ou o plano selecionado.' : 'Os clubes cadastrados aparecerão aqui.'}/> : <div className="club-directory">
         {filtrados.map(c => <Link key={c.id} to={`/clubes/${c.id}`} className="club-directory-card">
           <ClubBadge src={c.escudo} name={c.nome} size={46}/><span className="ticket-card-copy"><strong>{c.nome}</strong><small>{[c.cidade, c.estado].filter(Boolean).join(', ') || 'Localização pendente'}</small></span>
           <Icon name="chevronRight" size={17}/><span className="club-directory-meta">{c.ativo ? c.plano : 'Indisponível'} · {c.categorias} SUBs · {c.membros} pessoas</span>

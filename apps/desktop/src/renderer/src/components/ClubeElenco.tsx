@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Btn, LoadingSkeleton, Modal } from '@web/components/UI';
+import { Btn, LoadingSkeleton, Modal } from './AdminUI';
 import { Icon } from '@web/components/Icon';
 import { CollectionSearch } from '@web/components/CollectionToolbar';
 import { PlayerRosterCells } from '@web/components/PlayerRosterCells';

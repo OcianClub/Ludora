@@ -4,6 +4,11 @@
   "version": "0.0.1",
   "packageManager": "pnpm@11.20.0",
   "scripts": {
+    "db:test:start": "node scripts/test-database.cjs start",
+    "db:test:stop": "node scripts/test-database.cjs stop",
+    "db:test:status": "node scripts/test-database.cjs status",
+    "test:integracao:api": "pnpm db:test:start && pnpm --filter @ludora/api exec tsx tests/equipe.integration.ts --paulista-isolado --email-isolado --completo",
+    "dev:api:teste": "pnpm db:test:start && pnpm --filter @ludora/api exec tsx tests/equipe.integration.ts --serve --paulista-isolado --email-isolado",
     "superadmin:grant": "pnpm --filter @ludora/api run superadmin:grant",
     "build:api": "pnpm --filter @ludora/api exec prisma generate && pnpm --filter @ludora/api run build",
     "start:api": "pnpm --filter @ludora/api run start",

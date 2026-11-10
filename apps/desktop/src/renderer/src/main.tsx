@@ -13,6 +13,7 @@ import '@web/components/UI.css';
 import '@web/components/ClubWorkspace.css';
 import '@web/pages/Auth.css';
 import './styles/desktop.css';
+import './styles/desktop-ui.css';
 import { applyTheme, setThemePreference } from '@web/styles/theme';
 import App from './App';
 

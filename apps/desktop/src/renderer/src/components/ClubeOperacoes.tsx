@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { EntradaLog } from '@ludora/shared-types';
-import { Btn, Card, Input, Modal, PapelBadge, Spinner } from '@web/components/UI';
+import { Btn, Card, Input, Modal, PapelBadge, Spinner } from './AdminUI';
 import { Toast } from '@web/components/Toast';
 import { requestJson } from '../services/api';
 

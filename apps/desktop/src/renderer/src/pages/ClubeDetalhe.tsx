@@ -5,7 +5,7 @@ import { ClubeAtividade, ClubeConvites } from '../components/ClubeOperacoes';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { MembroClube, MembrosDoClube, PapelClube, PlanoClube, UsuarioGlobal, VisaoGlobal } from '@ludora/shared-types';
-import { Btn, Card, Empty, Input, Modal, Spinner } from '@web/components/UI';
+import { Btn, Card, DesktopState, Empty, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { Toast } from '@web/components/Toast';
 import { atualizarClube, definirPapel, fetchMembros, fetchUsuarios, fetchVisaoGlobal, removerVinculo } from '../services/api';
 import { PLANOS } from './Clubes';
@@ -144,7 +144,7 @@ export default function ClubeDetalhePage() {
     finally { setOperando(false); }
   }
 
-  if (!dados || !clube) return erro ? <div className="notice-error" role="alert">{erro}</div> : <Spinner />;
+  if (!dados || !clube) return erro ? <DesktopState error title="Não foi possível carregar o clube" description={erro} onRetry={() => void carregar()}/> : <LoadingSkeleton kind="form" label="Carregando dados do clube"/>;
   const idsMembros = new Set(dados.membros.map(m => m.usuario.id));
   const exigeCategorias = edicao && ESCRITA.includes(edicao.papel) && !edicao.todas;
   const administradores = dados.membros.filter(membro => membro.papel === 'ADMIN');

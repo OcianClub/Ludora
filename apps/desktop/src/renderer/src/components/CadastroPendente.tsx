@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Btn, Card, Input, Modal, Spinner } from '@web/components/UI';
+import { Btn, Card, Input, Modal, Spinner } from './AdminUI';
 import { Toast } from '@web/components/Toast';
 import { FilterSelect } from '@web/components/FilterSelect';
 import { Icon } from '@web/components/Icon';

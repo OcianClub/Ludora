@@ -33,7 +33,7 @@ export default function Layout() {
 }
 
 function LayoutContent() {
-  const { clube, mudarModo } = useAuth();
+  const { clube } = useAuth();
   const pending = useClubPending();
   const missingShirts = pending?.missing ? [...pending.missing.values()].reduce((sum, value) => sum + value, 0) : 0;
   const [moreOpen, setMoreOpen] = useState(false);
@@ -156,11 +156,10 @@ function LayoutContent() {
               <span className="nav-label">{item.to === '/clube' ? 'Configurações' : item.label}</span>
             </NavLink>
           ))}
-          <Link to={clube ? `/clubes/${clube.id}` : '/selecionar-clube'} className="nav-item" aria-label="Ver como visitante" onClick={() => mudarModo('publico')}><span className="nav-icon"><Icon name="eye" /></span><span className="nav-label">Ver como visitante</span></Link>
         </nav>
 
+        {!mobile && <div className="sidebar-help"><SupportButton variant="sidebar" /></div>}
         <div className="sidebar-footer">
-          {!mobile && <SupportButton />}
           <AccountMenu />
           {!mobile && <Notifications />}
         </div>
@@ -223,17 +222,12 @@ function LayoutContent() {
                 <Icon name="chevronRight" size={18} />
               </NavLink>
             ))}
-            <Link to={clube ? `/clubes/${clube.id}` : '/selecionar-clube'} className="mobile-more-item" onClick={() => { setMoreOpen(false); mudarModo('publico'); }}><span className="mobile-more-item-icon"><Icon name="eye" /></span><span>Ver como visitante</span><Icon name="chevronRight" size={18}/></Link>
             </nav>
           </section>
 
           <div className="mobile-more-account">
-            <SupportButton />
-            <NavLink to="/perfil" className="mobile-more-item" onClick={() => setMoreOpen(false)}>
-              <span className="mobile-more-item-icon"><Icon name="user" /></span>
-              <span>Conta e preferências</span>
-              <Icon name="chevronRight" size={18} />
-            </NavLink>
+            <SupportButton variant="menu" />
+            <AccountMenu menuItem />
           </div>
 
         </Modal>

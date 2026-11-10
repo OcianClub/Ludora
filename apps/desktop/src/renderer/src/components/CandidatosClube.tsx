@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ClubBadge } from '@web/components/Brand';
-import { Btn } from '@web/components/UI';
+import { Btn } from './AdminUI';
 import { requestJson } from '../services/api';
 export type Candidato = { eventoId: number; equipeId: number; nome: string; escudo: string | null; categoria: string; divisao: string; ano: number; partidas: number; timeId: number | null };
 export function CandidatosClube({ nome, onSelect, selected }: { nome: string; onSelect: (c: Candidato | null) => void; selected: Candidato | null }) {

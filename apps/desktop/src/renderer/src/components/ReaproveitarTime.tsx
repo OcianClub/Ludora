@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Btn, LoadingSkeleton, Modal, StatusBadge } from '@web/components/UI';
+import { Btn, LoadingSkeleton, Modal, StatusBadge } from './AdminUI';
 import { ClubBadge } from '@web/components/Brand';
 import { CollectionSearch } from '@web/components/CollectionToolbar';
 import { ClubSettingsSection } from '@web/components/ClubSettingsSection';

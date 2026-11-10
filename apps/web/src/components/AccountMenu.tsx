@@ -6,16 +6,18 @@ import { ThemeOptions } from './ThemeOptions';
 import { Icon } from './Icon';
 import { LogoutDialog } from './LogoutButton';
 import { rememberAccess } from '../services/publicAccess';
+import { SupportDialog } from './SupportButton';
 import './AccountMenu.css';
 
-export function AccountMenu({ header = false, avatar = false }: { header?: boolean; avatar?: boolean }) {
-  const { usuario, clube, token } = useAuth();
+export function AccountMenu({ header = false, avatar = false, menuItem = false }: { header?: boolean; avatar?: boolean; menuItem?: boolean }) {
+  const { usuario, clube, token, modo, podeEntrarGestao, mudarModo } = useAuth();
   const location = useLocation();
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   function close(restoreFocus = false) {
     setOpen(false);
@@ -100,10 +102,10 @@ export function AccountMenu({ header = false, avatar = false }: { header?: boole
   }, [open]);
 
   return <>
-    <button ref={trigger} type="button" className={header ? 'profile-link header-profile-link account-trigger' : 'sidebar-usuario account-trigger'}
+    <button ref={trigger} type="button" className={menuItem ? 'mobile-more-item account-trigger' : header ? 'profile-link header-profile-link account-trigger' : 'sidebar-usuario account-trigger'}
       aria-label="Menu da conta" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined} data-tooltip="Minha conta" data-tooltip-icon-only
       onClick={() => setOpen(value => !value)}>
-      {header ? (avatar ? <span className="usuario-avatar">{usuario?.nome?.trim().charAt(0).toUpperCase() || '?'}</span> : <Icon name="user" size={24} />) : <>
+      {menuItem ? <><span className="mobile-more-item-icon"><Icon name="user" /></span><span>Conta e preferências</span><Icon name="chevronRight" size={18} /></> : header ? (avatar ? <span className="usuario-avatar">{usuario?.nome?.trim().charAt(0).toUpperCase() || '?'}</span> : <Icon name="user" size={24} />) : <>
         <span className="usuario-avatar"><Icon name="user" size={20} /></span>
         <span className="usuario-info"><strong>{usuario?.nome || 'Minha conta'}</strong><small>Minha conta</small></span>
         <Icon name="chevronRight" size={16} />
@@ -147,10 +149,13 @@ export function AccountMenu({ header = false, avatar = false }: { header?: boole
         <Link to="/perfil?secao=preferencias" onClick={() => close()}><Icon name="settings" size={18} /><span>Preferências</span></Link>
         <Link to="/perfil?secao=clubes" onClick={() => close()}><Icon name="shield" size={18} /><span>Meus clubes</span></Link>
         <Link to="/perfil?secao=conta" onClick={() => close()}><Icon name="defense" size={18} /><span>Conta e segurança</span></Link>
+        {podeEntrarGestao && <Link to={modo === 'gestao' ? `/clubes/${clube!.id}` : '/dashboard'} onClick={() => { close(); mudarModo(modo === 'gestao' ? 'publico' : 'gestao'); }}><Icon name={modo === 'gestao' ? 'eye' : 'settings'} size={18} /><span>{modo === 'gestao' ? 'Ver como visitante' : 'Voltar à gestão'}</span></Link>}
+        <button type="button" onClick={() => { close(); setSupportOpen(true); }}><Icon name="headset" size={18} /><span>Suporte e ajuda</span></button>
       </nav>
       <div className="account-popover-footer"><button type="button" onClick={() => { close(true); setLogoutOpen(true); }}><Icon name="logout" size={18} /><span>Sair da conta</span></button></div>
       </>}
     </div>, trigger.current?.closest('dialog') || document.body)}
     <LogoutDialog open={logoutOpen} onClose={() => { setLogoutOpen(false); trigger.current?.focus({ preventScroll: true }); }} />
+    <SupportDialog open={supportOpen} onClose={() => { setSupportOpen(false); trigger.current?.focus({ preventScroll: true }); }} />
   </>;
 }

@@ -94,6 +94,7 @@
 }
 
 .account-popover-links > a,
+.account-popover-links > button,
 .account-popover-footer > button {
   display: flex;
   align-items: center;
@@ -111,6 +112,7 @@
 }
 
 .account-popover-links > a:hover,
+.account-popover-links > button:hover,
 .account-popover-footer > button:hover {
   background: var(--fundo-card-sec);
 }
@@ -175,6 +177,7 @@
   }
 
   .account-popover-links > a,
+  .account-popover-links > button,
   .account-popover-footer > button {
     min-height: 44px;
   }

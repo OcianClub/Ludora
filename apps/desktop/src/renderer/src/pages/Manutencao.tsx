@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { CollectionSearch } from '@web/components/CollectionToolbar';
 import { Icon } from '@web/components/Icon';
 import { ClubBadge } from '@web/components/Brand';
-import { Btn, Card, LoadingSkeleton, Modal } from '@web/components/UI';
+import { Btn, Card, DesktopState, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { OptionTiles } from '../components/OptionTiles';
 import { MotivoTiles } from '../components/MotivoTiles';
 import { requestJson } from '../services/api';
@@ -92,11 +92,11 @@ function ManutencaoContexto({ chamadoId, eventoInicial }: { chamadoId: string | 
     <p className="page-sub">Exemplo de uso. Pause a criação de partidas de um clube enquanto a equipe corrige um erro. As partidas já cadastradas continuam disponíveis para consulta.</p>
     <div className="schedule-status-summary" role="group" aria-label="Situação das pausas"><button aria-pressed={!verHistorico} onClick={() => setVerHistorico(false)}>Ativas <span>{pausas.filter(p => p.ativa).length}</span></button><button aria-pressed={verHistorico} onClick={() => setVerHistorico(true)}>Encerradas <span>{pausas.filter(p => !p.ativa).length}</span></button></div>
     <CollectionSearch label="Buscar pausas" placeholder="Buscar por função ou alcance…" value={busca} onChange={setBusca}/>
-    {erro && <div role="alert" className="schedule-load-error"><div><strong>Falha ao consultar pausas</strong><p>{erro}</p></div><Btn onClick={() => void carregar()}>Tentar novamente</Btn></div>}
+    {erro && <DesktopState error title="Falha ao consultar pausas" description={erro} onRetry={() => void carregar()}/>}
     {confirmacao && <p role="status" className="page-sub">{confirmacao}</p>}
-    {!dados && !erro && <LoadingSkeleton kind="cards"/>}
+    {!dados && !erro && <LoadingSkeleton kind="rows" label="Carregando manutenções"/>}
     {dados && <section className="ticket-day" aria-label="Pausas registradas">
-      {!visiveis.length && <div className="schedule-empty"><span><Icon name="settings" size={24}/></span><div><h2>Nenhuma pausa {verHistorico ? 'encerrada' : 'ativa'}</h2><p>{busca ? 'Experimente outra busca.' : 'As intervenções serão exibidas aqui.'}</p></div></div>}
+      {!visiveis.length && <DesktopState icon="wrench" title={`Nenhuma pausa ${verHistorico ? 'encerrada' : 'ativa'}`} description={busca ? 'Experimente outra busca.' : 'As intervenções serão exibidas aqui.'}/>}
       {visiveis.map(p => <Card className="ticket-section" key={p.id}>
         <div className="page-header"><div><h2>{tipos.find(t => t.value === p.operacao)?.label || p.operacao}</h2><p>{nomeAlvo(p.escopo, p.alvoId)} · {p.ativa ? 'Em manutenção' : 'Reativada'}</p></div>
           {p.ativa && tipos.some(t => t.value === p.operacao && t.escopos.includes(p.escopo)) && <Btn variant="ghost" onClick={() => abrir(p)}>Reativar função</Btn>}</div>

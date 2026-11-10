@@ -1,7 +1,7 @@
 import ManutencaoPage from './pages/Manutencao';
 import { TooltipLayer } from '@web/components/Tooltip';
 import { createHashRouter, Navigate, Route, RouterProvider, Routes } from 'react-router-dom';
-import { Spinner } from '@web/components/UI';
+import { Spinner } from './components/AdminUI';
 import { AdminAuthProvider, useAdminAuth } from './contexts/AdminAuthContext';
 import AdminLayout from './components/AdminLayout';
 import LoginPage from './pages/Login';

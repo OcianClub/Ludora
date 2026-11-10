@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { StatusBanco, StatusSistema } from '@ludora/shared-types';
-import { Btn, Card, Spinner } from '@web/components/UI';
+import { Btn, Card, DesktopState, LoadingSkeleton } from '../components/AdminUI';
 import { AdminIcon } from '../components/AdminIcon';
 import { fetchStatusBanco, fetchStatusSistema } from '../services/api';
 
@@ -37,8 +37,8 @@ export default function BancoPage() {
         <div><h1 className="page-title">Banco e integrações</h1><p className="page-sub">Prisma, migrations e serviços conectados à API</p></div>
         <Btn variant="ghost" onClick={() => void carregar()} disabled={carregando}>{carregando ? 'Verificando…' : 'Verificar agora'}</Btn>
       </div>
-      {erro && <div className="notice-error" role="alert">{erro}</div>}
-      {carregando && !banco && !sistema && <Spinner />}
+      {erro && <DesktopState error title="Não foi possível consultar todos os serviços" description={erro} onRetry={() => void carregar()}/>}
+      {carregando && !banco && !sistema && <LoadingSkeleton kind="stats" label="Verificando banco e integrações"/>}
 
       {banco && (
         <>

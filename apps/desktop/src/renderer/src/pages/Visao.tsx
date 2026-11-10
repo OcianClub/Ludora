@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { VisaoGlobal } from '@ludora/shared-types';
 import { ClubBadge } from '@web/components/Brand';
-import { Btn, LoadingSkeleton } from '@web/components/UI';
+import { Btn, LoadingSkeleton, DesktopState } from '../components/AdminUI';
 import { Icon, type IconName } from '@web/components/Icon';
 import { CollectionSearch } from '@web/components/CollectionToolbar';
 import { ClubSettingsSection } from '@web/components/ClubSettingsSection';
@@ -19,8 +19,8 @@ export default function VisaoPage() {
   }, []);
   useEffect(carregar, [carregar]);
 
-  if (erro) return <div className="notice-error" role="alert">{erro} <Btn size="sm" variant="ghost" onClick={carregar}>Tentar de novo</Btn></div>;
-  if (!dados) return <LoadingSkeleton kind="cards"/>;
+  if (erro) return <DesktopState error title="Não foi possível carregar a visão global" description={erro} onRetry={carregar}/>;
+  if (!dados) return <LoadingSkeleton kind="overview" label="Carregando visão global"/>;
   const { totais, conexoes, clubes } = dados;
   const filtrados = clubes.filter(c => [c.nome, c.cidade, c.estado].filter(Boolean).join(' ').toLowerCase().includes(busca.trim().toLowerCase()));
   const cartoes: [string, number, IconName][] = [
@@ -49,7 +49,7 @@ export default function VisaoPage() {
         {filtrados.length ? <div className="club-directory desktop-overview-clubs">{filtrados.map(c => <Link key={c.id} to={`/clubes/${c.id}`} className="club-directory-card">
           <ClubBadge src={c.escudo} name={c.nome} size={40}/><span className="ticket-card-copy"><strong>{c.nome}</strong><small>{[c.cidade, c.estado].filter(Boolean).join(' · ') || 'Localização pendente'} · {c.ativo ? c.plano : 'Indisponível'}</small></span><Icon name="chevronRight" size={17}/>
           <dl className="club-directory-meta"><div><dt>Membros</dt><dd>{c.membros}</dd></div><div><dt>SUBs</dt><dd>{c.categorias}</dd></div><div><dt>Jogadores</dt><dd>{c.jogadores}</dd></div><div><dt>Partidas</dt><dd>{c.partidas}</dd></div></dl>
-        </Link>)}</div> : <div className="schedule-empty"><span><Icon name="search" size={23}/></span><div><h2>Nenhum clube encontrado</h2><p>{busca ? 'Experimente outro nome ou município.' : 'Os clubes cadastrados aparecerão aqui.'}</p></div></div>}
+        </Link>)}</div> : <DesktopState icon="search" title="Nenhum clube encontrado" description={busca ? 'Experimente outro nome ou município.' : 'Os clubes cadastrados aparecerão aqui.'}/>}
       </ClubSettingsSection>
     </div>
   );
