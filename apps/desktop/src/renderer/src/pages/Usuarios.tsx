@@ -4,16 +4,19 @@ import type { ClubeResumo, UsuarioGlobal, VisaoGlobal } from '@ludora/shared-typ
 import { Btn, DesktopState, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { Toast } from '@web/components/Toast';
 import { CollectionFilterButton, CollectionFilterDialog, CollectionSearch } from '@web/components/CollectionToolbar';
-import { FilterSelect } from '@web/components/FilterSelect';
-import { ordenarUsuarios, proximaOrdem, type OrdemUsuario, type ColunaUsuario } from '../../../shared/user-order';
+import { DesktopSelect } from '../components/DesktopSelect';
+import { DesktopTabs } from '../components/DesktopTabs';
+import { DesktopUserTable } from '../components/DesktopUserTable';
+import './Usuarios.css';
+import { ordenarUsuarios, proximaOrdem, type OrdemUsuario } from '../../../shared/user-order';
 import { Icon } from '@web/components/Icon';
 import CadastroPendente from '../components/CadastroPendente';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { removerVinculo, requestJson, revogarSessoes } from '../services/api';
-import { OptionTiles } from '../components/OptionTiles';
+import { DesktopToggle } from '../components/DesktopToggle';
+import { AccountIdentity } from '../components/AccountIdentity';
 import { UsuarioClubeEditor } from '../components/UsuarioClubeEditor';
-import { CargoClube, PAPEIS_CLUBE } from '../components/CargoClube';
-import '@web/components/ThemeToggle.css';
+import { CargoClube, CargoIcon, PAPEIS_CLUBE } from '../components/CargoClube';
 
 const interno = [
   { value: 'SUPERADMIN', label: 'Administrador Ludora' }, { value: 'SUPORTE', label: 'Suporte' },
@@ -103,30 +106,20 @@ export default function UsuariosPage() {
   const grupos = [
     { titulo: 'Equipe Ludora', contas: ordenados.filter(u => u.papel_plataforma !== 'USUARIO') },
     { titulo: 'Contas de clube', contas: ordenados.filter(u => u.papel_plataforma === 'USUARIO') },
-  ];
+  ].sort((a,b) => Number(b.contas.some(u => u.id === usuario?.id)) - Number(a.contas.some(u => u.id === usuario?.id)));
   const suspender = confirmacao?.alteracao?.suspenso && !confirmacao.conta.suspenso;
-  function cabecalho(coluna: ColunaUsuario, texto: string) {
-    const direcao = ordem?.coluna === coluna ? ordem.direcao : undefined;
-    return <div role="columnheader" aria-sort={direcao === 'asc' ? 'ascending' : direcao === 'desc' ? 'descending' : 'none'}>
-      <button type="button" onClick={() => setOrdem(o => proximaOrdem(o, coluna))} aria-label={`Ordenar por ${texto}`} data-direction={direcao}>
-        {texto}<span className="desktop-sort-indicator" aria-hidden="true"><i/><i/></span>
-      </button>
-    </div>;
-  }
   return <div className="ticket-page match-schedule desktop-users-page">
     <header className="page-header"><div><span className="ticket-kicker">Pessoas e permissões</span><h1 className="page-title">Usuários</h1><p className="page-sub">Gerencie contas, cargos e tarefas de cadastro.</p></div></header>
-    <div className="schedule-status-summary" role="group" aria-label="Área de usuários">
-      <button type="button" aria-pressed={aba === 'contas'} onClick={() => { setFiltros(null); alterar({ aba: '', clube: '', busca: '' }); }}>Contas e acessos</button>
-      <button type="button" aria-pressed={aba === 'cadastro'} onClick={() => { setFiltros(null); alterar({ aba: 'cadastro', clube: '', busca: '' }); }}>Cadastro dos clubes</button>
-    </div>
-    {aba === 'cadastro' ? <CadastroPendente/> : <>
+    <DesktopTabs label="Área de usuários" value={aba} options={[{value:'contas',label:'Contas e acessos'}, {value:'cadastro',label:'Cadastro dos clubes'}]}
+      onChange={value => { setFiltros(null); alterar({ aba: value === 'contas' ? '' : 'cadastro', clube: '', busca: '' }); }}>
+    {aba === 'cadastro' ? <CadastroPendente resumos={clubes}/> : <>
       <div className="user-toolbar"><CollectionSearch label="Buscar usuários" placeholder="Nome ou e-mail…" value={ler('busca')} onChange={busca => alterar({ busca: busca.slice(0, 80) }, true)}/>
         <CollectionFilterButton label="Mais filtros" count={ativos.length} onClick={() => setFiltros(filtros ? null : Object.fromEntries(chaves.map(k => [k, ler(k)])))}/></div>
       {filtros && <CollectionFilterDialog open title="Filtrar usuários" onClose={() => setFiltros(null)} onClear={() => setFiltros({})}
         onApply={() => { alterar(Object.fromEntries(chaves.map(k => [k, filtros[k] || '']))); setFiltros(null); }}>
-        <FilterSelect label="Clube" value={filtros.clube || ''} emptyLabel="Todos os clubes" options={options.clube} onChange={v => setFiltros({ ...filtros, clube: v })} overlayInDialog/>
+        <DesktopSelect label="Clube" showLabel fullWidth value={filtros.clube || ''} options={[{value:'',label:'Todos os clubes'}, ...options.clube.map(o => ({...o,value:String(o.value)}))]} onChange={v => setFiltros({ ...filtros, clube: v })}/>
         {erroClubes && <p role="alert">Não foi possível consultar os clubes. <Btn variant="ghost" size="sm" onClick={() => setRefresh(n => n + 1)}>Tentar novamente</Btn></p>}
-        {chaves.filter(k => k !== 'clube').map(k => <OptionTiles key={k} label={labels[k]} options={[{ value: '', label: 'Todos' }, ...options[k]]} value={filtros[k] || ''} onChange={v => setFiltros({ ...filtros, [k]: v })}/>)}
+        {chaves.filter(k => k !== 'clube').map(k => <DesktopSelect key={k} label={labels[k]} showLabel fullWidth options={[{ value: '', label: 'Todos' }, ...options[k]]} value={filtros[k] || ''} onChange={v => setFiltros({ ...filtros, [k]: v })}/>)}
       </CollectionFilterDialog>}
       {!!ativos.length && <div className="schedule-active-filters" aria-label="Filtros ativos">{ativos.map(k => <button key={k} onClick={() => alterar({ [k]: '' })}>{options[k].find(o => String(o.value) === ler(k))?.label || labels[k]}<Icon name="minus" size={14}/></button>)}<Btn variant="ghost" size="sm" onClick={() => alterar(Object.fromEntries(chaves.map(k => [k, ''])))}>Limpar filtros</Btn></div>}
       {erro ? <DesktopState error title="Falha ao consultar usuários" description={erro} onRetry={() => setRefresh(n => n + 1)}/> : !usuarios ? <LoadingSkeleton kind="rows" label="Carregando usuários"/> : <>
@@ -134,32 +127,27 @@ export default function UsuariosPage() {
           <span className="desktop-sort-description" role="status">{ordem ? `${{ conta: 'Conta', clube: 'Clube', cargo: 'Cargo', situacao: 'Situação' }[ordem.coluna]} · ${ordem.direcao === 'asc' ? 'crescente' : 'decrescente'}` : 'Ordem padrão'}</span></div>
         {!usuarios.length && <DesktopState title="Nenhuma conta encontrada" description="Revise a busca e os filtros." icon="people"/>}
         {grupos.filter(g => g.contas.length).map(g => <section key={g.titulo} className="ticket-day"><h2>{g.titulo}</h2>
-          <div className="desktop-users-table" role="table" aria-label={g.titulo} tabIndex={0}>
-            <div role="rowgroup"><div className="desktop-users-head" role="row">{cabecalho('conta', 'Conta')}{cabecalho('clube', 'Clube')}{cabecalho('cargo', 'Cargo')}{cabecalho('situacao', 'Situação')}<span role="columnheader" className="sr-only">Acesso</span></div></div>
-            <div role="rowgroup">{g.contas.map(u => <div key={u.id} className="desktop-user-line" role="row" onClick={e => { if (!(e.target as HTMLElement).closest('button')) abrir(u); }}>
-              <div className="desktop-user-name" role="cell"><span className="user-identity-avatar" aria-hidden="true">{u.nome.trim().slice(0, 1).toLocaleUpperCase('pt-BR')}</span><span><strong title={u.nome}>{u.nome}</strong><small title={u.email}>{u.email}</small></span></div>
-              <div className="desktop-user-clubs" role="cell" title={u.clubes.map(c => c.nome).join(', ')}><span>{u.clubes[0]?.nome || 'Sem clube vinculado'}</span>{u.clubes.length > 1 && <small>+{u.clubes.length - 1} {u.clubes.length === 2 ? 'clube' : 'clubes'}</small>}</div>
-              <div className="desktop-user-role" role="cell">{u.papel_plataforma !== 'USUARIO' ? <span className="user-role" data-role={u.papel_plataforma}>{interno.find(o => o.value === u.papel_plataforma)?.label}</span> : u.clubes[0] ? <CargoClube papel={u.clubes[0].papel}/> : <small>Sem cargo</small>}</div>
-              <div className="desktop-user-state" role="cell" data-suspended={u.suspenso}><span className="user-active-dot" aria-hidden="true"/>{u.suspenso ? 'Suspensa' : 'Ativa'}</div>
-              <div role="cell"><button type="button" className="desktop-icon-action" aria-label={`Gerenciar ${u.nome}`} onClick={() => abrir(u)}><Icon name="chevronRight" size={17}/></button></div>
-            </div>)}</div>
-          </div></section>)}
+          <DesktopUserTable label={g.titulo} usuarios={g.contas} ordem={ordem}
+            onSort={coluna => setOrdem(o => proximaOrdem(o, coluna))} onManage={abrir} currentUserId={usuario?.id}/>
+          </section>)}
       </>}
       <Toast message={aviso} onClose={() => setAviso('')}/>
     </>}
-    {selecionado && !confirmacao && !editarClube && <Modal title="Gerenciar conta" open onClose={() => { if (!ocupado) setSelecionado(null); }} className="chamado-manual-dialog user-details-dialog"
+    </DesktopTabs>
+    {selecionado && !confirmacao && !editarClube && <Modal title="Gerenciar conta" open onClose={() => { if (!ocupado) setSelecionado(null); }} className="desktop-account-dialog user-details-dialog"
       footer={selecionado.id !== usuario?.id && !selecionado.cargoLegado ? <div className="schedule-review-actions"><Btn variant="ghost" onClick={() => setSelecionado(null)}>Fechar</Btn><Btn disabled={ocupado || !cargo || (motivo.trim().length > 0 && motivo.trim().length < 10) || cargo === selecionado.papel_plataforma && (estado === 'SUSPENSA') === selecionado.suspenso} onClick={() => revisar('acesso')}>Revisar acesso</Btn></div> : undefined}>
-      <div className="schedule-review"><div className="user-identity"><span className="user-identity-avatar" aria-hidden="true">{selecionado.nome.trim().slice(0, 1).toLocaleUpperCase('pt-BR')}</span><div><strong>{selecionado.nome}</strong><p>{selecionado.email}</p></div><button type="button" className="desktop-icon-action" aria-label="Encerrar sessões" data-tooltip="Encerrar sessões em todos os dispositivos" onClick={() => revisar('sessao')}><Icon name="logout" size={20}/></button></div><section className="desktop-form-section"><h3>Cargos por clube</h3>
+      <div className="desktop-account-form"><AccountIdentity nome={selecionado.nome} email={selecionado.email} actions={<button type="button" className="desktop-icon-action" aria-label="Encerrar sessões" data-tooltip="Encerrar sessões em todos os dispositivos" onClick={() => revisar('sessao')}><Icon name="logout" size={20}/></button>}/>
+      <section className="desktop-form-section"><h3>Cargos por clube</h3>
         {selecionado.clubes.length ? <div><div className="user-membership user-membership-head"><span>Clube</span><span>Cargo</span></div>{selecionado.clubes.map(c => <div className="user-membership" key={c.clube_id}><strong>{c.nome}</strong><CargoClube papel={c.papel}/>
           <Btn type="button" size="sm" variant="ghost" aria-label={`Editar acesso em ${c.nome}`} data-tooltip="Editar acesso no clube" onClick={() => setEditarClube(c)}><Icon name="edit" size={16}/></Btn>
           <Btn type="button" size="sm" variant="ghost" aria-label={`Desvincular de ${c.nome}`} data-tooltip="Remover vínculo com o clube" onClick={() => { setCiente(false); setErroSessao(''); setConfirmacao({ conta: selecionado, desvincular: c }); }}><Icon name="trash" size={16}/></Btn>
         </div>)}</div> : <p>Nenhum vínculo com clube.</p>}
         <Btn type="button" variant="ghost" className="user-add-club" onClick={() => setEditarClube('novo')}><Icon name="plus" size={17}/> Vincular a um clube</Btn></section>
         {selecionado.id === usuario?.id || selecionado.cargoLegado ? <p>Conta protegida. A alteração exige revisão por outro administrador ou pela configuração de acesso legado.</p> : <>
-          <section className="desktop-form-section"><div className="paulista-follow"><strong>Acesso à equipe Ludora</strong><button type="button" className="settings-switch" role="switch" aria-label="Papel interno" aria-checked={cargo !== 'USUARIO'} onClick={() => { if (cargo !== 'USUARIO') { setPapelAnterior(cargo); setCargo('USUARIO'); } else setCargo(papelAnterior || 'SUPORTE'); }}><span className="settings-switch-thumb" aria-hidden="true"/></button></div>
-          {cargo !== 'USUARIO' && <OptionTiles label="Cargo na Ludora" value={cargo} options={interno.filter(p => p.value !== 'USUARIO')} onChange={setCargo}/>}
+          <section className="desktop-form-section"><div className="paulista-follow"><strong>Acesso à equipe Ludora</strong><DesktopToggle label="Papel interno" checked={cargo !== 'USUARIO'} onChange={checked => { if (!checked) { setPapelAnterior(cargo); setCargo('USUARIO'); } else setCargo(papelAnterior || 'SUPORTE'); }}/></div>
+          {cargo !== 'USUARIO' && <DesktopSelect label="Cargo na Ludora" showLabel fullWidth value={cargo} options={interno.filter(p => p.value !== 'USUARIO').map(p => ({ ...p, icon: <CargoIcon papel={p.value}/> }))} onChange={setCargo}/>}
           </section><section className="desktop-form-section"><div className="paulista-follow" data-inativa={estado === 'SUSPENSA'}><div><strong>Situação da conta</strong><p>{estado === 'ATIVA' ? 'Ativa' : 'Suspensa'}</p></div>
-            <button type="button" className="settings-switch" role="switch" aria-label="Situação da conta" aria-checked={estado === 'ATIVA'} onClick={() => setEstado(estado === 'ATIVA' ? 'SUSPENSA' : 'ATIVA')}><span className="settings-switch-thumb" aria-hidden="true"/></button></div>
+            <DesktopToggle label="Situação da conta" checked={estado === 'ATIVA'} onChange={checked => setEstado(checked ? 'ATIVA' : 'SUSPENSA')}/></div>
           <details><summary>Adicionar motivo (opcional)</summary><Input label="Motivo da alteração" value={motivo} maxLength={300} onChange={e => setMotivo(e.target.value)}/></details>
           <p>Mudar o acesso encerra as sessões. Suspender também bloqueia novas entradas.</p>
           </section>

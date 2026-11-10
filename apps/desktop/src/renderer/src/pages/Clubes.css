@@ -1,0 +1,131 @@
+.desktop-clubs-page, .desktop-club-page { display:grid; gap:24px; min-width:0; }
+.desktop-clubs-page .page-header, .desktop-club-page .page-header { margin-bottom:0; }
+.desktop-clubs-page .club-toolbar { display:grid; grid-template-columns:minmax(0,1fr) 210px; gap:12px; }
+.desktop-clubs-page .club-toolbar > div { min-width:0; }
+.desktop-app .desktop-clubs-page .platform-club-card .club-directory-meta { display:grid; gap:12px; text-align:center; }
+.desktop-app .desktop-clubs-page .platform-club-card { padding:16px; gap:12px; }
+.club-draft-notice { display:flex; align-items:center; gap:12px; padding:16px; background:var(--fundo-card); border:1px solid var(--borda); border-radius:9px; }
+.club-draft-notice > .icon { color:var(--primaria); flex-shrink:0; }
+.club-draft-notice > div { flex:1; min-width:0; overflow-wrap:anywhere; }
+.club-draft-notice strong { font-size:13px; }
+.club-draft-notice p, .club-draft-hint { font-size:12px; color:var(--texto-sec); line-height:1.6; margin:5px 0 0; }
+.club-draft-hint { margin:0 0 22px; }
+.desktop-app :is(.desktop-club-settings,.club-create-dialog) .club-badge { background:var(--fundo-card-sec); border:0; color:var(--texto); border-radius:8px; }
+.desktop-app .club-create-dialog .admin-club-steps { margin-bottom:12px; }
+.admin-club-steps li button { display:flex; align-items:center; gap:8px; padding:4px 0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; width:100%; }
+.admin-club-steps li button:disabled { opacity:.55; cursor:default; }
+.admin-club-steps li button:focus-visible { outline:2px solid var(--primaria); outline-offset:3px; border-radius:4px; }
+.club-create-dialog .admin-club-steps li button > span > .icon { display:inline-block; background:currentColor; border-radius:0; }
+.desktop-club-page .club-back { justify-self:start; }
+.desktop-club-page .club-back { min-height:38px; gap:9px; padding-inline:12px; }
+.desktop-club-page .club-heading-actions { align-items:center; min-height:38px; }
+.desktop-app .desktop-club-page .club-plan-tag { box-sizing:border-box; height:24px; min-height:24px; flex:none; align-self:center; padding:0 8px; font-size:11px; line-height:24px; letter-spacing:.2px; color:var(--texto); background:var(--fundo-card-sec); }
+.club-back > .icon { transform:rotate(180deg); }
+.desktop-club-page > .desktop-tabs > .desktop-tabs-panel { display:grid; gap:24px; min-width:0; }
+.club-access-section { display:grid; gap:16px; min-width:0; }
+.club-access-section .bloco-topo { margin:0; }
+.desktop-app .club-access-section .section-title, .desktop-app .club-invite-form .section-title { font:600 16px/1.5 var(--font-corpo); margin:0; text-transform:none; padding:0; border:0; }
+.desktop-app :is(.club-access-section,.club-invite-form) .section-title::before { display:none; }
+.desktop-club-page .desktop-data-table { min-width:650px; }
+.desktop-club-page :is(.club-access-table,.club-invites-table) { min-width:850px; }
+.desktop-club-page .club-access-table th:first-child { width:34%; }
+.desktop-club-page .club-access-table th:nth-child(2) { width:180px; }
+.desktop-club-page .club-access-table th:last-child { width:180px; }
+.club-access-table .user-identity { background:transparent; padding:10px 0; border:0; gap:10px; margin:0; }
+.club-access-table .user-identity > div { min-width:0; }
+.club-access-table .user-identity :is(strong,p) { display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.club-access-table .user-identity strong { font-size:12px; }
+.club-access-table .user-identity p { font-size:11px; margin:4px 0 0; }
+.club-access-table .user-identity-avatar { width:32px; height:32px; flex:0 0 32px; }
+.club-access-categories { display:flex; flex-wrap:wrap; gap:5px; }
+.club-access-categories > span { padding:3px 6px; border-radius:4px; background:var(--fundo-card-sec); color:var(--texto); font-size:10px; white-space:nowrap; }
+.club-access-table .actions { justify-content:flex-end; flex-wrap:nowrap; gap:8px; }
+.desktop-club-page .club-invites-table th:first-child { width:30%; }
+.desktop-club-page .club-invites-table th:nth-child(2) { width:180px; }
+.club-invites-table td:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.club-invite-status { display:inline-flex; align-items:center; gap:6px; height:26px; color:var(--texto); font-size:11px; white-space:nowrap; }
+.club-invite-status[data-status="PENDENTE"] > .icon { color:var(--amarelo); }
+.club-invite-status[data-status="ACEITO"] > .icon { color:#43c998; }
+.club-invite-status:is([data-status="REVOGADO"],[data-status="EXPIRADO"]) { color:var(--texto-sec); }
+.club-invite-form { display:grid; gap:16px; }
+.club-invite-form :is(h2,p) { margin:0; }
+.desktop-app .club-invite-form .filter-bar { padding:0; background:transparent; border:0; margin:0; }
+.desktop-club-page .desktop-club-roster-scroll { background:var(--fundo-card); }
+.desktop-club-page .desktop-club-roster { display:grid; gap:16px; background:transparent; border:0; overflow:visible; }
+.desktop-club-page .desktop-roster-heading { padding:0; align-items:center; }
+.desktop-club-page .desktop-roster-heading h2 { font:600 16px/1.5 var(--font-corpo); margin:0; }
+.desktop-club-page .desktop-roster-heading p { margin:5px 0 0; }
+.desktop-club-page .desktop-roster-heading .collection-search { max-width:460px; flex:1; }
+.desktop-club-structure .club-roster { display:grid; gap:18px; }
+.desktop-club-structure .club-roster { margin-block:0; }
+.club-structure-controls { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; min-width:0; }
+.desktop-club-structure .club-structure-controls .home-controls { position:static; flex:1 1 620px; margin:0; padding:0; min-width:0; justify-content:flex-start; }
+.club-category-actions { display:grid; gap:7px; flex:none; }
+.club-category-actions > span { font-size:11px; color:var(--texto-sec); text-align:right; }
+.club-operation-data { margin:4px 0 20px; }
+.club-operation-data > div { display:grid; grid-template-columns:145px minmax(0,1fr) auto; gap:16px; align-items:center; border-bottom:1px solid var(--linha); padding:15px 0; }
+.club-operation-data dt { color:var(--texto-sec); font-size:12px; }
+.club-operation-data dd { margin:0; font-size:13px; font-weight:600; }
+.club-operation-data small { display:block; color:var(--texto-sec); font-size:12px; font-weight:400; margin-top:4px; }
+.club-operation-status { display:flex; align-items:center; gap:7px; }
+.club-operation-status > .icon { color:var(--amarelo); }
+.club-operation-status[data-active="true"] > .icon { color:#43c998; }
+.club-operation-responsibles h3 { font:600 13px/1.5 var(--font-corpo); margin:0; }
+.club-responsibles-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); column-gap:26px; }
+.club-responsibles-list .user-identity { background:transparent; border:0; padding:12px 0; margin:0; }
+.club-responsibles-list .user-identity .desktop-role-badge { min-width:0; width:auto; }
+.club-person-picker { display:grid; gap:18px; }
+.club-person-results { display:grid; gap:8px; }
+.club-person-results .user-identity { background:var(--fundo-card); border:1px solid var(--linha); padding:12px; margin:0; }
+.club-person-results .user-identity > div { min-width:0; overflow-wrap:anywhere; }
+.desktop-app .club-access-dialog .user-identity { background:var(--fundo); border:0; margin:0; padding:14px; }
+.club-confirmation { display:flex; align-items:flex-start; gap:10px; padding-block:16px; line-height:1.6; }
+.club-confirmation input { flex:none; width:17px; height:17px; accent-color:var(--primaria); margin-top:3px; }
+.club-invite-heading { display:flex; align-items:center; gap:12px; }
+.club-invite-heading > span { display:grid; place-items:center; width:40px; height:40px; border-radius:8px; background:var(--fundo-card-sec); color:var(--primaria); }
+.club-invite-heading h2 { font:600 16px/1.5 var(--font-corpo); margin:0; }
+.club-invite-heading p { margin-top:4px; color:var(--texto-sec); font-size:12px; }
+.club-invite-fields { display:grid; gap:18px; }
+.club-invite-send { display:flex; align-items:flex-end; gap:12px; }
+.club-invite-send .field { flex:1; min-width:0; }
+.club-invite-send .field-label { line-height:1.5; }
+.club-invite-actions { flex-wrap:wrap; gap:8px; }
+.desktop-club-page .club-invites-table { min-width:1050px; }
+.club-code-preview { display:grid; gap:16px; }
+.club-code-preview code { text-align:center; padding:20px 10px; border-radius:8px; background:var(--fundo-card); font-size:26px; letter-spacing:3px; user-select:all; color:var(--texto); }
+@container desktop-content (max-width:720px) {
+ .club-structure-controls { gap:12px; }
+ .club-category-actions { width:100%; }
+ .club-category-actions > span { text-align:left; }
+ .club-operation-data > div { grid-template-columns:100px minmax(0,1fr); gap:10px; }
+ .club-operation-data > div > .btn { grid-column:2; justify-self:start; }
+ .club-responsibles-list { grid-template-columns:minmax(0,1fr); }
+ .club-invite-send { align-items:stretch; flex-direction:column; }
+ .club-invite-send > .btn { align-self:flex-end; }
+}
+.club-shell-sources { margin-top:18px; border-top:1px solid var(--linha); padding-top:14px; }
+.club-shell-sources summary { color:var(--texto-sec); cursor:pointer; font-size:12px; }
+.club-shell-sources label { display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--linha); padding:10px 0; }
+.club-shell-sources label span { min-width:0; }
+.club-shell-sources label strong { overflow-wrap:anywhere; }
+.club-shell-sources small { display:block; color:var(--texto-sec); margin-top:3px; }
+.club-shell-sources input { accent-color:var(--primaria); width:18px; height:18px; flex-shrink:0; }
+.desktop-club-structure .schedule-review-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; }
+.desktop-club-roster-table th:first-child { width:80px; text-align:center; }
+.desktop-club-roster-table th:nth-child(2) { width:43%; }
+.desktop-club-roster-table th:last-child { width:48px; }
+.desktop-club-roster-table td { padding-block:10px; }
+.desktop-club-roster-table td:first-child { text-align:center; }
+.desktop-club-roster-table .player-portrait { flex-shrink:0; }
+.desktop-club-roster-table .alunos-identity { min-width:0; }
+.desktop-club-roster-table .desktop-link-button { color:var(--texto); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.desktop-club-roster-table .student-open { background:transparent; color:var(--texto-sec); }
+:root[data-theme="light"] .club-invite-status[data-status="ACEITO"] > .icon { color:#16734f; }
+@container desktop-content (max-width:720px) {
+ .desktop-clubs-page .club-toolbar { grid-template-columns:minmax(0,1fr) 165px; }
+ .club-draft-notice { flex-wrap:wrap; }
+ .club-draft-notice > div { flex-basis:calc(100% - 40px); }
+}
+@media (max-width:480px) {
+ .desktop-clubs-page .club-toolbar { grid-template-columns:1fr; }
+}

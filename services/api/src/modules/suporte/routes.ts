@@ -126,7 +126,7 @@ export function criarSuporteRoutes() {
   router.get('/admin/equipe/chamados/filtros', async (_req, res) => {
     const operador = res.locals.funcionario;
     const where = visibilidade(operador.papel_plataforma);
-    const [itens, total, novos, atrasados, recorrentes, meus, encaminhados] = await Promise.all([
+    const [itens, total, novos, atrasados, recorrentes, meus, encaminhados, finalizados] = await Promise.all([
       prisma.suporteChamado.findMany({ where, select: { clubeId: true, clubesAfetados: true, responsavelId: true }, distinct: ['clubeId', 'responsavelId', 'clubesAfetados'] }),
       prisma.suporteChamado.count({ where }),
       prisma.suporteChamado.count({ where: { ...where, status: 'NOVO' } }),
@@ -134,6 +134,7 @@ export function criarSuporteRoutes() {
       prisma.suporteChamado.count({ where: { ...where, ocorrencias: { gt: 1 } } }),
       prisma.suporteChamado.count({ where: { AND: [where, meusChamados(operador.id)] } }),
       prisma.suporteChamado.count({ where: { ...where, status: 'ENCAMINHADO_DEVS' } }),
+      prisma.suporteChamado.count({ where: { ...where, status: 'RESOLVIDO' } }),
     ]);
     const clubesIds = itens.flatMap(c => [...(c.clubeId ? [c.clubeId] : []), ...idsAfetados(c.clubesAfetados)]);
     const [clubes, responsaveis] = await Promise.all([
@@ -141,7 +142,7 @@ export function criarSuporteRoutes() {
       prisma.usuario.findMany({ where: { id: { in: itens.flatMap(c => c.responsavelId ? [c.responsavelId] : []) } }, select: { id: true, nome: true }, orderBy: { nome: 'asc' } }),
     ]);
     const opcoes = (linhas: { id: number; nome: string }[]) => linhas.map(l => ({ value: l.id, label: l.nome }));
-    res.json({ clubes: opcoes(clubes), responsaveis: opcoes(responsaveis), contagens: { '': total, NOVO: novos, ATRASADO: atrasados, RECORRENTE: recorrentes, MEUS: meus, ENCAMINHADOS: encaminhados } });
+    res.json({ clubes: opcoes(clubes), responsaveis: opcoes(responsaveis), contagens: { '': total, NOVO: novos, ATRASADO: atrasados, RECORRENTE: recorrentes, MEUS: meus, ENCAMINHADOS: encaminhados, FINALIZADOS: finalizados } });
   });
   router.get('/admin/equipe/chamados', async (req, res) => {
     const filtros: Prisma.SuporteChamadoWhereInput[] = [visibilidade(res.locals.funcionario.papel_plataforma)];
@@ -157,6 +158,7 @@ export function criarSuporteRoutes() {
     if (req.query.visao === 'RECORRENTE') filtros.push({ ocorrencias: { gt: 1 } });
     if (req.query.visao === 'MEUS') filtros.push(meusChamados(res.locals.funcionario.id));
     if (req.query.visao === 'ENCAMINHADOS') filtros.push({ status: 'ENCAMINHADO_DEVS' });
+    if (req.query.visao === 'FINALIZADOS') filtros.push({ status: 'RESOLVIDO' });
     const inicio = dataFiltro(req.query.desde);
     const fim = dataFiltro(req.query.ate);
     if (inicio) filtros.push({ criadoEm: { gte: inicio } });
@@ -173,12 +175,21 @@ export function criarSuporteRoutes() {
       filtros.push({ OR: [{ assunto: contains }, { id: contains }, { clube: { nome: contains } }, ...clubes.map(c => ({ clubesAfetados: { array_contains: [c.id] } }))] });
     }
     const lista = await prisma.suporteChamado.findMany({ where: { AND: filtros },
-      include: { clube: { select: { nome: true } } }, orderBy: [{ criadoEm: 'desc' }, { id: 'desc' }], take: 200,
+      include: { clube: { select: { nome: true } },
+        historico: req.query.incluirEncerramento === '1' ? {
+          where: { OR: [{ acao: 'FINALIZAR' }, { acao: 'STATUS', dados: { path: ['depois', 'status'], equals: 'RESOLVIDO' } }] },
+          orderBy: { criadoEm: 'desc' }, take: 1, select: { criadoEm: true },
+        } : false,
+      },
+      orderBy: req.query.visao === 'FINALIZADOS' ? [{ atualizadoEm: 'desc' }, { id: 'desc' }]
+        : req.query.ordem === 'prioridade' ? [{ prioridade: 'asc' }, { criadoEm: 'desc' }, { id: 'desc' }] : [{ criadoEm: 'desc' }, { id: 'desc' }], take: 200,
     });
     const clubesIds = [...new Set(lista.flatMap(c => idsAfetados(c.clubesAfetados)))];
     const clubes = await prisma.clube.findMany({ where: { id: { in: clubesIds } }, select: { id: true, nome: true } });
     const nomes = new Map(clubes.map(c => [c.id, c.nome]));
-    res.json(lista.map(c => ({ ...c, detalhesTecnicos: undefined, usuarioId: undefined, fingerprint: undefined, requestId: undefined,
+    res.json(lista.map(c => ({ ...c, historico: undefined,
+      ...(req.query.incluirEncerramento === '1' ? { finalizadoEm: c.status === 'RESOLVIDO' ? c.historico?.[0]?.criadoEm || null : null } : {}),
+      detalhesTecnicos: undefined, usuarioId: undefined, fingerprint: undefined, requestId: undefined,
       clubesAfetadosNomes: idsAfetados(c.clubesAfetados).flatMap(id => nomes.get(id) || []) })));
   });
   router.get('/admin/equipe/chamados/:id', async (req, res) => {

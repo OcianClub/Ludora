@@ -2,12 +2,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { EntradaLog } from '@ludora/shared-types';
 import { ConsultasEmAndamento } from '../src/shared/inflight';
-import { formatarLogs, LIMITE_LOGS, mesclarLogs, selecionarLogs } from '../src/shared/logs';
+import { formatarLogs, LIMITE_LOGS, mesclarLogs, selecionarLogs, interpretarHttp, classeDuracao } from '../src/shared/logs';
 import { ordenarUsuarios, proximaOrdem } from '../src/shared/user-order';
 import { dentroDoPeriodo, PERIODOS_LOG } from '../src/shared/log-period';
 import type { UsuarioGlobal } from '@ludora/shared-types';
 
 const log = (id: number): EntradaLog => ({ id, ts: '2026-11-09T12:00:00Z', nivel: 'info', tipo: 'http', mensagem: `GET /admin/clubes/${id} → 200`, ms: 10 });
+
+test('logs HTTP: separa método, rota e status sem interpretar auditorias ou mensagens desconhecidas', () => {
+  assert.deepEqual(interpretarHttp(log(1)), { metodo: 'GET', rota: '/admin/clubes/1', status: 200 });
+  assert.deepEqual(interpretarHttp({ ...log(1), mensagem: 'PATCH /admin/clubes/1 → 503' }), { metodo: 'PATCH', rota: '/admin/clubes/1', status: 503 });
+  assert.equal(interpretarHttp({ ...log(1), tipo: 'audit' }), null);
+  assert.equal(interpretarHttp({ ...log(1), mensagem: 'Servidor conectado' }), null);
+  assert.equal(interpretarHttp({ ...log(1), mensagem: 'GET /rota → 200 texto extra' }), null);
+});
+
+test('duração: limites inclusivos, valores ausentes neutros e limites personalizados', () => {
+  for (const ms of [undefined, -1, NaN, 0, 999]) assert.equal(classeDuracao(ms), 'normal');
+  assert.equal(classeDuracao(1000), 'lenta');
+  assert.equal(classeDuracao(2999), 'lenta');
+  assert.equal(classeDuracao(3000), 'critica');
+  assert.equal(classeDuracao(3000, 5000, 10000), 'normal');
+});
 
 test('períodos de logs respeitam os limites de tempo e o modo ao vivo mantém o histórico recebido', () => {
   const agora = Date.parse('2026-11-09T12:00:00Z');

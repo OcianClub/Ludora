@@ -7,6 +7,20 @@ export type PapelPlataforma = 'USUARIO' | 'SUPERADMIN' | 'SUPORTE' | 'DESENVOLVE
 export type PlanoClube = 'FREE' | 'DEMO' | 'TRIAL' | 'PRO';
 export type NivelLog = 'info' | 'warn' | 'error' | 'audit';
 
+export interface PartidaRevisao {
+  id: number; data: string; horario: string | null; organizador_id: number | null; inicioAoVivo: string | null;
+  mandante: { nome: string; escudo: string | null }; visitante: { nome: string; escudo: string | null };
+  categoria: { nome: string; clube_id: number };
+}
+export interface ResumoOperacional {
+  consultadoEm: string;
+  chamados: { abertos: number; atrasados: number } | null;
+  manutencao: number | null;
+  federacao: { pendencias: number; falhas: number; erroRotina: boolean } | null;
+  antigas: PartidaRevisao[] | null;
+  semInicio: PartidaRevisao[] | null;
+}
+
 export interface SuperAdminUsuario {
   papel_plataforma: Exclude<PapelPlataforma, 'USUARIO'>;
   id: number;
@@ -43,6 +57,8 @@ export interface VisaoGlobal {
 export interface NovoClube {
   casca_id?: number;
   casca_ids?: number[];
+  /** Agrupamento visual confirmado pelo operador, sem fundir os Times originais. */
+  casca_agrupada?: boolean;
   cnpj: string;
   endereco: EnderecoCadastro;
   escudo_arquivo?: string | null;

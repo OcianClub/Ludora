@@ -1,4 +1,7 @@
 import type { Prisma } from '@prisma/client';
+import { resumoOperacional } from './overview';
+import { consultarLembrete, enviarLembrete, ErroRevisao } from './partidas-revisao';
+import { enviarPushParaUsuarios } from '../../services/notificacoes.service';
 import { concluirTarefasCadastro } from './tarefas-cadastro';
 import { dependenciasCategoria, lerCnpj, lerEnderecoCadastro, lerEscudo, lerSubs } from './cadastro-clube';
 import { sanitizar } from '../suporte/rules';
@@ -25,12 +28,13 @@ import {
   validarLimite,
   type NivelLog,
 } from './admin.rules';
-import { criarConvite, listarConvites, revogarConvite } from '../convites/convite-admin.routes';
+import { criarConvite, listarConvites, revogarConvite, reenviarConvite, consultarCodigoConvite } from '../convites/convite-admin.routes';
 import { limitarOperacaoPesada } from '../../middlewares/rate-limit.middleware';
 import { exigirSuperAdmin, logs } from './superadmin';
 import { categoriaCalculada, ErroElenco, removerAluno, salvarAluno } from '../jogadores/elenco.service';
 import { notificarCamisas } from '../jogadores/elenco.realtime';
 import { previaEsportivaAtleta } from '../jogadores/perfil.routes';
+import { agruparTimes, cascaDisponivel, cascaSelect, chaveTime, nomeBaseTime, subDoTime } from './clubes-candidatos';
 
 class ErroHttp extends Error {
   constructor(public status: number, mensagem: string) {
@@ -48,7 +52,9 @@ const rota = (handler: Handler) => async (req: Request, res: Response) => {
     if (responderPausa(erro, res)) return;
     if (erro instanceof ErroElenco) return res.status(erro.status).json({ error: erro.message, ...erro.detalhes });
     if (erro instanceof ErroHttp) return res.status(erro.status).json({ error: erro.message });
+    if (erro instanceof ErroRevisao) return res.status(erro.status).json({ error: erro.message });
     if ((erro as any)?.code === 'P2002' && String((erro as any).meta?.target).includes('cnpj')) return res.status(409).json({ error: 'Já existe um clube com este CNPJ.' });
+    if ((erro as any)?.code === 'P2002' && String((erro as any).meta?.target).includes('usuario_id') && String((erro as any).meta?.target).includes('clube_id')) return res.status(409).json({ error: 'Esta pessoa já possui vínculo com o clube. Atualize a lista de acessos.' });
     if ((erro as any)?.code === 'P2034') {
       return res.status(409).json({ error: 'Outra alteração ocorreu. Atualize e tente novamente.' });
     }
@@ -90,6 +96,25 @@ export function criarAdminRoutes(io: Server) {
   }));
 
   // ── Visão global ──────────────────────────────────────────────────────────
+  router.get('/admin/overview/operacao', rota(async (_req, res) => {
+    res.json(await resumoOperacional(prisma));
+  }));
+  router.get('/admin/overview/partidas/:id/lembrete', rota(async (req, res) => {
+    const id = idPositivo(req.params.id);
+    if (!id) throw new ErroHttp(400, 'Partida inválida.');
+    const { partida: _partida, ...ctx } = await consultarLembrete(prisma, id);
+    res.json(ctx);
+  }));
+  router.post('/admin/overview/partidas/:id/lembrete', limitarOperacaoPesada, rota(async (req, res) => {
+    const id = idPositivo(req.params.id);
+    const destinatario = idPositivo(req.body.usuarioId);
+    if (!id || !destinatario) throw new ErroHttp(400, 'Selecione uma partida e um gestor válidos.');
+    const { notificacao, dados } = await enviarLembrete(prisma, id, destinatario, (req as any).usuarioId);
+    io.to(`usuario:${destinatario}`).emit('notificacao_criada', notificacao);
+    void enviarPushParaUsuarios([destinatario], notificacao.clube_id, 'PARTIDA_AGENDADA', notificacao.titulo, notificacao.corpo, dados)
+      .catch(() => console.error('Falha no push do lembrete; notificação salva no sistema.'));
+    res.status(201).json({ enviado: true });
+  }));
   router.get('/admin/overview', rota(async (_req, res) => {
     const [clubes, usuarios, jogadores, partidas, aoVivo, jogPorCat, partPorCat, categorias] =
       await Promise.all([
@@ -145,6 +170,18 @@ export function criarAdminRoutes(io: Server) {
   }));
 
   // ── Clubes ────────────────────────────────────────────────────────────────
+  router.get('/admin/clubes/:id/resumo', rota(async (req, res) => {
+    const id = idDe(req.params.id, 'Clube');
+    const [clube, jogadores, partidas] = await Promise.all([
+      prisma.clube.findUnique({ where: { id }, select: { id:true,nome:true,ativo:true,cnpj:true,endereco:true,escudo:true,cidade:true,estado:true,plano:true,criado_em:true,
+        _count:{select:{usuarios:true,categorias:true,competicoes:true}} } }),
+      prisma.jogador.count({ where:{categoria:{clube_id:id}} }),
+      prisma.partida.count({ where:{categoria:{clube_id:id}} }),
+    ]);
+    if (!clube) throw new ErroHttp(404, 'Clube não encontrado.');
+    const { _count, ...dados } = clube;
+    res.json({...dados,membros:_count.usuarios,categorias:_count.categorias,competicoes:_count.competicoes,jogadores,partidas});
+  }));
   router.get('/admin/cep/:cep', limitarOperacaoPesada, rota(async (req, res) => {
     const cep = String(req.params.cep);
     if (!/^\d{8}$/.test(cep)) throw new ErroHttp(400, 'Informe oito dígitos do CEP.');
@@ -170,10 +207,21 @@ export function criarAdminRoutes(io: Server) {
     } catch { /* Mantém a opção de preencher manualmente. */ }
     throw new ErroHttp(503, 'Consulta de CEP indisponível. Preencha o endereço manualmente.');
   }));
-  const cascaDisponivel = { clube_representado_id: null, arquivado: false, fpfsTime: { none: {} } } satisfies Prisma.TimeWhereInput;
-  const cascaSelect = { id: true, nome: true, escudo: true, categoria: { select: { nome: true, clube_id: true, clube: { select: { nome: true } } } } } satisfies Prisma.TimeSelect;
   router.get('/admin/clubes/cascas', rota(async (req, res) => {
     const nome = String(req.query.nome || '').trim().slice(0, 80);
+    if (req.query.agrupar === 'clube') {
+      // Agrupa ANTES de paginar: nenhum SUB de um clube fica perdido pelo limite da página.
+      const grupos = agruparTimes(await prisma.time.findMany({ where: cascaDisponivel, select: cascaSelect }));
+      const busca = nome.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('pt-BR')
+        .replace(/[\s·–—_-]+sub[\s-]*(7|8|9|10|12|14|16|18)$/i,'').trim();
+      const filtrados = grupos.filter(g => g.chave.includes(busca));
+      const cursor = req.query.cursor ? idDe(req.query.cursor, 'Cursor') : null;
+      const inicio = cursor ? filtrados.findIndex(g => g.id === cursor) + 1 : 0;
+      if (cursor && !inicio) throw new ErroHttp(409, 'A lista de times mudou. Atualize a busca.');
+      const limite = validarLimite(req.query.limite, 30, 50);
+      const pagina = filtrados.slice(inicio, inicio + limite);
+      return res.json({ grupos: pagina, proximo: inicio + limite < filtrados.length ? pagina.at(-1)!.id : null });
+    }
     res.json(await prisma.time.findMany({
       where: { ...cascaDisponivel, ...(nome ? { nome: { contains: nome, mode: 'insensitive' } } : {}) },
       orderBy: [{ nome: 'asc' }, { id: 'asc' }], take: 60,
@@ -184,7 +232,9 @@ export function criarAdminRoutes(io: Server) {
     const id = idDe(req.params.id, 'Time');
     const principal = await prisma.time.findFirst({ where: { ...cascaDisponivel, id }, select: cascaSelect });
     if (!principal) throw new ErroHttp(404, 'Esse time não está mais disponível.');
-    const times = principal.categoria ? await prisma.time.findMany({
+    const agrupada = req.query.agrupar === 'clube';
+    const times = agrupada ? (await prisma.time.findMany({ where: cascaDisponivel, select: cascaSelect, orderBy: { id: 'asc' } }))
+      .filter(time => chaveTime(time) === chaveTime(principal)) : principal.categoria ? await prisma.time.findMany({
       where: { ...cascaDisponivel, nome: { equals: principal.nome, mode: 'insensitive' }, categoria: { clube_id: principal.categoria.clube_id } },
       select: cascaSelect, orderBy: { id: 'asc' },
     }) : [principal];
@@ -194,7 +244,8 @@ export function criarAdminRoutes(io: Server) {
       orderBy: [{ data: 'desc' }, { horario: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }], take: 5,
       select: { id: true, data: true, horario: true, status: true, mandante: { select: { id: true, nome: true, escudo: true } }, visitante: { select: { id: true, nome: true, escudo: true } }, categoria: { select: { nome: true } } },
     });
-    res.json({ time: principal, times, jogos });
+    res.json({ time: agrupada ? { ...principal, nome: nomeBaseTime(principal) } : principal, times, jogos,
+      ...(agrupada ? { agrupada: true, subs: [...new Set(times.flatMap(t => subDoTime(t) === null ? [] : [subDoTime(t)!]))].sort((a,b)=>a-b) } : {}) });
   }));
   router.post('/admin/clubes', rota(async (req, res) => {
     const { nome, plano } = validar(() => validarClube({ nome: req.body?.nome, plano: req.body?.plano }, { criando: true }));
@@ -203,6 +254,7 @@ export function criarAdminRoutes(io: Server) {
     const escudo = validar(() => lerEscudo(req.body?.escudo_arquivo));
     const adminEmail = String(req.body?.admin_email || '').trim().toLowerCase();
     const cascaId = req.body?.casca_id == null ? null : idDe(req.body.casca_id, 'Time existente');
+    const agrupada = req.body?.casca_agrupada === true;
     const idsEntrada = req.body?.casca_ids;
     if (idsEntrada !== undefined && (!cascaId || !Array.isArray(idsEntrada) || !idsEntrada.length || idsEntrada.length > 100)) throw new ErroHttp(400, 'Selecione o grupo de times na prévia.');
     const cascaIds: number[] = idsEntrada === undefined ? (cascaId ? [cascaId] : []) : [...new Set<number>(idsEntrada.map((id: unknown) => idDe(id, 'Time existente')))];
@@ -223,8 +275,15 @@ export function criarAdminRoutes(io: Server) {
       if (cascaId) {
         const principal = await tx.time.findFirst({ where: { ...cascaDisponivel, id: cascaId }, select: cascaSelect });
         if (!principal) throw new ErroHttp(409, 'Esse time já foi vinculado ou passou a ter um vínculo oficial.');
-        const grupo = principal.categoria ? { nome: { equals: principal.nome, mode: 'insensitive' as const }, categoria: { clube_id: principal.categoria.clube_id } } : { id: cascaId };
-        if (!principal.categoria && cascaIds.length > 1) throw new ErroHttp(400, 'Um time sem categoria só pode ser vinculado sozinho.');
+        const selecionados = agrupada ? await tx.time.findMany({ where: { ...cascaDisponivel, id: { in: cascaIds } }, select: cascaSelect }) : [];
+        if (agrupada && (selecionados.length !== cascaIds.length || selecionados.some(t => chaveTime(t) !== chaveTime(principal)))) {
+          throw new ErroHttp(409, 'Os times mudaram desde a prévia. Confira a lista novamente.');
+        }
+        if (agrupada && (!subs.length || selecionados.some(t => subDoTime(t) !== null && !subs.includes(subDoTime(t)!)))) {
+          throw new ErroHttp(400, 'As categorias dos times selecionados precisam estar nas categorias do novo clube.');
+        }
+        const grupo = agrupada ? { id: { in: selecionados.map(t => t.id) } } : principal.categoria ? { nome: { equals: principal.nome, mode: 'insensitive' as const }, categoria: { clube_id: principal.categoria.clube_id } } : { id: cascaId };
+        if (!agrupada && !principal.categoria && cascaIds.length > 1) throw new ErroHttp(400, 'Um time sem categoria só pode ser vinculado sozinho.');
         const alterada = await tx.time.updateMany({ where: { ...cascaDisponivel, AND: [grupo, { id: { in: cascaIds } }] }, data: { clube_representado_id: novo.id } });
         if (alterada.count !== cascaIds.length) throw new ErroHttp(409, 'Os times mudaram desde a prévia. Confira a lista novamente.');
         await tx.auditoriaVinculoTime.createMany({ data: cascaIds.map(id => ({ time_id: id, clube_novo_id: novo.id, usuario_id: (req as any).usuarioId, motivo: 'Time reaproveitado no cadastro do clube.' })) });
@@ -413,6 +472,8 @@ export function criarAdminRoutes(io: Server) {
   router.get('/admin/clubes/:clubeId/convites', noClube(listarConvites));
   router.post('/admin/clubes/:clubeId/convites', limitarOperacaoPesada, noClube(criarConvite, 'Convite criado'));
   router.post('/admin/clubes/:clubeId/convites/:id/revogar', noClube(revogarConvite, 'Convite revogado'));
+  router.get('/admin/clubes/:clubeId/convites/:id/codigo', noClube(consultarCodigoConvite));
+  router.post('/admin/clubes/:clubeId/convites/:id/reenviar', limitarOperacaoPesada, noClube(reenviarConvite, 'Convite reenviado'));
   router.get('/admin/clubes/:clubeId/atividade', noClube(async (req, res) => {
     const clubeId = idDe(req.params.clubeId, 'Clube');
     res.json(logs.snapshot(500).filter(item => item.tipo === 'audit' && item.clubeId === clubeId).slice(-50).reverse());
@@ -436,7 +497,22 @@ export function criarAdminRoutes(io: Server) {
     res.json({ categorias, membros });
   }));
 
-  router.put('/admin/clubes/:id/membros/:usuarioId', rota(async (req, res) => {
+  router.get('/admin/clubes/:id/pessoas-disponiveis', rota(async (req, res) => {
+    const clubeId = idDe(req.params.id, 'Clube');
+    const busca = validarBusca(req.query.busca);
+    const limite = validarLimite(req.query.limite, 20, 50);
+    const cursor = req.query.cursor ? idDe(req.query.cursor, 'Cursor') : undefined;
+    if (!await prisma.clube.count({ where: { id: clubeId } })) throw new ErroHttp(404, 'Clube não encontrado.');
+    const pessoas = await prisma.usuario.findMany({
+      where: { suspenso: false, clubes: { none: { clube_id: clubeId } }, ...(cursor ? { id: { lt: cursor } } : {}),
+        ...(busca ? { OR: [{ nome: { contains: busca, mode: 'insensitive' } }, { email: { contains: busca, mode: 'insensitive' } }] } : {}) },
+      orderBy: { id: 'desc' }, take: limite + 1, select: { id: true, nome: true, email: true },
+    });
+    const lista = pessoas.slice(0, limite);
+    res.json({ pessoas: lista, proximo: pessoas.length > limite ? lista.at(-1)!.id : null });
+  }));
+
+  const salvarMembro = (novo: boolean) => rota(async (req, res) => {
     const clubeId = idDe(req.params.id, 'Clube');
     const usuarioId = idDe(req.params.usuarioId, 'Usuário');
     const entrada = validar(() => validarCargo(req.body));
@@ -450,6 +526,8 @@ export function criarAdminRoutes(io: Server) {
       ]);
       if (!clube) throw new ErroHttp(404, 'Clube não encontrado');
       if (!usuario) throw new ErroHttp(404, 'Usuário não encontrado');
+      if (novo && atual) throw new ErroHttp(409, 'Esta pessoa já possui vínculo com o clube. Atualize a lista de acessos.');
+      if (novo && await tx.usuario.count({ where: { id: usuarioId, suspenso: true } })) throw new ErroHttp(409, 'Esta conta está suspensa.');
       if (validas !== entrada.ids.length) throw new ErroHttp(400, 'Categoria de outro clube');
 
       if (atual?.papel === 'ADMIN' && entrada.papel !== 'ADMIN') {
@@ -482,7 +560,9 @@ export function criarAdminRoutes(io: Server) {
 
     auditar(req, `Permissão: usuário #${usuarioId} → ${entrada.papel} no clube #${clubeId}`, clubeId);
     res.json({ ok: true });
-  }));
+  });
+  router.put('/admin/clubes/:id/membros/:usuarioId', salvarMembro(false));
+  router.post('/admin/clubes/:id/membros/:usuarioId', salvarMembro(true));
 
   router.delete('/admin/clubes/:id/membros/:usuarioId', rota(async (req, res) => {
     const clubeId = idDe(req.params.id, 'Clube');

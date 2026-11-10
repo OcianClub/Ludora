@@ -1,0 +1,26 @@
+.desktop-app .modal.desktop-account-dialog { width:min(680px,calc(100vw - 28px)); max-width:680px; background:var(--desktop-modal-surface); }
+.desktop-account-dialog .modal-body { padding:20px; }
+.desktop-account-dialog .modal-footer { padding:14px 20px; border-top:1px solid var(--linha); background:var(--desktop-modal-surface); }
+.desktop-account-dialog .desktop-menu-select > .desktop-menu-trigger { background:var(--fundo-card); color:var(--texto); }
+.desktop-account-form { display:grid; gap:20px; min-width:0; }
+.desktop-app .desktop-account-dialog .user-identity { grid-template-columns:34px minmax(0,1fr) auto; padding:14px; gap:12px; background:var(--fundo-card); border:1px solid var(--linha); }
+.desktop-app .desktop-account-dialog .user-identity-avatar { width:34px; height:34px; background:var(--fundo-card-sec); border-radius:50%; font-size:10px; }
+.desktop-account-dialog .desktop-form-section { gap:16px; }
+.desktop-account-dialog .desktop-form-section .desktop-select-field { margin-top:2px; }
+.desktop-account-dialog .user-add-club { justify-content:flex-start; }
+.desktop-account-dialog .user-membership { grid-template-columns:minmax(0,1fr) minmax(110px,.65fr) auto auto; }
+.desktop-account-dialog details { color:var(--texto-sec); font-size:12px; }
+.desktop-account-dialog summary { cursor:pointer; padding-block:6px; }
+.desktop-account-dialog details .field { margin-top:10px; }
+.desktop-account-clubs { display:grid; gap:9px; padding:0; margin:0; border:0; min-width:0; }
+.desktop-account-clubs legend { padding:0; margin-bottom:10px; font-size:12px; font-weight:600; }
+.desktop-account-club-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; max-height:230px; overflow:auto; padding:3px; }
+.desktop-account-scope { margin:0; padding:0; border:0; min-width:0; }
+.desktop-account-scope legend { margin-bottom:10px; font-size:12px; font-weight:600; }
+.desktop-account-scope .paulista-follow { padding:0 0 12px; border-top:0; }
+@media(max-width:560px) {
+ .desktop-account-dialog .modal-body { padding:16px; }
+ .desktop-account-club-options { grid-template-columns:minmax(0,1fr); max-height:205px; }
+ .desktop-account-dialog .user-membership { grid-template-columns:minmax(0,1fr) auto auto; }
+ .desktop-account-dialog .user-membership > strong { grid-column:1/-1; }
+}

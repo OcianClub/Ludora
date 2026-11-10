@@ -1,5 +1,5 @@
 import { Icon } from '@web/components/Icon';
-import { DesktopMenu } from './DesktopMenu';
+import { DesktopSelect } from './DesktopSelect';
 import { PERIODOS_LOG, type PeriodoLog } from '../../../shared/log-period';
 
 function PeriodIcon({ live }: { live: boolean }) {
@@ -7,11 +7,6 @@ function PeriodIcon({ live }: { live: boolean }) {
 }
 
 export function LogPeriodPicker({ value, onChange }: { value: PeriodoLog; onChange: (v: PeriodoLog) => void }) {
-  const rotulo = PERIODOS_LOG.find(p => p.value === value)!.label;
-  return <DesktopMenu label={`Período dos logs: ${rotulo}`} className="desktop-log-select desktop-log-period"
-    trigger={<><PeriodIcon live={value === 'live'}/><span>{rotulo}</span><Icon name="chevronRight" size={14}/></>}>
-    {PERIODOS_LOG.map(p => <button type="button" key={p.value} role="menuitemradio" aria-checked={value === p.value} onClick={() => onChange(p.value)}>
-      <PeriodIcon live={p.value === 'live'}/>{p.label}{value === p.value && <span className="desktop-menu-selection-dot" aria-hidden="true"/>}
-    </button>)}
-  </DesktopMenu>;
+  return <DesktopSelect label="Período dos logs" height={40} value={value} onChange={onChange} className="desktop-log-period"
+    options={PERIODOS_LOG.map(p => ({ ...p, icon: <PeriodIcon live={p.value === 'live'}/> }))}/>;
 }

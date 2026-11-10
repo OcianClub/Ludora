@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CollectionFilterButton, CollectionFilterDialog, CollectionSearch } from '@web/components/CollectionToolbar';
-import { FilterSelect } from '@web/components/FilterSelect';
-import { Btn, Card, DesktopState, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
+import { Btn, Card, DesktopSection, DesktopState, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { Toast } from '@web/components/Toast';
 import { ClubBadge } from '@web/components/Brand';
 import { Icon } from '@web/components/Icon';
@@ -10,8 +9,15 @@ import type { PainelPaulista } from '@ludora/shared-types/src/paulista';
 import { requestJson } from '../services/api';
 import { PaulistaComparison, PaulistaAudit } from '../components/PaulistaReview';
 import { FederationGlobe } from '@web/components/PaulistaIcons';
-import { MotivoTiles } from '../components/MotivoTiles';
-import '@web/components/ThemeToggle.css';
+import { DesktopTabs } from '../components/DesktopTabs';
+import { DesktopSelect } from '../components/DesktopSelect';
+import { DesktopToggle } from '../components/DesktopToggle';
+import { DesktopAccordion } from '../components/DesktopAccordion';
+import { PaulistaStatus } from '../components/PaulistaStatus';
+import { AdminIcon } from '../components/AdminIcon';
+import { PaulistaEventCollection, PaulistaRecentChanges } from '../components/PaulistaEventCollection';
+import { DesktopMenu, DesktopMenuItem } from '../components/DesktopMenu';
+import './Paulista.css';
 
 type Equipe = { id: number; nome: string; escudo: string | null; vinculo: { clubeId: number; motivo: string; clube?: { nome: string; escudo: string | null } } | null; sugestoes: { id: number; nome: string }[] };
 type Pausa = { protocolo: string; motivo: string; inicio: string };
@@ -42,6 +48,7 @@ export default function PaulistaAdmin() {
   const [erroAcao, setErroAcao] = useState('');
   const [aviso, setAviso] = useState('');
   const [busy, setBusy] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   const [detalhando, setDetalhando] = useState(false);
   const [busca, setBusca] = useState('');
   const [status, setStatus] = useState('');
@@ -60,9 +67,10 @@ export default function PaulistaAdmin() {
   const pendenciaSelecionada = painel?.pendencias.find(p => p.jogoId === jogoSelecionado && p.tipo === tipoSelecionado);
 
   async function carregar() {
-    setErro('');
+    setErro(''); setCarregando(true);
     try { setResumo(await requestJson<Resumo>(base)); }
     catch (e) { setErro((e as Error).message); }
+    finally { setCarregando(false); }
   }
   useEffect(() => { void carregar(); }, []);
   useEffect(() => {
@@ -136,7 +144,7 @@ export default function PaulistaAdmin() {
     (c.eventos.length || !status && !filtros.ano && !filtros.divisao && !filtros.categoria && !filtros.pendencia && c.nome.toLocaleLowerCase().includes(busca.trim().toLocaleLowerCase())));
   const semClube = eventos.filter(e => !clubes.some(c => c.eventos.some(item => item.id === e.id)));
   const falhou = !!resumo?.rotina?.erro || catalogo.some(e => e.erro && e.estado !== 'PAUSADO');
-  const tituloSaude = falhou ? 'Há atualizações com falha' : tarefas.length || catalogo.some(e => e.estado === 'REVISAR_IDENTIDADE') ? 'Aguardando conferência' : catalogo.length ? 'Catálogo disponível' : 'Aguardando a primeira descoberta';
+  const tituloSaude = falhou ? 'Há atualizações com falha' : resumo?.fila.length || catalogo.some(e => e.estado === 'REVISAR_IDENTIDADE') ? 'Aguardando conferência' : catalogo.length ? 'Catálogo disponível' : 'Aguardando a primeira descoberta';
   const nomeTime = (id: number) => painel?.vinculos.find(v => v.equipeId === id)?.nome || painel?.snapshot.equipes.find(e => e.id === id)?.nome || 'Equipe a confirmar';
   const time = (id: number) => ({ nome: nomeTime(id), escudo: painel?.vinculos.find(v => v.equipeId === id)?.escudo ||
     painel?.snapshot.equipes.find(e => e.id === id)?.escudo });
@@ -155,21 +163,17 @@ export default function PaulistaAdmin() {
     return <button key={`${t.jogoId}:${t.tipo}`} type="button" className="ticket-card" onClick={() => abrir(e.id, t, destino)}>
       <span className="ticket-card-icon"><Icon name="alert" size={19}/></span>
       <span className="ticket-card-copy"><strong>{t.jogo.mandante} × {t.jogo.visitante}</strong><small>{pendencias[t.tipo] || 'Divergência'} · {clube?.nome || 'Sem clube confirmado'} · {nomeEvento(e)}</small></span>
-      <span className="ticket-card-meta"><small>{estadoAlerta(t.estado)}</small><time>{t.atualizadoEm ? quando(t.atualizadoEm) : [t.jogo.data?.split('-').reverse().join('/'), t.jogo.horario].filter(Boolean).join(' · ') || 'Horário a confirmar'}</time></span><Icon name="chevronRight" size={16}/>
+      <span className="ticket-card-meta"><PaulistaStatus state={t.estado} label={estadoAlerta(t.estado)}/><time>{t.atualizadoEm ? quando(t.atualizadoEm) : [t.jogo.data?.split('-').reverse().join('/'), t.jogo.horario].filter(Boolean).join(' · ') || 'Horário a confirmar'}</time></span><Icon name="chevronRight" size={16}/>
     </button>;
   }
-  function itemEvento(e: Evento, clubeId?: number) {
-    return <button type="button" key={e.id} className="ticket-card" onClick={() => abrir(e.id, undefined, clubeId)}>
-      <span className="ticket-card-icon"><Icon name="trophy" size={18}/></span>
-      <span className="ticket-card-copy"><strong>{nomeEvento(e)}</strong><small>{estados[e.estado]} · {e.jogos} {e.jogos === 1 ? 'jogo' : 'jogos'}</small></span>
-      <span className="ticket-card-meta"><small>{quando(e.sucessoEm)}</small></span><Icon name="chevronRight" size={16}/>
-    </button>;
+  function listaEventos(items: Evento[], clubeId?: number) {
+    return <PaulistaEventCollection events={items} labels={estados} alerts={id=>tarefas.filter(t=>t.jogo.eventoId === id && (!clubeId || t.clubeIds.includes(clubeId))).length} onOpen={id=>abrir(id,undefined,clubeId)}/>;
   }
 
   return <div className="ticket-page match-schedule paulista-admin">
     {evento && <Btn variant="ghost" className="ticket-back" onClick={voltar}><Icon name="chevronLeft" size={17}/> {clubeSelecionado ? `Voltar a ${clubeSelecionado.nome}` : 'Voltar aos clubes'}</Btn>}
-    <header className="page-header"><div><span className="ticket-kicker">Integração oficial</span><h1 className="page-title">{evento ? nomeEvento(evento) : 'Campeonato Paulista'}</h1><p className="page-sub">{evento ? [clubeSelecionado?.nome, estados[evento.estado]].filter(Boolean).join(' · ') : 'Acompanhe a publicação da Federação e revise diferenças com o Ludora.'}</p></div>
-      <div className="actions"><Btn variant="ghost" onClick={() => void carregar()}><Icon name="refresh" size={17}/> Atualizar painel</Btn>
+    <header className="page-header"><div><span className="ticket-kicker">Integração oficial</span><h1 className="page-title">{evento ? nomeEvento(evento) : 'Campeonato Paulista'}</h1><p className="page-sub">{evento ? 'Calendário, vínculos e conferência dos dados oficiais.' : 'Acompanhe a publicação da Federação e revise diferenças com o Ludora.'}</p></div>
+      <div className="actions"><Btn variant="ghost" disabled={carregando || busy} onClick={() => void carregar()}><Icon name="refresh" size={17}/>{carregando ? 'Atualizando…' : 'Atualizar painel'}</Btn>
         {evento && <a className="paulista-source-icon" href={`https://eventos.admfutsal.com.br/evento/${evento.id}/jogos`} target="_blank" rel="noreferrer"
           aria-label="Abrir fonte oficial" data-tooltip="Abrir fonte oficial da Federação"><FederationGlobe/></a>}</div>
     </header>
@@ -177,63 +181,70 @@ export default function PaulistaAdmin() {
     <Toast message={aviso} onClose={() => setAviso('')}/>
     {!resumo && !erro && <LoadingSkeleton kind="rows" label="Carregando integração Paulista"/>}
     {resumo && !evento && <>
-      <Card className="ticket-section paulista-health"><div><h2>{tituloSaude}</h2><p>Descoberta {quando(resumo.rotina?.descobertaEm)} · Próxima {quando(resumo.rotina?.proximaEm)}</p></div>
+      <DesktopSection title="Sincronização com a Federação" className="paulista-health" actions={<PaulistaStatus state={falhou ? 'ERRO' : resumo.fila.length || catalogo.some(e=>e.estado === 'REVISAR_IDENTIDADE') ? 'EM_REVISAO' : 'DESCOBERTO'} label={tituloSaude}/>}>
+        <div className="paulista-health-content"><dl><div><dt>Última descoberta</dt><dd>{quando(resumo.rotina?.descobertaEm)}</dd></div><div><dt>Próxima descoberta</dt><dd>{resumo.rotina?.proximaEm ? quando(resumo.rotina.proximaEm) : 'Sem agendamento informado'}</dd></div></dl>
         <Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${base}/verificar`, titulo: 'Executar rotina pendente', body: {}, rotina: true, impacto: 'Processa as consultas que já estão agendadas. Uma falha preserva a última versão válida.' })}>Executar rotina pendente</Btn>
-        {resumo.rotina?.erro && <p>{resumo.rotina.erro}</p>}
-      </Card>
-      <div className="schedule-status-summary" role="group" aria-label="Situação dos campeonatos">
-        {[['', 'Todos'], ...Object.entries(estados)].map(([value, label]) => <button key={value} aria-pressed={status === value} onClick={() => setStatus(value)}>{label}<span>{catalogo.filter(e => !value || e.estado === value).length}</span></button>)}
-      </div>
+        </div>{resumo.rotina?.erro && <p role="status" className="paulista-error-text">{resumo.rotina.erro}</p>}
+      </DesktopSection>
+      <DesktopTabs label="Situação dos campeonatos" value={status} onChange={setStatus} options={[
+        {value:'',label:'Todos',count:catalogo.length}, ...Object.entries(estados).map(([value,label])=>({value,label,count:catalogo.filter(e=>e.estado === value).length})),
+      ]}>
       <div className="user-toolbar"><CollectionSearch label="Buscar campeonatos" placeholder="Clube, SUB, equipe oficial ou ano…" value={busca} onChange={setBusca}/><CollectionFilterButton label="Mais filtros" count={Object.values(filtros).filter(Boolean).length} onClick={() => setDraft({ ...filtros })}/></div>
       {Object.values(filtros).some(Boolean) && <div className="schedule-active-filters" aria-label="Filtros ativos">{chaves.filter(k => filtros[k]).map(k => <button key={k} onClick={() => setFiltros({ ...filtros, [k]: '' })}>{opcoes[k].find(o => o.value === filtros[k])?.label}<Icon name="minus" size={14}/></button>)}</div>}
-      <section className="ticket-day"><h2>Alertas · {tarefas.length}</h2>
-        {!tarefas.length && <p className="dica">Nenhuma divergência aberta para esta seleção.</p>}
+      <section className="ticket-day paulista-alerts"><h2>Alertas <span className="paulista-count">{tarefas.length}</span></h2>
+        {!tarefas.length && <p className="paulista-empty-inline"><AdminIcon name="check" size={17}/>Nenhuma divergência aberta para esta seleção.</p>}
         {(todosAlertas ? tarefas : tarefas.slice(0, 5)).map(t => avisoDaFila(t))}
         {tarefas.length > 5 && <div><Btn size="sm" variant="ghost" aria-expanded={todosAlertas} onClick={() => setTodosAlertas(v => !v)}>{todosAlertas ? 'Mostrar menos alertas' : `Ver os outros ${tarefas.length - 5} alertas`}</Btn></div>}
       </section>
       <section className="ticket-day"><h2>Clubes</h2>
-        {!clubes.length && !semClube.length && <DesktopState icon="search" title="Nenhum clube encontrado" description="Revise os filtros ou a busca."/>}
+        {!clubes.length && !semClube.length && <DesktopState plain icon="search" title="Nenhum clube encontrado" description="Revise os filtros ou a busca."/>}
         {clubes.map(c => {
           const subs = new Set(c.eventos.map(e => e.categoria)).size;
-          return <details className="paulista-club-card" key={c.id} open={c.id === clubeSelecionado?.id || undefined}>
-            <summary>
+          return <DesktopAccordion className="paulista-club-card" key={`${c.id}:${clubeSelecionado?.id || ''}`} defaultOpen={c.id === clubeSelecionado?.id} title={<span className="paulista-club-heading">
               <ClubBadge src={c.escudo} name={c.nome} size={36}/>
               <span className="ticket-card-copy"><strong>{c.nome}</strong><small>{subs ? `${c.eventos.some(e => e.acompanhado) ? 'Em acompanhamento' : 'Sem acompanhamento'} · ${subs} ${subs === 1 ? 'SUB' : 'SUBs'}` : 'Sem participação publicada'}</small></span>
-              <small>{c.alertas.length === 1 ? '1 alerta' : `${c.alertas.length} alertas`}</small><Icon name="chevronRight" size={16}/>
-            </summary>
+              <span className="paulista-club-alert-count" data-warning={c.alertas.length > 0}>{c.alertas.length === 1 ? '1 alerta' : `${c.alertas.length} alertas`}</span>
+            </span>}>
             <div className="paulista-club-content">
-              {c.alertas.map(t => avisoDaFila(t, c.id))}
-              {c.eventos.map(e => itemEvento(e, c.id))}
+              {listaEventos(c.eventos, c.id)}
               {!c.eventos.length && <p className="dica">Ainda não há SUBs vinculados ou sugeridos pela Federação.</p>}
             </div>
-          </details>;
+          </DesktopAccordion>;
         })}
-        {!!semClube.length && <details className="paulista-club-card"><summary><span className="ticket-card-icon"><Icon name="trophy" size={18}/></span><span className="ticket-card-copy"><strong>Eventos sem clube associado</strong><small>{semClube.length} publicados</small></span><Icon name="chevronRight" size={16}/></summary><div className="paulista-club-content">{semClube.map(e => itemEvento(e))}</div></details>}
+        {!!semClube.length && <DesktopAccordion className="paulista-club-card" title={<span className="paulista-club-heading"><span className="ticket-card-icon"><Icon name="trophy" size={18}/></span><span className="ticket-card-copy"><strong>Eventos sem clube associado</strong><small>{semClube.length} publicados</small></span></span>}><div className="paulista-club-content">{listaEventos(semClube)}</div></DesktopAccordion>}
       </section>
-      {!!resumo.recentes?.length && <Card className="ticket-section"><h2>Alterações oficiais recentes</h2>{resumo.recentes.map(a => { const e = catalogo.find(v => v.id === a.eventoId); return e && <div key={a.id}><Btn size="sm" variant="ghost" onClick={() => abrir(e.id)}>{nomeEvento(e)} · {quando(a.criadoEm)}</Btn></div>; })}</Card>}
+      {!!resumo.recentes?.length && <section className="ticket-day paulista-recent-section"><h2><Icon name="clock" size={17}/>Alterações oficiais recentes <span className="paulista-count">{resumo.recentes.length}</span></h2><PaulistaRecentChanges changes={resumo.recentes} events={catalogo} onOpen={id=>abrir(id)}/></section>}
+      </DesktopTabs>
     </>}
     {evento && <div className="ticket-detail-main">
-      <Card className="ticket-section"><h2>Sincronização</h2><p>{clubesDoEvento(evento).join(', ') || 'Sem clube confirmado'}</p><p>Último sucesso {quando(evento.sucessoEm)} · Próxima tentativa {quando(evento.proximaEm)}</p>
-        {evento.erro && <p role="status">{evento.erro}</p>}
+      <section className="paulista-event-overview" aria-label="Resumo do evento">
+        <div className="paulista-event-context">{clubeSelecionado ? <ClubBadge src={clubeSelecionado.escudo} name={clubeSelecionado.nome} size={40}/> : <span className="paulista-context-icon"><Icon name="trophy" size={23}/></span>}<div><strong>{clubeSelecionado?.nome || 'Evento da Federação'}</strong><PaulistaStatus state={evento.estado} label={estados[evento.estado] || evento.estado}/></div></div>
+        <dl><div><dt>Jogos no evento</dt><dd>{evento.jogos}</dd></div><div data-attention={alertasEvento.some(p=>['ABERTA','EM_REVISAO','AGUARDANDO_CLUBE'].includes(p.estado))}><dt>Divergências abertas</dt><dd>{painel ? alertasEvento.filter(p=>['ABERTA','EM_REVISAO','AGUARDANDO_CLUBE'].includes(p.estado)).length : '—'}</dd></div><div><dt>Equipes vinculadas</dt><dd>{evento.equipes.filter(e=>e.vinculo).length}</dd></div></dl>
+      </section>
+      <div className="paulista-detail-workspace"><aside className="paulista-detail-sidebar" aria-label="Consultas da integração">
+      <DesktopSection title="Sincronização" className="paulista-sync" actions={<Icon name="refresh" size={18}/>}>
+        <dl className="paulista-sync-dates"><div><dt>Último sucesso</dt><dd>{quando(evento.sucessoEm)}</dd></div><div><dt>Próxima tentativa</dt><dd>{evento.proximaEm ? quando(evento.proximaEm) : 'Sem agendamento informado'}</dd></div><div><dt>Versão salva</dt><dd>{evento.versao > 0 ? evento.versao : 'Nenhuma'}</dd></div></dl>
+        {evento.erro && <p className="paulista-error-text" role="status">{evento.erro}</p>}
         {evento.manutencao && <p className="notice-error" role="status">Em manutenção desde {quando(evento.manutencao.inicio)}. {evento.manutencao.motivo} Protocolo {evento.manutencao.protocolo}.</p>}
         <div className="actions">
-          <Btn variant="ghost" disabled={!!evento.manutencao} onClick={() => revisar({ path: `${path}/sincronizar`, titulo: 'Consultar Federação agora', body: {}, rotina: true, impacto: 'Busca a publicação atual deste evento e aplica atualizações oficiais. Uma falha preserva a última versão válida.' })}>Consultar Federação agora</Btn>
-          <Link className="btn btn-ghost" to={`/manutencao?evento=${evento.id}`}>{evento.manutencao ? 'Revisar pausa' : 'Configurar pausa'}</Link>
+          <Btn disabled={!!evento.manutencao} onClick={() => revisar({ path: `${path}/sincronizar`, titulo: 'Consultar Federação agora', body: {}, rotina: true, impacto: 'Busca a publicação atual deste evento e aplica atualizações oficiais. Uma falha preserva a última versão válida.' })}><Icon name="refresh" size={16}/>Consultar Federação agora</Btn>
+          <Link className="btn btn-ghost btn-sm" to={`/manutencao?evento=${evento.id}`}>{evento.manutencao ? 'Revisar pausa' : 'Configurar pausa'}</Link>
         </div>
         {evento.versao > 0 && <div className="paulista-follow">
           <div><strong>Acompanhamento automático</strong><p>{evento.acompanhado ? 'Ligado' : 'Desligado'} · Consulta programada deste SUB</p></div>
-          <button type="button" className="settings-switch" role="switch" aria-label="Acompanhamento automático" aria-checked={evento.acompanhado}
-            data-tooltip={evento.acompanhado ? 'Desligar consultas programadas' : 'Ligar consultas programadas'} onClick={() => revisar({
+          <DesktopToggle label="Acompanhamento automático" checked={evento.acompanhado} onChange={() => revisar({
               path: `${path}/acompanhamento`, titulo: evento.acompanhado ? 'Desligar acompanhamento automático' : 'Ligar acompanhamento automático',
               body: { acompanhado: !evento.acompanhado },
               impacto: evento.acompanhado ? 'Cancela as próximas consultas programadas deste SUB. O calendário salvo continua disponível.' : 'Agenda a primeira consulta deste SUB. As seguintes seguem o intervalo programado da integração.',
               motivos: evento.acompanhado ? ['Edição encerrada', 'Pausa no acompanhamento'] : ['Calendário em andamento', 'Retomada do acompanhamento'],
-            })}><span className="settings-switch-thumb" aria-hidden="true"/></button>
+            })}/>
         </div>}
-      </Card>
+      </DesktopSection>
+      </aside><div className="paulista-detail-work">
       {detalhando && <LoadingSkeleton kind="rows" label="Carregando detalhes do evento"/>}
-      {painel && <section className="ticket-day"><h2>Divergências e calendário</h2>
-        {!alertasEvento.length && <p className="dica">Nenhuma divergência registrada para esta seleção.</p>}
+      {painel && <section className="ticket-day paulista-detail-alerts"><h2><Icon name="calendar" size={18}/>Conferência do calendário</h2>
+        {!!alertasEvento.length && <p className="paulista-detail-description">Compare as publicações oficiais com os registros do Ludora.</p>}
+        {!alertasEvento.length && <div className="paulista-no-divergence"><AdminIcon name="check" size={20}/><div><strong>Nenhuma divergência registrada</strong><p>Nenhuma ação de conferência necessária nesta seleção.</p></div></div>}
         {alertasEvento.map(p => {
           const j = painel.snapshot.jogos.find(v => v.id === p.jogoId);
           const chamado = painel.chamados?.[String(p.id)];
@@ -242,9 +253,9 @@ export default function PaulistaAdmin() {
           const expandida = p === pendenciaSelecionada;
           return <article key={chave} className="paulista-divergencia" id={expandida ? 'paulista-pendencia-ativa' : undefined}>
             <button type="button" className="ticket-card" aria-expanded={expandida} onClick={() => expandirPendencia(p.jogoId, p.tipo, expandida)}>
-              <span className="ticket-card-icon"><Icon name="alert" size={18}/></span><span className="ticket-card-copy"><strong>{pendencias[p.tipo] || p.tipo}</strong>
+              <span className="ticket-card-icon"><Icon name={p.tipo === 'PLACAR' ? 'ball' : p.tipo === 'IDENTIDADE' ? 'people' : p.tipo === 'ALTERACAO_OFICIAL' ? 'calendar' : 'info'} size={18}/></span><span className="ticket-card-copy"><strong>{pendencias[p.tipo] || p.tipo}</strong>
                 <small>{j ? `${nomeTime(j.mandanteId)} × ${nomeTime(j.visitanteId)}` : 'Confronto em revisão'}</small></span>
-              <span className="ticket-card-meta"><small>{aberta ? estadoAlerta(p.estado) : 'Conferida'}</small></span><Icon name="chevronRight" size={16}/>
+              <span className="ticket-card-meta"><PaulistaStatus state={aberta ? p.estado : 'CONFERIDA'} label={aberta ? estadoAlerta(p.estado) : 'Conferida'}/></span><Icon name="chevronRight" size={16}/>
             </button>
             {expandida && <div className="paulista-divergencia-body">
             <PaulistaComparison pendencia={p} mandante={j ? time(j.mandanteId) : undefined} visitante={j ? time(j.visitanteId) : undefined}/>
@@ -266,27 +277,29 @@ export default function PaulistaAdmin() {
           </article>;
         })}
       </section>}
-      <section className="ticket-day"><h2>Identidades dos clubes</h2>
+      <section className="ticket-day paulista-identities"><h2><Icon name="handshake" size={18}/>Vínculos dos clubes</h2>
         {!evento.equipes.some(e => e.vinculo || e.sugestoes.length) && <p className="dica">Nenhum vínculo confirmado ou sugestão para conferir.</p>}
-        {evento.equipes.filter(e => e.vinculo || e.sugestoes.length).map(e => <Card key={e.id} className="ticket-section"><div className="linha-clube"><ClubBadge src={e.vinculo ? e.vinculo.clube?.escudo : e.escudo} name={e.vinculo?.clube?.nome || e.nome} size={36}/><h2>{e.vinculo?.clube?.nome || e.nome}</h2></div>
-          {e.vinculo ? <><p>Equipe na Federação · {e.nome}</p><div className="actions">
-            <Btn size="sm" variant="ghost" disabled={!!evento.manutencao} onClick={() => revisar({ path: `${path}/desvincular`, titulo: 'Desfazer vínculo confirmado', body: { equipeId: e.id }, impacto: 'A API impede reversões que deixem a agenda órfã ou removam contribuições do clube.' })}>Desfazer vínculo</Btn>
+        <div className="paulista-identity-grid">{evento.equipes.filter(e => e.vinculo || e.sugestoes.length).map(e => <Card key={e.id} className={`ticket-section paulista-identity${e.vinculo ? ' paulista-identity-confirmed' : ''}`}><div className="linha-clube"><ClubBadge src={e.vinculo ? e.vinculo.clube?.escudo : e.escudo} name={e.vinculo?.clube?.nome || e.nome} size={36}/><h3>{e.vinculo?.clube?.nome || e.nome}</h3>
+          {e.vinculo && <DesktopMenu label={`Opções do vínculo de ${e.vinculo.clube?.nome || e.nome}`}><DesktopMenuItem icon={<Icon name="trash" size={16}/>} disabled={!!evento.manutencao} onSelect={() => revisar({ path: `${path}/desvincular`, titulo: 'Desfazer vínculo confirmado', body: { equipeId: e.id }, impacto: 'A API impede reversões que deixem a agenda órfã ou removam contribuições do clube.' })}>Desfazer vínculo</DesktopMenuItem></DesktopMenu>}
+          </div><PaulistaStatus state={e.vinculo ? 'CONFERIDA' : 'REVISAR_IDENTIDADE'} label={e.vinculo ? 'Identidade confirmada' : 'Identidade a conferir'}/>
+          {e.vinculo ? <><p><span className="paulista-field-label">Na Federação</span>{e.nome}</p><div className="actions">
             <Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${path}/revisar-vinculo`, titulo: 'Solicitar análise de vínculo', body: { equipeId: e.id },
               motivos: ['Conferir a identidade do clube', 'Conferir partidas e participações', 'Conferir dados da Federação'],
               impacto: 'Abre uma tarefa de atendimento para conferir identidade e histórico. O vínculo atual fica disponível durante a análise.' })}>Solicitar análise de vínculo</Btn>
             {painel?.vinculoChamados?.[String(e.id)] && <Link className="btn btn-ghost btn-sm" to={`/chamados?id=${painel.vinculoChamados[String(e.id)]}`}>Acompanhar análise</Link>}
           </div></> : e.sugestoes.map(c => <div className="actions" key={c.id}><Btn size="sm" variant="ghost" disabled={!!evento.manutencao} onClick={() => revisar({ path: `${path}/confirmar`, titulo: `Confirmar ${e.nome} como ${c.nome}`, body: { equipeId: e.id, clubeId: c.id }, impacto: 'Confirme a identidade, o SUB e o histórico. A associação permite distribuir partidas oficiais para este clube.' })}>Confirmar {c.nome}</Btn><Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${path}/rejeitar-sugestao`, titulo: 'Rejeitar sugestão', body: { equipeId: e.id, clubeId: c.id }, impacto: 'Retira a sugestão de identidade da fila.' })}>Não é este clube</Btn></div>)}
-        </Card>)}
+        </Card>)}</div>
       </section>
-      {!!historico.length && <Card className="ticket-section"><h2>Histórico da integração</h2>{historico.map(h => <PaulistaAudit key={h.id} item={h}/>)}</Card>}
+      </div></div>
+      {!!historico.length && <DesktopAccordion title="Histórico da integração" count={historico.length}>{historico.map(h => <PaulistaAudit key={h.id} item={h}/>)}</DesktopAccordion>}
     </div>}
     {draft && <CollectionFilterDialog open title="Filtrar campeonatos" onClose={() => setDraft(null)} onClear={() => setDraft({})} onApply={() => { setFiltros(draft); setDraft(null); }}><div className="schedule-filter-fields">
-      {chaves.map(k => <FilterSelect inlineOptions key={k} label={campos[k]} emptyLabel="Todos" options={opcoes[k]} value={draft[k] || ''} onChange={v => setDraft({ ...draft, [k]: v })}/>)}
+      {chaves.map(k => <DesktopSelect showLabel fullWidth key={k} label={campos[k]} options={[{value:'',label:'Todos'}, ...opcoes[k]]} value={draft[k] || ''} onChange={v => setDraft({ ...draft, [k]: v })}/>)}
     </div></CollectionFilterDialog>}
     {acao && <Modal open title={acao.titulo} onClose={() => { if (!busy) setAcao(null); }} className="schedule-review-dialog"
       footer={<div className="schedule-review-actions"><Btn variant="ghost" disabled={busy} onClick={() => setAcao(null)}>Voltar</Btn><Btn disabled={busy || (!acao.rotina && (motivo.trim().length < 5 || !acao.motivos && !confirmado))} onClick={() => void executar()}>{busy ? 'Registrando…' : acao.label || (acao.rotina || acao.motivos ? 'Confirmar' : 'Registrar decisão')}</Btn></div>}>
       <p>{acao.impacto}</p>
-      {acao.motivos ? <MotivoTiles options={acao.motivos} value={motivo} onChange={setMotivo} custom={motivoCustom} setCustom={setMotivoCustom}/> : !acao.rotina && <>
+      {acao.motivos ? <div className="paulista-reason-fields"><DesktopSelect label="Motivo" showLabel fullWidth expandInDialog value={motivoCustom ? '__outro' : motivo} options={[...acao.motivos.map(v=>({value:v,label:v})),{value:'__outro',label:'Outro'}]} onChange={v=>{setMotivoCustom(v === '__outro');setMotivo(v === '__outro' ? '' : v);}}/>{motivoCustom && <Input label="Descreva o motivo" value={motivo} maxLength={300} onChange={e=>setMotivo(e.target.value)}/>}</div> : !acao.rotina && <>
         <Input label={acao.label ? 'Passos para reproduzir' : 'Motivo da decisão'} value={motivo} maxLength={300} onChange={e => setMotivo(e.target.value)}/>
         <label className="check"><input type="checkbox" checked={confirmado} onChange={e => setConfirmado(e.target.checked)}/> Conferi os dados e autorizo a ação.</label>
       </>}

@@ -1,0 +1,21 @@
+.desktop-app .modal.desktop-ticket-create { width:min(900px,calc(100vw - 28px)); max-width:900px; }
+.desktop-ticket-form { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:24px; align-items:start; }
+.desktop-ticket-form-section { display:grid; gap:18px; min-width:0; }
+.desktop-ticket-form-section + .desktop-ticket-form-section { padding-left:24px; border-left:1px solid var(--linha); }
+.desktop-ticket-form-section h3 { display:flex; align-items:center; gap:9px; margin:0 0 2px; font-size:14px; }
+.desktop-ticket-form-section h3 > .icon { color:var(--texto-sec); }
+.desktop-ticket-form-section .field { margin:0; }
+.desktop-ticket-form-section .field small, .desktop-ticket-clubs > p { font-size:11px; line-height:1.6; color:var(--texto-sec); }
+.desktop-ticket-form-section textarea { min-height:140px; }
+.desktop-ticket-form .notice-error, .desktop-ticket-form > .btn { grid-column:1/-1; }
+.desktop-ticket-clubs { display:grid; gap:10px; padding:0; margin:0; border:0; min-width:0; }
+.desktop-ticket-clubs legend { margin-bottom:10px; padding:0; font-size:12px; font-weight:500; }
+.desktop-ticket-club-options { display:grid; gap:8px; max-height:225px; overflow:auto; padding:3px; }
+.desktop-ticket-club-options .platform-club-option { background:var(--desktop-surface-raised); border-color:var(--borda); }
+.desktop-ticket-club-options .platform-club-option:has(input:checked) { border-color:var(--primaria); }
+.desktop-ticket-club-options .platform-club-option:not([data-disabled="true"]):hover { background:var(--desktop-surface-raised-hover); }
+.desktop-ticket-platform { display:grid; place-items:center; width:32px; height:32px; border-radius:8px; background:var(--fundo-card-sec); color:var(--texto); }
+@media(max-width:740px) {
+ .desktop-ticket-form { grid-template-columns:minmax(0,1fr); }
+ .desktop-ticket-form-section + .desktop-ticket-form-section { padding-left:0; padding-top:20px; border-left:0; border-top:1px solid var(--linha); }
+}

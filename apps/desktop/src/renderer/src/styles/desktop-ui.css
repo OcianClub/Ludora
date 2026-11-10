@@ -4,6 +4,16 @@
   --collection-control-height: var(--desktop-control-height);
   --collection-control-font-size: 13px;
   --desktop-surface-hover: color-mix(in srgb, var(--fundo-card) 94%, var(--texto) 6%);
+  /* Camada interna de um card, com borda e contraste discreto. */
+  --desktop-surface-raised: #14171F;
+  --desktop-surface-raised-hover: color-mix(in srgb, var(--desktop-surface-raised) 96%, var(--texto) 4%);
+  --desktop-modal-surface: #0B0D12;
+  --desktop-modal-control: #14171F;
+}
+:root[data-theme="light"] .desktop-app {
+  --desktop-surface-raised: color-mix(in srgb, var(--fundo-card) 97%, var(--texto) 3%);
+  --desktop-modal-surface: var(--fundo);
+  --desktop-modal-control: var(--fundo-card);
 }
 
 .desktop-app .admin-layout :is(.btn, .field-input, .schedule-select-trigger, .collection-control) { border-radius: 8px; }
@@ -58,21 +68,21 @@
 .desktop-app .admin-layout :is(.table-wrap, .user-directory, .club-directory) :is(strong, small) { overflow-wrap: anywhere; }
 
 /* Os dialog continuam usando o foco, Escape e bloqueio de fundo do Modal comum. */
-.desktop-app .modal { max-height: calc(100dvh - 40px); border-radius: 12px; background: var(--fundo-card); overflow: hidden; }
+.desktop-app .modal { max-height: calc(100dvh - 40px); border-radius: 12px; background: var(--desktop-modal-surface); overflow: hidden; }
 .desktop-app .modal .modal-header { min-height: 64px; padding: 14px 20px; gap: 12px; }
 .desktop-app .modal .modal-title { font: 600 20px/1.35 var(--font-titulo); }
 .desktop-app .modal .modal-close { display: grid; place-items: center; width: 34px; height: 34px; min-width: 34px; min-height: 34px; padding: 0; border-radius: 7px; }
 .desktop-app .modal .modal-close:hover { background: var(--fundo-card-sec); }
 .desktop-app .modal .modal-body { padding: 20px; gap: 18px; overflow-y: auto; scrollbar-width: thin; scrollbar-gutter: stable; }
-.desktop-app .modal .modal-footer { padding: 14px 20px; border-top: 1px solid var(--linha); background: color-mix(in srgb, var(--fundo-card) 92%, var(--fundo)); }
+.desktop-app .modal .modal-footer { padding: 14px 20px; border-top: 1px solid var(--linha); background: var(--desktop-modal-surface); }
 .desktop-app .modal .modal-footer :is(.schedule-review-actions, .collection-filter-actions) { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; width: 100%; }
 .desktop-app .modal .modal-footer .schedule-review-actions { justify-content: flex-end; }
 .desktop-app .modal .modal-footer .collection-filter-actions { justify-content: space-between; }
 .desktop-app .modal .modal-body > .admin-club-actions:last-child { border-top: 1px solid var(--linha); padding-top: 16px; margin-top: 0; }
 .desktop-app .modal .form-grid { gap: 16px; }
 .desktop-app .modal .form-grid > .full:last-child:has(> .btn) { border-top: 1px solid var(--linha); padding-top: 16px; }
-.desktop-app .modal.collection-filter-dialog { inset: 0; margin: auto; width: min(620px, calc(100vw - 40px)); max-width: 620px; max-height: calc(100dvh - 40px); border: 1px solid var(--borda); border-radius: 12px; background: var(--fundo-card); }
-.desktop-app .modal.collection-filter-dialog .modal-footer { background: var(--fundo-card); }
+.desktop-app .modal.collection-filter-dialog { inset: 0; margin: auto; width: min(620px, calc(100vw - 40px)); max-width: 620px; max-height: calc(100dvh - 40px); border: 1px solid var(--borda); border-radius: 12px; background: var(--desktop-modal-surface); }
+.desktop-app .modal.collection-filter-dialog .modal-footer { background: var(--desktop-modal-surface); }
 .desktop-app .modal.collection-filter-dialog .modal-title { font-family: var(--font-titulo); }
 .desktop-app .option-tile { border-color: var(--linha); background: var(--fundo); min-height: 40px; transition: border-color .15s, background-color .15s, color .15s; }
 .desktop-app .option-tile-copy { font-size: 13px; line-height: 1.45; }
@@ -82,7 +92,12 @@
 .desktop-app .option-tile:not(:has(input:disabled)):active { transform: none; }
 .desktop-app .check { align-items: flex-start; line-height: 1.5; }
 .desktop-app :is(.check, .cats, .club-subs) input[type="checkbox"] { accent-color: var(--primaria); width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
-.desktop-app .modal .schedule-select-trigger { background: var(--fundo); }
+.desktop-app .admin-layout .modal :is(.schedule-select-trigger, .field-input, .collection-search),
+.desktop-app .modal .desktop-menu-select > .desktop-menu-trigger { background:var(--desktop-modal-control); }
+.desktop-app .modal .desktop-menu-select > .desktop-menu-trigger:hover { background:color-mix(in srgb,var(--desktop-modal-control) 96%,var(--texto) 4%); }
+.desktop-app .modal :is(.desktop-menu-select > .desktop-menu-popover, .schedule-select-options) { background:var(--desktop-modal-control); }
+.desktop-app .admin-layout .modal .collection-filter-actions > .btn-ghost { background:transparent; border-color:transparent; }
+.desktop-app .admin-layout .modal .collection-filter-actions > .btn-ghost:hover:not(:disabled) { background:transparent; border-color:transparent; color:var(--texto); }
 
 .desktop-state { display: flex; align-items: center; gap: 14px; min-width: 0; min-height: 112px; padding: 22px; margin-block: 14px; border: 1px solid var(--linha); border-radius: 10px; background: var(--fundo-card); }
 .desktop-state-icon { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border-radius: 10px; background: var(--fundo-card-sec); color: var(--texto-sec); }
@@ -91,6 +106,9 @@
 .desktop-state-copy p { font-size: 12px; color: var(--texto-sec); line-height: 1.6; margin-top: 4px; }
 .desktop-state-error { border-color: var(--borda-erro); }
 .desktop-state-error .desktop-state-icon { color: var(--titulo-erro); background: var(--fundo-erro); }
+.desktop-app .desktop-state-plain { flex-direction:column; justify-content:center; min-height:clamp(180px,calc(100dvh - 380px),520px); margin:0; border:0; background:none; text-align:center; }
+.desktop-state-plain .desktop-state-icon { width:auto; height:auto; flex:0 0 auto; background:none; }
+.desktop-state-plain .desktop-state-copy { flex:0 0 auto; max-width:360px; }
 .desktop-loading-inline { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 100px; padding: 20px; color: var(--texto-sec); font-size: 13px; }
 .desktop-loading-inline .spinner { width: 24px; height: 24px; margin: 0; flex-shrink: 0; }
 .desktop-skeleton { display: grid; gap: 12px; min-width: 0; width: 100%; }

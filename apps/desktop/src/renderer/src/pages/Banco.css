@@ -1,0 +1,66 @@
+.desktop-app .desktop-bank-page {
+  --bank-success: #43c998;
+  gap: 24px;
+}
+:root[data-theme="light"] .desktop-bank-page { --bank-success: #16734f; }
+.desktop-bank-page .desktop-section-heading h2 { font-size: 15px; }
+.desktop-bank-page .desktop-section-heading p { font-size: 12px; line-height: 1.6; }
+.desktop-bank-page .desktop-bank-health { border-color: var(--borda); }
+.desktop-bank-page .desktop-bank-health-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 28px; }
+.desktop-bank-page .desktop-bank-connection { gap: 14px; }
+.desktop-bank-page .desktop-bank-icon { width: 38px; height: 38px; }
+.desktop-bank-page .desktop-bank-latency { font-size: 32px; }
+.desktop-bank-page .desktop-bank-migrations { grid-template-columns: 1.3fr 1fr 1fr; }
+.desktop-bank-page .desktop-bank-migrations > div { padding-inline: 22px; gap: 7px; }
+.desktop-bank-page .desktop-bank-migrations dd { font-size: 30px; line-height: 1.2; }
+.desktop-bank-page .desktop-bank-migrations small { font-size: 11px; }
+.desktop-bank-page .bank-status { display: inline-flex; align-items: center; gap: 8px; color: var(--texto); font-size: 13px; font-weight: 600; line-height: 1.5; }
+.bank-status > span { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: var(--texto-sec); }
+.bank-status[data-state="ok"] > span { background: var(--bank-success); }
+.bank-status[data-state="atencao"] > span { background: var(--amarelo); }
+.bank-status[data-state="falha"] > span { background: var(--titulo-erro); }
+.desktop-bank-page .desktop-bank-migration-alert ul { padding-left: 20px; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+
+/* Integrações são cartões independentes: uma superfície por serviço. */
+.desktop-app .desktop-bank-page :is(.bank-integrations-section, .bank-records-section) { background: transparent; border: 0; padding: 0; border-radius: 0; }
+.desktop-bank-page .desktop-bank-integrations { gap: 14px; }
+.desktop-bank-page .desktop-bank-integrations article { padding: 20px; gap: 16px; border-color: var(--borda); background: var(--fundo-card); border-radius: 10px; }
+.desktop-bank-page .desktop-bank-integrations header { gap: 12px; }
+.desktop-bank-page .desktop-bank-integrations h3 { font-size: 14px; }
+.desktop-bank-page .desktop-bank-integrations h3 small { font-size: 12px; }
+.desktop-bank-page .desktop-bank-integrations p { font-size: 12px; margin-top: -8px; line-height: 1.6; }
+
+.desktop-bank-page .desktop-bank-server { gap: 0; }
+.desktop-bank-page .desktop-bank-server > div { padding: 2px 18px; gap: 8px; text-align: center; border-left: 1px solid var(--linha); }
+.desktop-bank-page .desktop-bank-server > div:first-child { border-left: 0; }
+.desktop-bank-page .desktop-bank-server dd { font-size: 14px; line-height: 1.5; }
+.desktop-bank-page .bank-record-count { margin: 14px 0; color: var(--texto-sec); font-size: 12px; }
+.desktop-bank-page .bank-records-table :is(th, td):last-child { text-align: right; width: 20%; }
+.desktop-bank-page .bank-records-table :is(th, td):first-child { width: 36%; }
+.desktop-bank-page .bank-records-table td { font-size: 13px; }
+.desktop-bank-page .bank-records-table td:nth-child(2) { color: var(--texto-sec); }
+.desktop-bank-page .bank-records-table td:last-child { font-weight: 600; }
+.desktop-bank-page .bank-records-table :is(th, td) { overflow-wrap: anywhere; }
+
+@container desktop-content (max-width: 1050px) {
+  .desktop-bank-page .desktop-bank-health-grid { grid-template-columns: 1fr; gap: 20px; }
+  .desktop-bank-page .desktop-bank-migrations { border-top: 1px solid var(--linha); padding-top: 18px; }
+  .desktop-bank-page .desktop-bank-migrations > div:first-child { border-left: 0; padding-left: 0; }
+  .desktop-bank-page .desktop-bank-server { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 0; }
+  .desktop-bank-page .desktop-bank-server > div:nth-child(3n+1) { border-left: 0; }
+}
+@container desktop-content (max-width: 680px) {
+  .desktop-app .desktop-bank-page { gap: 20px; }
+  .desktop-bank-page .desktop-bank-integrations { grid-template-columns: 1fr; gap: 10px; }
+  .desktop-bank-page .desktop-bank-integrations article { padding: 16px; gap: 12px; }
+  .desktop-bank-page .desktop-bank-integrations p { margin-top: -4px; }
+  .desktop-bank-page .desktop-bank-migrations > div { padding-inline: 12px; }
+  .desktop-bank-page .desktop-bank-migrations dd { font-size: 27px; }
+  .desktop-bank-page .desktop-bank-server { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .desktop-bank-page .desktop-bank-server > div { padding-inline: 10px; }
+  .desktop-bank-page .desktop-bank-server > div:nth-child(3n+1) { border-left: 1px solid var(--linha); }
+  .desktop-bank-page .desktop-bank-server > div:nth-child(2n+1) { border-left: 0; }
+  .desktop-bank-page .bank-records-table :is(th, td) { padding-inline: 12px; }
+  .desktop-bank-page .bank-records-table td { font-size: 12px; }
+  .desktop-bank-page .bank-records-table :is(th, td):last-child { width: 22%; }
+}

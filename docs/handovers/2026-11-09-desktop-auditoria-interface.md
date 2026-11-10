@@ -109,3 +109,20 @@ Os scripts visuais precisam de Playwright e Microsoft Edge; neste ambiente foi u
 - Indicadores do servidor ficam em faixa própria. Registros por tabela vão ao final, agrupados por área, com rótulos legíveis e números formatados. Chaves adicionais recebidas da API continuam visíveis em Outros registros.
 - Atualização mostra horário e mantém os dados anteriores durante o carregamento; erro parcial apresenta aviso sem apagar o diagnóstico anterior. Não foram alteradas APIs, banco, permissões ou dados da Federação.
 - Build aprovado. A simulação do renderer foi ampliada para conferir hierarquia dos blocos, escopo das verificações e preservação de dados após falha parcial.
+
+## Logs — cores, filtros e leitura sem interrupção (10/11)
+
+- Campos HTTP separados em método, rota e status; mensagens desconhecidas e auditorias permanecem intactas. Status 2xx verde, 3xx neutro, 4xx âmbar e 5xx vermelho. Métodos têm cor própria, sem representar sucesso ou falha.
+- Duração destacada a partir de 1.000 ms (âmbar) e 3.000 ms (vermelho), com limites configuráveis nesta sessão em Mais filtros. A duração existente é medida no middleware da API até o evento finish; não representa tempo total de rede/renderização.
+- Mais filtros inclui método, família de status e Somente lentas. Como interpretar explica as cores e limites sob demanda.
+- Cada registro abre detalhes por clique ou teclado, com cópia individual usando o IPC autorizado já existente. Nenhum endpoint, token ou corpo adicional foi exposto.
+- Ao ler registros antigos, a coleta continua sem forçar rolagem. O botão Novos registros retorna ao extremo correspondente à ordenação. Contagem considera apenas novos IDs visíveis, evitando duplicações e registros filtrados.
+- Build e 14 testes unitários aprovados. Verificação visual/operacional contempla filtros, detalhes, cópia individual, limites personalizados e preservação da linha em leitura ao inserir registros no topo.
+
+## Componentes reutilizáveis de dropdown (10/11)
+
+- `DesktopMenu` e `DesktopSelect` centralizam a apresentação e interação dos menus aprovados nos logs.
+- Itens de ação, rádio, toggle, rótulo e separador são componentes próprios; opções aceitam ícones e estados desabilitados. Seletores suportam rádio azul com centro branco ou ponto azul.
+- Estilos comuns foram extraídos para `components/DesktopMenu.css`, sem dependência das classes da página de logs. Ações e rádios fecham; toggle mantém o menu aberto.
+- Logs e seletor de período já usam os componentes. Nenhum filtro de outras telas foi convertido automaticamente.
+- Guia de uso: `docs/desktop-componentes-menus.md`. Build aprovado; cenários operacionais existentes verificam menus, seleção e toggle por mouse/teclado.

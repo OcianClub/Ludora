@@ -1,0 +1,10 @@
+.desktop-app .desktop-accordion { min-width:0; background:none; }
+.desktop-app .desktop-accordion-heading { margin:0; font:600 13px/1.5 var(--font-corpo); }
+.desktop-app .desktop-accordion-heading > button { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; min-height:48px; padding:12px 0; border:0; border-bottom:1px solid var(--linha); border-radius:0; background:transparent; color:var(--texto); text-align:left; cursor:pointer; font:inherit; }
+.desktop-app .desktop-accordion-heading > button:hover { color:var(--primaria); background:transparent; }
+.desktop-app .desktop-accordion-heading > button:focus-visible { outline:2px solid var(--primaria); outline-offset:3px; }
+.desktop-app .desktop-accordion-count { margin-left:10px; color:var(--texto-sec); font:400 11px var(--font-corpo); }
+.desktop-accordion-chevron { display:flex; transform:rotate(90deg); }
+.desktop-accordion-chevron.is-open { transform:rotate(-90deg); }
+.desktop-app .desktop-accordion-content:not([hidden]) { padding-block:14px; }
+.desktop-app .desktop-accordion-content[hidden] { display:none; }

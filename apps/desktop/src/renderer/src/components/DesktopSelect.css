@@ -1,0 +1,16 @@
+/* Select do desktop: usa o menu, os estados e os indicadores compartilhados. */
+.desktop-select-field { display:grid; gap:6px; min-width:0; }
+.desktop-select-field > .field-label { margin:0; font-size:12px; line-height:1.4; }
+.desktop-app .desktop-menu-select > .desktop-menu-trigger {
+  width:100%; height:var(--desktop-select-height,44px); min-height:var(--desktop-select-height,44px);
+  padding:0 12px; gap:8px; justify-content:flex-start; white-space:nowrap; font-size:12px;
+}
+.desktop-menu-select .desktop-menu-trigger > span { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.desktop-menu-select .desktop-menu-trigger > svg { flex-shrink:0; }
+.desktop-menu-select .desktop-menu-trigger > .icon:last-child { margin-left:auto; transform:rotate(90deg); }
+.desktop-menu-select .desktop-menu-trigger[aria-expanded="true"] > .icon:last-child { transform:rotate(-90deg); }
+.desktop-menu-select > .desktop-menu-popover { display:grid; gap:4px; padding:10px; }
+.desktop-menu-select > .desktop-menu-popover button { min-height:var(--desktop-select-option-height,40px); }
+.desktop-menu-select .desktop-menu-popover button[aria-checked="true"] { background:var(--desktop-surface-hover); }
+.desktop-menu-select-full { width:100%; }
+.desktop-menu-select-full > .desktop-menu-popover { width:100%; left:0; right:0; }

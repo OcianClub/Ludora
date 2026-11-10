@@ -74,7 +74,7 @@ async function main() {
     await page.screenshot({ path: path.join(out, 'contas-por-clube.png') });
     assert.equal((await admin('PATCH', `/admin/clubes/${clube.id}/estado`, { ativo: true, motivo: 'Preparação da validação isolada.' })).status, 200);
     assert.equal((await admin('PATCH', `/admin/clubes/${clube.id}`, { escudo_arquivo: null })).status, 200);
-    await page.getByRole('button', { name: 'Cadastro dos clubes' }).click();
+    await page.getByRole('tab', { name: 'Cadastro dos clubes' }).click();
     await escolher(page, '^Clube', clube.nome);
     await escolher(page, '^Dado pendente', 'Escudo do clube');
     await page.getByRole('button', { name: 'Test USUARIO', exact: true }).click();
@@ -105,7 +105,7 @@ async function main() {
     await page.getByLabel('Justificativa', { exact: true }).fill('Escudo será atualizado durante a próxima temporada.');
     await page.getByRole('button', { name: 'Confirmar dispensa' }).click();
     await page.getByRole('heading', { name: 'Escudo · Dispensada' }).waitFor();
-    await page.getByRole('button', { name: 'Contas e acessos' }).click();
+    await page.getByRole('tab', { name: 'Contas e acessos' }).click();
     await page.getByRole('searchbox', { name: 'Buscar usuários' }).fill(cliente.email);
     await page.getByRole('button', { name: /Test USUARIO/ }).click();
     const acesso = page.getByRole('dialog', { name: 'Gerenciar conta' });

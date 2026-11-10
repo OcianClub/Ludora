@@ -49,6 +49,7 @@ async function main() {
             window.__calls.push(route);
             let data;
             if (route === '/admin/overview') data = { totais: { usuarios: 31, jogadores: 546, partidas: 751, partidasAoVivo: 27 }, conexoes: { principal: 2, admin: 1 }, clubes: [] };
+            else if (route === '/admin/overview/operacao') data = { consultadoEm: '2026-11-10T12:00:00Z', chamados: { abertos: 0, atrasados: 0 }, manutencao: 0, federacao: { pendencias: 0, falhas: 0, erroRotina: false }, antigas: [] };
             else if (route === '/admin/equipe/diagnostico') data = { banco: 'disponivel', latenciaMs: 92, consultadoEm: '2026-11-09T23:00:00Z', emailConfigurado: true, paulistaHabilitado: true };
             else throw new Error(`IPC sem fixture: ${route}`);
             return { ok: true, status: 200, data };

@@ -15,15 +15,16 @@ export function DesktopSection({ title, description, actions, children, classNam
   </section>;
 }
 
-export function DesktopState({ title, description, icon = 'info', error = false, onRetry, action }: {
+export function DesktopState({ title, description, icon = 'info', error = false, onRetry, action, plain = false }: {
   title: string;
   description?: string;
   icon?: AdminIconName;
   error?: boolean;
   onRetry?: () => void;
   action?: ReactNode;
+  plain?: boolean;
 }) {
-  return <div className={`desktop-state${error ? ' desktop-state-error' : ''}`} role={error ? 'alert' : undefined}>
+  return <div className={`desktop-state${error ? ' desktop-state-error' : ''}${plain ? ' desktop-state-plain' : ''}`} role={error ? 'alert' : undefined}>
     <span className="desktop-state-icon"><AdminIcon name={error ? 'alert' : icon} size={23}/></span>
     <div className="desktop-state-copy"><h2>{title}</h2>{description && <p>{description}</p>}</div>
     {onRetry ? <Btn variant="ghost" onClick={onRetry}>Tentar novamente</Btn> : action}
@@ -48,7 +49,8 @@ export function LoadingSkeleton({ kind = 'rows', label = 'Carregando dados', cou
   return <div className={`desktop-skeleton desktop-skeleton-${kind}`} role="status" aria-label={label}>
     {kind === 'overview' ? <>
       <div className="desktop-skeleton-heading" aria-hidden="true"><i/><i/></div>
-      <div className="desktop-skeleton-stats" aria-hidden="true">{Array.from({ length: 6 }, (_, index) => <div key={index}><i/><i/></div>)}</div>
+      <div className="desktop-skeleton-stats" aria-hidden="true">{Array.from({ length: 3 }, (_, index) => <div key={index}><i/><i/></div>)}</div>
+      <div className="desktop-skeleton-stats" aria-hidden="true">{Array.from({ length: 2 }, (_, index) => <div key={index}><i/><i/></div>)}</div>
       <div className="desktop-skeleton-item" aria-hidden="true"><b/><span><i/><i/></span></div>
     </> : Array.from({ length }, (_, index) => <div className="desktop-skeleton-item" key={index} aria-hidden="true">
       {(kind === 'rows' || kind === 'cards' || kind === 'table') && <b/>}

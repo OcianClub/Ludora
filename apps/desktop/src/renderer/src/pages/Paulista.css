@@ -1,0 +1,159 @@
+.desktop-app .paulista-admin {
+  --paulista-success: #43c998;
+  --paulista-surface: color-mix(in srgb, var(--fundo-card) 75%, var(--fundo-card-sec));
+  display: grid; gap: 24px; min-width: 0;
+}
+:root[data-theme="light"] .paulista-admin { --paulista-success: #16734f; }
+.desktop-app .paulista-admin .page-header { margin-bottom: 0; }
+.paulista-admin .paulista-status { display: inline-flex; align-items: center; gap: 7px; color: var(--texto); font: 500 12px/1.5 var(--font-corpo); }
+.paulista-status > i { width: 6px; height: 6px; flex: 0 0 6px; background: var(--texto-sec); border-radius: 50%; }
+.paulista-status[data-tone="success"] > i { background: var(--paulista-success); }
+.paulista-status[data-tone="warning"] > i { background: var(--amarelo); }
+.paulista-status[data-tone="error"] > i { background: var(--titulo-erro); }
+.desktop-app .paulista-admin .paulista-health { display: block; margin: 0; padding: 20px; border: 1px solid var(--borda); }
+.paulista-health-content { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.paulista-health-content dl, .paulista-sync-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 32px; margin: 0; }
+.paulista-health-content dt, .paulista-sync-dates dt { color: var(--texto-sec); font-size: 12px; margin-bottom: 7px; }
+.paulista-health-content dd, .paulista-sync-dates dd { color: var(--texto); font-size: 13px; line-height: 1.6; margin: 0; }
+.paulista-health-content > .btn { flex-shrink: 0; }
+.paulista-admin .paulista-error-text { font-size: 12px; line-height: 1.7; color: var(--titulo-erro); overflow-wrap: anywhere; }
+.paulista-admin .desktop-tabs-panel { display: grid; gap: 24px; min-width: 0; }
+.paulista-admin .user-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 12px; margin: 0; }
+.paulista-admin .ticket-day { display: grid; gap: 10px; min-width: 0; }
+.desktop-app .paulista-admin .ticket-day > h2 { margin: 0 0 4px; font-size: 15px; }
+.paulista-count { margin-left: 6px; color: var(--texto-sec); font-size: 12px; font-weight: 400; }
+.paulista-empty-inline { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--texto-sec); font-size: 12px; line-height: 1.6; }
+.paulista-empty-inline .icon { color: var(--paulista-success); flex-shrink: 0; }
+.paulista-admin .ticket-card { width: 100%; min-width: 0; text-align: left; margin: 0; padding: 14px 16px; border: 1px solid var(--linha); border-radius: 8px; background: var(--fundo-card); gap: 12px; }
+.desktop-app .paulista-admin .ticket-card:hover { background: var(--paulista-surface); }
+.paulista-admin .ticket-card-copy { display: grid; gap: 5px; min-width: 0; }
+.paulista-admin .ticket-card-copy strong { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.paulista-admin .ticket-card-copy small { font-size: 12px; line-height: 1.6; color: var(--texto-sec); }
+.paulista-admin .ticket-card-meta { display: grid; gap: 5px; justify-items: end; font-size: 11px; }
+.paulista-admin .ticket-card-meta time { color: var(--texto-sec); }
+.desktop-app .paulista-admin .paulista-club-card { border: 0; border-radius: 0; background: transparent; }
+.paulista-club-card .desktop-accordion-heading > button > span:first-child { flex: 1; min-width: 0; }
+.desktop-app .paulista-club-card .desktop-accordion-heading > button { padding-block: 16px; min-height: 76px; }
+.desktop-app .paulista-club-card .desktop-accordion-heading > button:hover { color: var(--texto); }
+.desktop-app .paulista-club-card .desktop-accordion-content:not([hidden]) { padding-block: 12px; }
+.paulista-club-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.paulista-club-heading .ticket-card-copy { flex: 1; }
+.paulista-admin .club-badge { flex-shrink: 0; border: 0; background: var(--fundo-card-sec); color: var(--texto); border-radius: 8px; }
+.paulista-club-alert-count { display: inline-flex; align-items: center; gap: 6px; color: var(--texto-sec); font: 400 12px var(--font-corpo); white-space: nowrap; }
+.paulista-club-alert-count[data-warning="true"] { color: var(--texto); }
+.paulista-club-alert-count[data-warning="true"]::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--amarelo); }
+.desktop-app .paulista-admin .paulista-club-content { background: transparent; border: 0; padding: 0; display: grid; gap: 8px; }
+.paulista-recent { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px; border-bottom: 1px solid var(--linha); }
+.paulista-recent time { color: var(--texto-sec); font-size: 12px; }
+.paulista-admin .ticket-detail-main { display: grid; gap: 24px; min-width: 0; }
+.paulista-admin .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.paulista-sync-dates { grid-template-columns: repeat(3, minmax(0, 1fr)); padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--linha); }
+.paulista-admin .paulista-follow { margin-top: 18px; padding-top: 18px; }
+.paulista-follow strong { font-size: 13px; }
+.paulista-follow p { margin: 5px 0 0; line-height: 1.6; }
+.paulista-identity-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.desktop-app .paulista-admin .paulista-identity { padding: 18px; margin: 0; display: grid; gap: 16px; align-content: start; }
+.paulista-identity .linha-clube { display: flex; align-items: center; gap: 10px; }
+.paulista-identity .linha-clube .paulista-status { flex-direction: row; flex-shrink: 0; }
+.paulista-identity h3 { flex: 1; margin: 0; min-width: 0; overflow-wrap: anywhere; font: 600 14px/1.5 var(--font-corpo); }
+.paulista-identity p { margin: 0; color: var(--texto-sec); font-size: 12px; line-height: 1.6; }
+.paulista-admin .paulista-divergencia > .ticket-card { border: 0; }
+.paulista-admin .paulista-score-review { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.paulista-admin .paulista-score-review-row { background: var(--fundo); border-color: var(--borda); }
+.paulista-divergencia-body > p { color: var(--texto-sec); line-height: 1.7; margin: 0; }
+.paulista-admin .paulista-audit { border-bottom: 1px solid var(--linha); padding-block: 12px; }
+.paulista-admin .paulista-audit summary { cursor: pointer; color: var(--texto); line-height: 1.7; }
+.paulista-reason-fields { display: grid; gap: 16px; }
+
+/* Catálogo: contexto por grupo, SUBs compactos e cor apenas onde há significado. */
+.paulista-event-groups { display: grid; gap: 20px; }
+.paulista-event-group h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font: 600 14px/1.5 var(--font-corpo); color: var(--texto); }
+.paulista-event-group h4 .icon { color: var(--primaria); }
+.paulista-event-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 14px; }
+.paulista-event-tile { --paulista-event-color: var(--texto-sec); }
+.paulista-event-acompanhado { --paulista-event-color: var(--paulista-success); }
+.paulista-event-revisar_identidade { --paulista-event-color: var(--amarelo); }
+.paulista-event-erro { --paulista-event-color: var(--titulo-erro); }
+.paulista-event-descoberto { --paulista-event-color: var(--primaria); }
+.paulista-event-icon { display:grid; place-items:center; width:40px; height:40px; border-radius:8px; background:var(--fundo-card-sec); color:var(--paulista-event-color); }
+.paulista-admin .paulista-event-tile .ticket-card-copy strong { font-size:14px; }
+.paulista-admin .paulista-event-tile .ticket-card-copy small { font-size:11px; }
+.paulista-admin .paulista-event-tile .club-directory-meta { padding-top:14px; font-size:12px; }
+.paulista-pending-count { color:var(--amarelo); }
+.desktop-app .paulista-admin .paulista-recent-tile:hover { background:var(--paulista-surface); }
+.paulista-admin .paulista-recent-tile:focus-visible { outline:2px solid var(--primaria); outline-offset:3px; }
+.paulista-admin .paulista-recent-section > h2 { display: flex; align-items: center; gap: 8px; }
+.paulista-recent-section > h2 > .icon { color: var(--primaria); }
+.paulista-recent-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 10px; }
+.desktop-app .paulista-admin .paulista-recent-tile { display: grid; grid-template-columns: 34px minmax(0, 1fr) 16px; align-items: center; gap: 12px; background: var(--fundo-card); border: 1px solid var(--linha); padding: 14px; border-radius: 8px; color: var(--texto); font: inherit; text-align: left; cursor: pointer; }
+.paulista-recent-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 7px; background: var(--fundo-card-sec); color: var(--primaria); }
+.paulista-recent-tile > span:nth-child(2) { display: grid; gap: 5px; }
+.paulista-recent-tile strong { font-size: 13px; }
+.paulista-recent-tile small { color: var(--texto-sec); font-size: 12px; line-height: 1.5; }
+.paulista-recent-tile > .icon:last-child { color: var(--primaria); }
+
+/* Evento: área de conferência à esquerda, operação da integração à direita. */
+.paulista-event-overview { display: flex; align-items: center; gap: 28px; padding: 18px 22px; border: 1px solid var(--borda); border-left: 3px solid var(--primaria); border-radius: 9px; background: var(--fundo-card); }
+.paulista-event-context { display: flex; gap: 12px; align-items: center; flex: 1; min-width: 0; }
+.paulista-event-context > div { display: grid; gap: 7px; }
+.paulista-event-context strong { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.paulista-context-icon { display: grid; place-items: center; width: 40px; height: 40px; color: var(--primaria); background: var(--fundo-card-sec); border-radius: 8px; flex-shrink: 0; }
+.paulista-event-overview dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin: 0; }
+.paulista-event-overview dl > div { text-align: center; }
+.paulista-event-overview dt { font-size: 12px; color: var(--texto-sec); line-height: 1.5; }
+.paulista-event-overview dd { margin: 7px 0 0; font: 600 28px/1.1 var(--font-titulo); font-variant-numeric: tabular-nums; }
+.paulista-event-overview [data-attention="true"] dd { color: var(--amarelo); }
+.paulista-detail-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 24px; align-items: start; }
+.paulista-detail-work { display: grid; gap: 24px; min-width: 0; grid-column: 1; grid-row: 1; }
+.paulista-detail-sidebar { min-width: 0; grid-column: 2; grid-row: 1; }
+.paulista-sync .desktop-section-heading > .icon { color: var(--primaria); }
+.paulista-detail-sidebar .paulista-sync-dates { grid-template-columns: 1fr; gap: 16px; }
+.paulista-detail-sidebar .actions { display: grid; gap: 10px; }
+.paulista-detail-sidebar .actions :is(.btn, a) { width: 100%; justify-content: center; }
+.paulista-detail-sidebar .paulista-follow { align-items: flex-start; }
+.paulista-detail-sidebar .paulista-follow .desktop-toggle-control { margin-top: 2px; }
+.paulista-admin :is(.paulista-detail-alerts, .paulista-identities) > h2 { display: flex; align-items: center; gap: 8px; }
+.paulista-detail-alerts > h2 > .icon { color: var(--primaria); }
+.paulista-detail-description { margin:0 0 6px; color:var(--texto-sec); font-size:12px; line-height:1.6; }
+.paulista-admin .paulista-detail-alerts .ticket-card-icon { color:var(--texto-sec); }
+.paulista-identities > h2 > .icon { color: var(--primaria); }
+.paulista-no-divergence { display: flex; align-items: center; gap: 12px; padding: 18px; border: 1px solid var(--linha); border-radius: 8px; }
+.paulista-no-divergence > .icon { color: var(--paulista-success); }
+.paulista-no-divergence strong { font-size: 13px; }
+.paulista-no-divergence p { margin: 5px 0 0; font-size: 12px; color: var(--texto-sec); line-height: 1.6; }
+.desktop-app .paulista-admin .paulista-identity { border-left: 2px solid var(--amarelo); }
+.desktop-app .paulista-admin .paulista-identity-confirmed { border-left-color: var(--paulista-success); }
+.desktop-app .paulista-identity .desktop-menu-trigger { width: 32px; height: 32px; padding: 0; min-height: 32px; border: 0; }
+.paulista-field-label { display: block; margin-bottom: 4px; font-size: 11px; color: var(--texto-sec); }
+.paulista-admin .paulista-identity p { color: var(--texto); }
+.paulista-identity-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+
+@container desktop-content (max-width: 1050px) {
+  .paulista-detail-workspace { grid-template-columns: 1fr; }
+  .paulista-detail-work { grid-column: 1; grid-row: 1; }
+  .paulista-detail-sidebar { grid-column: 1; grid-row: 2; }
+  .paulista-event-overview { align-items: flex-start; flex-direction: column; gap: 20px; }
+  .paulista-event-overview dl { width: 100%; }
+}
+
+@container desktop-content (max-width: 850px) {
+  .paulista-health-content { align-items: flex-start; flex-direction: column; gap: 16px; }
+  .paulista-health-content dl { width: 100%; }
+  .paulista-identity-grid { grid-template-columns: 1fr; }
+  .paulista-admin .paulista-score-review { grid-template-columns: 1fr; }
+}
+@container desktop-content (max-width: 600px) {
+  .desktop-app .paulista-admin { gap: 20px; }
+  .desktop-app .paulista-admin .paulista-health { padding: 16px; }
+  .paulista-admin .desktop-section-heading { align-items: flex-start; flex-direction: column; }
+  .paulista-admin .paulista-sync .desktop-section-heading { flex-direction: row; align-items: center; }
+  .paulista-admin .ticket-card { display: grid; grid-template-columns: 32px minmax(0, 1fr) 16px; gap: 8px 10px; padding: 12px; }
+  .paulista-admin .ticket-card > .ticket-card-meta { grid-column: 2; justify-items: start; }
+  .paulista-admin .ticket-card > .icon:last-child { grid-column: 3; grid-row: 1; }
+  .paulista-club-heading { gap: 10px; flex-wrap: wrap; }
+  .paulista-club-heading .ticket-card-copy { flex-basis: calc(100% - 50px); }
+  .paulista-club-alert-count { padding-left: 46px; }
+  .paulista-sync-dates { grid-template-columns: 1fr; gap: 16px; }
+  .paulista-recent { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .paulista-recent .btn { white-space: normal; text-align: left; }
+}

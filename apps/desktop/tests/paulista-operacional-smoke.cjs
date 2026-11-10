@@ -30,11 +30,11 @@ async function main() {
     const fila = page.locator('.ticket-day').filter({ has: page.getByRole('heading', { name: /^Alertas/ }) });
     const expandir = fila.getByRole('button', { name: /^Ver os outros/ });
     const semAlertas = page.locator('.paulista-club-card').filter({ hasText: dados.clubeSemAlertas });
-    await semAlertas.locator('summary').getByText('0 alertas', { exact: true }).waitFor();
-    await semAlertas.locator('summary').click();
+    await semAlertas.locator('.desktop-accordion-heading > button').getByText('0 alertas', { exact: true }).waitFor();
+    await semAlertas.locator('.desktop-accordion-heading > button').click();
     await semAlertas.getByRole('button', { name: /Sub-12/ }).waitFor();
     const clube = page.locator('.paulista-club-card').filter({ hasText: dados.clubeNome });
-    await clube.locator('summary').getByText('3 alertas', { exact: true }).waitFor();
+    await clube.locator('.desktop-accordion-heading > button').getByText('3 alertas', { exact: true }).waitFor();
     if (await expandir.count()) {
       assert.equal(await fila.locator('.ticket-card').count(), 5);
       await expandir.click();
@@ -42,19 +42,19 @@ async function main() {
       await page.screenshot({ path: path.join(out, 'fila-expandida.png') });
       await fila.getByRole('button', { name: 'Mostrar menos alertas' }).click();
     }
-    await clube.locator('summary').click();
+    await clube.locator('.desktop-accordion-heading > button').click();
     await clube.getByRole('button', { name: /Alteração no calendário/ }).waitFor();
     await page.screenshot({ path: path.join(out, 'clubes-com-e-sem-alertas.png') });
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(900, 720));
     assert.equal(await page.locator('#main-content').evaluate(el => el.scrollWidth > el.clientWidth), false);
     await page.screenshot({ path: path.join(out, 'clubes-900.png') });
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1360, 860));
-    await clube.locator('summary').click();
+    await clube.locator('.desktop-accordion-heading > button').click();
     await page.getByRole('searchbox', { name: 'Buscar campeonatos' }).fill(dados.clubeNome);
     await page.getByRole('button', { name: 'Mais filtros' }).click();
     const filtros = page.getByRole('dialog', { name: 'Filtrar campeonatos' });
-    await filtros.getByRole('combobox', { name: /^Tipo de pendência/ }).click();
-    await filtros.getByRole('option', { name: 'Placar divergente', exact: true }).click();
+    await filtros.getByRole('button', { name: /^Tipo de pendência:/ }).click();
+    await filtros.getByRole('menuitemradio', { name: 'Placar divergente', exact: true }).click();
     await filtros.getByRole('button', { name: 'Aplicar filtros' }).click();
     await page.getByRole('button', { name: /Ocian Sandbox.*Placar divergente/ }).click();
     const tabela = page.getByRole('table', { name: 'Comparação da divergência' });
@@ -100,7 +100,8 @@ async function main() {
     await page.getByRole('button', { name: 'Encaminhar aos desenvolvedores', exact: true }).click();
     const modal = page.getByRole('dialog', { name: 'Encaminhar aos desenvolvedores' });
     const passos = 'Open the published result and compare it with the local report.';
-    await modal.getByText('Descrever motivo', { exact: true }).click();
+    await modal.getByRole('button', { name: /^Motivo:/ }).click();
+    await modal.getByRole('menuitemradio', { name: 'Outro', exact: true }).click();
     await modal.getByLabel('Descreva o motivo').fill(passos);
     await modal.getByRole('button', { name: 'Criar chamado técnico' }).click();
     const link = page.getByRole('link', { name: 'Abrir chamado vinculado' });

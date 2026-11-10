@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { EnderecoCadastro } from '@ludora/shared-types';
 import { Btn, Input } from './AdminUI';
 import { ClubBadge } from '@web/components/Brand';
-import { FilterSelect } from '@web/components/FilterSelect';
+import { DesktopSelect } from './DesktopSelect';
 import { Icon } from '@web/components/Icon';
 import { requestJson } from '../services/api';
 import { CLUB_STATES, formatClubCep } from '@web/utils/clubProfile';
@@ -89,7 +89,7 @@ export function EnderecoFields({ value, onChange }: { value: EnderecoCadastro; o
         setAviso(''); setBuscando(false); setConsultaCep(cep); mudar('cep', cep);
       }}/>
       <Input className="club-address-city" label="Cidade" maxLength={160} value={value.cidade} onChange={e => mudar('cidade', e.target.value)}/>
-      <div className="club-address-state"><FilterSelect label="UF" emptyLabel="UF" value={value.estado} options={UFS} onChange={v => mudar('estado', v)}/></div>
+      <div className="club-address-state"><DesktopSelect label="UF" showLabel fullWidth value={value.estado} options={[{value:'',label:'UF'},...UFS]} onChange={v => mudar('estado', v)}/></div>
       <Input className="club-address-street" label="Logradouro" maxLength={160} value={value.logradouro} onChange={e => mudar('logradouro', e.target.value)}/>
       <Input className="club-address-number" label="Número" maxLength={20} value={value.numero} onChange={e => mudar('numero', e.target.value)}/>
       <Input className="club-address-district" label="Bairro" maxLength={160} value={value.bairro} onChange={e => mudar('bairro', e.target.value)}/>

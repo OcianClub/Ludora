@@ -19,10 +19,12 @@ test('API impede pular preparação, valida escalação salva e só então trans
   let status = 'AGENDADA';
   let lineup = equipe();
   let emits = 0;
+  const auditoria = [];
   const originalFind = prisma.partida.findUnique, originalTx = prisma.$transaction;
   t.after(() => { prisma.partida.findUnique = originalFind; prisma.$transaction = originalTx; });
   prisma.partida.findUnique = async () => ({ status, id: 106, categoria: { clube_id: 2 } });
   prisma.$transaction = async callback => callback({
+    auditoriaPartida: { create: async ({ data }) => { auditoria.push(data); return data; } },
     escalacaoPartida: { findMany: async () => lineup },
     partida: {
       findUniqueOrThrow: async () => ({ id: 106, status, ...dados, emCasa: true, mandante: { nome: 'Ocian' }, visitante: { nome: 'Santos' } }),
@@ -33,7 +35,7 @@ test('API impede pular preparação, valida escalação salva e só então trans
   const handler = router.stack.find(layer => layer.route?.path === '/partidas/:id/status' && layer.route.methods.patch).route.stack.at(-1).handle;
   async function request(next) {
     let code = 200, body;
-    await handler({ params: { id: '106' }, body: { status: next, status_anterior: status }, clubeId: 2 }, { status(value) { code = value; return this; }, json(value) { body = value; return this; } });
+    await handler({ params: { id: '106' }, body: { status: next, status_anterior: status }, clubeId: 2, usuarioId: 9 }, { status(value) { code = value; return this; }, json(value) { body = value; return this; } });
     return { code, body };
   }
   assert.equal((await request('AO_VIVO')).code, 400);
@@ -51,6 +53,8 @@ test('API impede pular preparação, valida escalação salva e só então trans
   assert.equal((await request('AO_VIVO')).code, 200);
   assert.equal(status, 'AO_VIVO');
   assert.equal(emits, 2);
+  assert.deepEqual(auditoria.map(a => a.acao), ['STATUS_PREPARADA', 'STATUS_AO_VIVO']);
+  assert.equal(auditoria[1].usuario_id, 9);
 });
 
 test('fluxo legado exige exatamente um goleiro titular e permite goleiros reservas', () => {

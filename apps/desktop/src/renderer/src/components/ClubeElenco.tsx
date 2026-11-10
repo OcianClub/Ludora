@@ -8,6 +8,7 @@ import { PlayerEditDialog, type EditablePlayer } from '@web/components/PlayerEdi
 import { ErroJogador, type ConflitoCamisa, type DadosJogador } from '@web/services/api';
 import { requestJson } from '../services/api';
 import { ExcluirIcone } from './ExcluirIcone';
+import { DesktopTable } from './DesktopTable';
 import '@web/pages/Jogadores.css';
 
 type Jogador = EditablePlayer & { ativo: boolean };
@@ -31,17 +32,18 @@ export function ClubeElenco({ clubeId, clubeNome, categoriaId, categoriaNome, on
   const [busca, setBusca] = useState('');
   const [pagina, setPagina] = useState(0);
   const [versao, setVersao] = useState(0);
+  const [atualizando, setAtualizando] = useState(false);
 
   useEffect(() => {
     let ativa = true;
-    setErro(''); setJogadores(null);
+    setErro(''); setAtualizando(true);
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams({ busca, offset: String(pagina * POR_PAGINA) });
       requestJson<Jogador[]>(`${base}?${params}`).then(lista => {
         if (!ativa) return;
         if (!lista.length && pagina) setPagina(p => p - 1);
         else setJogadores(lista);
-      }).catch(e => { if (ativa) setErro(e.message); });
+      }).catch(e => { if (ativa) setErro(e.message); }).finally(()=>{if(ativa)setAtualizando(false);});
     }, busca ? 220 : 0);
     return () => { ativa = false; clearTimeout(timer); };
   }, [base, busca, pagina, versao]);
@@ -96,22 +98,22 @@ export function ClubeElenco({ clubeId, clubeNome, categoriaId, categoriaNome, on
     </>}
   </div>;
 
-  return <section className="alunos-page alunos-directory desktop-club-roster">
+  return <section className="alunos-page desktop-club-roster" aria-busy={atualizando}>
     <header className="desktop-roster-heading"><div><h2>Jogadores</h2><p>{categoriaNome.toUpperCase()} · {clubeNome}</p></div>
       <CollectionSearch label="Buscar jogador" value={busca} onChange={valor => { setBusca(valor); setPagina(0); }} placeholder="Nome do jogador…"/>
     </header>
-    {erro ? <div className="alunos-error" role="alert">{erro}<Btn variant="ghost" onClick={() => setVersao(v => v + 1)}>Tentar novamente</Btn></div> :
-      !jogadores ? <LoadingSkeleton kind="table"/> : !jogadores.length ? <div className="alunos-directory-empty"><Icon name="team" size={26}/><h3>Nenhum jogador encontrado</h3><p>{busca ? 'Experimente outro nome.' : 'Os jogadores cadastrados nesta faixa aparecerão aqui.'}</p></div> : <>
-        <div className="alunos-table-scroll" role="region" aria-label="Tabela de jogadores" tabIndex={0}>
-          <table className="alunos-table"><thead><tr><th scope="col">Camisa</th><th scope="col">Jogador</th><th scope="col">Posição</th><th scope="col">Idade</th><th scope="col"><span className="sr-only">Acessar ficha</span></th></tr></thead>
+    {atualizando && jogadores && <p className="dica" role="status">Atualizando jogadores…</p>}
+    {erro && <div className="alunos-error" role="alert">{erro}{jogadores && <span>Exibindo os últimos dados carregados.</span>}<Btn variant="ghost" onClick={() => setVersao(v => v + 1)}>Tentar novamente</Btn></div>}
+    {!jogadores ? !erro && <LoadingSkeleton kind="table"/> : !jogadores.length ? <div className="alunos-directory-empty"><Icon name="team" size={26}/><h3>Nenhum jogador encontrado</h3><p>{busca ? 'Experimente outro nome.' : 'Os jogadores cadastrados nesta faixa aparecerão aqui.'}</p></div> : <>
+        <DesktopTable label="Tabela de jogadores" className="desktop-club-roster-scroll" tableClassName="desktop-club-roster-table">
+          <thead><tr><th scope="col">Camisa</th><th scope="col">Jogador</th><th scope="col">Posição</th><th scope="col">Idade</th><th scope="col"><span className="sr-only">Acessar ficha</span></th></tr></thead>
             <tbody>{jogadores.slice(0, POR_PAGINA).map(j => <tr key={j.id}><PlayerRosterCells player={j} photo
-              name={<button type="button" className="alunos-player-link desktop-link-button" onClick={() => setPerfilId(j.id)}>{j.nome}</button>}
-              open={<button type="button" className="student-open" onClick={() => setPerfilId(j.id)} aria-label={`Abrir perfil de ${j.nome}`}><Icon name="chevronRight" size={18}/></button>}/>
+              name={<button type="button" disabled={atualizando} className="alunos-player-link desktop-link-button" onClick={() => setPerfilId(j.id)}>{j.nome}</button>}
+              open={<button type="button" disabled={atualizando} className="student-open" onClick={() => setPerfilId(j.id)} aria-label={`Abrir perfil de ${j.nome}`}><Icon name="chevronRight" size={18}/></button>}/>
             </tr>)}</tbody>
-          </table>
-        </div>
+        </DesktopTable>
         {(pagina > 0 || jogadores.length > POR_PAGINA) && <nav className="alunos-pagination" aria-label="Páginas de jogadores">
-          <p>Página {pagina + 1}</p><div><Btn size="sm" variant="ghost" disabled={!pagina} onClick={() => setPagina(p => p - 1)}>Anterior</Btn><Btn size="sm" variant="ghost" disabled={jogadores.length <= POR_PAGINA} onClick={() => setPagina(p => p + 1)}>Próxima</Btn></div>
+          <p>Página {pagina + 1}</p><div><Btn size="sm" variant="ghost" disabled={atualizando || !pagina} onClick={() => setPagina(p => p - 1)}>Anterior</Btn><Btn size="sm" variant="ghost" disabled={atualizando || jogadores.length <= POR_PAGINA} onClick={() => setPagina(p => p + 1)}>Próxima</Btn></div>
         </nav>}
       </>}
   </section>;

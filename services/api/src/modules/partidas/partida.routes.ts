@@ -509,6 +509,10 @@ export function criarPartidaRoutes(io: Server) {
             throw new ConflitoPartida(
               'O status da partida mudou. Atualize antes de continuar.'
             );
+          if (status !== anterior.status) await tx.auditoriaPartida.create({ data: {
+            partida_id: partidaId, usuario_id: (req as any).usuarioId, clube_id: (req as any).clubeId,
+            acao: `STATUS_${status}`, dados: { anterior: anterior.status },
+          } });
           return tx.partida.findUniqueOrThrow({
             where: { id: partidaId },
             include: { mandante: true, visitante: true },

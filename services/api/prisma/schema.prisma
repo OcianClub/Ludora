@@ -475,6 +475,7 @@ model ConviteClube {
   acesso_todas_categorias Boolean       @default(false)
   token_hash              String        @unique
   codigo_hash             String?       @unique
+  codigo_cifrado          String?
   status                  StatusConvite @default(PENDENTE)
   expira_em               DateTime
   criado_em               DateTime      @default(now())

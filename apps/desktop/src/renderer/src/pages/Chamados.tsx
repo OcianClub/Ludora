@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CollectionFilterButton, CollectionFilterDialog, CollectionSearch } from '@web/components/CollectionToolbar';
-import { FilterSelect } from '@web/components/FilterSelect';
+import { DesktopSelect } from '../components/DesktopSelect';
+import { DesktopTabs } from '../components/DesktopTabs';
+import { DesktopToggle } from '../components/DesktopToggle';
+import { DesktopAccordion } from '../components/DesktopAccordion';
+import { agruparFinalizados } from '../../../shared/ticket-periods';
 import { SchedulePeriodDialog } from '@web/components/SchedulePeriodDialog';
 import { Icon } from '@web/components/Icon';
 import { Btn, Card, DesktopState, LoadingSkeleton, Modal, Spinner } from '../components/AdminUI';
@@ -11,6 +15,7 @@ import SupportOperations from '../components/SupportOperations';
 import ChamadoManual from '../components/ChamadoManual';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { requestJson } from '../services/api';
+import './Chamados.css';
 
 const estados = [
   { value: 'NOVO', label: 'Novo' }, { value: 'EM_TRIAGEM', label: 'Em triagem' },
@@ -46,19 +51,13 @@ const historicoRotulos: Record<string, string> = { MANUTENCAO_PAUSADA: 'Função
 type Chamado = {
   id: string; assunto: string; descricao: string; origem: string; tipo: string; status: string; prioridade: string;
   regra: string; fila: string; restrito: boolean; clubeId: number | null; usuarioId?: number | null; clube?: { nome: string };
-  clubesAfetadosNomes?: string[]; ocorrencias: number; criadoEm: string; revisarEm: string; revisao: number;
+  clubesAfetadosNomes?: string[]; ocorrencias: number; criadoEm: string; revisarEm: string; revisao: number; finalizadoEm?: string | null;
   rota: string; versao: string; servico: string;
   detalhesTecnicos?: { reproducao?: string; correlacao?: string; statusHttp?: number; comparacao?: { oficial?: number[]; local?: number[] }; pistas?: { arquivo: string; linha: number; coluna: number }[] };
   manutencoes?: { id: string; ativa: boolean }[];
   historico?: { id: number; acao: string; motivo: string; criadoEm: string; operadorId: number | null; dados?: { correlacao?: string; status?: number; protocolo?: string; funcao?: string } }[];
 };
 type Opcoes = { clubes: { value: number; label: string }[]; responsaveis: { value: number; label: string }[]; contagens: Record<string, number> };
-
-function Escolhas({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }) {
-  return <fieldset className="schedule-choice-group"><legend>{label}</legend><div>
-    {options.map(o => <button key={o.value} type="button" aria-pressed={value === o.value} onClick={() => onChange(o.value)}>{o.label}</button>)}
-  </div></fieldset>;
-}
 
 export default function ChamadosPage() {
   const { usuario } = useAdminAuth();
@@ -116,7 +115,10 @@ export default function ChamadosPage() {
           const chamado = await requestJson<Chamado>(`${endpoint}/${id}`);
           if (ativo) setDetalhe(chamado);
         } else {
-          const itens = await requestJson<Chamado[]>(`${endpoint}?${query}`);
+          const filtros = new URLSearchParams(query);
+          filtros.set('ordem', 'prioridade');
+          filtros.set('incluirEncerramento', '1');
+          const itens = await requestJson<Chamado[]>(`${endpoint}?${filtros}`);
           if (ativo) setLista(itens);
         }
       } catch (e) { if (ativo) setErro((e as Error).message); }
@@ -129,6 +131,13 @@ export default function ChamadosPage() {
     setMotivo(''); setPublico(false); setResultado(''); setDecisao(null);
     document.getElementById('main-content')?.scrollTo({ top: 0 });
   }, [id]);
+
+  useEffect(() => {
+    if (detalhe?.id === id) {
+      setStatus(detalhe.status === 'RESOLVIDO' ? 'REABERTO' : detalhe.status);
+      setTipo(detalhe.tipo);
+    }
+  }, [id, detalhe?.id, detalhe?.revisao]);
 
   function abrirDecisao(acao: Decisao) {
     setDecisao(acao); setNotaDecisao(''); setCompartilharResumo(true); setErroDecisao('');
@@ -160,17 +169,30 @@ export default function ChamadosPage() {
     ...(periodo ? [{ key: 'periodo', label: periodoLabel }] : []),
   ];
   const grupos = new Map<string, Chamado[]>();
-  for (const chamado of lista) {
-    const data = dia(chamado.criadoEm);
-    const grupo = grupos.get(data) || [];
+  const ordenados = lista.filter(c => c.status !== 'RESOLVIDO').sort((a, b) => Number(b.prioridade === 'ALTA') - Number(a.prioridade === 'ALTA') || Date.parse(b.criadoEm) - Date.parse(a.criadoEm));
+  for (const chamado of ordenados) {
+    const chave = `${chamado.prioridade === 'ALTA' ? 'ALTA' : 'NORMAL'}:${dia(chamado.criadoEm)}`;
+    const grupo = grupos.get(chave) || [];
     grupo.push(chamado);
-    grupos.set(data, grupo);
+    grupos.set(chave, grupo);
   }
   const hoje = dia(new Date().toISOString());
   const atual = detalhe?.id === id ? detalhe : null;
-  const atalhosPapel = [...atalhos, dev ? { value: 'ENCAMINHADOS', label: 'Encaminhados' } : { value: 'MEUS', label: 'Meus chamados' }];
+  const finalizados = agruparFinalizados(lista.filter(c => c.status === 'RESOLVIDO'));
+  const atalhosPapel = [...atalhos, dev ? { value: 'ENCAMINHADOS', label: 'Encaminhados' } : { value: 'MEUS', label: 'Meus chamados' }, {value:'FINALIZADOS',label:'Finalizados'}];
+  const renderChamado = (c: Chamado) => <button className="ticket-card" key={c.id} type="button" onClick={() => alterar({ id: c.id })}>
+    <span className="ticket-card-icon"><Icon name={c.origem === 'AUTOMATICO' ? 'alert' : 'headset'} size={20}/></span>
+    <span className="ticket-card-copy"><strong>{c.assunto}</strong><small>{c.clube?.nome || c.clubesAfetadosNomes?.join(', ') || 'Plataforma'} · {rotulo(tipos, c.tipo)}{c.ocorrencias > 1 ? ` · ${c.ocorrencias} ocorrências` : ''}</small>
+      {(c.prioridade === 'ALTA' || c.status !== 'RESOLVIDO' && Date.parse(c.revisarEm) < Date.now()) && <span className="ticket-card-notes">
+        {c.prioridade === 'ALTA' && <span className="ticket-priority">Prioridade alta</span>}
+        {c.status !== 'RESOLVIDO' && Date.parse(c.revisarEm) < Date.now() && <span className="ticket-overdue"><Icon name="clock" size={12}/>Revisão atrasada</span>}
+      </span>}
+    </span>
+    <time className="ticket-created-time" dateTime={c.finalizadoEm || c.criadoEm}>{hora(c.finalizadoEm || c.criadoEm)}</time>
+    <span className="ticket-status" data-state={c.status}>{rotulo(estados, c.status)}</span>
+  </button>;
 
-  return <div className="ticket-page match-schedule">
+  return <div className="ticket-page match-schedule desktop-tickets-page">
     {id && <Btn className="ticket-back" variant="ghost" onClick={() => alterar({ id: '' })}><Icon name="chevronLeft" size={17}/> Voltar à fila</Btn>}
     <header className="page-header">
       <div><span className="ticket-kicker">Central de atendimento</span><h1 className="page-title">{id ? atual?.assunto || 'Detalhe do chamado' : dev ? 'Caixa de desenvolvimento' : 'Chamados'}</h1>
@@ -180,12 +202,11 @@ export default function ChamadosPage() {
     </header>
     {!id && <>
       {erroOpcoes && <p role="alert" className="notice-error">{erroOpcoes} <Btn variant="ghost" size="sm" onClick={() => setAtualizacao(n => n + 1)}>Tentar novamente</Btn></p>}
-      <div className="schedule-status-summary" role="group" aria-label="Atalhos da fila">
-        {atalhosPapel.map(a => <button type="button" key={a.value} aria-pressed={ler('visao') === a.value} onClick={() => alterar({ visao: a.value, status: '' })}>{a.label}{opcoes && <span>{opcoes.contagens[a.value]}</span>}</button>)}
-      </div>
+      <DesktopTabs label="Atalhos da fila" value={ler('visao')} options={atalhosPapel.map(a => ({...a,count:opcoes?.contagens[a.value]}))}
+        onChange={visao => alterar({ visao, status: '' })}>
       <div className="schedule-filter-primary ticket-toolbar">
         <CollectionSearch label="Buscar chamados" placeholder="Buscar por assunto, clube ou protocolo…" value={ler('busca')} onChange={busca => alterar({ busca: busca.slice(0, 60) }, true)}/>
-        <FilterSelect label="Período" emptyLabel="Todos os períodos" value={periodo} options={[...periodos, { value: 'intervalo', label: periodo === 'intervalo' ? periodoLabel : 'Personalizado…' }]}
+        <DesktopSelect label="Período" fullWidth value={periodo} options={[{value:'',label:'Todos os períodos'}, ...periodos, { value: 'intervalo', label: periodo === 'intervalo' ? periodoLabel : 'Personalizado…' }]}
           onChange={value => value === 'intervalo' ? setPeriodoAberto(true) : alterar({ periodo: value, desde: '', ate: '' })}/>
         <CollectionFilterButton label="Mais filtros" count={filtrosExtras.filter(key => ler(key)).length} onClick={() => setRascunho(Object.fromEntries(filtrosExtras.map(key => [key, ler(key)])))}/>
       </div>
@@ -197,36 +218,54 @@ export default function ChamadosPage() {
       {rascunho && <CollectionFilterDialog open title="Filtrar chamados" onClose={() => setRascunho(null)} onClear={() => setRascunho({})}
         onApply={() => { alterar({ ...Object.fromEntries(filtrosExtras.map(key => [key, rascunho[key] || ''])), ...(rascunho.status ? { visao: '' } : {}) }); setRascunho(null); }}>
         <div className="schedule-filter-fields">
-          <Escolhas label="Origem" value={rascunho.origem || ''} options={[{ value: '', label: 'Todas' }, ...origens]} onChange={origem => setRascunho({ ...rascunho, origem })}/>
-          <Escolhas label="Prioridade" value={rascunho.prioridade || ''} options={[{ value: '', label: 'Todas' }, ...prioridades]} onChange={prioridade => setRascunho({ ...rascunho, prioridade })}/>
-          <FilterSelect overlayInDialog label="Situação" emptyLabel="Todas as situações" options={estados} value={rascunho.status || ''} onChange={status => setRascunho({ ...rascunho, status })}/>
-          <FilterSelect overlayInDialog label="Tipo" emptyLabel="Todos os tipos" options={tipos} value={rascunho.tipo || ''} onChange={tipo => setRascunho({ ...rascunho, tipo })}/>
-          <FilterSelect overlayInDialog label="Clube" emptyLabel="Todos os clubes" options={opcoes?.clubes || []} value={rascunho.clube || ''} onChange={clube => setRascunho({ ...rascunho, clube })}/>
-          <FilterSelect overlayInDialog label="Responsável" emptyLabel="Qualquer responsável" options={opcoes?.responsaveis || []} value={rascunho.responsavel || ''} onChange={responsavel => setRascunho({ ...rascunho, responsavel })}/>
+          <DesktopSelect label="Origem" showLabel fullWidth expandInDialog value={rascunho.origem || ''} options={[{ value: '', label: 'Todas as origens' }, ...origens]} onChange={origem => setRascunho({ ...rascunho, origem })}/>
+          <DesktopSelect label="Prioridade" showLabel fullWidth expandInDialog value={rascunho.prioridade || ''} options={[{ value: '', label: 'Todas as prioridades' }, ...prioridades]} onChange={prioridade => setRascunho({ ...rascunho, prioridade })}/>
+          <DesktopSelect label="Situação" showLabel fullWidth expandInDialog options={[{value:'',label:'Todas as situações'},...estados]} value={rascunho.status || ''} onChange={status => setRascunho({ ...rascunho, status })}/>
+          <DesktopSelect label="Tipo" showLabel fullWidth expandInDialog options={[{value:'',label:'Todos os tipos'},...tipos]} value={rascunho.tipo || ''} onChange={tipo => setRascunho({ ...rascunho, tipo })}/>
+          <DesktopSelect label="Clube" showLabel fullWidth expandInDialog options={[{value:'',label:'Todos os clubes'},...opcoes?.clubes.map(c => ({...c,value:String(c.value)})) || []]} value={rascunho.clube || ''} onChange={clube => setRascunho({ ...rascunho, clube })}/>
+          <DesktopSelect label="Responsável" showLabel fullWidth expandInDialog options={[{value:'',label:'Qualquer responsável'},...opcoes?.responsaveis.map(c => ({...c,value:String(c.value)})) || []]} value={rascunho.responsavel || ''} onChange={responsavel => setRascunho({ ...rascunho, responsavel })}/>
         </div>
       </CollectionFilterDialog>}
       {carregando ? <LoadingSkeleton kind="rows" label="Carregando chamados"/> : !erro && <>
-        <p className="ticket-count">{lista.length === 200 ? '200 chamados mais recentes' : `${lista.length} ${lista.length === 1 ? 'chamado' : 'chamados'}`}</p>
-        {!lista.length && <DesktopState icon="headset" title="Nenhum chamado encontrado" description={query ? 'Ajuste a busca ou limpe os filtros.' : 'Novos relatos e ocorrências aparecerão aqui.'}/>}
-        {[...grupos].map(([data, itens]) => <section className="ticket-day" key={data}>
-          <h2>{data === hoje ? 'Hoje' : dataLonga(data)}</h2>
-          {itens.map(c => <button className="ticket-card" key={c.id} type="button" onClick={() => alterar({ id: c.id })}>
-            <span className="ticket-card-icon"><Icon name={c.origem === 'AUTOMATICO' ? 'alert' : 'info'} size={21}/></span>
-            <span className="ticket-card-copy"><strong>{c.assunto}</strong><small>{c.clube?.nome || c.clubesAfetadosNomes?.join(', ') || 'Plataforma'} · {rotulo(tipos, c.tipo)}{c.ocorrencias > 1 ? ` · ${c.ocorrencias} ocorrências` : ''}</small></span>
-            <span className="ticket-card-meta"><span className="ticket-status" data-high={c.prioridade === 'ALTA'}>{rotulo(estados, c.status)}{c.prioridade === 'ALTA' && ' · Prioridade alta'}</span><time dateTime={c.criadoEm}>{hora(c.criadoEm)}</time></span>
-            <Icon name="chevronRight" size={18}/>
-          </button>)}
+        <p className="ticket-count">{lista.length === 200 ? '200 chamados · refine a busca para encontrar outros' : `${lista.length} ${lista.length === 1 ? 'chamado' : 'chamados'}`}</p>
+        {!lista.length && <div className="ticket-empty" role="status">
+          <Icon name="headset" size={28}/>
+          <h2>Nenhum chamado encontrado</h2>
+          <p>{query ? 'Ajuste a busca ou limpe os filtros.' : 'Novos relatos e ocorrências aparecerão aqui.'}</p>
+        </div>}
+        {[...grupos].map(([chave, itens]) => <section className="ticket-day" key={chave}>
+          <h2>{itens[0].prioridade === 'ALTA' && <strong>Prioridade alta · </strong>}{dia(itens[0].criadoEm) === hoje ? 'Hoje' : dataLonga(dia(itens[0].criadoEm))}</h2>
+          {itens.map(renderChamado)}
         </section>)}
+        {!!finalizados.length && <section className="ticket-closed-section" aria-label="Chamados finalizados">
+          <h2 className="ticket-closed-title">Finalizados <small>{lista.filter(c => c.status === 'RESOLVIDO').length}</small></h2>
+          {finalizados.map(group => <DesktopAccordion key={group.key} title={group.label} count={group.items.length}>
+            <div className="ticket-closed-list">{group.items.map(renderChamado)}</div>
+          </DesktopAccordion>)}
+        </section>}
+
       </>}
+      </DesktopTabs>
     </>}
     {erro && <DesktopState error title="Não foi possível concluir" description={erro} onRetry={() => setAtualizacao(n => n + 1)}/>}
     {id && carregando && !atual && <Spinner/>}
-    {id && atual && <div className="ticket-detail">
+    {id && atual && <>
+      <section className="ticket-detail-summary" aria-label="Resumo do chamado">
+        <span className="ticket-status" data-state={atual.status}>{rotulo(estados, atual.status)}</span>
+        <span className={`ticket-detail-priority${atual.prioridade === 'ALTA' ? ' is-high' : ''}`}><Icon name="alert" size={15}/>Prioridade {rotulo(prioridades, atual.prioridade).toLowerCase()}</span>
+        <span><Icon name="shield" size={15}/>{atual.clube?.nome || atual.clubesAfetadosNomes?.join(', ') || 'Plataforma'}</span>
+        {atual.status !== 'RESOLVIDO' && Number.isFinite(Date.parse(atual.revisarEm)) && <span className={Date.parse(atual.revisarEm) < Date.now() ? 'ticket-overdue' : ''}><Icon name="clock" size={15}/>{Date.parse(atual.revisarEm) < Date.now() ? 'Revisão atrasada' : `Revisar até ${new Date(atual.revisarEm).toLocaleDateString('pt-BR', zona)} · ${hora(atual.revisarEm)}`}</span>}
+      </section>
+      <div className="ticket-detail">
       <div className="ticket-detail-main">
-        <Card className="ticket-section"><h2>O que aconteceu</h2><p>{atual.descricao}</p><small>{atual.clube?.nome || atual.clubesAfetadosNomes?.join(', ') || 'Plataforma'} · {dataLonga(dia(atual.criadoEm))} às {hora(atual.criadoEm)}</small><p>Página {atual.rota} · {atual.servico} · versão {atual.versao}</p></Card>
-        <Card className="ticket-section"><h2>O que já foi verificado</h2><p>Triagem por {humanizar(atual.regra)} · {atual.ocorrencias} ocorrência(s)</p><p>Situação atual: {rotulo(estados, atual.status)} · Fila {humanizar(atual.fila)}</p>
-          {atual.detalhesTecnicos && <section><h3>Relatório técnico vinculado</h3><p>{atual.detalhesTecnicos.reproducao || 'Ainda sem passos registrados para reproduzir.'}</p>{atual.detalhesTecnicos.correlacao && <p>Ocorrência {atual.detalhesTecnicos.correlacao}{atual.detalhesTecnicos.statusHttp ? ` · HTTP ${atual.detalhesTecnicos.statusHttp}` : ''}</p>}
+        <Card className="ticket-section ticket-report"><header><h2>Relato do problema</h2><time dateTime={atual.criadoEm}>{new Date(atual.criadoEm).toLocaleDateString('pt-BR', zona)} · {hora(atual.criadoEm)}</time></header>
+          <p className="ticket-description">{atual.descricao || 'Nenhuma descrição informada.'}</p>
+          <dl className="ticket-context"><div><dt>Tipo</dt><dd>{rotulo(tipos, atual.tipo)}</dd></div><div><dt>Origem</dt><dd>{rotulo(origens, atual.origem)}</dd></div><div><dt>Fila</dt><dd>{humanizar(atual.fila)}</dd></div><div><dt>Ocorrências</dt><dd>{atual.ocorrencias}</dd></div></dl>
+          <DesktopAccordion title="Contexto e diagnóstico" headingLevel={3}>
+            <dl className="ticket-context"><div><dt>Página</dt><dd>{atual.rota || 'Não informada'}</dd></div><div><dt>Plataforma</dt><dd>{atual.servico || 'Não informada'}</dd></div><div><dt>Versão</dt><dd>{atual.versao || 'Não informada'}</dd></div><div><dt>Triagem</dt><dd>{humanizar(atual.regra)}</dd></div></dl>
+          {atual.detalhesTecnicos && <section className="ticket-technical"><h3>Relatório técnico vinculado</h3><p>{atual.detalhesTecnicos.reproducao || 'Ainda sem passos registrados para reproduzir.'}</p>{atual.detalhesTecnicos.correlacao && <p>Ocorrência {atual.detalhesTecnicos.correlacao}{atual.detalhesTecnicos.statusHttp ? ` · HTTP ${atual.detalhesTecnicos.statusHttp}` : ''}</p>}
             {atual.detalhesTecnicos.comparacao?.oficial && atual.detalhesTecnicos.comparacao.local && <p>Federação {atual.detalhesTecnicos.comparacao.oficial.join(' × ')} · Ludora {atual.detalhesTecnicos.comparacao.local.join(' × ')}</p>}{atual.detalhesTecnicos.pistas?.map((p, i) => <p key={i}>Pista a verificar · {p.arquivo}, linha {p.linha}, coluna {p.coluna}</p>)}</section>}
+          </DesktopAccordion>
         </Card>
         {!dev && !!atual.usuarioId && <Card className="ticket-section"><SupportOperations key={atual.id} id={atual.id} admin={usuario?.papel_plataforma === 'SUPERADMIN'}/></Card>}
         <Card className="ticket-section"><h2>Ações do chamado</h2>
@@ -239,27 +278,30 @@ export default function ChamadosPage() {
           </div>
           {!dev && atual.manutencoes?.some(p => p.ativa) && <p>Há uma função pausada neste chamado. <Link to={`/manutencao?chamado=${atual.id}`}>Ver pausa e reativação</Link></p>}
           {!dev && atual.status === 'RESOLVIDO' && !!atual.manutencoes?.length && !atual.manutencoes.some(p => p.ativa) && <Link to={`/manutencao?chamado=${atual.id}`}>Ver manutenção vinculada</Link>}
-          <h3>Comentário</h3><p>Registre uma observação no histórico do atendimento.</p>
+          <div className="ticket-comment-heading"><h3>Adicionar comentário</h3><p>Registre uma observação no histórico do atendimento.</p></div>
           <label className="field">Comentário<textarea className="field-input" rows={3} maxLength={4000} value={motivo} onChange={e => setMotivo(e.target.value)}/></label>
-          {!dev && !!atual.usuarioId && <label><input type="checkbox" checked={publico} onChange={e => setPublico(e.target.checked)}/> Mostrar comentário ao cliente</label>}
+          {!dev && !!atual.usuarioId && <div className="ticket-toggle-row"><span>Mostrar comentário ao cliente</span><DesktopToggle label="Mostrar comentário ao cliente" checked={publico} onChange={setPublico}/></div>}
           <div className="actions"><Btn disabled={!valido} onClick={() => void agir('COMENTAR')}>Registrar comentário</Btn><Btn variant="ghost" disabled={!valido} onClick={() => void agir('ATRIBUIR')}>Assumir chamado</Btn></div>
           {!dev && <>
-            <details><summary>Alterar status ou tipo</summary><div className="ticket-action-fields">
-              <FilterSelect label="Novo status" emptyLabel="Selecionar" value={status} options={estados.filter(s => !['ENCAMINHADO_DEVS', 'RESOLVIDO'].includes(s.value))} onChange={setStatus}/>
+            <DesktopAccordion title="Alterar status ou tipo"><div className="ticket-action-fields">
+              <DesktopSelect label="Novo status" showLabel fullWidth value={status} options={estados.filter(s => !['ENCAMINHADO_DEVS', 'RESOLVIDO'].includes(s.value))} onChange={setStatus}/>
               <Btn disabled={!valido || !status} onClick={() => void agir('STATUS')}>Registrar status</Btn>
-              <FilterSelect label="Reclassificar tipo" emptyLabel="Selecionar" value={tipo} options={tipos} onChange={setTipo}/>
+              <DesktopSelect label="Reclassificar tipo" showLabel fullWidth value={tipo} options={tipos} onChange={setTipo}/>
               <Btn variant="ghost" disabled={!valido || !tipo} onClick={() => void agir('CLASSIFICAR')}>Aplicar classificação</Btn>
-            </div></details>
+            </div></DesktopAccordion>
           </>}
         </Card>
       </div>
-      <Card className="ticket-section ticket-history"><h2>Histórico</h2>{atual.historico?.map(h => <article key={h.id}><small>{dia(h.criadoEm) === hoje ? 'Hoje' : new Date(h.criadoEm).toLocaleDateString('pt-BR', zona)} · {hora(h.criadoEm)}</small><p>{historicoRotulos[h.acao] || humanizar(h.acao)} · {h.motivo}</p>{h.dados?.funcao && <small>{h.dados.funcao}</small>}{h.dados?.correlacao && <small>Ocorrência {h.dados.correlacao}{h.dados.status ? ` · HTTP ${h.dados.status}` : ''}</small>}</article>)}</Card>
-    </div>}
+      <Card className="ticket-section ticket-history"><header><h2>Histórico do atendimento</h2><small>{atual.historico?.length || 0} {atual.historico?.length === 1 ? 'registro' : 'registros'}</small></header>
+        {!atual.historico?.length && <p>Ainda não há movimentações neste chamado.</p>}
+        {atual.historico?.map(h => <article key={h.id}><time dateTime={h.criadoEm}>{dia(h.criadoEm) === hoje ? 'Hoje' : new Date(h.criadoEm).toLocaleDateString('pt-BR', zona)} · {hora(h.criadoEm)}</time><h3>{historicoRotulos[h.acao] || humanizar(h.acao)}</h3><p>{h.motivo}</p>{h.dados?.funcao && <small>{h.dados.funcao}</small>}{h.dados?.correlacao && <small>Ocorrência {h.dados.correlacao}{h.dados.status ? ` · HTTP ${h.dados.status}` : ''}</small>}</article>)}
+      </Card>
+    </div></>}
     {decisao && <Modal open title={decisoes[decisao].titulo} className="schedule-review-dialog" onClose={() => { if (!busy) setDecisao(null); }}
       footer={<div className="schedule-review-actions"><Btn variant="ghost" disabled={busy} onClick={() => setDecisao(null)}>Voltar</Btn><Btn disabled={busy || notaDecisao.trim().length < 5} onClick={() => void agir(decisao, { motivo: notaDecisao, publico: decisao === 'FINALIZAR' && compartilharResumo })}>{busy ? 'Registrando…' : 'Confirmar decisão'}</Btn></div>}>
       <p>{decisoes[decisao].texto}</p>
       <label className="field">{decisoes[decisao].campo}<textarea className="field-input" rows={4} maxLength={4000} value={notaDecisao} onChange={e => setNotaDecisao(e.target.value)}/></label>
-      {decisao === 'FINALIZAR' && !!atual?.usuarioId && <label className="check"><input type="checkbox" checked={compartilharResumo} onChange={e => setCompartilharResumo(e.target.checked)}/> Mostrar resumo ao cliente</label>}
+      {decisao === 'FINALIZAR' && !!atual?.usuarioId && <div className="ticket-toggle-row"><span>Mostrar resumo ao cliente</span><DesktopToggle label="Mostrar resumo ao cliente" checked={compartilharResumo} onChange={setCompartilharResumo}/></div>}
       {erroDecisao && <p className="notice-error" role="alert">{erroDecisao}</p>}
     </Modal>}
     {criando && <ChamadoManual onClose={() => setCriando(false)} onCreated={id => { setCriando(false); alterar({ id }); }}/>}

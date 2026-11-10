@@ -191,7 +191,7 @@ test('painel Super Admin: autorização, proteção de dados e regras de seguran
   await t.test('convites e atividade são limitados ao clube selecionado', async () => {
     const lista = await chamar('GET', '/admin/clubes/3/convites', DEV.id);
     assert.equal(lista.status, 200);
-    assert.deepEqual(await lista.json(), { total: 0, convites: [] });
+    assert.deepEqual(await lista.json(), { total: 0, convites: [], proximo: null });
     assert.equal((await chamar('GET', '/admin/clubes/999/convites', DEV.id)).status, 404);
 
     const atividade = await chamar('GET', '/admin/clubes/99/atividade', DEV.id);

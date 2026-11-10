@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { ClubeResumo, MembrosDoClube, PapelClube, UsuarioGlobal } from '@ludora/shared-types';
-import { ClubBadge } from '@web/components/Brand';
 import { CollectionSearch } from '@web/components/CollectionToolbar';
 import { Btn, Modal } from './AdminUI';
 import { definirPapel, fetchMembros } from '../services/api';
-import { OptionTiles } from './OptionTiles';
+import { DesktopSelect } from './DesktopSelect';
+import { DesktopToggle } from './DesktopToggle';
+import { AccountIdentity } from './AccountIdentity';
+import { PlatformClubOption } from './PlatformClubCollection';
 import { ClubSubChoices } from './ClubeCadastroFields';
-import { PAPEIS_CLUBE } from './CargoClube';
+import { CargoIcon, PAPEIS_CLUBE } from './CargoClube';
 
 export function UsuarioClubeEditor({ conta, clubes, vinculo, onClose, onSaved }: {
   conta: UsuarioGlobal;
@@ -15,6 +17,7 @@ export function UsuarioClubeEditor({ conta, clubes, vinculo, onClose, onSaved }:
   onClose: () => void;
   onSaved: (vinculo: UsuarioGlobal['clubes'][number]) => void;
 }) {
+  const clubOptionsId = useId();
   const [clube, setClube] = useState(vinculo ? String(vinculo.clube_id) : '');
   const [busca, setBusca] = useState('');
   const [papel, setPapel] = useState<PapelClube>(vinculo?.papel || 'TORCEDOR');
@@ -47,18 +50,21 @@ export function UsuarioClubeEditor({ conta, clubes, vinculo, onClose, onSaved }:
     finally { setBusy(false); }
   }
   const disponiveis = clubes.filter(c => !conta.clubes.some(v => v.clube_id === c.id) && (String(c.id) === clube || c.nome.toLowerCase().includes(busca.trim().toLowerCase())));
-  return <Modal open title={vinculo ? `Editar acesso · ${vinculo.nome}` : 'Vincular a um clube'} className="chamado-manual-dialog" onClose={() => { if (!busy) onClose(); }}
+  return <Modal open title={vinculo ? `Editar acesso · ${vinculo.nome}` : 'Vincular a um clube'} className="desktop-account-dialog" onClose={() => { if (!busy) onClose(); }}
     footer={<div className="schedule-review-actions"><Btn variant="ghost" disabled={busy} onClick={onClose}>Voltar</Btn><Btn disabled={busy || !dados || escrita && !escopo.todas && !escopo.ids.length} onClick={() => void salvar()}>Salvar vínculo</Btn></div>}>
-    <div className="chamado-manual-form">
+    <div className="desktop-account-form">
+      <AccountIdentity nome={conta.nome} email={conta.email}/>
       {!vinculo && <>
         <CollectionSearch label="Buscar clube para vínculo" value={busca} onChange={setBusca} placeholder="Nome do clube…"/>
-        <OptionTiles label="Clube Ludora" value={clube} options={disponiveis.map(c => ({ value: c.id, label: c.nome, icon: <ClubBadge src={c.escudo} name={c.nome} size={30}/> }))} onChange={setClube} scroll disabled={busy}/>
+        <fieldset className="desktop-account-clubs" disabled={busy}><legend>Clube Ludora</legend>
+          <div className="desktop-account-club-options">{disponiveis.map(c => <PlatformClubOption key={c.id} clube={c} name={clubOptionsId} checked={String(c.id) === clube} onSelect={() => setClube(String(c.id))} disabled={busy}/>)}</div>
+        </fieldset>
         {!disponiveis.length && <p className="dica">Nenhum clube disponível nesta busca.</p>}
       </>}
       {clube && !dados && !erro && <p role="status">Carregando permissões do clube…</p>}
-      {dados && <OptionTiles label="Cargo no clube" value={papel} options={[...PAPEIS_CLUBE]} onChange={v => setPapel(v as PapelClube)} disabled={busy}/>}
-      {dados && escrita && <fieldset className="option-tiles"><legend>Acesso aos SUBs</legend>
-        <div className="paulista-follow"><strong>Todas as categorias</strong><button type="button" className="settings-switch" role="switch" aria-label="Todas as categorias" aria-checked={escopo.todas} onClick={() => setEscopo({ ...escopo, todas: !escopo.todas })}><span className="settings-switch-thumb" aria-hidden="true"/></button></div>
+      {dados && <DesktopSelect label="Cargo no clube" showLabel fullWidth value={papel} options={PAPEIS_CLUBE.map(p => ({ ...p, icon: <CargoIcon papel={p.value}/> }))} onChange={setPapel} disabled={busy}/>}
+      {dados && escrita && <fieldset className="desktop-account-scope"><legend>Acesso aos SUBs</legend>
+        <div className="paulista-follow"><strong>Todas as categorias</strong><DesktopToggle label="Todas as categorias" checked={escopo.todas} onChange={checked => setEscopo({ ...escopo, todas: checked })} disabled={busy}/></div>
         {!escopo.todas && <ClubSubChoices options={dados.categorias.filter(c => c.ativa || escopo.ids.includes(c.id))} selected={escopo.ids}
           onChange={id => setEscopo({ ...escopo, ids: escopo.ids.includes(id) ? escopo.ids.filter(v => v !== id) : [...escopo.ids, id] })}/>}
       </fieldset>}

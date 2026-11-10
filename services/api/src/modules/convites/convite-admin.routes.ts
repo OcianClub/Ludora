@@ -1,6 +1,7 @@
 import { CLUBE_DESATIVADO } from '../../middlewares/permissoes.middleware';
 import { exigirOperacao } from '../manutencao/service';
 import { randomBytes } from 'crypto';
+import { cifrarCodigo, decifrarCodigo } from './codigo-seguro';
 import { Router, type Request, type Response } from 'express';
 
 import { prisma } from '../../lib/prisma';
@@ -41,6 +42,8 @@ export async function listarConvites(req: Request, res: Response) {
   }
 
   const limiteInformado = Number(req.query.limite || 50);
+  const cursor = req.query.cursor ? String(req.query.cursor) : '';
+  if (cursor && !/^[A-Za-z0-9_-]{1,100}$/.test(cursor)) return res.status(400).json({ error: 'Cursor inválido.' });
 
   const limite =
     Number.isSafeInteger(limiteInformado) &&
@@ -61,15 +64,15 @@ export async function listarConvites(req: Request, res: Response) {
       };
     } else if (statusInformado) {
       where.status = statusInformado;
+      if (statusInformado === 'PENDENTE') where.expira_em = { gt: agora };
     }
 
     const convites = await prisma.conviteClube.findMany({
       where,
-      take: limite,
+      take: limite + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
 
-      orderBy: {
-        criado_em: 'desc',
-      },
+      orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
 
       select: {
         id: true,
@@ -81,6 +84,7 @@ export async function listarConvites(req: Request, res: Response) {
         criado_em: true,
         aceito_em: true,
         revogado_em: true,
+        codigo_cifrado: true,
 
         criadoPor: {
           select: {
@@ -112,9 +116,10 @@ export async function listarConvites(req: Request, res: Response) {
     });
 
     return res.json({
-      total: convites.length,
+      total: Math.min(convites.length, limite),
+      proximo: convites.length > limite ? convites[limite - 1].id : null,
 
-      convites: convites.map(convite => {
+      convites: convites.slice(0, limite).map(convite => {
         const expirado =
           convite.status === 'PENDENTE' &&
           convite.expira_em.getTime() <= agora.getTime();
@@ -130,6 +135,7 @@ export async function listarConvites(req: Request, res: Response) {
           situacao: expirado
             ? 'EXPIRADO'
             : convite.status,
+          codigo_disponivel: !expirado && convite.status === 'PENDENTE' && !!convite.codigo_cifrado,
 
           expira_em: convite.expira_em,
           criado_em: convite.criado_em,
@@ -264,6 +270,7 @@ export async function criarConvite(req: Request, res: Response) {
         acesso_todas_categorias: acessoTotal,
         token_hash: tokenHash,
         codigo_hash: codigoHash,
+        codigo_cifrado: cifrarCodigo(codigo, clubeId),
         expira_em: expiraEm,
 
         categorias: acessoTotal
@@ -327,7 +334,7 @@ export async function criarConvite(req: Request, res: Response) {
       emailEnviado = false;
       aviso = 'Convite criado, mas o e-mail não pôde ser enviado';
 
-      console.error('Erro ao enviar e-mail do convite:', error);
+      console.error('Falha no provedor de e-mail do convite.');
     }
 
     return res.status(201).json({
@@ -515,6 +522,7 @@ export async function reenviarConvite(req: Request, res: Response) {
         data: {
           token_hash: tokenHashNovo,
           codigo_hash: codigoHashNovo,
+          codigo_cifrado: cifrarCodigo(codigoNovo, clubeId),
           status: 'PENDENTE',
           expira_em: novaExpiracao,
           revogado_em: null,
@@ -546,10 +554,7 @@ export async function reenviarConvite(req: Request, res: Response) {
       aviso =
         'Novo token gerado, mas o e-mail não pôde ser enviado';
 
-      console.error(
-        'Erro ao reenviar e-mail do convite:',
-        error
-      );
+      console.error('Falha no provedor de reenvio do convite.');
     }
 
     return res.json({
@@ -579,6 +584,26 @@ export async function reenviarConvite(req: Request, res: Response) {
 }
 
 router.post('/convites/:id/reenviar', exigirGestorDoClube, exigirAdminDoClube, reenviarConvite);
+
+// Montado somente na rota administrativa protegida por exigirSuperAdmin.
+export async function consultarCodigoConvite(req: Request, res: Response) {
+  res.setHeader('Cache-Control', 'no-store');
+  const clubeId = (req as any).clubeId as number;
+  if (await prisma.clube.count({ where: { id: clubeId, ativo: false } })) return res.status(423).json({ error: CLUBE_DESATIVADO, code: 'CLUBE_DESATIVADO' });
+  const id = String(req.params.id || '');
+  if (!id || id.length > 100) return res.status(400).json({ error: 'Convite inválido.' });
+  const convite = await prisma.conviteClube.findFirst({ where: { id, clube_id: clubeId },
+    select: { status: true, expira_em: true, codigo_cifrado: true, codigo_hash: true } });
+  if (!convite) return res.status(404).json({ error: 'Convite não encontrado.' });
+  if (convite.status !== 'PENDENTE' || convite.expira_em.getTime() <= Date.now()) {
+    return res.status(410).json({ error: 'Este convite não está mais válido.' });
+  }
+  const codigo = convite.codigo_cifrado && decifrarCodigo(convite.codigo_cifrado, clubeId);
+  if (!codigo || gerarHashCodigoConvite(codigo) !== convite.codigo_hash) {
+    return res.status(409).json({ error: 'O código deste convite antigo não pode ser recuperado. Reenvie por e-mail ou revogue e crie outro convite.' });
+  }
+  return res.json({ codigo, expira_em: convite.expira_em });
+}
 
 
 

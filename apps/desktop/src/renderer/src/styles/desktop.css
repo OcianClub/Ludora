@@ -158,6 +158,12 @@
 .admin-environment-production { color: var(--amarelo); }
 .admin-environment:hover { border-color: var(--borda); background: var(--fundo-card); }
 
+/* O painel tem rolagem própria; o viewport não pode criar uma segunda rolagem. */
+html:has(body.desktop-app .admin-layout),
+body.desktop-app:has(.admin-layout),
+body.desktop-app:has(.admin-layout) > #root { overflow: clip; }
+body.desktop-app:has(.admin-layout) { position: fixed; inset: 0; }
+
 .admin-layout {
   --admin-sidebar-width: 236px;
   display: grid;
@@ -217,7 +223,7 @@
 .admin-account-copy { display: grid; min-width: 0; font-size: 12px; }
 .admin-account-copy > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .admin-account-copy small { color: var(--texto-sec); }
-.admin-workspace { min-width: 0; overflow: auto; }
+.admin-workspace { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .admin-workspace-header {
   display: flex;
   align-items: center;
