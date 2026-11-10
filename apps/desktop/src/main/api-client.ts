@@ -24,6 +24,7 @@ export async function chamarApi<T = unknown>(
   }
 
   const token = opcoes.semToken ? null : opcoes.token ?? sessaoAtual()?.token ?? null;
+  const origem = lerApiUrl();
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (corpo !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -34,7 +35,7 @@ export async function chamarApi<T = unknown>(
   const timer = setTimeout(() => controle.abort(), prazo);
 
   try {
-    const resposta = await fetch(`${lerApiUrl()}${caminho}`, {
+    const resposta = await fetch(`${origem}${caminho}`, {
       method: metodo,
       headers,
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
@@ -50,7 +51,8 @@ export async function chamarApi<T = unknown>(
       data = { error: 'Resposta inválida do servidor' };
     }
 
-    if (resposta.status === 401 && token && caminho !== '/auth/login') {
+    if (resposta.status === 401 && token && caminho !== '/auth/login'
+      && sessaoAtual()?.token === token && lerApiUrl() === origem) {
       limparSessao();
       opcoes.aoExpirar?.();
     }

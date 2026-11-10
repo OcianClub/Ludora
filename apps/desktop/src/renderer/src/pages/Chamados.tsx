@@ -67,6 +67,7 @@ export default function ChamadosPage() {
   const id = params.get('id');
   const [lista, setLista] = useState<Chamado[]>([]);
   const [opcoes, setOpcoes] = useState<Opcoes | null>(null);
+  const [erroOpcoes, setErroOpcoes] = useState('');
   const [detalhe, setDetalhe] = useState<Chamado | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -99,6 +100,14 @@ export default function ChamadosPage() {
 
   useEffect(() => {
     let ativo = true;
+    setErroOpcoes('');
+    void requestJson<Opcoes>(`${endpoint}/filtros`).then(v => { if (ativo) setOpcoes(v); })
+      .catch(() => { if (ativo) setErroOpcoes('Não foi possível atualizar os filtros e contadores.'); });
+    return () => { ativo = false; };
+  }, [atualizacao]);
+
+  useEffect(() => {
+    let ativo = true;
     setCarregando(true);
     setErro('');
     const timer = window.setTimeout(async () => {
@@ -107,10 +116,8 @@ export default function ChamadosPage() {
           const chamado = await requestJson<Chamado>(`${endpoint}/${id}`);
           if (ativo) setDetalhe(chamado);
         } else {
-          const [itens, filtros] = await Promise.all([
-            requestJson<Chamado[]>(`${endpoint}?${query}`), requestJson<Opcoes>(`${endpoint}/filtros`),
-          ]);
-          if (ativo) { setLista(itens); setOpcoes(filtros); }
+          const itens = await requestJson<Chamado[]>(`${endpoint}?${query}`);
+          if (ativo) setLista(itens);
         }
       } catch (e) { if (ativo) setErro((e as Error).message); }
       finally { if (ativo) setCarregando(false); }
@@ -172,6 +179,7 @@ export default function ChamadosPage() {
         {!id && !dev && <Btn onClick={() => setCriando(true)}><Icon name="plus" size={17}/> Novo chamado</Btn>}</div>
     </header>
     {!id && <>
+      {erroOpcoes && <p role="alert" className="notice-error">{erroOpcoes} <Btn variant="ghost" size="sm" onClick={() => setAtualizacao(n => n + 1)}>Tentar novamente</Btn></p>}
       <div className="schedule-status-summary" role="group" aria-label="Atalhos da fila">
         {atalhosPapel.map(a => <button type="button" key={a.value} aria-pressed={ler('visao') === a.value} onClick={() => alterar({ visao: a.value, status: '' })}>{a.label}{opcoes && <span>{opcoes.contagens[a.value]}</span>}</button>)}
       </div>

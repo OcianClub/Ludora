@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Btn, Card, DesktopState, Input, LoadingSkeleton } from '../components/AdminUI';
+import { Btn, DesktopSection, DesktopState, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
+import { AdminIcon } from '../components/AdminIcon';
 import type { ConfigApp } from '../../../shared/bridge';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 
@@ -9,6 +10,8 @@ export default function AjustesPage() {
   const [url, setUrl] = useState('');
   const [erro, setErro] = useState('');
   const [erroConfig, setErroConfig] = useState('');
+  const [confirmando, setConfirmando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
 
   const carregarConfig = useCallback(() => {
     setErroConfig('');
@@ -17,39 +20,44 @@ export default function AjustesPage() {
   }, []);
   useEffect(() => { void carregarConfig(); }, [carregarConfig]);
 
-  async function salvar(e: React.FormEvent) {
-    e.preventDefault();
+  async function salvar() {
+    if (salvando) return;
+    setSalvando(true);
     setErro('');
-    if (!confirm('Trocar o servidor encerra a sessão atual (o login é específico de cada servidor). Continuar?')) return;
-    const r = await window.ludora.config.definirApiUrl(url);
-    if (!r.ok) return setErro(r.erro);
-    await sair();
+    try {
+      const r = await window.ludora.config.definirApiUrl(url.trim());
+      if (!r.ok) return setErro(r.erro);
+      await sair();
+    } catch { setErro('Não foi possível trocar o servidor. Confira a conexão e tente novamente.'); }
+    finally { setSalvando(false); }
   }
 
   if (!config) return erroConfig ? <DesktopState error title="Não foi possível abrir os ajustes" description={erroConfig} onRetry={() => void carregarConfig()}/> : <LoadingSkeleton kind="form" label="Carregando ajustes" count={2}/>;
   return (
-    <div>
+    <div className="desktop-settings-page">
       <div className="page-header"><div><h1 className="page-title">Ajustes</h1><p className="page-sub">Ludora Admin {config.versao} · {config.plataforma}</p></div></div>
-      <Card>
-        <h2 className="section-title">Servidor da API</h2>
-        <form onSubmit={salvar} className="form-grid">
-          <Input className="full" label="URL da API" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." />
-          <p className="full dica">Aceita https:// ou http://localhost. As requisições saem pelo processo principal do app, sem CORS e sem expor o token à interface.</p>
-          {erro && <div className="full notice-error" role="alert">{erro}</div>}
+      <DesktopSection title="Servidor da API" description="Escolha o ambiente que este aplicativo vai administrar.">
+        <form onSubmit={e => { e.preventDefault(); if (url.trim() && url.trim() !== config.apiUrl) { setErro(''); setConfirmando(true); } }} className="form-grid">
+          <Input className="full" label="URL da API" value={url} required maxLength={2048} onChange={e => setUrl(e.target.value)} placeholder="https://..." />
+          <p className="full dica">Use HTTPS para um servidor publicado ou HTTP em localhost. Trocar o servidor encerra a sessão atual.</p>
           <div className="full" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Btn type="button" variant="ghost" onClick={() => setUrl(config.apiUrlPadrao)}>Usar padrão do build</Btn>
-            <Btn type="submit" disabled={url === config.apiUrl}>Salvar e sair</Btn>
+            <Btn type="submit" disabled={!url.trim() || url.trim() === config.apiUrl}>Revisar alteração</Btn>
           </div>
         </form>
-      </Card>
-      <Card className="bloco">
-        <h2 className="section-title">Segurança da sessão</h2>
-        <p className="dica" style={{ margin: 0 }}>
+      </DesktopSection>
+      <DesktopSection title="Segurança da sessão">
+        <div className="desktop-session-state"><AdminIcon name="lock" size={21}/><p>
           {config.armazenamentoSeguro
             ? persistente ? 'A sessão fica cifrada pelo cofre do sistema operacional e é restaurada ao reabrir o app.' : 'Cofre do sistema disponível; a sessão será guardada cifrada no próximo login.'
             : 'Cofre do sistema indisponível: por segurança a sessão fica só em memória e você entrará de novo ao reabrir o app.'}
-        </p>
-      </Card>
+        </p></div>
+      </DesktopSection>
+      {confirmando && <Modal open title="Trocar servidor?" className="schedule-review-dialog" onClose={() => { if (!salvando) setConfirmando(false); }}
+        footer={<div className="schedule-review-actions"><Btn variant="ghost" disabled={salvando} onClick={() => setConfirmando(false)}>Cancelar</Btn><Btn disabled={salvando} onClick={() => void salvar()}>{salvando ? 'Salvando…' : 'Trocar servidor e sair'}</Btn></div>}>
+        <div className="schedule-review"><p>Você precisará entrar novamente. Sua sessão atual não será enviada ao novo servidor.</p><div className="desktop-server-review"><span>Atual</span><strong>{config.apiUrl}</strong><span>Novo</span><strong>{url.trim()}</strong></div>
+        {erro && <p role="alert" className="notice-error">{erro}</p>}</div>
+      </Modal>}
     </div>
   );
 }

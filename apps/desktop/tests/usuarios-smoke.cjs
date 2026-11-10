@@ -39,7 +39,7 @@ async function main() {
     await page.getByRole('button', { name: /Test DESENVOLVEDOR/ }).waitFor();
     assert.equal(await page.locator('.user-directory .ticket-card').count(), 1);
     await page.getByRole('button', { name: /Test DESENVOLVEDOR/ }).click();
-    const contaDev = page.getByRole('dialog', { name: 'Test DESENVOLVEDOR' });
+    const contaDev = page.getByRole('dialog', { name: 'Gerenciar conta' });
     await contaDev.getByRole('button', { name: 'Vincular a um clube' }).click();
     const novoVinculo = page.getByRole('dialog', { name: 'Vincular a um clube' });
     await novoVinculo.getByRole('searchbox').fill(clube.nome);
@@ -108,7 +108,7 @@ async function main() {
     await page.getByRole('button', { name: 'Contas e acessos' }).click();
     await page.getByRole('searchbox', { name: 'Buscar usuários' }).fill(cliente.email);
     await page.getByRole('button', { name: /Test USUARIO/ }).click();
-    const acesso = page.getByRole('dialog', { name: 'Test USUARIO' });
+    const acesso = page.getByRole('dialog', { name: 'Gerenciar conta' });
     await acesso.getByRole('switch', { name: 'Situação da conta' }).click();
     await acesso.getByText('Adicionar motivo (opcional)', { exact: true }).click();
     await acesso.getByLabel('Motivo da alteração').fill('Teste isolado de bloqueio de sessão.');

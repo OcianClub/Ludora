@@ -1,35 +1,35 @@
-import ManutencaoPage from './pages/Manutencao';
+import { lazy, Suspense } from 'react';
 import { TooltipLayer } from '@web/components/Tooltip';
 import { createHashRouter, Navigate, Route, RouterProvider, Routes } from 'react-router-dom';
 import { Spinner } from './components/AdminUI';
 import { AdminAuthProvider, useAdminAuth } from './contexts/AdminAuthContext';
 import AdminLayout from './components/AdminLayout';
-import LoginPage from './pages/Login';
-import VisaoPage from './pages/Visao';
-import ClubesPage from './pages/Clubes';
-import ClubeDetalhePage from './pages/ClubeDetalhe';
-import UsuariosPage from './pages/Usuarios';
-import BancoPage from './pages/Banco';
-import LogsPage from './pages/Logs';
-import AjustesPage from './pages/Ajustes';
-import PaulistaAdmin from './pages/Paulista';
-import EquipePage from './pages/Equipe';
-import ChamadosPage from './pages/Chamados';
+const LoginPage = lazy(() => import('./pages/Login'));
+const VisaoPage = lazy(() => import('./pages/Visao'));
+const ClubesPage = lazy(() => import('./pages/Clubes'));
+const ClubeDetalhePage = lazy(() => import('./pages/ClubeDetalhe'));
+const UsuariosPage = lazy(() => import('./pages/Usuarios'));
+const BancoPage = lazy(() => import('./pages/Banco'));
+const LogsPage = lazy(() => import('./pages/Logs'));
+const AjustesPage = lazy(() => import('./pages/Ajustes'));
+const PaulistaAdmin = lazy(() => import('./pages/Paulista'));
+const ChamadosPage = lazy(() => import('./pages/Chamados'));
+const ManutencaoPage = lazy(() => import('./pages/Manutencao'));
 
 function Rotas() {
   const { estado, usuario } = useAdminAuth();
   if (estado === 'carregando') return <Spinner />;
-  if (estado === 'anonimo') return <LoginPage />;
+  if (estado === 'anonimo') return <Suspense fallback={<Spinner label="Abrindo acesso…"/>}><LoginPage /></Suspense>;
   return (
     <Routes>
       <Route element={<AdminLayout />}>
-        <Route path="/equipe" element={<EquipePage />} />
+        <Route index element={<Navigate to="/visao" replace />} />
+        <Route path="/visao" element={<VisaoPage />} />
+        <Route path="/equipe" element={<Navigate to="/visao" replace />} />
         <Route path="/chamados" element={<ChamadosPage />} />
         {usuario?.papel_plataforma !== 'DESENVOLVEDOR' && <Route path="/manutencao" element={<ManutencaoPage />} />}
         <Route path="/ajustes" element={<AjustesPage />} />
         {usuario?.papel_plataforma === 'SUPERADMIN' && <>
-        <Route index element={<Navigate to="/visao" replace />} />
-        <Route path="/visao" element={<VisaoPage />} />
         <Route path="/clubes" element={<ClubesPage />} />
         <Route path="/clubes/:id" element={<ClubeDetalhePage />} />
         <Route path="/usuarios" element={<UsuariosPage />} />
@@ -38,7 +38,7 @@ function Rotas() {
         <Route path="/paulista" element={<PaulistaAdmin />} />
         </>}
       </Route>
-      <Route path="*" element={<Navigate to={usuario?.papel_plataforma === 'SUPERADMIN' ? '/visao' : '/equipe'} replace />} />
+      <Route path="*" element={<Navigate to="/visao" replace />} />
     </Routes>
   );
 }

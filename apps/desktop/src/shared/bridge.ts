@@ -12,6 +12,8 @@ export const CANAIS = {
   logsHistorico: 'logs:historico',
   logsEntrada: 'logs:entrada',
   logsEstado: 'logs:estado',
+  logsCopiar: 'logs:copiar',
+  logsExportar: 'logs:exportar',
   sessaoExpirada: 'sessao:expirada',
 } as const;
 
@@ -59,5 +61,7 @@ export interface LudoraBridge {
     historico(): Promise<HistoricoLogs>;
     aoReceber(ouvinte: (entrada: EntradaLog) => void): () => void;
     aoMudarEstado(ouvinte: (estado: EstadoTempoReal) => void): () => void;
+    copiar(ids: number[]): Promise<{ ok: boolean; total: number; erro?: string }>;
+    exportar(ids: number[]): Promise<{ ok: boolean; total: number; cancelado?: boolean; erro?: string }>;
   };
 }

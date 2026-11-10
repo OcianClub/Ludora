@@ -5,6 +5,7 @@ import { Icon } from '@web/components/Icon';
 import { ClubBadge } from '@web/components/Brand';
 import { Btn, Card, DesktopState, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { OptionTiles } from '../components/OptionTiles';
+import { FilterSelect } from '@web/components/FilterSelect';
 import { MotivoTiles } from '../components/MotivoTiles';
 import { requestJson } from '../services/api';
 
@@ -89,7 +90,7 @@ function ManutencaoContexto({ chamadoId, eventoInicial }: { chamadoId: string | 
   return <div className="ticket-page match-schedule">
     <header className="page-header"><div><span className="ticket-kicker">Operação da plataforma</span><h1 className="page-title">Manutenção</h1><p className="page-sub">Bloqueie temporariamente uma função enquanto a equipe investiga ou corrige um problema.</p></div><Btn disabled={!dados || chamado?.status === 'RESOLVIDO'} onClick={() => abrir('pausar')}><Icon name="plus" size={18}/> Nova pausa</Btn></header>
     {chamado && <Card className="ticket-section"><h2>Chamado vinculado</h2><p>{chamado.assunto} · {nomeAlvo('CLUBE', chamado.clubeId)}</p><Link to={`/chamados?id=${chamado.id}`}>Voltar ao chamado</Link></Card>}
-    <p className="page-sub">Exemplo de uso. Pause a criação de partidas de um clube enquanto a equipe corrige um erro. As partidas já cadastradas continuam disponíveis para consulta.</p>
+    <details className="desktop-help-note"><summary>Como funcionam as pausas</summary><p>Pause uma função durante a correção de um problema. Consultas e históricos continuam disponíveis. O prazo de revisão é um lembrete: a função só volta quando a equipe reativá-la.</p></details>
     <div className="schedule-status-summary" role="group" aria-label="Situação das pausas"><button aria-pressed={!verHistorico} onClick={() => setVerHistorico(false)}>Ativas <span>{pausas.filter(p => p.ativa).length}</span></button><button aria-pressed={verHistorico} onClick={() => setVerHistorico(true)}>Encerradas <span>{pausas.filter(p => !p.ativa).length}</span></button></div>
     <CollectionSearch label="Buscar pausas" placeholder="Buscar por função ou alcance…" value={busca} onChange={setBusca}/>
     {erro && <DesktopState error title="Falha ao consultar pausas" description={erro} onRetry={() => void carregar()}/>}
@@ -97,7 +98,7 @@ function ManutencaoContexto({ chamadoId, eventoInicial }: { chamadoId: string | 
     {!dados && !erro && <LoadingSkeleton kind="rows" label="Carregando manutenções"/>}
     {dados && <section className="ticket-day" aria-label="Pausas registradas">
       {!visiveis.length && <DesktopState icon="wrench" title={`Nenhuma pausa ${verHistorico ? 'encerrada' : 'ativa'}`} description={busca ? 'Experimente outra busca.' : 'As intervenções serão exibidas aqui.'}/>}
-      {visiveis.map(p => <Card className="ticket-section" key={p.id}>
+      {visiveis.map(p => <Card className={`ticket-section desktop-maintenance-card${p.ativa ? '' : ' desktop-maintenance-ended'}`} key={p.id}>
         <div className="page-header"><div><h2>{tipos.find(t => t.value === p.operacao)?.label || p.operacao}</h2><p>{nomeAlvo(p.escopo, p.alvoId)} · {p.ativa ? 'Em manutenção' : 'Reativada'}</p></div>
           {p.ativa && tipos.some(t => t.value === p.operacao && t.escopos.includes(p.escopo)) && <Btn variant="ghost" onClick={() => abrir(p)}>Reativar função</Btn>}</div>
         <p>{p.motivo}</p><small>Início {formatar(p.inicio)} · Revisar em {formatar(p.revisarEm)} · Protocolo {p.id}</small>
@@ -111,9 +112,9 @@ function ManutencaoContexto({ chamadoId, eventoInicial }: { chamadoId: string | 
       {revisar ? <div className="schedule-review"><h3>{modal === 'pausar' ? selecao?.label : tipos.find(t => t.value === modal.operacao)?.label}</h3>
         <p>{modal === 'pausar' ? nomeAlvo(escopo, Number(alvo)) : nomeAlvo(modal.escopo, modal.alvoId)}</p>
         <p>{modal === 'pausar' ? 'Novas operações desta função serão bloqueadas neste alcance. Consultas, histórico e scout continuam disponíveis. A revisão é um lembrete e não encerra a pausa automaticamente.' : 'Este bloqueio será encerrado. Outras pausas que atinjam o mesmo alcance continuam valendo.'}</p><p>{motivo}</p></div>
-        : <div className="schedule-review">
+        : <div className="schedule-review desktop-maintenance-form">
           {modal === 'pausar' && <>
-            <OptionTiles label="Função" value={operacao} options={tipos.filter(t => chamado ? t.escopos.includes('CLUBE') : t.escopos.length > 0)} onChange={v => { setOperacao(v); if (!chamado) { setEscopo(''); setAlvo(''); } }}/>
+            <FilterSelect overlayInDialog label="Função" value={operacao} emptyLabel="Selecione a função a pausar" options={tipos.filter(t => chamado ? t.escopos.includes('CLUBE') : t.escopos.length > 0)} onChange={v => { setOperacao(v); if (!chamado) { setEscopo(''); setAlvo(''); } }}/>
             {chamado && <div className="linha-clube"><ClubBadge src={clubeChamado?.escudo} name={clubeChamado?.nome} size={34}/><p>Alcance: {nomeAlvo('CLUBE', chamado.clubeId)} · Clube deste chamado</p></div>}
             {selecao && !chamado && <OptionTiles label="Alcance" value={escopo} options={selecao.escopos.map(v => ({ value: v, label: escopos[v] }))} onChange={v => { setEscopo(v); setAlvo(''); }}/>}
             {escopo === 'CLUBE' && !chamado && <OptionTiles label="Clube" value={alvo} options={(dados?.clubes || []).map(c => ({ value: c.id, label: c.nome, icon: <ClubBadge src={c.escudo} name={c.nome} size={32}/> }))} onChange={setAlvo} scroll/>}

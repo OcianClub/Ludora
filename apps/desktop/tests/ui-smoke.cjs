@@ -57,9 +57,13 @@ async function main() {
       const base = `http://127.0.0.1:${server.address().port}/#/`;
       await page.goto(base + 'clubes');
       const search = page.getByRole('searchbox', { name: 'Buscar clube', exact: true });
-      await search.waitFor();
+      await search.waitFor({ timeout: 10000 }).catch(async error => {
+        console.error('Falha inicial', scenario, errors, await page.locator('body').innerText());
+        await page.screenshot({ path: path.join(output, `failure-${scenario.width}.png`) });
+        throw error;
+      });
       const heights = await page.locator('.club-toolbar .collection-search, .club-toolbar .schedule-select-trigger').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().height));
-      assert.deepEqual(heights, [40, 40]);
+      assert.deepEqual(heights, [44, 44]);
       await page.getByRole('button', { name: 'Novo clube', exact: true }).click();
       let dialog = page.getByRole('dialog', { name: 'Novo clube', exact: true });
       await dialog.waitFor();
@@ -115,7 +119,7 @@ async function main() {
       await dialog.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
       await dialog.waitFor({ state: 'detached' });
       const filterSize = await page.getByRole('button', { name: 'Mais filtros', exact: true }).boundingBox();
-      assert.equal(filterSize.width, 40); assert.equal(filterSize.height, 40);
+      assert.equal(filterSize.width, 44); assert.equal(filterSize.height, 44);
       await page.screenshot({ path: path.join(output, `usuarios-${scenario.width}-${scenario.theme}.png`) });
       await page.getByRole('searchbox', { name: 'Buscar usuários', exact: true }).fill('nada');
       await page.getByRole('heading', { name: 'Nenhuma conta encontrada', exact: true }).waitFor();

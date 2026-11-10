@@ -6,6 +6,15 @@ import { AdminIcon, type AdminIconName } from './AdminIcon';
 // específica do painel administrativo e não modifica Web ou Mobile.
 export { Btn, Card, Input, Select, Modal, PapelBadge, StatusBadge } from '@web/components/UI';
 
+export function DesktopSection({ title, description, actions, children, className = '' }: {
+  title: string; description?: string; actions?: ReactNode; children: ReactNode; className?: string;
+}) {
+  return <section className={`desktop-section ${className}`}>
+    <header className="desktop-section-heading"><div><h2>{title}</h2>{description && <p>{description}</p>}</div>{actions}</header>
+    {children}
+  </section>;
+}
+
 export function DesktopState({ title, description, icon = 'info', error = false, onRetry, action }: {
   title: string;
   description?: string;

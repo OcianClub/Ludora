@@ -176,7 +176,8 @@
   border-right: 1px solid var(--linha);
   background: var(--fundo);
 }
-.admin-brand { display: flex; align-items: center; flex-shrink: 0; min-height: 44px; padding: 0 6px; margin-bottom: 20px; }
+.admin-sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; min-height: 44px; margin-bottom: 20px; padding-inline: 4px; }
+.admin-brand { display: flex; align-items: center; min-width: 0; }
 .admin-sidebar-label {
   padding: 0 10px;
   margin: 0 0 6px;
@@ -224,10 +225,10 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   min-height: 60px;
-  padding: 10px clamp(14px, 3vw, 36px);
+  padding: 0;
   border-bottom: 1px solid var(--linha);
 }
-.admin-workspace-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.admin-header-inner { display: flex; justify-content: flex-end; align-items: center; width: 100%; max-width: 1440px; min-width: 0; margin-inline: auto; padding: 10px clamp(14px, 3vw, 36px); }
 .admin-sidebar-toggle { display: grid; place-items: center; flex-shrink: 0; width: 34px; height: 34px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--texto-sec); padding: 0; }
 .admin-sidebar-toggle:hover { background: var(--fundo-card-sec); color: var(--texto); }
 .admin-workspace-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
@@ -240,7 +241,8 @@
 .admin-content .bloco-topo { flex-wrap: wrap; gap: 8px; }
 .admin-content .tabelas, .admin-content .integracoes { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
 .admin-layout-collapsed .admin-sidebar { padding-inline: 8px; }
-.admin-layout-collapsed .admin-brand { justify-content: center; padding: 0; }
+.admin-layout-collapsed .admin-sidebar-top { justify-content: center; padding: 0; }
+.admin-layout-collapsed .admin-brand { display: none; }
 .admin-layout-collapsed .admin-brand .brand { gap: 0; }
 .admin-layout-collapsed .admin-brand .brand > :not(img) { display: none; }
 .admin-layout-collapsed .admin-sidebar-label,
@@ -251,8 +253,8 @@
 .admin-layout-collapsed .admin-nav { gap: 12px; }
 .admin-layout-collapsed .admin-nav-section { border-top: 1px solid var(--linha); padding-top: 12px; }
 @media (max-width: 960px) {
-  .admin-sidebar-toggle { display: none; }
-  .admin-workspace-header { gap: 8px 12px; padding: 8px 16px; }
+  .admin-workspace-header { gap: 8px 12px; }
+  .admin-header-inner { padding-block: 8px; }
   .admin-workspace-actions { margin-left: auto; }
   .admin-badge { font-size: 11px; gap: 6px; }
   .admin-workspace-header .rt-pill { gap: 6px; padding-inline: 8px; }

@@ -33,7 +33,8 @@ async function main() {
     async function selecionar(campo, opcao) {
       await modal.getByRole('group', { name: new RegExp(campo) }).getByText(opcao, { exact: true }).click();
     }
-    await selecionar('Função', 'Criação de partidas');
+    await modal.getByRole('combobox', { name: /Função/ }).click();
+    await modal.getByRole('option', { name: 'Criação de partidas', exact: true }).click();
     await modal.getByText(`Alcance: ${clube.nome} · Clube deste chamado`, { exact: true }).waitFor();
     await modal.getByText('Descrever motivo', { exact: true }).click();
     await modal.getByLabel('Descreva o motivo').fill('Agenda em revisão pela equipe de operação.');

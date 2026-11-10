@@ -2,8 +2,8 @@ import { ClubSubChoices, ClubeResumoCadastro, ENDERECO_VAZIO, EnderecoFields, en
 import { FilterSelect } from '@web/components/FilterSelect';
 import { requestJson } from '../services/api';
 import { ClubeAtividade, ClubeConvites } from '../components/ClubeOperacoes';
-import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { MembroClube, MembrosDoClube, PapelClube, PlanoClube, UsuarioGlobal, VisaoGlobal } from '@ludora/shared-types';
 import { Btn, Card, DesktopState, Empty, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { Toast } from '@web/components/Toast';
@@ -19,6 +19,7 @@ import { CategoryFilter } from '@web/components/CategoryFilter';
 import { Icon } from '@web/components/Icon';
 import { ExcluirIcone } from '../components/ExcluirIcone';
 import { CargoClube, PAPEIS_CLUBE } from '../components/CargoClube';
+import { CollectionSearch } from '@web/components/CollectionToolbar';
 const ESCRITA: PapelClube[] = ['TECNICO', 'MESARIO'];
 
 interface Edicao { usuarioId: number; nome: string; papel: PapelClube; todas: boolean; cats: number[] }
@@ -26,6 +27,11 @@ interface Edicao { usuarioId: number; nome: string; papel: PapelClube; todas: bo
 export default function ClubeDetalhePage() {
   const clubeId = Number(useParams().id);
   const navigate = useNavigate();
+  const location = useLocation();
+  const retorno = location.state?.voltarClubes;
+  const voltarClubes = typeof retorno === 'string' && /^\/clubes(?:\?|$)/.test(retorno) ? retorno : '/clubes';
+  const contexto = useRef(clubeId);
+  contexto.current = clubeId;
   const [clube, setClube] = useState<VisaoGlobal['clubes'][number] | null>(null);
   const [dados, setDados] = useState<MembrosDoClube | null>(null);
   const [erro, setErro] = useState('');
@@ -34,6 +40,7 @@ export default function ClubeDetalhePage() {
   const [editandoClube, setEditandoClube] = useState(false);
   const [salvandoClube, setSalvandoClube] = useState(false);
   const [edicao, setEdicao] = useState<Edicao | null>(null);
+  const [salvandoPapel, setSalvandoPapel] = useState(false);
   const [adicionando, setAdicionando] = useState(false);
   const [busca, setBusca] = useState('');
   const [achados, setAchados] = useState<UsuarioGlobal[]>([]);
@@ -53,14 +60,17 @@ export default function ClubeDetalhePage() {
   const [erroOperacao, setErroOperacao] = useState('');
 
   const carregar = useCallback(async () => {
+    setErro('');
     try {
       const [visao, membros] = await Promise.all([fetchVisaoGlobal(), fetchMembros(clubeId)]);
+      if (contexto.current !== clubeId) return;
       const c = visao.clubes.find(x => x.id === clubeId) ?? null;
       setClube(c);
       setDados(membros);
+      if (!c) setErro('O clube não está mais disponível nesta consulta.');
     } catch (e) { setErro((e as Error).message); }
   }, [clubeId]);
-  useEffect(() => { void carregar(); }, [carregar]);
+  useEffect(() => { setClube(null); setDados(null); setEdicao(null); setErro(''); void carregar(); }, [carregar]);
 
   const falha = (e: unknown) => { setAviso(''); setErro((e as Error).message); };
   const ok = (msg: string) => { setErro(''); setAviso(msg); void carregar(); };
@@ -93,12 +103,14 @@ export default function ClubeDetalhePage() {
 
   async function salvarPapel(e: React.FormEvent) {
     e.preventDefault();
-    if (!edicao) return;
+    if (!edicao || salvandoPapel) return;
+    setSalvandoPapel(true);
     try {
       await definirPapel(clubeId, edicao.usuarioId, { papel: edicao.papel, acesso_todas_categorias: edicao.todas, categoria_ids: edicao.cats });
       setEdicao(null);
       ok('Permissão atualizada.');
     } catch (err) { falha(err); }
+    finally { setSalvandoPapel(false); }
   }
 
   async function remover() {
@@ -161,11 +173,11 @@ export default function ClubeDetalhePage() {
   }
 
   return (
-    <div>
-      <Link to="/clubes" className="voltar">← Clubes</Link>
+    <div className="desktop-club-page">
+      <Link to={voltarClubes} className="voltar">← Clubes</Link>
       <div className="page-header">
         <div className="admin-club-heading">
-          <ClubBadge src={clube.escudo} size={56} />
+          <ClubBadge src={clube.escudo} name={clube.nome} size={56} />
           <div><h1 className="page-title">{clube.nome}</h1><p className="page-sub">{[clube.cidade, clube.estado].filter(Boolean).join(' · ') || 'Localização não informada'}</p></div>
         </div>
         <div className="actions"><span className="plano-tag">{clube.ativo ? clube.plano : 'Indisponível'}</span>
@@ -283,7 +295,7 @@ export default function ClubeDetalhePage() {
         </div>
       </Modal>
 
-      <Modal open={!!edicao} onClose={() => setEdicao(null)} title={edicao ? `Permissão · ${edicao.nome}` : ''}>
+      <Modal open={!!edicao} onClose={() => { if (!salvandoPapel) setEdicao(null); }} title={edicao ? `Permissão · ${edicao.nome}` : ''}>
         {edicao && (
           <form onSubmit={salvarPapel} className="form-grid">
             <div className="full"><OptionTiles label="Cargo" options={[...PAPEIS_CLUBE]} value={edicao.papel} onChange={papel => setEdicao({ ...edicao, papel: papel as PapelClube })}/></div>
@@ -296,7 +308,7 @@ export default function ClubeDetalhePage() {
               </div>
             )}
             <div className="full" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <Btn type="button" variant="ghost" onClick={() => setEdicao(null)}>Cancelar</Btn><Btn type="submit">Salvar</Btn>
+              <Btn type="button" variant="ghost" disabled={salvandoPapel} onClick={() => setEdicao(null)}>Cancelar</Btn><Btn type="submit" disabled={salvandoPapel || !!(exigeCategorias && !edicao.cats.length)}>{salvandoPapel ? 'Salvando…' : 'Salvar'}</Btn>
             </div>
           </form>
         )}
@@ -304,7 +316,7 @@ export default function ClubeDetalhePage() {
 
       <Modal open={adicionando} onClose={() => setAdicionando(false)} title="Adicionar pessoa ao clube">
         <form onSubmit={procurar} className="form-grid">
-          <Input className="full" label="Buscar usuário (nome ou e-mail)" value={busca} onChange={e => setBusca(e.target.value)} />
+          <CollectionSearch className="full" label="Buscar usuário (nome ou e-mail)" placeholder="Nome ou e-mail…" value={busca} onChange={setBusca}/>
           <div className="full" style={{ display: 'flex', justifyContent: 'flex-end' }}><Btn type="submit" variant="ghost">Buscar</Btn></div>
         </form>
         <div className="achados">

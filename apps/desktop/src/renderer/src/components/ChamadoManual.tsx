@@ -5,6 +5,7 @@ import { ClubBadge } from '@web/components/Brand';
 import { novoRequestId } from '@web/services/requestId';
 import { requestJson } from '../services/api';
 import { OptionTiles } from './OptionTiles';
+import { FilterSelect } from '@web/components/FilterSelect';
 
 const plataformas = [{ value: 'web', label: 'Web' }, { value: 'mobile', label: 'Mobile' }, { value: 'desktop', label: 'Desktop' }];
 const telas = [
@@ -27,7 +28,7 @@ export default function ChamadoManual({ onClose, onCreated }: { onClose: () => v
   const [form, setForm] = useState({ assunto: '', descricao: '', clube: '', servico: 'web', rota: '', impacto: 'DIFICULDADE', tipo: 'ERRO' });
   const [erro, setErro] = useState('');
   const [busy, setBusy] = useState(false);
-  const valido = !!clubes && !!form.rota && form.assunto.trim().length >= 3 && form.descricao.trim().length >= 10;
+  const valido = !!clubes && !!form.rota && !!form.tipo && form.assunto.trim().length >= 3 && form.descricao.trim().length >= 10;
   async function carregarClubes() {
     setErro('');
     try { setClubes(await requestJson('/admin/equipe/chamados/clubes')); }
@@ -55,15 +56,15 @@ export default function ChamadoManual({ onClose, onCreated }: { onClose: () => v
     <form id="chamado-manual" className="chamado-manual-form" onSubmit={salvar}>
       <section className="desktop-issue-section" aria-label="Relato do problema">
         <h3>Relato do problema</h3>
-        <Input label="Assunto" placeholder="Ex. Texto sobreposto no placar" value={form.assunto} required minLength={3} maxLength={120} onChange={e => alterar('assunto', e.target.value)}/>
+        <Input label="Assunto (obrigatório)" placeholder="Ex. Texto sobreposto no placar" value={form.assunto} required minLength={3} maxLength={120} onChange={e => alterar('assunto', e.target.value)}/>
         <label className="field"><span className="field-label">Descrição</span><textarea className="field-input" rows={4} required minLength={10} maxLength={4000} value={form.descricao} onChange={e => alterar('descricao', e.target.value)}/></label>
-        <OptionTiles label="Tipo" options={tipos} value={form.tipo} onChange={v => alterar('tipo', v)} disabled={busy}/>
+        <FilterSelect label="Tipo" options={tipos} value={form.tipo} emptyLabel="Selecione o tipo" overlayInDialog onChange={v => { if (!busy) alterar('tipo', v); }}/>
         <OptionTiles label="Impacto" options={impactos} value={form.impacto} onChange={v => alterar('impacto', v)} disabled={busy}/>
       </section>
       <section className="desktop-issue-section" aria-label="Onde ocorreu">
         <h3>Onde ocorreu</h3>
         <OptionTiles label="Plataforma" options={plataformas} value={form.servico} onChange={v => alterar('servico', v)} disabled={busy}/>
-        <OptionTiles label="Tela" options={telas} value={form.rota} onChange={v => alterar('rota', v)} disabled={busy}/>
+        <FilterSelect label="Tela (obrigatória)" options={telas} value={form.rota} emptyLabel="Selecione a tela" overlayInDialog onChange={v => { if (!busy) alterar('rota', v); }}/>
         {muitosClubes && <div className="chamado-manual-clube">
           <div><strong>Clube afetado</strong><span>{clubeSelecionado?.label || 'Plataforma inteira'}</span></div>
           <Btn type="button" size="sm" variant="ghost" disabled={busy} aria-expanded={escolhendoClube} onClick={() => setEscolhendoClube(v => !v)}>{escolhendoClube ? 'Fechar escolha' : 'Escolher clube'}</Btn>

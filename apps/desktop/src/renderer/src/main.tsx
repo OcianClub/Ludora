@@ -14,6 +14,7 @@ import '@web/components/ClubWorkspace.css';
 import '@web/pages/Auth.css';
 import './styles/desktop.css';
 import './styles/desktop-ui.css';
+import './styles/desktop-pages.css';
 import { applyTheme, setThemePreference } from '@web/styles/theme';
 import App from './App';
 

@@ -1,6 +1,6 @@
 /* Base visual exclusiva do Electron, inclusive para componentes compartilhados. */
 .desktop-app {
-  --desktop-control-height: 40px;
+  --desktop-control-height: 44px;
   --collection-control-height: var(--desktop-control-height);
   --collection-control-font-size: 13px;
   --desktop-surface-hover: color-mix(in srgb, var(--fundo-card) 94%, var(--texto) 6%);
@@ -36,7 +36,7 @@
 .desktop-app .admin-layout .schedule-filter-primary .schedule-select:not(.schedule-select-inline) > .field-label { display: block; margin: 0 0 5px; }
 .desktop-app .admin-layout .ticket-toolbar .schedule-select > .field-label { display: none; }
 .desktop-app .admin-layout .ticket-toolbar .collection-search { grid-column: auto; }
-.desktop-app .admin-layout .ticket-toolbar { grid-template-columns: minmax(0, 1fr) minmax(170px, 230px) auto; }
+.desktop-app .admin-layout .ticket-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(170px, 230px) auto; }
 .desktop-app .admin-layout .club-toolbar { grid-template-columns: minmax(0, 1fr) minmax(165px, 230px); }
 .desktop-app .admin-layout .desktop-log-filters { display: grid; grid-template-columns: minmax(130px, 180px) minmax(0, 1fr) auto auto; gap: 10px; align-items: end; }
 .desktop-app .admin-layout .desktop-log-filters .field { max-width: none; }

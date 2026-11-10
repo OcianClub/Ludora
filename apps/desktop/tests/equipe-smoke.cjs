@@ -30,14 +30,14 @@ async function main() {
         await page.getByText('Esta conta não tem acesso ao painel interno Ludora.', { exact: true }).waitFor();
         continue;
       }
-      await page.getByRole('link', { name: 'Área da equipe', exact: true }).click();
+      await page.getByRole('link', { name: 'Visão global', exact: true }).click();
       await page.getByText(/Disponível · \d+ ms/).waitFor();
       if (conta.papel !== 'SUPERADMIN') {
         assert.equal(await page.getByRole('link', { name: 'Usuários', exact: true }).count(), 0);
         const result = await page.evaluate(() => window.ludora.api.requisicao('POST', '/admin/clubes', {}));
         assert.equal(result.status, 403);
         await page.evaluate(() => { location.hash = '#/usuarios'; });
-        await page.waitForURL(/#\/equipe$/);
+        await page.waitForURL(/#\/visao$/);
       }
       for (const theme of ['light', 'dark']) {
         await page.getByRole('radio', { name: theme === 'light' ? 'Tema claro' : 'Tema escuro', exact: true }).click();

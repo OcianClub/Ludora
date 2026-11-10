@@ -57,13 +57,23 @@ async function main() {
       }, scenario);
       await page.goto(base + '/#/');
       const admin = scenario.role === 'SUPERADMIN';
-      await page.getByRole('heading', { level: 1, name: admin ? 'Visão global' : 'Área da equipe', exact: true }).waitFor();
+      await page.getByRole('heading', { level: 1, name: 'Visão global', exact: true }).waitFor();
       const nav = page.getByRole('navigation', { name: 'Navegação principal' });
-      const expected = admin ? ['Visão global', 'Clubes', 'Usuários', 'Campeonato Paulista', 'Área da equipe', 'Chamados', 'Manutenção', 'Banco e integrações', 'Logs ao vivo', 'Ajustes']
-        : scenario.role === 'SUPORTE' ? ['Área da equipe', 'Chamados', 'Manutenção', 'Ajustes'] : ['Área da equipe', 'Chamados', 'Ajustes'];
+      const expected = admin ? ['Visão global', 'Clubes', 'Usuários', 'Campeonato Paulista', 'Chamados', 'Manutenção', 'Banco e integrações', 'Logs ao vivo', 'Ajustes']
+        : scenario.role === 'SUPORTE' ? ['Visão global', 'Chamados', 'Manutenção', 'Ajustes'] : ['Visão global', 'Chamados', 'Ajustes'];
       assert.deepEqual(await nav.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('aria-label'))), expected);
       assert.equal(await nav.locator('section').count(), admin ? 3 : 2, 'Sem seções vazias ou acesso indevido');
       assert.equal(await page.locator('.admin-layout-collapsed').count(), scenario.width <= 960 ? 1 : 0);
+      assert.equal(await page.locator('.admin-sidebar .admin-sidebar-toggle').count(), 1);
+      assert.equal(await page.locator('.admin-workspace-header .admin-sidebar-toggle').count(), 0);
+      assert.equal(await page.locator('.admin-brand').isVisible(), scenario.width > 960);
+      assert.equal(await page.locator('.admin-workspace-header').getByText('Administrador Ludora', { exact: true }).count(), 0);
+      const paddingAligned = await page.evaluate(() => {
+        const header = document.querySelector('.admin-header-inner');
+        const main = document.querySelector('.admin-content');
+        return Math.abs(header.getBoundingClientRect().right - parseFloat(getComputedStyle(header).paddingRight) - main.getBoundingClientRect().right + parseFloat(getComputedStyle(main).paddingRight)) < 1;
+      });
+      assert.equal(paddingAligned, true, 'Header usa o mesmo container do conteúdo');
       if (admin) {
         await page.getByRole('status', { name: 'Conexão em tempo real: Conectado' }).waitFor();
         await page.evaluate(() => window.dispatchEvent(new CustomEvent('fixture:connection', { detail: 'erro' })));
@@ -84,12 +94,14 @@ async function main() {
       assert.equal(await page.evaluate(() => window.__calls.length), calls, 'Recolher ou redimensionar não recarrega os dados da página');
       await page.getByRole('link', { name: 'Servidor da API: API local. Configurar conexão' }).click();
       await page.getByRole('heading', { level: 1, name: 'Ajustes', exact: true }).waitFor();
-      await page.getByRole('link', { name: admin ? 'Ludora — visão global' : 'Ludora — área da equipe', exact: true }).click();
-      await page.getByRole('heading', { level: 1, name: admin ? 'Visão global' : 'Área da equipe', exact: true }).waitFor();
+      if (scenario.width <= 960) await page.getByRole('button', { name: 'Expandir navegação', exact: true }).click();
+      await page.getByRole('link', { name: 'Ludora — visão global', exact: true }).click();
+      if (scenario.width <= 960) await page.getByRole('button', { name: 'Recolher navegação', exact: true }).click();
+      await page.getByRole('heading', { level: 1, name: 'Visão global', exact: true }).waitFor();
       if (!admin) {
         await page.goto(base + '/#/visao');
-        await page.getByRole('heading', { level: 1, name: 'Área da equipe', exact: true }).waitFor();
-        assert.equal(new URL(page.url()).hash, '#/equipe');
+        await page.getByRole('heading', { level: 1, name: 'Visão global', exact: true }).waitFor();
+        assert.equal(new URL(page.url()).hash, '#/visao');
       }
       const theme = page.getByRole('radio', { name: scenario.theme === 'dark' ? 'Tema escuro' : 'Tema claro' });
       await theme.focus(); await page.keyboard.press('Home');

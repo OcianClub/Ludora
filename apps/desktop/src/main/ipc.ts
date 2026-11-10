@@ -1,4 +1,5 @@
-import { app, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import { app, clipboard, dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { SuperAdminUsuario } from '@ludora/shared-types';
@@ -8,6 +9,7 @@ import { chamarApi } from './api-client';
 import { API_URL_PADRAO, lerApiUrl, salvarApiUrl } from './config';
 import { iniciarLogs, obterHistorico, pararLogs } from './realtime';
 import { armazenamentoSeguro, carregarDoDisco, limparSessao, salvarSessao, sessaoAtual } from './session';
+import { formatarLogs, selecionarLogs } from '../shared/logs';
 
 // Só o nosso próprio renderer pode falar com o processo principal.
 function remetenteConfiavel(evento: IpcMainInvokeEvent, janela: BrowserWindow): boolean {
@@ -125,4 +127,31 @@ export function registrarIpc(obterJanela: () => BrowserWindow | null) {
     janelaOuErro(evento);
     return obterHistorico();
   });
+
+  for (const canal of [CANAIS.logsCopiar, CANAIS.logsExportar]) {
+    ipcMain.handle(canal, async (evento, ids: unknown) => {
+      const janela = janelaOuErro(evento);
+      const sessao = sessaoAtual();
+      if (sessao?.usuario.papel_plataforma !== 'SUPERADMIN') return { ok: false, total: 0, erro: 'Acesso restrito à administração Ludora.' };
+      try {
+        const entradas = selecionarLogs(obterHistorico().entradas, ids);
+        if (!entradas.length) return { ok: false, total: 0, erro: 'Os registros não estão mais disponíveis. Atualize a seleção.' };
+        const texto = formatarLogs(entradas);
+        if (canal === CANAIS.logsCopiar) clipboard.writeText(texto);
+        else {
+          const escolha = await dialog.showSaveDialog(janela, {
+            title: 'Exportar logs exibidos', defaultPath: `ludora-logs-${new Date().toISOString().slice(0, 10)}.txt`,
+            filters: [{ name: 'Arquivo de texto', extensions: ['txt'] }],
+          });
+          if (escolha.canceled || !escolha.filePath) return { ok: false, cancelado: true, total: 0 };
+          // A sessão pode ter expirado enquanto o seletor nativo estava aberto.
+          if (sessaoAtual()?.token !== sessao.token) return { ok: false, total: 0, erro: 'A sessão mudou. Entre novamente.' };
+          await writeFile(escolha.filePath, texto, 'utf8');
+        }
+        return { ok: true, total: entradas.length };
+      } catch {
+        return { ok: false, total: 0, erro: 'Não foi possível copiar ou exportar os logs selecionados.' };
+      }
+    });
+  }
 }

@@ -3,7 +3,7 @@ import { FilterSelect } from '@web/components/FilterSelect';
 import { Icon } from '@web/components/Icon';
 import { ClubSubChoices, ClubeResumoCadastro, ENDERECO_VAZIO, EnderecoFields, enderecoCompleto, EscudoField, mascaraCnpj, SUBS } from '../components/ClubeCadastroFields';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useBlocker, useNavigate } from 'react-router-dom';
+import { Link, useBlocker, useNavigate, useSearchParams } from 'react-router-dom';
 import type { ClubeResumo, PlanoClube, VisaoGlobal } from '@ludora/shared-types';
 import { ClubBadge } from '@web/components/Brand';
 import { Btn, DesktopState, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
@@ -31,8 +31,12 @@ export default function ClubesPage() {
   const [form, setForm] = useState(VAZIO);
   const [salvando, setSalvando] = useState(false);
   const [erroForm, setErroForm] = useState('');
-  const [busca, setBusca] = useState('');
-  const [planoFiltro, setPlanoFiltro] = useState('');
+  const [params, setParams] = useSearchParams();
+  const busca = params.get('busca') || '';
+  const planoFiltro = params.get('plano') || '';
+  function filtrar(campo: string, valor: string) {
+    setParams(anterior => { const next = new URLSearchParams(anterior); if (valor) next.set(campo, valor); else next.delete(campo); return next; }, { replace: true });
+  }
   const [descartar, setDescartar] = useState(false);
   const bypass = useRef(false);
   const sujo = aberto && JSON.stringify(form) !== JSON.stringify(VAZIO);
@@ -105,25 +109,26 @@ export default function ClubesPage() {
   const duplicado = form.nome.trim().length >= 2 && clubes.some(c => normalizar(c.nome) === normalizar(form.nome));
 
   return (
-    <div>
+    <div className="desktop-clubs-page">
       <div className="page-header">
         <div><h1 className="page-title">Clubes</h1><p className="page-sub">{clubes.length} cadastrados · clientes da plataforma</p></div>
         <Btn onClick={() => { bypass.current = false; setForm(VAZIO); setCandidato(null); setEtapa(0); setErroForm(''); setAberto(true); }}><AdminIcon name="plus" size={18} /> Novo clube</Btn>
       </div>
 
       <div className="schedule-filter-primary ticket-toolbar club-toolbar">
-        <div ref={buscaRef}><CollectionSearch label="Buscar clube" placeholder="Buscar nome, cidade ou UF…" value={busca} onChange={setBusca}/></div>
-        <FilterSelect label="Plano" emptyLabel="Todos os planos" options={PLANOS} value={planoFiltro} onChange={setPlanoFiltro}/>
+        <div ref={buscaRef}><CollectionSearch label="Buscar clube" placeholder="Buscar nome, cidade ou UF…" value={busca} onChange={v => filtrar('busca', v)}/></div>
+        <FilterSelect label="Plano" emptyLabel="Todos os planos" options={PLANOS} value={planoFiltro} onChange={v => filtrar('plano', v)}/>
       </div>
+      {(busca || planoFiltro) && <div className="schedule-active-filters"><button type="button" onClick={() => setParams({}, { replace: true })}>Limpar filtros<Icon name="cancel" size={14}/></button></div>}
       <p className="ticket-count" role="status">{filtrados.length} de {clubes.length} clubes</p>
       {filtrados.length === 0 ? <DesktopState icon="shield" title="Nenhum clube encontrado" description={busca || planoFiltro ? 'Ajuste a busca ou o plano selecionado.' : 'Os clubes cadastrados aparecerão aqui.'}/> : <div className="club-directory">
-        {filtrados.map(c => <Link key={c.id} to={`/clubes/${c.id}`} className="club-directory-card">
+        {filtrados.map(c => <Link key={c.id} to={`/clubes/${c.id}`} state={{ voltarClubes: `/clubes${params.size ? `?${params}` : ''}` }} className="club-directory-card">
           <ClubBadge src={c.escudo} name={c.nome} size={46}/><span className="ticket-card-copy"><strong>{c.nome}</strong><small>{[c.cidade, c.estado].filter(Boolean).join(', ') || 'Localização pendente'}</small></span>
-          <Icon name="chevronRight" size={17}/><span className="club-directory-meta">{c.ativo ? c.plano : 'Indisponível'} · {c.categorias} SUBs · {c.membros} pessoas</span>
+          <Icon name="chevronRight" size={17}/><span className="club-directory-meta"><span className="desktop-club-plan" data-unavailable={!c.ativo}>{c.ativo ? c.plano : 'Indisponível'}</span><span>{c.categorias} SUBs</span><span>·</span><span>{c.membros} pessoas</span></span>
         </Link>)}
       </div>}
 
-      <Modal open={aberto} onClose={fechar} title="Novo clube" className="schedule-create-dialog club-create-dialog"
+      <Modal open={aberto && !buscandoCasca && !descartar && bloqueio.state !== 'blocked'} onClose={fechar} title="Novo clube" className="schedule-create-dialog club-create-dialog"
         footer={<div className="schedule-review-actions">
           <Btn type="button" variant="ghost" disabled={salvando} onClick={() => { setErroForm(''); if (etapa) setEtapa(etapa - 1); else fechar(); }}>{etapa ? 'Voltar' : 'Cancelar'}</Btn>
           <Btn type="submit" form="novo-clube" disabled={salvando}>{salvando ? 'Criando…' : etapa === 2 ? 'Confirmar e criar' : etapa === 1 ? 'Revisar cadastro' : 'Continuar'}</Btn>
