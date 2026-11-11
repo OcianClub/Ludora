@@ -2,7 +2,7 @@ import { AccountMenu } from "./AccountMenu";
 import { IconButton } from "./ui/Controls";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@ludora/icons";
-import { Alert, View, Text, Image, TouchableOpacity } from "react-native";
+import { View, Text, Image, TouchableOpacity } from "react-native";
 import { useTheme } from "@/src/contexts/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -53,13 +53,6 @@ export function Header({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [escudoComErro, setEscudoComErro] = useState<string | null>(null);
-  const mostrarIdentidade = () =>
-    Alert.alert(
-      "Clube atual",
-      `${title}${papelUsuario ? `\n\nSeu papel: ${NOMES_PAPEIS_HEADER[papelUsuario]}` : "\n\nVisualização pública"}`,
-      [{ text: "Fechar" }],
-    );
-
   return (
     <View
       style={[
@@ -99,22 +92,7 @@ export function Header({
             <Icon name={icon} size={44} color={colors.primaria} />
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-          style={styles.leftContainer}
-          onPress={showLogo ? mostrarIdentidade : undefined}
-          disabled={!showLogo}
-          activeOpacity={0.75}
-          accessible={!!showLogo}
-          accessibilityRole={showLogo ? "button" : undefined}
-          accessibilityLabel={
-            showLogo
-              ? `${title}${papelUsuario ? `, ${NOMES_PAPEIS_HEADER[papelUsuario]}` : ""}`
-              : undefined
-          }
-          accessibilityHint={
-            showLogo ? "Exibe o nome completo do clube e seu papel" : undefined
-          }
-        >
+        <View style={styles.leftContainer}>
           <Text
             style={styles.title}
             numberOfLines={1}
@@ -132,7 +110,7 @@ export function Header({
               {NOMES_PAPEIS_HEADER[papelUsuario]}
             </Text>
           )}
-        </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.rightContent}>

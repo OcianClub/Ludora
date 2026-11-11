@@ -14,7 +14,11 @@ export function useMatchPoll(id: number, token: string | null, ended = false) {
   const apply = useCallback((next: MatchPollData, includeOwn: boolean) => {
     setPoll(current => {
       if (current && current.revisao > next.revisao) return current;
-      return { ...next, meuVoto: includeOwn ? next.meuVoto : current?.meuVoto ?? null };
+      return {
+        ...next,
+        meuVoto: includeOwn ? next.meuVoto : current?.meuVoto ?? null,
+        podeVotar: includeOwn ? next.podeVotar : current?.podeVotar,
+      };
     });
   }, []);
   const load = useCallback(async (foreground = false) => {
@@ -57,7 +61,7 @@ export function useMatchPoll(id: number, token: string | null, ended = false) {
   }, [id, token, load, apply]);
 
   const vote = async (choice: PollChoice) => {
-    if (!token || writing.current || !poll?.aberta) return;
+    if (!token || writing.current || !poll?.aberta || poll.podeVotar === false) return;
     writing.current = true; setBusy(true); setError(''); setNotice('');
     pendingRead.current?.abort(); pendingRead.current = null;
     const controller = new AbortController(); pendingWrite.current = controller;

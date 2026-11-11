@@ -26,7 +26,6 @@ export function criarPalpitesRoutes(io: Server, banco: PrismaClient = prisma) {
     catch (erro) { return responderErro(res, erro); }
   }
   router.get('/publico/partidas/:id/palpite', leitura, (req, res) => consultar(req, res, false));
-  // Qualquer conta pode votar, sem exigir cargo ou associação ao clube.
   router.get('/partidas/:id/palpite', leitura, (req, res) => consultar(req, res, true));
   router.put('/partidas/:id/palpite', escrita, async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -37,7 +36,7 @@ export function criarPalpitesRoutes(io: Server, banco: PrismaClient = prisma) {
     try {
       const { resultado, clubes, alterado } = await registrarPalpite(banco, id, usuarioId, req.body.escolha as OpcaoPalpite);
       if (alterado) {
-        const { meuVoto: _privado, ...publico } = resultado;
+        const { meuVoto: _privado, podeVotar: _permissao, ...publico } = resultado;
         // Um único broadcast por namespace; nomes ou identidades de quem votou nunca são enviados.
         io.to(clubes.map(clube => `clube:${clube}`)).emit('palpite_atualizado', publico);
         io.of('/publico').to(clubes.map(clube => `publico:clube:${clube}`)).emit('palpite_atualizado', publico);

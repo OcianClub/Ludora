@@ -1232,7 +1232,9 @@ export default function SumulaPartida({
           })}
           {eventos.length > limiteEventos && <AppButton label={`Carregar mais acontecimentos (${eventos.length - limiteEventos})`} onPress={() => setLimiteEventos(v => v + 30)} />}
         </View>
-        {(aoVivo || finalizada) && <PalpitePartida data={data} />}
+        {(finalizada || (aoVivo && !data.podePreparar && !data.podeSumula)) && (
+          <PalpitePartida data={data} />
+        )}
         {finalizada && <AnalisePartida data={data} periodo={tempo || null} onPeriodoChange={value => setTempoSelecionado(value || 0)} />}
         {!!equipesDaEscalacao.length && (
           <View style={styles.section}>

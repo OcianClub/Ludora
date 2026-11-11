@@ -19,7 +19,11 @@ export default function PalpitePartida({ data }: { data: GestaoPartida }) {
   const requisicao = useRef<AbortController | null>(null);
   const id = data.partida.id;
   function aplicar(value: MatchPollData, proprio: boolean) {
-    setPoll(current => current && current.revisao > value.revisao ? current : { ...value, meuVoto: proprio ? value.meuVoto : current?.meuVoto ?? null });
+    setPoll(current => current && current.revisao > value.revisao ? current : {
+      ...value,
+      meuVoto: proprio ? value.meuVoto : current?.meuVoto ?? null,
+      podeVotar: proprio ? value.podeVotar : current?.podeVotar,
+    });
   }
   useEffect(() => {
     const controller = new AbortController(); requisicao.current = controller;
@@ -39,7 +43,7 @@ export default function PalpitePartida({ data }: { data: GestaoPartida }) {
     return () => { controller.abort(); parar(); clearInterval(timer); state.remove(); };
   }, [id, autenticado, data.partida.status]);
   async function votar(escolha: PollChoice) {
-    if (!autenticado || write.current || !poll?.aberta || data.partida.status !== 'AO_VIVO') return;
+    if (!autenticado || write.current || !poll?.aberta || poll.podeVotar === false || data.partida.status !== 'AO_VIVO') return;
     write.current = true; setBusy(true); setErro(''); setNotice('');
     const controller = requisicao.current!;
     try { const value = await votarPartida(id, escolha, controller.signal); if (!controller.signal.aborted) { aplicar(value, true); setNotice('Palpite salvo. Você pode trocar até o encerramento.'); } }
@@ -48,9 +52,12 @@ export default function PalpitePartida({ data }: { data: GestaoPartida }) {
       catch { if (!controller.signal.aborted) setErro('Confirmação pendente. Repetir a mesma escolha não duplica o voto.'); }
     } finally { if (!controller.signal.aborted) { write.current = false; setBusy(false); } }
   }
+  const aoVivo = data.partida.status === 'AO_VIVO';
+  if (aoVivo && poll?.podeVotar === false) return null;
+  const bloqueado = busy || !autenticado || !poll?.aberta || !aoVivo;
   const choices = [{ key: 'MANDANTE', team: data.partida.mandante }, { key: 'EMPATE', team: { nome: 'Empate', escudo: undefined } }, { key: 'VISITANTE', team: data.partida.visitante }] as const;
   return <View style={s.panel}><View style={s.between}><View><Text style={s.heading}>Quem você acha que vence?</Text><Text style={s.tiny}>{poll ? `${poll.total} palpite${poll.total === 1 ? '' : 's'}` : 'Carregando votação…'}</Text></View><Icon name="trophy" size={18} color={colors.textoSecundario} /></View>
-    <View style={[s.row, { alignItems: 'stretch' }]}>{choices.map(({ key, team }) => <TouchableOpacity key={key} accessibilityRole="radio" accessibilityState={{ checked: poll?.meuVoto === key, disabled: busy || !autenticado || !poll?.aberta }} accessibilityLabel={`${team.nome}, ${poll?.percentuais[key] ?? 0}% dos votos`} disabled={busy || !autenticado || !poll?.aberta || data.partida.status !== 'AO_VIVO'} onPress={() => void votar(key)} style={{ flex: 1, minWidth: 0, minHeight: 108, gap: 6, alignItems: 'center', justifyContent: 'center', padding: 9, overflow: 'hidden', borderWidth: 1, borderRadius: 8, borderColor: poll?.meuVoto === key ? colors.primaria : colors.borda, backgroundColor: colors.fundo }}>
+    <View style={[s.row, { alignItems: 'stretch' }]}>{choices.map(({ key, team }) => <TouchableOpacity key={key} accessibilityRole="radio" accessibilityState={{ checked: poll?.meuVoto === key, disabled: bloqueado }} accessibilityLabel={`${team.nome}, ${poll?.percentuais[key] ?? 0}% dos votos`} disabled={bloqueado} onPress={() => void votar(key)} style={{ flex: 1, minWidth: 0, minHeight: 108, gap: 6, alignItems: 'center', justifyContent: 'center', padding: 9, overflow: 'hidden', borderWidth: 1, borderRadius: 8, borderColor: poll?.meuVoto === key ? colors.primaria : colors.borda, backgroundColor: colors.fundo }}>
       <View pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${poll?.percentuais[key] ?? 0}%`, backgroundColor: colors.primaria, opacity: poll?.meuVoto === key ? 0.24 : 0.09 }} />
       {key === 'EMPATE' ? <Text style={[s.heading, { height: 28 }]}>X</Text> : <MiniEscudo nome={team.nome} url={team.escudo} />}<Text numberOfLines={1} style={s.name}>{team.nome}</Text><Text style={s.resultNumber}>{poll?.total ? `${poll.percentuais[key]}%` : '—'}</Text>
     </TouchableOpacity>)}</View>

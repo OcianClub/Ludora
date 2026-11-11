@@ -35,17 +35,19 @@ export const StorageAccessFramework = {};
 fs.writeFileSync(backend, `
 import { sumulaFixture } from '../../apps/mobile/tests/sumula.fixture';
 export let model = sumulaFixture();
-if (/guest|common/.test(location.search)) { model.podePreparar = false; model.podeSumula = false; model.auditoria = []; }
+if (/guest|common|staff-elsewhere/.test(location.search)) { model.podePreparar = false; model.podeSumula = false; model.auditoria = []; }
+if (location.search.includes('staff-team')) model.podeSumula = false;
 if (location.search.includes('final')) model.partida.status = 'FINALIZADA';
 model.eventos = []; model.partida.gols_mandante = 0; model.partida.gols_visitante = 0;
 export const BASE_URL = '/isolated';
-window.fixture = { writes: [], model };
+window.fixture = { writes: [], model, pollReads: 0 };
 export async function apiFetch(endpoint, opts = {}) {
   const body = opts.body ? JSON.parse(opts.body) : {}, method = opts.method || 'GET';
   if (endpoint.endsWith('palpite')) {
     if(method==='PUT')window.fixture.vote=body.escolha;
+    else window.fixture.pollReads++;
     const votos={MANDANTE:0,EMPATE:0,VISITANTE:0};votos[window.fixture.vote || 'MANDANTE']=1;
-    return new Response(JSON.stringify({partida_id:model.partida.id,revisao:window.fixture.vote?2:1,status:model.partida.status,aberta:model.partida.status==='AO_VIVO',total:1,votos,percentuais:Object.fromEntries(Object.entries(votos).map(([key,value])=>[key,value*100])),meuVoto:window.fixture.vote || null}));
+    return new Response(JSON.stringify({partida_id:model.partida.id,revisao:window.fixture.vote?2:1,status:model.partida.status,aberta:model.partida.status==='AO_VIVO',total:1,votos,percentuais:Object.fromEntries(Object.entries(votos).map(([key,value])=>[key,value*100])),meuVoto:window.fixture.vote || null,podeVotar:!location.search.includes('staff-elsewhere')}));
   }
   window.fixture.writes.push({ endpoint, method, body });
   if (endpoint.endsWith('/eventos') && method === 'POST') {
@@ -86,7 +88,7 @@ const aliasModules = /^(expo-router|expo-secure-store|expo-linear-gradient|expo-
   const browser=await chromium.launch({channel:'msedge',headless:true});
   let scenarios=0;
   try {
-    for(const width of [320,390,600,900])for(const role of ['manager','guest','common','final','final-guest']){
+    for(const width of [320,390,600,900])for(const role of ['manager','staff-team','staff-elsewhere','guest','common','final','final-guest']){
       const page=await browser.newPage({viewport:{width,height:840}}), errors=[];page.on('pageerror',e=>errors.push(e.message));
       await page.goto(`${url}/?${role}`);
       try { await page.getByText('Acontecimentos',{exact:true}).waitFor({timeout:7000}); }
@@ -94,6 +96,18 @@ const aliasModules = /^(expo-router|expo-secure-store|expo-linear-gradient|expo-
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${width}/${role}: overflow`);
       if(/guest|common/.test(role)) {
         for(const name of ['Registrar gol de Ocian','Fazer substituição','Finalizar partida','Histórico de alterações']) assert.equal(await page.getByRole('button',{name,exact:true}).count(),0);
+      }
+      if(role==='manager'||role==='staff-team'){
+        assert.equal(await page.getByRole('radio').count(),0);
+        assert.equal(await page.evaluate(()=>window.fixture.pollReads),0);
+      }
+      if(role==='staff-elsewhere'){
+        await page.waitForFunction(()=>window.fixture.pollReads>0);
+        await page.getByText('Quem você acha que vence?',{exact:true}).waitFor({state:'hidden'});
+      }
+      if(role==='guest'||role.startsWith('final')){
+        await page.getByRole('radio').first().waitFor();
+        assert.equal(await page.getByRole('radio',{disabled:true}).count(),3);
       }
       if(role.startsWith('final')) {await page.getByRole('button',{name:'Compartilhar resultado',exact:true}).click();await page.getByText('Incluir destaques',{exact:true}).waitFor();await page.getByRole('button',{name:'Fechar janela',exact:true}).last().click();}
       if(role==='common' && width===390){await page.getByRole('radio',{name:'Empate, 0% dos votos',exact:true}).click();await page.getByText('Palpite salvo. Você pode trocar até o encerramento.',{exact:true}).waitFor();assert.equal(await page.evaluate(()=>window.fixture.vote),'EMPATE');}

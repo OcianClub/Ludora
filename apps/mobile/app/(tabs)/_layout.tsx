@@ -37,8 +37,6 @@ export default function TabsLayout() {
         tabBarLabel: ({ focused, color, children }) => (
           <Text
             numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
             style={[
               styles.label,
               focused && styles.labelSelecionado,
@@ -79,7 +77,13 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="competicoes"
-        options={{ title: 'Campeonatos', tabBarIcon: ({ color, focused }) => <IconeAba nome="trophy-outline" cor={color} selecionado={focused} /> }}
+        options={{
+          title: 'Torneios',
+          tabBarAccessibilityLabel: 'Competições',
+          tabBarIcon: ({ color, focused }) => (
+            <IconeAba nome="trophy-outline" cor={color} selecionado={focused} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="estatisticas/estatisticas"
