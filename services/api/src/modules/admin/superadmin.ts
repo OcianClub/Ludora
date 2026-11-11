@@ -9,6 +9,8 @@ import {
   papelPlataformaEfetivo,
   limparCaminho,
   nivelPorStatus,
+  logTecnico,
+  logsTecnicos,
 } from './admin.rules';
 
 // Buffer único, compartilhado pelo logger HTTP, pelas rotas e pelo socket.
@@ -21,13 +23,14 @@ export interface SuperAdmin {
   papel_plataforma: 'SUPERADMIN';
 }
 
+async function carregarUsuarioInterno(usuarioId: number | null) {
+  if (!usuarioId) return null;
+  return prisma.usuario.findUnique({ where: { id: usuarioId }, select: { id: true, nome: true, email: true, papel_plataforma: true } });
+}
+
 // Lido a cada chamada (barato) para respeitar o .env já carregado por config/env.
 export async function carregarSuperAdmin(usuarioId: number | null): Promise<SuperAdmin | null> {
-  if (!usuarioId) return null;
-  const usuario = await prisma.usuario.findUnique({
-    where: { id: usuarioId },
-    select: { id: true, nome: true, email: true, papel_plataforma: true },
-  });
+  const usuario = await carregarUsuarioInterno(usuarioId);
   if (!usuario || papelPlataformaEfetivo(usuario) !== 'SUPERADMIN') return null;
   return { id: usuario.id, nome: usuario.nome, email: usuario.email, papel_plataforma: 'SUPERADMIN' };
 }
@@ -71,6 +74,7 @@ export function registrarRequisicoes(req: Request, res: Response, next: NextFunc
       mensagem: `${req.method} ${caminho} → ${res.statusCode}`,
       metodo: req.method,
       caminho,
+      rotaTecnica: typeof req.route?.path === 'string' ? req.route.path : undefined,
       status: res.statusCode,
       ms,
       usuarioId: (req as any).usuarioId ?? null,
@@ -82,14 +86,17 @@ export function registrarRequisicoes(req: Request, res: Response, next: NextFunc
 // Namespace /admin: o socket principal exige clubeId, então o painel usa o seu.
 export function registrarNamespaceAdmin(io: Server) {
   const ns = io.of('/admin');
+  const salaAdmin = 'logs:administracao';
+  const salaDev = 'logs:desenvolvimento';
 
   ns.use(async (socket, next) => {
     try {
       const cabecalho = String(socket.handshake.headers.authorization || '');
       const token = String(socket.handshake.auth?.token || cabecalho.replace(/^Bearer\s+/i, ''));
-      const admin = await carregarSuperAdmin(await getUsuarioIdPeloToken(token));
-      if (!admin) return next(new Error('Não autorizado'));
-      socket.data.superAdmin = admin;
+      const usuario = await carregarUsuarioInterno(await getUsuarioIdPeloToken(token));
+      const papel = usuario && papelPlataformaEfetivo(usuario);
+      if (!usuario || (papel !== 'SUPERADMIN' && papel !== 'DESENVOLVEDOR')) return next(new Error('Não autorizado'));
+      socket.data.funcionario = { ...usuario, papel };
       socket.data.token = token;
       next();
     } catch {
@@ -98,17 +105,23 @@ export function registrarNamespaceAdmin(io: Server) {
   });
 
   ns.on('connection', socket => {
-    socket.join(`usuario:${socket.data.superAdmin.id}`);
+    const { id, email, papel } = socket.data.funcionario;
+    const admin = papel === 'SUPERADMIN';
+    socket.join([`usuario:${id}`, admin ? salaAdmin : salaDev]);
     agendarExpiracaoTokenVerificado(socket, socket.data.token);
     delete socket.data.token;
-    socket.emit('snapshot', logs.snapshot(100));
+    socket.emit('snapshot', admin ? logs.snapshot(100) : logsTecnicos(logs.snapshot(500)).slice(-100));
     logs.registrar({
       nivel: 'audit',
       tipo: 'audit',
-      mensagem: `Painel conectado: ${socket.data.superAdmin.email}`,
-      usuarioId: socket.data.superAdmin.id,
+      mensagem: `Painel conectado: ${email}`,
+      usuarioId: id,
     });
   });
 
-  logs.assinar(entrada => ns.emit('log', entrada));
+  logs.assinar(entrada => {
+    ns.to(salaAdmin).emit('log', entrada);
+    const tecnico = logTecnico(entrada);
+    if (tecnico) ns.to(salaDev).emit('log', tecnico);
+  });
 }

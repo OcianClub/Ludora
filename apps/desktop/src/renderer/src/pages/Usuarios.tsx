@@ -33,8 +33,9 @@ type Confirmacao = {
 
 export default function UsuariosPage() {
   const { usuario } = useAdminAuth();
+  const admin = usuario?.papel_plataforma === 'SUPERADMIN';
   const [params, setParams] = useSearchParams();
-  const aba = params.get('aba') === 'cadastro' ? 'cadastro' : 'contas';
+  const aba = admin && params.get('aba') === 'cadastro' ? 'cadastro' : 'contas';
   const [ordem, setOrdem] = useState<OrdemUsuario>(null);
   const [usuarios, setUsuarios] = useState<UsuarioGlobal[] | null>(null);
   const [clubes, setClubes] = useState<ClubeResumo[]>([]);
@@ -50,6 +51,7 @@ export default function UsuariosPage() {
   const [cargo, setCargo] = useState('');
   const [estado, setEstado] = useState('');
   const [motivo, setMotivo] = useState('');
+  const [nomeExibicao, setNomeExibicao] = useState('');
   const [editarClube, setEditarClube] = useState<UsuarioGlobal['clubes'][number] | 'novo' | null>(null);
   const [papelAnterior, setPapelAnterior] = useState('SUPORTE');
   const [refresh, setRefresh] = useState(0);
@@ -74,6 +76,23 @@ export default function UsuariosPage() {
   function abrir(u: UsuarioGlobal) {
     setSelecionado(u); setConfirmacao(null); setErroSessao(''); setCargo(u.papel_plataforma); setEstado(u.suspenso ? 'SUSPENSA' : 'ATIVA'); setMotivo('');
     setPapelAnterior(u.papel_plataforma === 'USUARIO' ? '' : u.papel_plataforma);
+    setNomeExibicao(u.nome);
+  }
+
+  async function salvarNome(event: React.FormEvent) {
+    event.preventDefault();
+    const nome = nomeExibicao.trim();
+    if (!selecionado || ocupado || nome.length < 2 || nome === selecionado.nome) return;
+    const id = selecionado.id;
+    setOcupado(true); setErroSessao('');
+    try {
+      const resultado = await requestJson<{ nome: string }>(`/admin/usuarios/${id}/nome`, { method: 'PATCH', body: { nome } });
+      setSelecionado(conta => conta?.id === id ? { ...conta, nome: resultado.nome } : conta);
+      setNomeExibicao(resultado.nome);
+      setRefresh(n => n + 1);
+      setAviso('Nome de exibição salvo.');
+    } catch (erro) { setErroSessao((erro as Error).message); }
+    finally { setOcupado(false); }
   }
   function revisar(acao: 'acesso' | 'sessao') {
     if (!selecionado || ocupado) return;
@@ -109,8 +128,8 @@ export default function UsuariosPage() {
   ].sort((a,b) => Number(b.contas.some(u => u.id === usuario?.id)) - Number(a.contas.some(u => u.id === usuario?.id)));
   const suspender = confirmacao?.alteracao?.suspenso && !confirmacao.conta.suspenso;
   return <div className="ticket-page match-schedule desktop-users-page">
-    <header className="page-header"><div><span className="ticket-kicker">Pessoas e permissões</span><h1 className="page-title">Usuários</h1><p className="page-sub">Gerencie contas, cargos e tarefas de cadastro.</p></div></header>
-    <DesktopTabs label="Área de usuários" value={aba} options={[{value:'contas',label:'Contas e acessos'}, {value:'cadastro',label:'Cadastro dos clubes'}]}
+    <header className="page-header"><div><span className="ticket-kicker">Pessoas e permissões</span><h1 className="page-title">Usuários</h1><p className="page-sub">{admin ? 'Gerencie contas, cargos e tarefas de cadastro.' : 'Consulte contas e vínculos e corrija o nome de exibição.'}</p></div></header>
+    <DesktopTabs label="Área de usuários" value={aba} options={[{value:'contas',label:'Contas e acessos'}, ...(admin ? [{value:'cadastro',label:'Cadastro dos clubes'}] : [])]}
       onChange={value => { setFiltros(null); alterar({ aba: value === 'contas' ? '' : 'cadastro', clube: '', busca: '' }); }}>
     {aba === 'cadastro' ? <CadastroPendente resumos={clubes}/> : <>
       <div className="user-toolbar"><CollectionSearch label="Buscar usuários" placeholder="Nome ou e-mail…" value={ler('busca')} onChange={busca => alterar({ busca: busca.slice(0, 80) }, true)}/>
@@ -134,16 +153,21 @@ export default function UsuariosPage() {
       <Toast message={aviso} onClose={() => setAviso('')}/>
     </>}
     </DesktopTabs>
-    {selecionado && !confirmacao && !editarClube && <Modal title="Gerenciar conta" open onClose={() => { if (!ocupado) setSelecionado(null); }} className="desktop-account-dialog user-details-dialog"
-      footer={selecionado.id !== usuario?.id && !selecionado.cargoLegado ? <div className="schedule-review-actions"><Btn variant="ghost" onClick={() => setSelecionado(null)}>Fechar</Btn><Btn disabled={ocupado || !cargo || (motivo.trim().length > 0 && motivo.trim().length < 10) || cargo === selecionado.papel_plataforma && (estado === 'SUSPENSA') === selecionado.suspenso} onClick={() => revisar('acesso')}>Revisar acesso</Btn></div> : undefined}>
-      <div className="desktop-account-form"><AccountIdentity nome={selecionado.nome} email={selecionado.email} actions={<button type="button" className="desktop-icon-action" aria-label="Encerrar sessões" data-tooltip="Encerrar sessões em todos os dispositivos" onClick={() => revisar('sessao')}><Icon name="logout" size={20}/></button>}/>
+    {selecionado && !confirmacao && !editarClube && <Modal title={admin ? 'Gerenciar conta' : 'Detalhes da conta'} open onClose={() => { if (!ocupado) setSelecionado(null); }} className="desktop-account-dialog user-details-dialog"
+      footer={admin && selecionado.id !== usuario?.id && !selecionado.cargoLegado ? <div className="schedule-review-actions"><Btn variant="ghost" onClick={() => setSelecionado(null)}>Fechar</Btn><Btn disabled={ocupado || !cargo || (motivo.trim().length > 0 && motivo.trim().length < 10) || cargo === selecionado.papel_plataforma && (estado === 'SUSPENSA') === selecionado.suspenso} onClick={() => revisar('acesso')}>Revisar acesso</Btn></div> : undefined}>
+      <div className="desktop-account-form"><AccountIdentity nome={selecionado.nome} email={selecionado.email} actions={admin && <button type="button" className="desktop-icon-action" aria-label="Encerrar sessões" data-tooltip="Encerrar sessões em todos os dispositivos" onClick={() => revisar('sessao')}><Icon name="logout" size={20}/></button>}/>
+      {!admin && <p>{interno.find(opcao => opcao.value === selecionado.papel_plataforma)?.label} · {selecionado.suspenso ? 'Conta suspensa' : 'Conta ativa'}</p>}
+      {selecionado.papel_plataforma === 'USUARIO' && <form className="desktop-form-section" onSubmit={salvarNome}>
+        <Input label="Nome de exibição" value={nomeExibicao} minLength={2} maxLength={100} required disabled={ocupado} onChange={e => setNomeExibicao(e.target.value)}/>
+        <Btn type="submit" size="sm" disabled={ocupado || nomeExibicao.trim().length < 2 || nomeExibicao.trim() === selecionado.nome}>Salvar nome</Btn>
+      </form>}
       <section className="desktop-form-section"><h3>Cargos por clube</h3>
         {selecionado.clubes.length ? <div><div className="user-membership user-membership-head"><span>Clube</span><span>Cargo</span></div>{selecionado.clubes.map(c => <div className="user-membership" key={c.clube_id}><strong>{c.nome}</strong><CargoClube papel={c.papel}/>
-          <Btn type="button" size="sm" variant="ghost" aria-label={`Editar acesso em ${c.nome}`} data-tooltip="Editar acesso no clube" onClick={() => setEditarClube(c)}><Icon name="edit" size={16}/></Btn>
-          <Btn type="button" size="sm" variant="ghost" aria-label={`Desvincular de ${c.nome}`} data-tooltip="Remover vínculo com o clube" onClick={() => { setCiente(false); setErroSessao(''); setConfirmacao({ conta: selecionado, desvincular: c }); }}><Icon name="trash" size={16}/></Btn>
+          {admin && <><Btn type="button" size="sm" variant="ghost" aria-label={`Editar acesso em ${c.nome}`} data-tooltip="Editar acesso no clube" onClick={() => setEditarClube(c)}><Icon name="edit" size={16}/></Btn>
+          <Btn type="button" size="sm" variant="ghost" aria-label={`Desvincular de ${c.nome}`} data-tooltip="Remover vínculo com o clube" onClick={() => { setCiente(false); setErroSessao(''); setConfirmacao({ conta: selecionado, desvincular: c }); }}><Icon name="trash" size={16}/></Btn></>}
         </div>)}</div> : <p>Nenhum vínculo com clube.</p>}
-        <Btn type="button" variant="ghost" className="user-add-club" onClick={() => setEditarClube('novo')}><Icon name="plus" size={17}/> Vincular a um clube</Btn></section>
-        {selecionado.id === usuario?.id || selecionado.cargoLegado ? <p>Conta protegida. A alteração exige revisão por outro administrador ou pela configuração de acesso legado.</p> : <>
+        {admin && <Btn type="button" variant="ghost" className="user-add-club" onClick={() => setEditarClube('novo')}><Icon name="plus" size={17}/> Vincular a um clube</Btn>}</section>
+        {admin && (selecionado.id === usuario?.id || selecionado.cargoLegado ? <p>Conta protegida. A alteração exige revisão por outro administrador ou pela configuração de acesso legado.</p> : <>
           <section className="desktop-form-section"><div className="paulista-follow"><strong>Acesso à equipe Ludora</strong><DesktopToggle label="Papel interno" checked={cargo !== 'USUARIO'} onChange={checked => { if (!checked) { setPapelAnterior(cargo); setCargo('USUARIO'); } else setCargo(papelAnterior || 'SUPORTE'); }}/></div>
           {cargo !== 'USUARIO' && <DesktopSelect label="Cargo na Ludora" showLabel fullWidth value={cargo} options={interno.filter(p => p.value !== 'USUARIO').map(p => ({ ...p, icon: <CargoIcon papel={p.value}/> }))} onChange={setCargo}/>}
           </section><section className="desktop-form-section"><div className="paulista-follow" data-inativa={estado === 'SUSPENSA'}><div><strong>Situação da conta</strong><p>{estado === 'ATIVA' ? 'Ativa' : 'Suspensa'}</p></div>
@@ -151,7 +175,7 @@ export default function UsuariosPage() {
           <details><summary>Adicionar motivo (opcional)</summary><Input label="Motivo da alteração" value={motivo} maxLength={300} onChange={e => setMotivo(e.target.value)}/></details>
           <p>Mudar o acesso encerra as sessões. Suspender também bloqueia novas entradas.</p>
           </section>
-        </>}
+        </>)}
         {erroSessao && <p className="notice-error" role="alert">{erroSessao}</p>}
       </div>
     </Modal>}

@@ -34,13 +34,13 @@ fs.mkdirSync(output, { recursive: true });
         { id: 4, tipo: 'GOL', time_id: 14, jogador_id: 202, jogador: opponent[1].jogador, periodo: 2 },
         { id: 5, tipo: 'DEFESA', time_id: 13, jogador_id: 103, jogador: players[2].jogador, periodo: 1 },
       ];
-      let guest = false, external = false, matchReads = 0, pollReads = 0, writes = 0, loseReply = false;
+      let guest = false, external = false, matchReads = 0, pollReads = 0, writes = 0, loseReply = false, managerBlocked = false;
       let votes = { MANDANTE: 1, EMPATE: 1, VISITANTE: 1 }, own = null, revision = 1;
       const poll = () => {
         const total = Object.values(votes).reduce((a, b) => a + b), percentuais = Object.fromEntries(Object.entries(votes).map(([key, count]) => [key, Math.floor(count / total * 100)]));
         let missing = 100 - Object.values(percentuais).reduce((a,b) => a+b); const ranked = Object.keys(votes).sort((a,b) => (votes[b]/total*100%1)-(votes[a]/total*100%1));
         for (let i=0;i<missing;i++) percentuais[ranked[i]]++;
-        return { partida_id: 106, revisao: revision, status: p.status, aberta: p.status === 'AO_VIVO', total, votos: votes, percentuais, meuVoto: guest ? null : own };
+        return { partida_id: 106, revisao: revision, status: p.status, aberta: p.status === 'AO_VIVO', total, votos: votes, percentuais, meuVoto: guest ? null : own, podeVotar: guest ? undefined : !managerBlocked };
       };
       await page.route(url => url.origin !== new URL(base).origin && /\/(?:publico\/)?partidas\/106(?:\/gestao)?$/.test(url.pathname), route => {
         matchReads++;
@@ -137,6 +137,12 @@ fs.mkdirSync(output, { recursive: true });
         p.status = 'FINALIZADA'; await page.reload(); await page.locator('.match-poll-options').waitFor();
         assert.equal(await page.locator('.match-poll-options button:not(:disabled)').count(), 0);
         assert.match(await page.locator('.match-poll').innerText(), /votação encerrada/);
+        managerBlocked = true; p.status = 'AO_VIVO';
+        const managerPoll = page.waitForResponse(response => response.url().endsWith('/partidas/106/palpite'));
+        await page.reload(); await managerPoll;
+        await page.getByRole('button', { name: /Registrar gol/ }).first().waitFor();
+        await page.locator('.match-poll').waitFor({state:'hidden'});
+        assert.equal(writes, 2, 'Gestor da partida não registra palpite');
         guest = true; external = true; p.status = 'AO_VIVO';
         await page.evaluate(() => { localStorage.setItem('guestSmoke','true'); localStorage.removeItem('ludora_token'); localStorage.removeItem('ludora_usuario'); });
         await page.reload(); await page.locator('.match-insights').waitFor({timeout:15000}).catch(async error => { console.log('guest',page.url(), (await page.locator('body').innerText()).slice(-2200), errors); throw error; }); await page.locator('.match-poll-options').waitFor();

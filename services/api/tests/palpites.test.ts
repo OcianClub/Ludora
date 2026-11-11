@@ -7,16 +7,21 @@ import { criarPalpitesRoutes } from '../src/modules/partidas/palpites.routes';
 import { registrarPalpite, consultarPalpite, resumirVotos, ErroPalpite } from '../src/modules/partidas/palpites.service';
 import { JWT_SECRET, JWT_OPTIONS } from '../src/config/env';
 
-function fixture() {
+function fixture(legada = false) {
   let status = 'AO_VIVO', revisao = 0, exists = true;
   const votos = new Map<number, string>();
+  const vinculos = new Map<string, { papel: string; acesso_todas_categorias: boolean; categorias: { categoria_id: number }[] }>();
   const emitted: { rooms: string[]; event: string; data: any }[] = [];
   const io: any = { to: (rooms: string[]) => ({ emit: (event: string, data: any) => emitted.push({ rooms, event, data }) }) };
   io.of = () => io;
-  const partida = () => ({ id: 77, status, palpites_versao: revisao, categoria: { clube_id: 2 }, participantes: [{ clube_id: 2 }, { clube_id: 3 }], mandante: { clube_representado_id: 2 }, visitante: { clube_representado_id: 3 } });
+  const partida = () => ({ id: 77, status, palpites_versao: revisao, categoria: { id: 8, clube_id: 2 }, participantes: legada ? [] : [{ clube_id: 2, categoria_id: 8 }, { clube_id: 3, categoria_id: 15 }], mandante: { clube_representado_id: 2 }, visitante: { clube_representado_id: 3 } });
   let serial = Promise.resolve();
   const banco: any = {
     usuario: { findUnique: async ({ where }: any) => where.id > 0 && where.id < 20 ? { versao_sessao: 0 } : null },
+    usuarioClube: { findUnique: async ({ where }: any) => {
+      const { usuario_id, clube_id } = where.usuario_id_clube_id;
+      return vinculos.get(`${usuario_id}:${clube_id}`) ?? null;
+    } },
     partida: {
       findUnique: async ({ where, select }: any) => { assert.equal(select.eventos, undefined); assert.equal(select.jogadores_escalonados, undefined); return exists && where.id === 77 ? partida() : null; },
       update: async ({ data }: any) => { assert.deepEqual(data, { palpites_versao: { increment: 1 } }); revisao++; return partida(); },
@@ -36,7 +41,7 @@ function fixture() {
       return result;
     },
   };
-  return { banco, io, votos, emitted, setStatus: (value: string) => { status = value; }, missing: () => { exists = false; } };
+  return { banco, io, votos, emitted, vinculos, setStatus: (value: string) => { status = value; }, missing: () => { exists = false; } };
 }
 
 test('percentuais: zeros, arredondamento e soma exata de 100', () => {
@@ -68,6 +73,34 @@ test('encerra/cancela a votação e mantém os resultados; consulta pública nã
   f.missing(); await assert.rejects(() => consultarPalpite(f.banco, 77), (e: unknown) => e instanceof ErroPalpite && e.status === 404);
 });
 
+test('gestão dos dois lados bloqueia o palpite e mantém o voto de quem está fora do escopo', async () => {
+  const f = fixture();
+  f.vinculos.set('1:2', { papel: 'TECNICO', acesso_todas_categorias: false, categorias: [{ categoria_id: 8 }] });
+  f.vinculos.set('2:3', { papel: 'MESARIO', acesso_todas_categorias: true, categorias: [] });
+  f.vinculos.set('3:3', { papel: 'ADMIN', acesso_todas_categorias: false, categorias: [] });
+  f.vinculos.set('4:3', { papel: 'TECNICO', acesso_todas_categorias: false, categorias: [{ categoria_id: 8 }] });
+  f.vinculos.set('5:4', { papel: 'ADMIN', acesso_todas_categorias: true, categorias: [] });
+  f.vinculos.set('6:2', { papel: 'TORCEDOR', acesso_todas_categorias: false, categorias: [] });
+  f.vinculos.set('7:3', { papel: 'OLHEIRO', acesso_todas_categorias: true, categorias: [] });
+
+  for (const status of ['AGENDADA', 'PREPARADA', 'AO_VIVO']) {
+    f.setStatus(status);
+    for (const usuario of [1, 2, 3]) {
+      assert.equal((await consultarPalpite(f.banco, 77, usuario)).podeVotar, false);
+      await assert.rejects(() => registrarPalpite(f.banco, 77, usuario, 'EMPATE'), (e: unknown) => e instanceof ErroPalpite && e.status === 403);
+    }
+  }
+  assert.equal(f.votos.size, 0);
+  for (const usuario of [4, 5, 6, 7, 8]) {
+    assert.equal((await registrarPalpite(f.banco, 77, usuario, 'EMPATE')).resultado.podeVotar, true);
+  }
+  assert.equal((await consultarPalpite(f.banco, 77)).total, 5);
+
+  const legada = fixture(true);
+  legada.vinculos.set('1:2', { papel: 'TECNICO', acesso_todas_categorias: false, categorias: [{ categoria_id: 8 }] });
+  await assert.rejects(() => registrarPalpite(legada.banco, 77, 1, 'EMPATE'), (e: unknown) => e instanceof ErroPalpite && e.status === 403);
+});
+
 test('HTTP: anônimo só consulta; autenticação, validação, identidade e realtime sem dados privados', async t => {
   const f = fixture(), app = express(); app.use(express.json(), criarPalpitesRoutes(f.io, f.banco));
   const server = app.listen(0, '127.0.0.1'); await new Promise<void>(resolve => server.once('listening', resolve));
@@ -77,7 +110,12 @@ test('HTTP: anônimo só consulta; autenticação, validação, identidade e rea
     method: body ? 'PUT' : 'GET', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const token = jwt.sign({ id: 1, versao_sessao: 0 }, JWT_SECRET, JWT_OPTIONS);
+  const tecnico = jwt.sign({ id: 2, versao_sessao: 0 }, JWT_SECRET, JWT_OPTIONS);
+  f.vinculos.set('2:3', { papel: 'TECNICO', acesso_todas_categorias: false, categorias: [{ categoria_id: 15 }] });
   const read = await call('/publico/partidas/77/palpite'); assert.equal(read.status, 200); assert.equal(read.headers.get('cache-control'), 'no-store');
+  assert.equal((await read.json()).podeVotar, undefined);
+  assert.equal((await (await call('/partidas/77/palpite', undefined, tecnico)).json()).podeVotar, false);
+  assert.equal((await call('/partidas/77/palpite', { escolha: 'EMPATE' }, tecnico)).status, 403);
   assert.equal((await call('/partidas/77/palpite', { escolha: 'MANDANTE' })).status, 401);
   assert.equal((await call('/partidas/77/palpite', { escolha: 'INVALIDA' }, token)).status, 400);
   assert.equal((await call('/partidas/0/palpite', undefined, token)).status, 400);
@@ -86,7 +124,7 @@ test('HTTP: anônimo só consulta; autenticação, validação, identidade e rea
   assert.equal(changed.status, 200); assert.equal((await changed.json()).meuVoto, 'MANDANTE'); assert.deepEqual([...f.votos.keys()], [1]);
   assert.equal(f.emitted.length, 2); assert.equal(f.emitted[0].event, 'palpite_atualizado');
   assert.deepEqual(f.emitted[0].rooms, ['clube:2', 'clube:3']);
-  for (const emitted of f.emitted) { assert.equal(emitted.data.meuVoto, undefined); assert.equal(emitted.data.usuario_id, undefined); }
+  for (const emitted of f.emitted) { assert.equal(emitted.data.meuVoto, undefined); assert.equal(emitted.data.usuario_id, undefined); assert.equal(emitted.data.podeVotar, undefined); }
   assert.equal((await (await call('/publico/partidas/77/palpite', undefined, token)).json()).meuVoto, null);
   assert.equal((await (await call('/partidas/77/palpite', undefined, token)).json()).meuVoto, 'MANDANTE');
   f.setStatus('FINALIZADA'); assert.equal((await call('/partidas/77/palpite', { escolha: 'VISITANTE' }, token)).status, 409);

@@ -5,6 +5,7 @@ import { cifrarCodigo, decifrarCodigo } from './codigo-seguro';
 import { Router, type Request, type Response } from 'express';
 
 import { prisma } from '../../lib/prisma';
+import { emailMascarado } from '../suporte/operations';
 import {
   exigirAdminDoClube,
   exigirGestorDoClube,
@@ -20,6 +21,7 @@ const router = Router();
 
 export async function listarConvites(req: Request, res: Response) {
   const clubeId = (req as any).clubeId as number;
+  const consultaTecnica = res.locals.funcionario?.papel_plataforma === 'DESENVOLVEDOR';
 
   const statusInformado = req.query.status
     ? String(req.query.status).trim().toUpperCase()
@@ -126,7 +128,7 @@ export async function listarConvites(req: Request, res: Response) {
 
         return {
           id: convite.id,
-          email: convite.email,
+          email: consultaTecnica && convite.email ? emailMascarado(convite.email) : convite.email,
           papel: convite.papel,
           acesso_todas_categorias:
             convite.acesso_todas_categorias,
@@ -135,15 +137,15 @@ export async function listarConvites(req: Request, res: Response) {
           situacao: expirado
             ? 'EXPIRADO'
             : convite.status,
-          codigo_disponivel: !expirado && convite.status === 'PENDENTE' && !!convite.codigo_cifrado,
+          codigo_disponivel: !consultaTecnica && !expirado && convite.status === 'PENDENTE' && !!convite.codigo_cifrado,
 
           expira_em: convite.expira_em,
           criado_em: convite.criado_em,
           aceito_em: convite.aceito_em,
           revogado_em: convite.revogado_em,
 
-          criado_por: convite.criadoPor,
-          aceito_por: convite.aceitoPor,
+          criado_por: consultaTecnica ? undefined : convite.criadoPor,
+          aceito_por: consultaTecnica ? undefined : convite.aceitoPor,
 
           categorias: convite.categorias.map(
             item => item.categoria

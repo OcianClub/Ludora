@@ -8,13 +8,11 @@ export const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.fundo,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.borda,
-      paddingHorizontal: 12,
       paddingTop: 0,
       elevation: 0,
       shadowOpacity: 0,
     },
     item: {
-      marginHorizontal: 4,
       paddingTop: 0,
       paddingBottom: 3,
     },

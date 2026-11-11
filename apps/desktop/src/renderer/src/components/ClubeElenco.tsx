@@ -14,8 +14,9 @@ import '@web/pages/Jogadores.css';
 type Jogador = EditablePlayer & { ativo: boolean };
 const POR_PAGINA = 25;
 
-export function ClubeElenco({ clubeId, clubeNome, categoriaId, categoriaNome, onCategoria, onAlterado }: {
+export function ClubeElenco({ clubeId, clubeNome, categoriaId, categoriaNome, podeGerenciar, onCategoria, onAlterado }: {
   clubeId: number; clubeNome: string; categoriaId: number; categoriaNome: string;
+  podeGerenciar: boolean;
   onCategoria: (id: number) => void; onAlterado: (mensagem: string) => void;
 }) {
   const clubeBase = `/admin/clubes/${clubeId}`;
@@ -83,7 +84,7 @@ export function ClubeElenco({ clubeId, clubeNome, categoriaId, categoriaNome, on
   if (perfilId !== null) return <div className="player-profile-page desktop-player-profile">
     <button type="button" className="player-back" onClick={() => { setPerfilId(null); setPerfil(null); }}><Icon name="chevronLeft" size={18}/>Jogadores do {categoriaNome.toUpperCase()}</button>
     {erroPerfil ? <p className="notice-error" role="alert">{erroPerfil}<Btn size="sm" variant="ghost" onClick={() => setVersao(v => v + 1)}>Tentar novamente</Btn></p> : !perfil ? <LoadingSkeleton kind="match"/> : <>
-      <PlayerProfileHeader player={perfil} club={clubeNome} actions={<>
+      <PlayerProfileHeader player={perfil} club={clubeNome} actions={podeGerenciar && <>
         <button type="button" className="desktop-icon-action" aria-label="Editar jogador" data-tooltip="Editar jogador" onClick={() => setEditando(true)}><Icon name="edit" size={20}/></button>
         <ExcluirIcone label="Excluir jogador" onClick={() => { setErroExclusao(''); setExcluindo(true); }}/>
       </>}/>

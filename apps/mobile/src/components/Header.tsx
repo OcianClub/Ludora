@@ -53,7 +53,6 @@ export function Header({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [escudoComErro, setEscudoComErro] = useState<string | null>(null);
-
   return (
     <View
       style={[

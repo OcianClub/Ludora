@@ -29,7 +29,7 @@ export function obterHistorico(): HistoricoLogs {
 }
 
 /**
- * Conecta ao namespace /admin da API, que só aceita Super Admin. O socket vive
+ * Conecta ao namespace /admin da API com o escopo de logs do cargo. O socket vive
  * no processo principal: o token não passa pelo renderer, e o histórico
  * sobrevive à troca de telas.
  */

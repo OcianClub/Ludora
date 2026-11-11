@@ -10,6 +10,7 @@ import { DesktopAccordion } from '../components/DesktopAccordion';
 import { PlatformClubOption } from '../components/PlatformClubCollection';
 import { MaintenanceReasonIcon, motivosPausa, motivosReativacao } from '../components/MaintenanceReasonIcon';
 import { requestJson } from '../services/api';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
 import './Manutencao.css';
 
 const base = '/admin/equipe/manutencao';
@@ -28,6 +29,7 @@ export default function ManutencaoPage() {
 }
 
 function ManutencaoContexto({ chamadoId, eventoInicial }: { chamadoId: string | null; eventoInicial: string | null }) {
+  const dev = useAdminAuth().usuario?.papel_plataforma === 'DESENVOLVEDOR';
   const grupoClube = useId();
   const url = chamadoId ? `${base}?chamado=${encodeURIComponent(chamadoId)}` : base;
   const [dados, setDados] = useState<Data>();
@@ -62,10 +64,10 @@ function ManutencaoContexto({ chamadoId, eventoInicial }: { chamadoId: string | 
     const evento = dados?.eventos.find(e => String(e.id) === eventoInicial);
     if (!evento || !dados) return;
     setBusca(evento.titulo);
-    if (!dados.pausas.some(p => p.ativa && (p.escopo === 'GLOBAL' || p.escopo === 'EVENTO' && p.alvoId === evento.id) && ['AGENDA_OFICIAL', 'SINCRONIZAR_PAULISTA'].includes(p.operacao))) {
+    if (!dev && !dados.pausas.some(p => p.ativa && (p.escopo === 'GLOBAL' || p.escopo === 'EVENTO' && p.alvoId === evento.id) && ['AGENDA_OFICIAL', 'SINCRONIZAR_PAULISTA'].includes(p.operacao))) {
       setModal('pausar'); setOperacao('AGENDA_OFICIAL'); setEscopo('EVENTO'); setAlvo(String(evento.id));
     }
-  }, [eventoInicial, !!dados]);
+  }, [eventoInicial, !!dados, dev]);
   const chamado = dados?.chamado;
   const clubeChamado = dados?.clubes.find(c => c.id === chamado?.clubeId);
   const pausas = dados?.pausas || [];
@@ -103,8 +105,8 @@ function ManutencaoContexto({ chamadoId, eventoInicial }: { chamadoId: string | 
   const clubesVisiveis = (dados?.clubes || []).filter(c => String(c.id) === alvo || c.nome.toLocaleLowerCase().includes(buscaClube.trim().toLocaleLowerCase()));
   const filtrosAtivos = Object.values(filtros).filter(Boolean).length;
   return <div className="ticket-page desktop-maintenance-page">
-    <header className="page-header"><div><span className="ticket-kicker">Operação da plataforma</span><h1 className="page-title">Manutenção</h1><p className="page-sub">Gerencie pausas temporárias e acompanhe as revisões.</p></div>
-      <div className="actions"><Btn variant="ghost" disabled={carregando || salvando} onClick={() => void carregar()}><Icon name="refresh" size={17}/>Atualizar</Btn><Btn disabled={!dados || carregando || chamado?.status === 'RESOLVIDO'} onClick={() => abrir('pausar')}><Icon name="plus" size={17}/>Nova pausa</Btn></div>
+    <header className="page-header"><div><span className="ticket-kicker">Operação da plataforma</span><h1 className="page-title">Manutenção</h1><p className="page-sub">{dev ? 'Consulte as pausas temporárias e o histórico de intervenções.' : 'Gerencie pausas temporárias e acompanhe as revisões.'}</p></div>
+      <div className="actions"><Btn variant="ghost" disabled={carregando || salvando} onClick={() => void carregar()}><Icon name="refresh" size={17}/>Atualizar</Btn>{!dev && <Btn disabled={!dados || carregando || chamado?.status === 'RESOLVIDO'} onClick={() => abrir('pausar')}><Icon name="plus" size={17}/>Nova pausa</Btn>}</div>
     </header>
     {chamado && <Card className="maintenance-linked"><div><span>Chamado vinculado · {nomeAlvo('CLUBE', chamado.clubeId)}</span><strong>{chamado.assunto}</strong></div><Link to={`/chamados?id=${chamado.id}`}>Voltar ao chamado<Icon name="chevronRight" size={15}/></Link></Card>}
     <DesktopTabs label="Situação das pausas" value={verHistorico ? 'encerradas' : 'ativas'} options={[

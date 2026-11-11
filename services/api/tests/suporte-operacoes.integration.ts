@@ -38,6 +38,13 @@ export async function testarOperacoes(prisma: PrismaClient, contas: Conta[], men
   const admin = await login(contas.find(c => c.papel === 'SUPERADMIN')!);
   const dev = await login(contas.find(c => c.papel === 'DESENVOLVEDOR')!);
   const cliente = await login({ email, senha });
+  const chamadoInterno = await req('/suporte', 'POST', { requestId: randomUUID(), assunto: 'Staff account recovery', descricao: 'Request to change an internal account address.', tipo: 'RECUPERACAO', impacto: 'DIFICULDADE' }, dev);
+  assert.equal(chamadoInterno.status, 201);
+  const interno = `/admin/equipe/chamados/${chamadoInterno.data.id}/operacoes`;
+  const contaDev = await prisma.usuario.findUniqueOrThrow({ where: { email: contas.find(c => c.papel === 'DESENVOLVEDOR')!.email } });
+  assert.equal((await req(interno, 'GET', undefined, suporte)).data.conta, null);
+  assert.equal((await req(interno + '/envio', 'POST', { tipo: 'RECUPERACAO', alvoId: String(contaDev.id), requestId: randomUUID() }, suporte)).status, 403);
+  assert.equal((await req(interno + '/recuperacao-excepcional', 'POST', { novoEmail, justificativa: 'Tentativa de mudar o e-mail de funcionário.' }, suporte)).status, 403);
   const chamado = await req('/suporte', 'POST', { requestId: randomUUID(), assunto: 'Invite and access recovery', descricao: 'The invitation did not arrive. I need help recovering access.', tipo: 'RECUPERACAO', impacto: 'DIFICULDADE' }, cliente, clube.id);
   assert.equal(chamado.status, 201);
   const base = `/admin/equipe/chamados/${chamado.data.id}/operacoes`;

@@ -32,6 +32,7 @@ export default function ClubesPage() {
   const [erro, setErro] = useState('');
   const [aberto, setAberto] = useState(false);
   const { usuario } = useAdminAuth();
+  const podeCadastrar = usuario?.papel_plataforma === 'SUPERADMIN';
   const { form, setForm, etapa, setEtapa, alcancada, candidato, setCandidato, ready, error: erroRascunho, save: salvarRascunho, reset: limparRascunho, hasDraft } = useClubRegistrationDraft(usuario!.id);
   const [aviso, setAviso] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -130,11 +131,11 @@ export default function ClubesPage() {
     <div className="desktop-clubs-page">
       <div className="page-header">
         <div><h1 className="page-title">Clubes</h1><p className="page-sub">{clubes.length} cadastrados · clientes da plataforma</p></div>
-        <Btn disabled={!ready} onClick={() => { setErroForm(''); setAviso(''); setAberto(true); }}><AdminIcon name="plus" size={18} /> Novo clube</Btn>
+        {podeCadastrar && <Btn disabled={!ready} onClick={() => { setErroForm(''); setAviso(''); setAberto(true); }}><AdminIcon name="plus" size={18} /> Novo clube</Btn>}
       </div>
       <Toast message={aviso} onClose={()=>setAviso('')}/>
-      {erroRascunho && <p className="notice-error" role="alert">{erroRascunho}</p>}
-      {ready && hasDraft && !aberto && <div className="club-draft-notice"><Icon name="edit" size={18}/><div><strong>Cadastro em andamento{form.nome.trim() ? ` · ${form.nome.trim()}` : ''}</strong><p>Etapa {etapa + 1} de 3 · Salvo neste dispositivo</p></div><Btn size="sm" variant="ghost" onClick={()=>setDescartar(true)}>Descartar rascunho</Btn><Btn size="sm" onClick={()=>{setErroForm('');setAberto(true);}}>Retomar cadastro</Btn></div>}
+      {podeCadastrar && erroRascunho && <p className="notice-error" role="alert">{erroRascunho}</p>}
+      {podeCadastrar && ready && hasDraft && !aberto && <div className="club-draft-notice"><Icon name="edit" size={18}/><div><strong>Cadastro em andamento{form.nome.trim() ? ` · ${form.nome.trim()}` : ''}</strong><p>Etapa {etapa + 1} de 3 · Salvo neste dispositivo</p></div><Btn size="sm" variant="ghost" onClick={()=>setDescartar(true)}>Descartar rascunho</Btn><Btn size="sm" onClick={()=>{setErroForm('');setAberto(true);}}>Retomar cadastro</Btn></div>}
 
       <div className="schedule-filter-primary ticket-toolbar club-toolbar">
         <div ref={buscaRef}><CollectionSearch label="Buscar clube" placeholder="Buscar nome, cidade ou UF…" value={busca} onChange={v => filtrar('busca', v)}/></div>

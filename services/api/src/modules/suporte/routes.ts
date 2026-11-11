@@ -9,7 +9,7 @@ import { dadosPublicos, registrarFalha } from './service';
 
 const limite = limitarRequisicoes({ janelaMs: 60000, limite: 10, prefixo: 'suporte' });
 const permitido = (cargo: string, c: { restrito: boolean; fila: string; origem: string; tipo: string }) =>
-  cargo === 'SUPERADMIN' || cargo === 'SUPORTE' || (!c.restrito && (c.fila === 'DESENVOLVIMENTO' || c.origem === 'AUTOMATICO' && c.tipo === 'ERRO'));
+  cargo === 'SUPERADMIN' || cargo === 'SUPORTE' || (cargo === 'DESENVOLVEDOR' && !c.restrito && (c.fila === 'DESENVOLVIMENTO' || c.origem === 'AUTOMATICO' && c.tipo === 'ERRO'));
 
 function dataFiltro(valor: unknown) {
   if (typeof valor !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return null;
@@ -74,11 +74,15 @@ export function criarSuporteRoutes() {
     }
     const c = await prisma.suporteChamado.findFirst({ where: { id: String(req.params.id), usuarioId } });
     if (!c) { res.status(404).json({ error: 'Chamado não encontrado.' }); return; }
-    await prisma.suporteChamado.update({ where: { id: c.id }, data: {
-      status: c.status === 'RESOLVIDO' ? 'REABERTO' : 'EM_TRIAGEM', revisao: { increment: 1 },
+    await prisma.suporteChamado.update({ where: { id: c.id, revisao: c.revisao }, data: {
+      status: c.status === 'RESOLVIDO' ? 'REABERTO' : c.status === 'ENCAMINHADO_DEVS' ? c.status : 'EM_TRIAGEM',
+      ...(c.status === 'RESOLVIDO' && c.fila === 'DESENVOLVIMENTO' ? { fila: 'SUPORTE', responsavelId: null } : {}),
+      revisao: { increment: 1 },
       historico: { create: { operadorId: usuarioId, acao: 'RESPOSTA_CLIENTE', motivo: sanitizar(req.body.mensagem), publico: true } },
-    } });
-    res.json({ ok: true });
+    } }).then(() => res.json({ ok: true })).catch(error => {
+      if (error?.code !== 'P2025') throw error;
+      res.status(409).json({ error: 'O chamado mudou. Atualize e envie a resposta novamente.' });
+    });
   });
   router.use('/admin/equipe/chamados', exigirEquipe);
   const visibilidade = (cargo: string): Prisma.SuporteChamadoWhereInput => cargo === 'DESENVOLVEDOR'
@@ -216,7 +220,8 @@ export function criarSuporteRoutes() {
     else if (acao === 'ENCAMINHAR') {
       if (c.restrito || operador.papel_plataforma === 'DESENVOLVEDOR') { res.status(403).json({ error: 'Este caso exige análise do suporte ou administrador.' }); return; }
       if (c.status === 'RESOLVIDO') { res.status(409).json({ error: 'Reabra o chamado antes de encaminhá-lo.' }); return; }
-      Object.assign(data, { fila: 'DESENVOLVIMENTO', status: 'ENCAMINHADO_DEVS', detalhesTecnicos: {
+      if (c.status === 'ENCAMINHADO_DEVS') { res.status(409).json({ error: 'O chamado já está com desenvolvimento.' }); return; }
+      Object.assign(data, { fila: 'DESENVOLVIMENTO', status: 'ENCAMINHADO_DEVS', responsavelId: null, detalhesTecnicos: {
         ...((c.detalhesTecnicos as object) || {}), reproducao: sanitizar(motivo), rota: c.rota, versao: c.versao, servico: c.servico,
       } });
     } else if (acao === 'DEVOLVER') {
@@ -230,11 +235,17 @@ export function criarSuporteRoutes() {
       data.status = 'RESOLVIDO';
     } else if (acao === 'STATUS') {
       if (operador.papel_plataforma === 'DESENVOLVEDOR' || !STATUS_CHAMADO.includes(req.body.status) || req.body.status === 'ENCAMINHADO_DEVS') { res.status(403).json({ error: 'Use o encaminhamento ou a devolução conforme seu cargo.' }); return; }
+      if (c.status === 'ENCAMINHADO_DEVS') { res.status(409).json({ error: 'O chamado aguarda devolução do desenvolvimento.' }); return; }
       data.status = req.body.status;
+      if (c.status === 'RESOLVIDO' && req.body.status !== 'RESOLVIDO' && c.fila === 'DESENVOLVIMENTO') Object.assign(data, { fila: 'SUPORTE', responsavelId: null });
     } else if (acao === 'CLASSIFICAR') {
       if (operador.papel_plataforma === 'DESENVOLVEDOR' || !TIPOS_CHAMADO.includes(req.body.tipo)) { res.status(403).json({ error: 'Classificação exige suporte ou administrador.' }); return; }
       Object.assign(data, { tipo: req.body.tipo, ...classificar(req.body.tipo, c.ocorrencias, 1), regra: 'REVISAO_HUMANA' });
-          if (c.restrito && operador.papel_plataforma !== 'SUPERADMIN') { data.restrito = true; data.fila = 'SUPORTE'; }
+      if (c.restrito && operador.papel_plataforma !== 'SUPERADMIN') { data.restrito = true; data.fila = 'SUPORTE'; }
+      if (c.status === 'ENCAMINHADO_DEVS') {
+        if (data.restrito) Object.assign(data, { status: 'EM_TRIAGEM', responsavelId: null });
+        else data.fila = 'DESENVOLVIMENTO';
+      }
     } else if (acao !== 'COMENTAR') { res.status(400).json({ error: 'Ação desconhecida.' }); return; }
     const resultado = await prisma.$transaction(async tx => {
       const atualizado = await tx.suporteChamado.updateMany({ where: { id: c.id, revisao }, data });

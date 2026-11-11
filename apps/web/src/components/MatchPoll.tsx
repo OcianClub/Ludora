@@ -16,6 +16,7 @@ function MatchPollSession({ data, token }: { data: GestaoPartida; token: string 
   const ended = ['FINALIZADA', 'CANCELADA'].includes(data.partida.status);
   const { poll, loading, busy, error, notice, vote, reload } = useMatchPoll(data.partida.id, token, ended);
   const closed = ended || Boolean(poll && !poll.aberta);
+  if (!closed && poll?.podeVotar === false) return null;
   const options = [data.partida.mandante, undefined, data.partida.visitante];
   return <section className="match-poll" aria-labelledby="match-poll-title" aria-busy={busy}>
     <header><div><h2 id="match-poll-title">{closed ? 'Palpite da torcida' : 'Quem você acha que vence?'}</h2><p>{poll ? `${poll.total} ${poll.total === 1 ? 'palpite' : 'palpites'}${closed ? ' · votação encerrada' : ''}` : loading ? 'Carregando votação…' : 'Palpites do público'}</p></div><Icon name="trophy" size={20} /></header>

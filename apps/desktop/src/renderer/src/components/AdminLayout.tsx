@@ -7,6 +7,7 @@ import { ThemeOptions } from '@web/components/ThemeOptions';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { AdminIcon, type AdminIconName } from './AdminIcon';
 import { ROTULO_ESTADO, useEstadoTempoReal } from './useTempoReal';
+import { podeAbrirAba } from '../permissions';
 
 const NAV: { label: string; items: { to: string; label: string; icon: AdminIconName }[] }[] = [
   { label: 'Gestão da plataforma', items: [
@@ -50,11 +51,9 @@ export default function AdminLayout() {
       return !valor;
     });
   }
-  const superadmin = usuario?.papel_plataforma === 'SUPERADMIN';
+  const podeVerLogs = podeAbrirAba(usuario?.papel_plataforma, '/logs');
   const inicio = '/visao';
-  const secoes = NAV.map(secao => ({ ...secao, items: secao.items.filter(item => superadmin
-    || (usuario?.papel_plataforma === 'SUPORTE' && item.to === '/manutencao')
-    || ['/chamados', '/ajustes'].includes(item.to)) })).filter(secao => secao.items.length);
+  const secoes = NAV.map(secao => ({ ...secao, items: secao.items.filter(item => podeAbrirAba(usuario?.papel_plataforma, item.to)) })).filter(secao => secao.items.length);
   const [apiHost, setApiHost] = useState('');
   useEffect(() => {
     let ativo = true;
@@ -115,7 +114,7 @@ export default function AdminLayout() {
             <div className="admin-workspace-actions">
               {ambiente && <Link to="/ajustes" aria-label={`Servidor da API: ${ambiente}. Configurar conexão`} data-tooltip={apiHost}
                 className={`admin-environment${ambiente === 'Produção' ? ' admin-environment-production' : ''}`}>{ambiente}</Link>}
-              {superadmin && <span className={`rt-pill rt-${estado}`} role="status" aria-label={`Conexão em tempo real: ${ROTULO_ESTADO[estado]}`} data-tooltip="Conexão em tempo real com a API">
+              {podeVerLogs && <span className={`rt-pill rt-${estado}`} role="status" aria-label={`Conexão em tempo real: ${ROTULO_ESTADO[estado]}`} data-tooltip="Conexão em tempo real com a API">
                 <span className="rt-dot" aria-hidden="true"/>{ROTULO_ESTADO[estado]}
               </span>}
               <ThemeOptions />

@@ -28,9 +28,18 @@ async function main() {
   assert.equal((await req('DESENVOLVEDOR', `/admin/equipe/chamados/${id}`)).status, 403);
   const detail = await req('SUPORTE', `/admin/equipe/chamados/${id}`); assert.equal(detail.status, 200); assert.equal(detail.body.rota, '/partidas');
   assert.equal((await req('SUPORTE', `/admin/equipe/chamados/${id}`, 'PATCH', { acao: 'ENCAMINHAR', motivo: 'Open invitations and submit. The action fails.', revisao: detail.body.revisao })).status, 200);
+  assert.equal((await req('USUARIO', `/suporte/${id}/responder`, 'POST', { mensagem: 'The issue also happens in the desktop app.' })).status, 200);
   const report = await req('DESENVOLVEDOR', `/admin/equipe/chamados/${id}`); assert.ok(report.body.detalhesTecnicos.reproducao);
+  assert.equal(report.body.status, 'ENCAMINHADO_DEVS');
+  const filaDev = await req('DESENVOLVEDOR', `/admin/equipe/chamados?visao=ENCAMINHADOS&busca=${id}`);
+  assert.equal(filaDev.body[0].id, id);
+  assert.equal((await req('SUPORTE', `/admin/equipe/chamados/${id}`, 'PATCH', { acao: 'STATUS', status: 'EM_TRIAGEM', motivo: 'Trying to move a forwarded ticket.', revisao: report.body.revisao })).status, 409);
   assert.equal((await req('DESENVOLVEDOR', `/admin/equipe/chamados/${id}`, 'PATCH', { acao: 'STATUS', status: 'RESOLVIDO', motivo: 'Tentativa proibida de encerrar.', revisao: report.body.revisao })).status, 403);
   assert.equal((await req('DESENVOLVEDOR', `/admin/equipe/chamados/${id}`, 'PATCH', { acao: 'DEVOLVER', motivo: 'Correção pronta para conferir com o cliente.', revisao: report.body.revisao })).status, 200);
+  assert.equal((await req('DESENVOLVEDOR', `/admin/equipe/chamados/${id}`)).status, 403);
+  const devolvido = await req('SUPORTE', `/admin/equipe/chamados/${id}`);
+  assert.equal(devolvido.body.status, 'EM_TRIAGEM');
+  assert.equal((await req('SUPORTE', `/admin/equipe/chamados/${id}`, 'PATCH', { acao: 'FINALIZAR', motivo: 'Confirmed the fix with the customer.', publico: true, revisao: devolvido.body.revisao })).status, 200);
   const restricted = await req('USUARIO', '/suporte', 'POST', { ...input, requestId: randomUUID(), tipo: 'RECUPERACAO' });
   assert.equal((await req('SUPORTE', `/admin/equipe/chamados/${restricted.body.id}`)).status, 200);
   assert.equal((await req('DESENVOLVEDOR', `/admin/equipe/chamados/${restricted.body.id}`)).status, 403);
@@ -57,14 +66,18 @@ async function main() {
   const { correlacionarFalhas } = await import('../src/modules/suporte/service.js');
   const { tratarErroHttp } = await import('../src/middlewares/http-errors.middleware.js');
   const { prisma } = await import('../src/lib/prisma.js');
-  const rota = `/test-${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+  const caso = `test-${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+  const rota = `/admin/equipe/${caso}`;
+  const rotaPrivada = `/admin/equipe/${caso}/operacoes/recuperacao-excepcional`;
+  const rotaCliente = `/admin/equipe/${caso}/invalid`;
   const apiFalha = express();
   apiFalha.use(correlacionarFalhas);
-  apiFalha.get(rota, () => {
+  apiFalha.get([rota, rotaPrivada], () => {
     const erro = new Error('private message');
     erro.stack = 'private message\n at handler (C:/private/account.ts:25:4)';
     throw erro;
   });
+  apiFalha.get(rotaCliente, (_req, res) => res.sendStatus(400));
   apiFalha.use(tratarErroHttp);
   const server = apiFalha.listen(0, '127.0.0.1');
   await new Promise<void>(r => server.once('listening', r));
@@ -76,15 +89,24 @@ async function main() {
       assert.equal(resposta.status, 500);
       assert.equal(resposta.headers.get('x-correlation-id'), correlacao);
     }
+    assert.equal((await fetch(`http://127.0.0.1:${porta}${rotaPrivada}`)).status, 500);
+    assert.equal((await fetch(`http://127.0.0.1:${porta}${rotaCliente}`)).status, 400);
   } finally { await new Promise<void>(r => server.close(() => r())); }
   for (let i = 0; i < 40; i++) {
-    if (await prisma.suporteChamado.count({ where: { rota, ocorrencias: 3 } })) break;
+    if (await prisma.suporteChamado.count({ where: { OR: [{ rota, ocorrencias: 3 }, { rota: rotaPrivada }] } }) === 2) break;
     await new Promise(r => setTimeout(r, 25));
   }
   const automatic = await prisma.suporteChamado.findFirstOrThrow({ where: { rota } });
   assert.equal(await prisma.suporteChamado.count({ where: { rota } }), 1);
   assert.equal(automatic.ocorrencias, 3); assert.equal(automatic.fila, 'DESENVOLVIMENTO');
   assert.equal(JSON.stringify(automatic).includes('private message'), false);
+  const refAuto = `${endpoint}/${automatic.id}`;
+  assert.equal((await req('DESENVOLVEDOR', refAuto)).body.detalhesTecnicos.pistas[0].arquivo, 'account.ts');
+  assert.equal((await req('SUPORTE', refAuto)).body.detalhesTecnicos, undefined);
+  const autoRestrito = await prisma.suporteChamado.findFirstOrThrow({ where: { rota: rotaPrivada } });
+  assert.equal(autoRestrito.restrito, true);
+  assert.equal((await req('DESENVOLVEDOR', `${endpoint}/${autoRestrito.id}`)).status, 403);
+  assert.equal(await prisma.suporteChamado.count({ where: { rota: rotaCliente } }), 0);
   await fs.writeFile(path.join(pasta, 'chamados.json'), JSON.stringify({ manual: id, automatico: automatic.id, restrito: restricted.body.id }));
   await prisma.$disconnect();
   console.log('PASS chamados persistidos, repetição, restrição, encaminhamento, devolução e regra de recorrência.');

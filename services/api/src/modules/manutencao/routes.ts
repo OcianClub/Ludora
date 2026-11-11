@@ -22,23 +22,28 @@ async function registrarNoChamado(tx: Prisma.TransactionClient, pausa: Manutenca
 export function criarManutencaoRoutes() {
   const r = Router();
   const base = '/admin/equipe/manutencao';
-  r.use(base, exigirEquipe, (_req, res, next) => {
-    if (res.locals.funcionario.papel_plataforma === 'DESENVOLVEDOR') { res.status(403).json({ error: 'Controles de manutenção exigem suporte ou administração.' }); return; }
+  r.use(base, exigirEquipe, (req, res, next) => {
+    if (!['GET', 'HEAD'].includes(req.method) && res.locals.funcionario.papel_plataforma === 'DESENVOLVEDOR') { res.status(403).json({ error: 'Controles de manutenção exigem suporte ou administração.' }); return; }
     next();
   });
   r.get(base, async (req, res) => {
-    const admin = res.locals.funcionario.papel_plataforma === 'SUPERADMIN';
+    const cargo = res.locals.funcionario.papel_plataforma;
+    const dev = cargo === 'DESENVOLVEDOR';
     const idChamado = typeof req.query.chamado === 'string' ? req.query.chamado : '';
+    if (dev && idChamado) { res.status(403).json({ error: 'O vínculo de manutenção com chamados é restrito ao atendimento.' }); return; }
     const [pausas, clubes, eventos, chamado] = await Promise.all([
       prisma.manutencao.findMany({ where: idChamado ? { chamadoId: idChamado } : undefined, orderBy: [{ ativa: 'desc' }, { inicio: 'desc' }], include: { historico: { orderBy: { criadoEm: 'desc' }, take: 20 } } }),
       prisma.clube.findMany({ select: { id: true, nome: true, escudo: true }, orderBy: { nome: 'asc' } }),
-      admin ? prisma.fpfsCatalogo.findMany({ select: { id: true, ano: true, divisao: true, categoria: true }, orderBy: [{ ano: 'desc' }, { divisao: 'asc' }] }) : [],
+      cargo !== 'SUPORTE' ? prisma.fpfsCatalogo.findMany({ select: { id: true, ano: true, divisao: true, categoria: true }, orderBy: [{ ano: 'desc' }, { divisao: 'asc' }] }) : [],
       idChamado ? prisma.suporteChamado.findFirst({ where: { id: idChamado, clubeId: { not: null } }, select: { id: true, assunto: true, clubeId: true, status: true } }) : null,
     ]);
     if (idChamado && !chamado) { res.status(404).json({ error: 'Chamado sem clube vinculado ou indisponível.' }); return; }
-    const cargo = res.locals.funcionario.papel_plataforma;
     const operacoes = Object.entries(OPERACOES).map(([value, label]) => ({ value, label, escopos: ['GLOBAL', 'CLUBE', 'EVENTO'].filter(escopo => escopoPermitido(cargo, value as Operacao, escopo)) }));
-    res.json({ pausas, clubes, eventos: eventos.map(e => ({ id: e.id, categoria: e.categoria, titulo: `Paulista ${e.ano} · ${e.divisao}` })), operacoes, chamado });
+    const visiveis = dev ? pausas.map(({ id, operacao, escopo, alvoId, ativa, inicio, revisarEm, motivo, revisao, historico }) => ({
+      id, operacao, escopo, alvoId, ativa, inicio, revisarEm, motivo, revisao, chamadoId: null,
+      historico: historico.map(h => ({ id: h.id, motivo: h.motivo, criadoEm: h.criadoEm, depois: { ativa: (h.depois as { ativa?: boolean } | null)?.ativa === true } })),
+    })) : pausas;
+    res.json({ pausas: visiveis, clubes, eventos: eventos.map(e => ({ id: e.id, categoria: e.categoria, titulo: `Paulista ${e.ano} · ${e.divisao}` })), operacoes, chamado });
   });
   r.post(base, async (req, res) => {
     const { operacao, escopo, alvoId, motivo, revisarEm, chamadoId } = req.body || {};

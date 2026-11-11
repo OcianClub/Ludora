@@ -4,6 +4,7 @@ import { createHashRouter, Navigate, Route, RouterProvider, Routes } from 'react
 import { Spinner } from './components/AdminUI';
 import { AdminAuthProvider, useAdminAuth } from './contexts/AdminAuthContext';
 import AdminLayout from './components/AdminLayout';
+import { podeAbrirAba } from './permissions';
 const LoginPage = lazy(() => import('./pages/Login'));
 const VisaoPage = lazy(() => import('./pages/Visao'));
 const ClubesPage = lazy(() => import('./pages/Clubes'));
@@ -26,17 +27,13 @@ function Rotas() {
         <Route index element={<Navigate to="/visao" replace />} />
         <Route path="/visao" element={<VisaoPage />} />
         <Route path="/equipe" element={<Navigate to="/visao" replace />} />
-        <Route path="/chamados" element={<ChamadosPage />} />
-        {usuario?.papel_plataforma !== 'DESENVOLVEDOR' && <Route path="/manutencao" element={<ManutencaoPage />} />}
-        <Route path="/ajustes" element={<AjustesPage />} />
-        {usuario?.papel_plataforma === 'SUPERADMIN' && <>
-        <Route path="/clubes" element={<ClubesPage />} />
-        <Route path="/clubes/:id" element={<ClubeDetalhePage />} />
-        <Route path="/usuarios" element={<UsuariosPage />} />
-        <Route path="/banco" element={<BancoPage />} />
-        <Route path="/logs" element={<LogsPage />} />
-        <Route path="/paulista" element={<PaulistaAdmin />} />
-        </>}
+        {([
+          ['/chamados', <ChamadosPage />], ['/manutencao', <ManutencaoPage />],
+          ['/ajustes', <AjustesPage />], ['/clubes', <ClubesPage />],
+          ['/clubes/:id', <ClubeDetalhePage />], ['/usuarios', <UsuariosPage />],
+          ['/banco', <BancoPage />], ['/logs', <LogsPage />], ['/paulista', <PaulistaAdmin />],
+        ] as const).map(([path, element]) => podeAbrirAba(usuario?.papel_plataforma, path.split('/:')[0])
+          ? <Route key={path} path={path} element={element} /> : null)}
       </Route>
       <Route path="*" element={<Navigate to="/visao" replace />} />
     </Routes>

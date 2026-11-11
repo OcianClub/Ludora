@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient, type OpcaoPalpite } from '@prisma/client';
+import { acesso } from './compartilhadas.service';
 
 export const OPCOES_PALPITE = ['MANDANTE', 'EMPATE', 'VISITANTE'] as const;
 export class ErroPalpite extends Error {
@@ -18,13 +19,25 @@ export function resumirVotos(contagens: Record<OpcaoPalpite, number>) {
 
 const selecionarPartida = {
   id: true, status: true, palpites_versao: true,
-  categoria: { select: { clube_id: true } },
-  participantes: { select: { clube_id: true } },
+  categoria: { select: { id: true, clube_id: true } },
+  participantes: { select: { clube_id: true, categoria_id: true } },
   mandante: { select: { clube_representado_id: true } },
   visitante: { select: { clube_representado_id: true } },
 } satisfies Prisma.PartidaSelect;
 
-async function resumo(tx: Prisma.TransactionClient, partida: Prisma.PartidaGetPayload<{ select: typeof selecionarPartida }>, usuarioId?: number) {
+type PartidaPalpite = Prisma.PartidaGetPayload<{ select: typeof selecionarPartida }>;
+
+async function podeGerenciarPartida(tx: Prisma.TransactionClient, partida: PartidaPalpite, usuarioId: number) {
+  const equipes = partida.participantes.length ? partida.participantes : [
+    { clube_id: partida.categoria.clube_id, categoria_id: partida.categoria.id },
+  ];
+  const permissoes = await Promise.all(equipes.map(equipe =>
+    acesso(tx, { usuarioId, clubeId: equipe.clube_id }, equipe.categoria_id),
+  ));
+  return permissoes.some(Boolean);
+}
+
+async function resumo(tx: Prisma.TransactionClient, partida: PartidaPalpite, usuarioId?: number, podeVotar?: boolean) {
   const grupos = await tx.votoPartida.groupBy({ by: ['escolha'], where: { partida_id: partida.id }, _count: { _all: true } });
   const votos: Record<OpcaoPalpite, number> = { MANDANTE: 0, EMPATE: 0, VISITANTE: 0 };
   for (const grupo of grupos) votos[grupo.escolha] = grupo._count._all;
@@ -33,6 +46,7 @@ async function resumo(tx: Prisma.TransactionClient, partida: Prisma.PartidaGetPa
     partida_id: partida.id, revisao: partida.palpites_versao, status: partida.status,
     aberta: ['AGENDADA', 'PREPARADA', 'AO_VIVO'].includes(partida.status),
     ...resumirVotos(votos), meuVoto: meu?.escolha ?? null,
+    ...(podeVotar === undefined ? {} : { podeVotar }),
   };
 }
 
@@ -40,7 +54,8 @@ export async function consultarPalpite(banco: PrismaClient, partidaId: number, u
   return banco.$transaction(async tx => {
     const partida = await tx.partida.findUnique({ where: { id: partidaId }, select: selecionarPartida });
     if (!partida) throw new ErroPalpite(404, 'Partida não encontrada.');
-    return resumo(tx, partida, usuarioId);
+    const podeVotar = usuarioId ? !await podeGerenciarPartida(tx, partida, usuarioId) : undefined;
+    return resumo(tx, partida, usuarioId, podeVotar);
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
 }
 
@@ -51,6 +66,9 @@ export async function registrarPalpite(banco: PrismaClient, partidaId: number, u
     let partida = await tx.partida.findUnique({ where: { id: partidaId }, select: selecionarPartida });
     if (!partida) throw new ErroPalpite(404, 'Partida não encontrada.');
     if (!['AGENDADA', 'PREPARADA', 'AO_VIVO'].includes(partida.status)) throw new ErroPalpite(409, 'A votação desta partida está encerrada.');
+    if (await podeGerenciarPartida(tx, partida, usuarioId)) {
+      throw new ErroPalpite(403, 'Quem gerencia esta partida não pode dar um palpite nela.');
+    }
     const chave = { partida_id: partidaId, usuario_id: usuarioId };
     const anterior = await tx.votoPartida.findUnique({ where: { partida_id_usuario_id: chave }, select: { escolha: true } });
     if (anterior?.escolha !== escolha) {
@@ -59,6 +77,6 @@ export async function registrarPalpite(banco: PrismaClient, partidaId: number, u
     }
     const clubes = [...new Set([partida.categoria.clube_id, partida.mandante.clube_representado_id,
       partida.visitante.clube_representado_id, ...partida.participantes.map(equipe => equipe.clube_id)].filter((id): id is number => Boolean(id)))];
-    return { resultado: await resumo(tx, partida, usuarioId), clubes, alterado: anterior?.escolha !== escolha };
+    return { resultado: await resumo(tx, partida, usuarioId, true), clubes, alterado: anterior?.escolha !== escolha };
   });
 }

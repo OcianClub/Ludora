@@ -1,4 +1,5 @@
 import { simularProvedor, testarOperacoes } from './suporte-operacoes.integration';
+import { testarAcessoDev } from './acesso-dev.integration';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -36,7 +37,10 @@ async function main() {
   try {
     for (const papel of ['SUPORTE', 'DESENVOLVEDOR', 'SUPERADMIN', 'USUARIO'] as const) {
       const senha = randomBytes(32).toString('base64url');
-      const email = `${papel.toLowerCase()}@equipe.example.test`;
+      const email = {
+        SUPORTE: 'suporte@ludora.com', DESENVOLVEDOR: 'dev@ludora.com',
+        SUPERADMIN: 'admin@ludora.com', USUARIO: 'usuario@equipe.example.test',
+      }[papel];
       const usuario = await prisma.usuario.upsert({ where: { email },
         create: { email, nome: `Test ${papel}`, senha: await bcrypt.hash(senha, 10), papel_plataforma: papel },
         update: { senha: await bcrypt.hash(senha, 10), papel_plataforma: papel },
@@ -55,12 +59,20 @@ async function main() {
         const r = await fetch('http://127.0.0.1:3018' + endpoint, { headers });
         assert.equal(r.status, papel === 'USUARIO' ? 403 : 200, `${papel} ${endpoint}`);
       }
-      for (const endpoint of ['/admin/usuarios', '/admin/logs', '/admin/db/status']) {
+      for (const endpoint of ['/admin/usuarios', '/admin/logs', '/admin/db/status', '/admin/sistema', '/admin/overview']) {
         const r = await fetch('http://127.0.0.1:3018' + endpoint, { headers });
-        assert.equal(r.status, papel === 'SUPERADMIN' ? 200 : 403, `${papel} ${endpoint}`);
+        assert.equal(r.status, papel === 'SUPERADMIN' || papel === 'DESENVOLVEDOR' ? 200 : 403, `${papel} ${endpoint}`);
+      }
+      for (const [endpoint, permitido] of [
+        ['/admin/equipe/chamados', papel !== 'USUARIO'],
+        ['/admin/equipe/manutencao', papel !== 'USUARIO'],
+        ['/admin/clubes/cascas?agrupar=clube', papel === 'SUPERADMIN'],
+      ] as const) {
+        const r = await fetch('http://127.0.0.1:3018' + endpoint, { headers });
+        assert.equal(r.status, permitido ? 200 : 403, `${papel} ${endpoint}`);
       }
       if (papel !== 'SUPERADMIN') {
-        for (const endpoint of ['/admin/clubes', `/admin/usuarios/${usuario.id}/revogar-sessoes`, '/admin/paulista/eventos/900/sincronizar']) {
+        for (const endpoint of ['/admin/clubes', `/admin/usuarios/${usuario.id}/revogar-sessoes`, '/admin/paulista/verificar']) {
           const r = await fetch('http://127.0.0.1:3018' + endpoint, { method: 'POST', headers, body: '{}' });
           assert.equal(r.status, 403, `${papel} ${endpoint}`);
         }
@@ -69,6 +81,16 @@ async function main() {
           assert.equal((await fetch('http://127.0.0.1:3018/admin/equipe/me', { headers })).status, 403, 'Rebaixamento revoga acesso com o mesmo token');
           await prisma.usuario.update({ where: { id: usuario.id }, data: { papel_plataforma: papel } });
         }
+      }
+      if (papel !== 'USUARIO') {
+        await prisma.usuario.update({ where: { id: usuario.id }, data: { suspenso: true } });
+        try {
+          assert.equal((await fetch('http://127.0.0.1:3018/admin/equipe/me', { headers })).status, 401, 'Suspensão bloqueia um token existente');
+        } finally {
+          await prisma.usuario.update({ where: { id: usuario.id }, data: { suspenso: false } });
+        }
+        await prisma.usuario.update({ where: { id: usuario.id }, data: { versao_sessao: { increment: 1 } } });
+        assert.equal((await fetch('http://127.0.0.1:3018/admin/equipe/me', { headers })).status, 401, 'Revogação bloqueia um token existente');
       }
       contas.push({ papel, email, senha });
     }
@@ -88,6 +110,7 @@ async function main() {
 
     }
     if (process.argv.includes('--completo')) {
+      await testarAcessoDev(prisma, contas, pasta);
       // A API precisa continuar atendendo enquanto os testes filhos usam HTTP.
       for (const arquivo of ['suporte.integration.ts', 'manutencao.integration.ts', 'paulista-operacional.integration.ts']) {
         await new Promise<void>((resolve, reject) => {
