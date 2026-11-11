@@ -22,6 +22,16 @@ export const exigirEquipe: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const exigirAcessoTecnico: RequestHandler = (req, res, next) => {
+  void exigirEquipe(req, res, () => {
+    if (!['SUPERADMIN', 'DESENVOLVEDOR'].includes(res.locals.funcionario.papel_plataforma)) {
+      res.status(403).json({ error: 'Acesso restrito à administração e ao desenvolvimento.' });
+      return;
+    }
+    next();
+  });
+};
+
 export function criarEquipeRoutes() {
   const router = Router();
   router.get('/admin/equipe/me', exigirEquipe, (_req, res) => {

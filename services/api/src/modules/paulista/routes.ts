@@ -6,9 +6,10 @@ import { prisma } from '../../lib/prisma';
 import { exigirAutenticacao } from '../../middlewares/auth.middleware';
 import { exigirGestorDoClube, exigirClubePublico } from '../../middlewares/permissoes.middleware';
 import { exigirSuperAdmin } from '../admin/superadmin';
+import { exigirAcessoTecnico } from '../admin/equipe';
 import { limitarRequisicoes } from '../../middlewares/rate-limit.middleware';
 import { baixarEvento, conferirCategorias, inteiroFonte } from './provider';
-import { ativo, desfazerVinculo, FalhaPaulista, importar, json, painel, registrarPlacarAtual, retroativo, vincular } from './service';
+import { ativo, desfazerVinculo, FalhaPaulista, importar, json, painel, registrarPlacarAtual, retroativo, validarSincronizacaoAcompanhada, vincular } from './service';
 import { rankingCalculado, sugestoes } from './rules';
 import type { SnapshotPaulista } from '../../../../../packages/shared-types/src/paulista';
 import { candidatosCascas, confirmarCandidato, executarCiclo, resumoAdministrativo, revisarPendencia } from './operations';
@@ -26,13 +27,23 @@ function id(v: unknown) { try { return inteiroFonte(v); } catch { throw new Falh
 function motivo(v: unknown) { if (typeof v !== 'string' || v.trim().length < 5 || v.length > 300) throw new FalhaPaulista(400, 'Informe motivo entre 5 e 300 caracteres.'); return v.trim(); }
 const equipeOperacional = ['ADMIN', 'TECNICO', 'MESARIO'] as const;
 const ocupados = new Set<number>();
-export async function sincronizar(idEvento: number, usuarioId: number | null, io: Server) {
+async function exigirEventoAcompanhado(eventoId: number) {
+  const [catalogo, evento] = await Promise.all([
+    prisma.fpfsCatalogo.findUnique({ where: { id: eventoId }, select: { acompanhado: true } }),
+    prisma.fpfsEvento.findUnique({ where: { id: eventoId }, select: { versao: true } }),
+  ]);
+  validarSincronizacaoAcompanhada(catalogo, evento);
+}
+
+export async function sincronizar(idEvento: number, usuarioId: number | null, io: Server, apenasAcompanhado = false) {
+  if (apenasAcompanhado) await exigirEventoAcompanhado(idEvento);
   await exigirOperacao(['SINCRONIZAR_PAULISTA', 'AGENDA_OFICIAL'], { eventoId: idEvento });
   if (ocupados.has(idEvento)) throw new FalhaPaulista(409, 'Sincronização já em andamento.');
   ocupados.add(idEvento);
   try {
     const s = await baixarEvento(idEvento);
     await exigirOperacao(['SINCRONIZAR_PAULISTA', 'AGENDA_OFICIAL'], { eventoId: idEvento });
+    if (apenasAcompanhado) await exigirEventoAcompanhado(idEvento);
     const anterior = await prisma.fpfsEvento.findUnique({ where: { id: idEvento } });
     if (anterior) {
       const old = anterior.payload as unknown as SnapshotPaulista;
@@ -50,12 +61,12 @@ export async function sincronizar(idEvento: number, usuarioId: number | null, io
         await prisma.fpfsPendencia.upsert({ where: { jogoId_tipo: { jogoId: j.id, tipo: 'IDENTIDADE' } }, create: { jogoId: j.id, tipo: 'IDENTIDADE', dados }, update: {} });
       }
     }
-    const r = await importar(prisma, s, usuarioId);
+    const r = await importar(prisma, s, usuarioId, { apenasAcompanhado, registrarSucesso: usuarioId !== null });
     const links = await prisma.fpfsVinculo.findMany({ where: { equipeId: { in: s.equipes.map(e => e.id) } } });
     for (const l of links) io.to(`clube:${l.clubeId}`).emit('paulista_atualizado', { eventoId: idEvento });
     return r;
   } catch (e) {
-    if (e instanceof OperacaoPausada) throw e;
+    if (e instanceof OperacaoPausada || e instanceof FalhaPaulista && e.status === 403) throw e;
     const existente = await prisma.fpfsEvento.findUnique({ where: { id: idEvento }, select: { id: true } }).catch(() => null);
     if (existente) await prisma.fpfsAuditoria.create({ data: { eventoId: idEvento, usuarioId, acao: 'FALHA_SINCRONIZACAO', dados: json({ origem: 'FPFS', motivo: e instanceof FalhaPaulista ? e.message : 'FALHA_REDE_FORMATO_OU_TRANSACAO', fonte: `https://eventos.admfutsal.com.br/evento/${idEvento}` }) } }).catch(() => undefined);
     throw e;
@@ -107,7 +118,7 @@ export function criarPaulistaRoutes(io: Server) {
     res.json(await prisma.jogador.findMany({ where: { categoria_id: e.categoria_id, ativo: true, numCamisa: { not: null } }, select: { id: true, nome: true, numCamisa: true } }));
   }));
   r.get('/admin/paulista/clubes', exigirSuperAdmin, habilitado, rota(async (_req, res) => { res.json(await prisma.clube.findMany({ select: { id: true, nome: true, cidade: true, categorias: { select: { nome: true, faixaIdade: true } } } })); }));
-  r.get('/admin/paulista', exigirSuperAdmin, habilitado, rota(async (_req, res) => {
+  r.get('/admin/paulista', exigirAcessoTecnico, habilitado, rota(async (_req, res) => {
     const [resumo, pausas, recentes] = await Promise.all([
       resumoAdministrativo(prisma),
       prisma.manutencao.findMany({ where: { ativa: true, operacao: { in: ['AGENDA_OFICIAL', 'SINCRONIZAR_PAULISTA'] } } }),
@@ -122,7 +133,7 @@ export function criarPaulistaRoutes(io: Server) {
     const nome = String(req.query.nome || '').trim();
     res.json(nome.length >= 3 && nome.length <= 80 ? await candidatosCascas(prisma, nome) : []);
   }));
-  r.get('/admin/paulista/eventos/:id', exigirSuperAdmin, habilitado, rota(async (req, res) => {
+  r.get('/admin/paulista/eventos/:id', exigirAcessoTecnico, habilitado, rota(async (req, res) => {
     const eventoId = id(req.params.id);
     const p = await painel(prisma, eventoId);
     const chamados = await prisma.suporteChamado.findMany({ where: { fingerprint: { in: [
@@ -192,7 +203,10 @@ export function criarPaulistaRoutes(io: Server) {
   r.post('/admin/paulista/eventos/:id/revisar-vinculo', exigirSuperAdmin, habilitado, rota(async (req, res) => {
     res.json(await solicitarAnaliseVinculo(id(req.params.id), id(req.body.equipeId), (req as any).usuarioId, motivo(req.body.motivo)));
   }));
-  r.post('/admin/paulista/eventos/:id/sincronizar', exigirSuperAdmin, habilitado, limite, rota(async (req, res) => { res.json(await sincronizar(id(req.params.id), (req as any).usuarioId, io)); }));
+  r.post('/admin/paulista/eventos/:id/sincronizar', exigirAcessoTecnico, habilitado, limite, rota(async (req, res) => {
+    const { id: operadorId, papel_plataforma } = res.locals.funcionario;
+    res.json(await sincronizar(id(req.params.id), operadorId, io, papel_plataforma === 'DESENVOLVEDOR'));
+  }));
   r.get('/admin/paulista/conferencia', exigirSuperAdmin, habilitado, limite, rota(async (req, res) => { res.json(await conferirCategorias(id(req.query.ano), id(req.query.equipe))); }));
   r.get('/admin/paulista/eventos/:id/sugestoes', exigirSuperAdmin, habilitado, rota(async (req, res) => {
     const p = await painel(prisma, id(req.params.id));
@@ -218,7 +232,7 @@ export function criarPaulistaRoutes(io: Server) {
     await prisma.fpfsAuditoria.create({ data: { eventoId: e.id, usuarioId: (req as any).usuarioId, acao: 'PROGRAMACAO', dados: json(req.body) } });
     res.json({ diario: req.body.diario });
   }));
-  r.get('/admin/paulista/eventos/:id/historico', exigirSuperAdmin, habilitado, rota(async (req, res) => {
+  r.get('/admin/paulista/eventos/:id/historico', exigirAcessoTecnico, habilitado, rota(async (req, res) => {
     const jogo = typeof req.query.jogo === 'string' && req.query.jogo.length <= 100 ? req.query.jogo : '';
     const pendencia = Number(req.query.pendencia);
     const filtro = Number.isSafeInteger(pendencia) && pendencia > 0 ? { path: ['pendenciaId'], equals: pendencia }

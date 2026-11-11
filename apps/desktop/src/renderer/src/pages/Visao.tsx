@@ -18,6 +18,7 @@ const numero = (n: number) => n.toLocaleString('pt-BR');
 export default function VisaoPage() {
   const { usuario } = useAdminAuth();
   const superadmin = usuario?.papel_plataforma === 'SUPERADMIN';
+  const desenvolvimento = usuario?.papel_plataforma === 'DESENVOLVEDOR';
   const [dados, setDados] = useState<VisaoGlobal | null>(null);
   const [operacao, setOperacao] = useState<ResumoOperacional | null>(null);
   const [erro, setErro] = useState('');
@@ -57,11 +58,15 @@ export default function VisaoPage() {
   }, [superadmin]);
 
   if (!superadmin) return <div className="desktop-overview">
-    <header className="page-header"><div><h1 className="page-title">Visão global</h1><p className="page-sub">Serviços e atendimento da plataforma.</p></div></header>
+    <header className="page-header"><div><span className="ticket-kicker">{desenvolvimento ? 'Desenvolvimento' : 'Suporte'}</span><h1 className="page-title">Visão global</h1><p className="page-sub">{desenvolvimento ? 'Investigue falhas e devolva os chamados ao atendimento.' : 'Atenda os clubes, revise pausas e acompanhe os chamados.'}</p></div></header>
     <div className="desktop-shortcuts" aria-label="Operação da plataforma">
-      <Link to={usuario?.papel_plataforma === 'DESENVOLVEDOR' ? '/chamados?visao=ENCAMINHADOS' : '/chamados?visao=MEUS'}><span className="desktop-shortcut-icon"><AdminIcon name="headset"/></span><span><strong>{usuario?.papel_plataforma === 'DESENVOLVEDOR' ? 'Chamados encaminhados' : 'Meus chamados'}</strong><small>Acompanhar o atendimento</small></span><Icon name="chevronRight" size={16}/></Link>
-      <Link to="/chamados"><span className="desktop-shortcut-icon"><AdminIcon name="headset"/></span><span><strong>Fila de chamados</strong><small>Consultar relatos e respostas</small></span><Icon name="chevronRight" size={16}/></Link>
-      {usuario?.papel_plataforma === 'SUPORTE' && <Link to="/manutencao"><span className="desktop-shortcut-icon"><AdminIcon name="wrench"/></span><span><strong>Manutenção</strong><small>Revisar pausas de funções</small></span><Icon name="chevronRight" size={16}/></Link>}
+      <Link to={desenvolvimento ? '/chamados?visao=ENCAMINHADOS' : '/chamados?visao=MEUS'}><span className="desktop-shortcut-icon"><AdminIcon name="headset"/></span><span><strong>{desenvolvimento ? 'Chamados encaminhados' : 'Meus chamados'}</strong><small>{desenvolvimento ? 'Analisar demandas recebidas do atendimento' : 'Acompanhar o atendimento'}</small></span><Icon name="chevronRight" size={16}/></Link>
+      <Link to={desenvolvimento ? '/chamados?origem=AUTOMATICO' : '/chamados'}><span className="desktop-shortcut-icon"><AdminIcon name={desenvolvimento ? 'terminal' : 'headset'}/></span><span><strong>{desenvolvimento ? 'Relatórios automáticos' : 'Fila de chamados'}</strong><small>{desenvolvimento ? 'Investigar falhas registradas pelo sistema' : 'Consultar relatos e respostas'}</small></span><Icon name="chevronRight" size={16}/></Link>
+      {desenvolvimento && <>
+        <Link to="/logs"><span className="desktop-shortcut-icon"><AdminIcon name="terminal"/></span><span><strong>Logs ao vivo</strong><small>Acompanhar requisições da API</small></span><Icon name="chevronRight" size={16}/></Link>
+        <Link to="/banco"><span className="desktop-shortcut-icon"><AdminIcon name="database"/></span><span><strong>Banco e integrações</strong><small>Conferir a saúde dos serviços</small></span><Icon name="chevronRight" size={16}/></Link>
+      </>}
+      <Link to="/manutencao"><span className="desktop-shortcut-icon"><AdminIcon name="wrench"/></span><span><strong>Manutenção</strong><small>{desenvolvimento ? 'Consultar pausas e motivos' : 'Revisar pausas de funções'}</small></span><Icon name="chevronRight" size={16}/></Link>
     </div><ServicesDiagnostic/>
   </div>;
 

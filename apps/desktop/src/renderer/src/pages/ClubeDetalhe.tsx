@@ -24,6 +24,7 @@ import { DesktopTable } from '../components/DesktopTable';
 import { DesktopToggle } from '../components/DesktopToggle';
 import { AccountIdentity } from '../components/AccountIdentity';
 import './Clubes.css';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
 const ESCRITA: PapelClube[] = ['TECNICO', 'MESARIO'];
 
 interface Edicao { usuarioId: number; nome: string; email: string; papel: PapelClube; todas: boolean; cats: number[]; novo?: boolean }
@@ -33,6 +34,7 @@ export default function ClubeDetalhePage() {
 }
 function ClubeDetalheContent() {
   const clubeId = Number(useParams().id);
+  const podeGerenciar = useAdminAuth().usuario?.papel_plataforma === 'SUPERADMIN';
   const navigate = useNavigate();
   const location = useLocation();
   const retorno = location.state?.voltarClubes;
@@ -202,8 +204,8 @@ function ClubeDetalheContent() {
           <div><h1 className="page-title">{clube.nome}</h1><p className="page-sub">{[clube.cidade, clube.estado].filter(Boolean).join(' · ') || 'Localização não informada'}</p></div>
         </div>
         <div className="actions club-heading-actions"><span className="plano-tag club-plan-tag">{clube.ativo ? clube.plano : 'Indisponível'}</span>
-          {aba === 'visao' && !editandoClube && <Btn type="button" variant="ghost" size="sm" onClick={abrirDados}><Icon name="edit" size={16}/>Editar clube</Btn>}
-          {aba === 'visao' && editandoClube && !clube.membros && !clube.jogadores && !clube.competicoes && !clube.partidas &&
+          {podeGerenciar && aba === 'visao' && !editandoClube && <Btn type="button" variant="ghost" size="sm" onClick={abrirDados}><Icon name="edit" size={16}/>Editar clube</Btn>}
+          {podeGerenciar && aba === 'visao' && editandoClube && !clube.membros && !clube.jogadores && !clube.competicoes && !clube.partidas &&
             <ExcluirIcone label="Excluir clube" onClick={() => { setConfirmouExclusao(false); setErroOperacao(''); setExcluirAberto(true); }}/>}
         </div>
       </div>
@@ -239,12 +241,12 @@ function ClubeDetalheContent() {
         </form>}
       <ClubSettingsSection icon="settings" title="Operação e acesso" description="Disponibilidade, cadastro e administração do clube." className="club-operation-panel">
         <dl className="club-operation-data">
-          <div><dt>Disponibilidade</dt><dd><span className="club-operation-status" data-active={clube.ativo}><AdminIcon name={clube.ativo ? 'check' : 'alert'} size={15}/>{clube.ativo ? 'Clube ativo' : 'Clube indisponível'}</span></dd><Btn size="sm" variant="ghost" onClick={() => { setMotivoEstado(''); setMotivoLivre(false); setErroOperacao(''); setEstadoAberto(true); }}>{clube.ativo ? 'Desativar clube' : 'Reativar clube'}</Btn></div>
-          <div><dt>Cadastro</dt><dd>{!clube.cnpj || !enderecoCompleto(endereco) || !clube.escudo ? <>A completar <small>{[[!clube.cnpj,'CNPJ'],[!enderecoCompleto(endereco),'endereço'],[!clube.escudo,'escudo']].filter(([falta])=>falta).map(([,label])=>label).join(' · ')}</small></> : 'Dados preenchidos'}</dd>{!editandoClube && <Btn size="sm" variant="ghost" onClick={abrirDados}>Revisar cadastro</Btn>}</div>
+          <div><dt>Disponibilidade</dt><dd><span className="club-operation-status" data-active={clube.ativo}><AdminIcon name={clube.ativo ? 'check' : 'alert'} size={15}/>{clube.ativo ? 'Clube ativo' : 'Clube indisponível'}</span></dd>{podeGerenciar && <Btn size="sm" variant="ghost" onClick={() => { setMotivoEstado(''); setMotivoLivre(false); setErroOperacao(''); setEstadoAberto(true); }}>{clube.ativo ? 'Desativar clube' : 'Reativar clube'}</Btn>}</div>
+          <div><dt>Cadastro</dt><dd>{!clube.cnpj || !enderecoCompleto(endereco) || !clube.escudo ? <>A completar <small>{[[!clube.cnpj,'CNPJ'],[!enderecoCompleto(endereco),'endereço'],[!clube.escudo,'escudo']].filter(([falta])=>falta).map(([,label])=>label).join(' · ')}</small></> : 'Dados preenchidos'}</dd>{podeGerenciar && !editandoClube && <Btn size="sm" variant="ghost" onClick={abrirDados}>Revisar cadastro</Btn>}</div>
           <div><dt>Estrutura</dt><dd>{dados.categorias.filter(c=>c.ativa).length} categorias ativas <small>{dados.categorias.length} cadastradas</small></dd><Btn size="sm" variant="ghost" onClick={()=>setAba('estrutura')}>Ver estrutura</Btn></div>
         </dl>
-        <div className="club-operation-responsibles"><div className="bloco-topo"><h3>Administradores responsáveis</h3><Btn size="sm" variant="ghost" onClick={()=>setAba('acessos')}>Gerenciar acessos</Btn></div>
-          {administradores.length ? <div className="club-responsibles-list">{administradores.map(m=><AccountIdentity key={m.usuario.id} nome={m.usuario.nome} email={m.usuario.email} actions={<CargoClube papel={m.papel}/>}/>)}</div> : <div className="bloco-topo"><p className="dica">Nenhum administrador definido.</p><Btn size="sm" onClick={()=>setAba('convites')}>Convidar administrador</Btn></div>}
+        <div className="club-operation-responsibles"><div className="bloco-topo"><h3>Administradores responsáveis</h3><Btn size="sm" variant="ghost" onClick={()=>setAba('acessos')}>{podeGerenciar ? 'Gerenciar acessos' : 'Ver acessos'}</Btn></div>
+          {administradores.length ? <div className="club-responsibles-list">{administradores.map(m=><AccountIdentity key={m.usuario.id} nome={m.usuario.nome} email={m.usuario.email} actions={<CargoClube papel={m.papel}/>}/>)}</div> : <div className="bloco-topo"><p className="dica">Nenhum administrador definido.</p>{podeGerenciar && <Btn size="sm" onClick={()=>setAba('convites')}>Convidar administrador</Btn>}</div>}
         </div>
       </ClubSettingsSection>
       </div>}
@@ -270,41 +272,41 @@ function ClubeDetalheContent() {
           <Btn variant={subAcao?.acao === 'excluir' ? 'danger' : 'primary'} disabled={operando || subAcao?.acao !== 'reativar' && !confirmouCategoria} onClick={() => void executarOperacao('categoria')}>{operando ? 'Registrando…' : 'Confirmar'}</Btn></div>
       </Modal>
 
-      {aba === 'convites' && <ClubeConvites key={clube.id} clubeId={clube.id} ativo={clube.ativo}/>}
+      {aba === 'convites' && <ClubeConvites key={clube.id} clubeId={clube.id} ativo={clube.ativo} podeGerenciar={podeGerenciar}/>}
       {aba === 'atividade' && <ClubeAtividade key={clube.id} clubeId={clube.id} />}
 
       {aba === 'estrutura' && <div className="desktop-club-structure">
         <div className="club-structure-controls">
         <CategoryFilter categories={categorias} phase={faseAtiva} selected={subSelecionado} label="Categorias do clube"
           onPhase={tipo => { setFase(tipo); setSubAtivo(String(categoriaDaFase(tipo)?.id ?? '')); }} onSelect={nome => setSubAtivo(String(categorias.find(c => c.tipo === faseAtiva && c.nome === nome)?.id ?? ''))}/>
-        {subSelecionado && <div className="club-category-actions"><span>{subSelecionado.nome.toUpperCase()}{!subSelecionado.ativa && ' · Inativa'}</span><div className="actions">
+        {subSelecionado && <div className="club-category-actions"><span>{subSelecionado.nome.toUpperCase()}{!subSelecionado.ativa && ' · Inativa'}</span>{podeGerenciar && <div className="actions">
           <Btn size="sm" variant="ghost" onClick={() => { setErroOperacao(''); setSubAcao({ id: subSelecionado.id, nome: subSelecionado.nome, acao: subSelecionado.ativa ? 'desativar' : 'reativar' }); }}>{subSelecionado.ativa ? 'Desativar categoria' : 'Reativar categoria'}</Btn>
           <Btn size="sm" variant="ghost" onClick={() => { setErroOperacao(''); setSubAcao({ id: subSelecionado.id, nome: subSelecionado.nome, acao: 'excluir' }); }}>Remover categoria</Btn>
-        </div></div>}
+        </div>}</div>}
         </div>
-        {subSelecionado && <div className="club-roster"><ClubeElenco key={`${clubeId}:${subSelecionado.id}`} clubeId={clubeId} clubeNome={clube.nome} categoriaId={subSelecionado.id} categoriaNome={subSelecionado.nome} onAlterado={ok}
+        {subSelecionado && <div className="club-roster"><ClubeElenco key={`${clubeId}:${subSelecionado.id}`} clubeId={clubeId} clubeNome={clube.nome} categoriaId={subSelecionado.id} categoriaNome={subSelecionado.nome} podeGerenciar={podeGerenciar} onAlterado={ok}
           onCategoria={id => { const proximo = categorias.find(c => c.id === id); if (proximo) { setFase(proximo.tipo); setSubAtivo(String(id)); } }}/></div>}
         {!dados.categorias.length && <p className="dica">Este clube ainda não tem categorias.</p>}
-        <div className="club-cep"><DesktopSelect label="Adicionar SUB" value={subNovo} options={[{value:'',label:'Escolher categoria'},...SUBS.filter(s => !dados.categorias.some(c => c.faixaIdade === s)).map(s => ({ value: String(s), label: `SUB-${s}` }))]} onChange={setSubNovo}/>
-        <Btn size="sm" disabled={!subNovo || operando} onClick={() => void executarOperacao('adicionar')}>Adicionar categoria</Btn></div>
+        {podeGerenciar && <div className="club-cep"><DesktopSelect label="Adicionar SUB" value={subNovo} options={[{value:'',label:'Escolher categoria'},...SUBS.filter(s => !dados.categorias.some(c => c.faixaIdade === s)).map(s => ({ value: String(s), label: `SUB-${s}` }))]} onChange={setSubNovo}/>
+        <Btn size="sm" disabled={!subNovo || operando} onClick={() => void executarOperacao('adicionar')}>Adicionar categoria</Btn></div>}
         {!subAcao && erroOperacao && <p className="notice-error" role="alert">{erroOperacao}</p>}
       </div>}
 
       {aba === 'acessos' && <section className="club-access-section">
         <div className="bloco-topo">
           <h2 className="section-title">Pessoas e permissões</h2>
-          <Btn size="sm" onClick={() => setAdicionando(true)}>Adicionar pessoa</Btn>
+          {podeGerenciar && <Btn size="sm" onClick={() => setAdicionando(true)}>Adicionar pessoa</Btn>}
         </div>
-        {dados.membros.length === 0 ? <DesktopState plain icon="people" title="Nenhuma pessoa vinculada" description="Adicione uma pessoa ou envie um convite para este clube."/> : (
+        {dados.membros.length === 0 ? <DesktopState plain icon="people" title="Nenhuma pessoa vinculada" description={podeGerenciar ? 'Adicione uma pessoa ou envie um convite para este clube.' : undefined}/> : (
           <DesktopTable label="Pessoas e permissões" tableClassName="club-access-table">
-              <thead><tr><th scope="col">Pessoa</th><th scope="col">Cargo</th><th scope="col">Categorias</th><th scope="col"><span className="sr-only">Gerenciar acesso</span></th></tr></thead>
+              <thead><tr><th scope="col">Pessoa</th><th scope="col">Cargo</th><th scope="col">Categorias</th>{podeGerenciar && <th scope="col"><span className="sr-only">Gerenciar acesso</span></th>}</tr></thead>
               <tbody>
                 {dados.membros.map(m => (
                   <tr key={m.usuario.id}>
                     <td><AccountIdentity nome={m.usuario.nome} email={m.usuario.email}/></td>
                     <td><CargoClube papel={m.papel}/></td>
                     <td>{m.papel === 'ADMIN' || m.acesso_todas_categorias ? 'Todas as categorias' : ESCRITA.includes(m.papel) ? <span className="club-access-categories">{m.categorias.map(c=><span key={c.categoria_id}>{categorias.find(v=>v.id === c.categoria_id)?.nome.toUpperCase() || 'Categoria indisponível'}</span>)}</span> : 'Conteúdo público'}</td>
-                    <td><div className="actions"><Btn size="sm" variant="ghost" onClick={() => abrirEdicao(m)}>Alterar</Btn><Btn size="sm" variant="danger" className="btn-danger-solid" onClick={() => setRemocao(m)}>Remover</Btn></div></td>
+                    {podeGerenciar && <td><div className="actions"><Btn size="sm" variant="ghost" onClick={() => abrirEdicao(m)}>Alterar</Btn><Btn size="sm" variant="danger" className="btn-danger-solid" onClick={() => setRemocao(m)}>Remover</Btn></div></td>}
                   </tr>
                 ))}
               </tbody>

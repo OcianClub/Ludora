@@ -59,7 +59,7 @@ export function registrarIpc(obterJanela: () => BrowserWindow | null) {
       if (!validacao.rede) limparSessao();
       return null;
     }
-    if (validacao.usuario.papel_plataforma === 'SUPERADMIN') comecarLogs(sessao.token);
+    if (validacao.usuario.papel_plataforma !== 'SUPORTE') comecarLogs(sessao.token);
     else pararLogs();
     return { ok: true, usuario: validacao.usuario, persistente: armazenamentoSeguro() };
   });
@@ -80,7 +80,7 @@ export function registrarIpc(obterJanela: () => BrowserWindow | null) {
     if (!('usuario' in validacao)) return { ok: false, erro: validacao.erro };
 
     const persistente = salvarSessao({ token: login.data.token, usuario: validacao.usuario });
-    if (validacao.usuario.papel_plataforma === 'SUPERADMIN') comecarLogs(login.data.token);
+    if (validacao.usuario.papel_plataforma !== 'SUPORTE') comecarLogs(login.data.token);
     else pararLogs();
     return { ok: true, usuario: validacao.usuario, persistente };
   });
@@ -132,7 +132,7 @@ export function registrarIpc(obterJanela: () => BrowserWindow | null) {
     ipcMain.handle(canal, async (evento, ids: unknown) => {
       const janela = janelaOuErro(evento);
       const sessao = sessaoAtual();
-      if (sessao?.usuario.papel_plataforma !== 'SUPERADMIN') return { ok: false, total: 0, erro: 'Acesso restrito à administração Ludora.' };
+      if (!sessao || !['SUPERADMIN', 'DESENVOLVEDOR'].includes(sessao.usuario.papel_plataforma)) return { ok: false, total: 0, erro: 'Acesso restrito à administração e ao desenvolvimento.' };
       try {
         const entradas = selecionarLogs(obterHistorico().entradas, ids);
         if (!entradas.length) return { ok: false, total: 0, erro: 'Os registros não estão mais disponíveis. Atualize a seleção.' };

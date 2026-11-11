@@ -21,7 +21,7 @@ export async function registrarFalha(input: { servico: string; rota: string; cor
         const clubes = new Set<number>(Array.isArray(anterior?.clubesAfetados) ? anterior.clubesAfetados as number[] : []);
         if (input.clubeId) clubes.add(input.clubeId);
         const ocorrencias = (anterior?.ocorrencias || 0) + 1;
-        const calculada = classificar(/auth|senha|convite.*codigo/i.test(rota) ? 'SEGURANCA' : 'ERRO', ocorrencias, clubes.size, input.status);
+        const calculada = classificar(/auth|senha|recupera|redefinir|convite.*codigo/i.test(rota) ? 'SEGURANCA' : 'ERRO', ocorrencias, clubes.size, input.status);
         const revisada = anterior && (anterior.restrito || anterior.regra === 'REVISAO_HUMANA');
         const classificacao = revisada && !calculada.restrito
           ? { restrito: anterior.restrito, fila: anterior.fila, prioridade: anterior.prioridade, regra: anterior.regra }
@@ -63,7 +63,7 @@ export const correlacionarFalhas: RequestHandler = (req, res, next) => {
   res.setHeader('X-Correlation-Id', correlacao);
   res.appendHeader('Access-Control-Expose-Headers', 'X-Correlation-Id');
   res.once('finish', () => {
-    if (res.statusCode < 500 || req.path.startsWith('/suporte') || req.path.startsWith('/admin/equipe')) return;
+    if (res.statusCode < 500 || /^\/suporte\/ocorrencias\/?$/.test(req.path)) return;
     void registrarFalha({
       servico: 'api', rota: req.path, correlacao, status: res.statusCode,
       clubeId: (req as any).clubeId, stack: res.locals.stackSuporte,

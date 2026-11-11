@@ -16,6 +16,11 @@ export async function publicacaoPartida(banco: PrismaClient, partidaId: number) 
 }
 export const json = (v: unknown) => JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue;
 export class FalhaPaulista extends Error { constructor(public status: number, message: string) { super(message); } }
+export function validarSincronizacaoAcompanhada(catalogo: { acompanhado: boolean } | null, evento: { versao: number } | null) {
+  if (!catalogo?.acompanhado || !evento?.versao) {
+    throw new FalhaPaulista(403, 'Desenvolvimento só pode sincronizar eventos já publicados e em acompanhamento.');
+  }
+}
 type Tx = Prisma.TransactionClient;
 const idade = (s: SnapshotPaulista) => Number(s.categoria.match(/\d+/)?.[0]);
 const PROJECAO = 'PROJECAO_LOCAL_PAULISTA';
@@ -86,11 +91,15 @@ async function abrirPendencia(tx: Tx, jogoId: string, tipo: string, data: unknow
   return tx.fpfsPendencia.upsert({ where, create: { jogoId, tipo, dados }, update: { estado: 'ABERTA', dados } });
 }
 
-export async function importar(banco: PrismaClient, s: SnapshotPaulista, usuarioId: number | null) {
+export async function importar(banco: PrismaClient, s: SnapshotPaulista, usuarioId: number | null, opcoes: { apenasAcompanhado?: boolean; registrarSucesso?: boolean } = {}) {
   const hash = createHash('sha256').update(JSON.stringify(s)).digest('hex');
   return banco.$transaction(async tx => {
     await exigirOperacao(['SINCRONIZAR_PAULISTA', 'AGENDA_OFICIAL'], { eventoId: s.id }, tx);
     const anterior = await tx.fpfsEvento.findUnique({ where: { id: s.id } });
+    if (opcoes.apenasAcompanhado) {
+      const catalogo = await tx.fpfsCatalogo.findUnique({ where: { id: s.id }, select: { acompanhado: true } });
+      validarSincronizacaoAcompanhada(catalogo, anterior);
+    }
     verificarContinuidade(anterior?.payload as unknown as SnapshotPaulista || null, s);
     const evento = await tx.fpfsEvento.upsert({ where: { id: s.id }, create: { id: s.id, ano: s.ano, titulo: s.titulo, divisao: s.divisao, categoria: s.categoria, payload: json(s), hash },
       update: { payload: json(s), hash, consultadoEm: new Date(), ...(anterior?.hash !== hash ? { versao: { increment: 1 } } : {}) } });
@@ -197,7 +206,13 @@ export async function importar(banco: PrismaClient, s: SnapshotPaulista, usuario
       }
       if (placaresAbertos.has(j.id) || localAnterior && !segura) await conferirPlacar(tx, row, j);
     }
-    if (anterior?.hash !== hash || criadas || atualizadas) await audit(tx, s.id, usuarioId, 'SINCRONIZACAO', { hash, versao: evento.versao, fonte: s.fonte, criadas, atualizadas, snapshot: s });
+    const mudou = anterior?.hash !== hash || criadas > 0 || atualizadas > 0;
+    if (mudou || opcoes.registrarSucesso) {
+      await audit(tx, s.id, usuarioId, 'SINCRONIZACAO', { hash, versao: evento.versao, fonte: s.fonte, criadas, atualizadas, ...(mudou ? { snapshot: s } : {}) });
+    }
+    if (opcoes.registrarSucesso) {
+      await tx.fpfsCatalogo.updateMany({ where: { id: s.id }, data: { sucessoEm: evento.consultadoEm, erro: null } });
+    }
     return { criadas, atualizadas, total: s.jogos.length, versao: evento.versao };
   }, { isolationLevel: 'Serializable', timeout: 90_000 });
 }

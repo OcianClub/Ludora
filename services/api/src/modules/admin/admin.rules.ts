@@ -108,6 +108,7 @@ export interface EntradaLog {
   mensagem: string;
   metodo?: string;
   caminho?: string;
+  rotaTecnica?: string;
   status?: number;
   ms?: number;
   usuarioId?: number | null;
@@ -117,6 +118,17 @@ export function nivelPorStatus(status: number): NivelLog {
   if (status >= 500) return 'error';
   if (status >= 400) return 'warn';
   return 'info';
+}
+
+export function logTecnico(entrada: EntradaLog): EntradaLog | undefined {
+  const { id, ts, nivel, tipo, metodo, status, ms, rotaTecnica } = entrada;
+  if (tipo !== 'http' || !metodo || status === undefined) return;
+  const caminho = rotaTecnica || '/rota-nao-identificada';
+  return { id, ts, nivel, tipo, metodo, caminho, status, ms, mensagem: `${metodo} ${caminho} → ${status}` };
+}
+
+export function logsTecnicos(entradas: EntradaLog[]): EntradaLog[] {
+  return entradas.map(logTecnico).filter((entrada): entrada is EntradaLog => entrada !== undefined);
 }
 
 // Remove a query string (pode conter e-mails/buscas) e mascara segmentos que

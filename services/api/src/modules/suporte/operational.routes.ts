@@ -82,7 +82,10 @@ export function criarOperacoesSuporte(io: Server, enviar = enviarAviso) {
     const pedido = await prisma.$transaction(async tx => {
       const existente = await tx.recuperacaoExcepcional.findFirst({ where: { usuarioId: u.id, OR: [{ status: 'AGUARDANDO_APROVACAO' }, { status: { in: ['AGUARDANDO_CONFIRMACAO', 'ENVIANDO'] }, expiraEm: { gt: new Date() } }] } });
       if (existente) return null;
-      await tx.suporteChamado.update({ where: { id: c.id }, data: { restrito: true, fila: 'SUPORTE', tipo: 'RECUPERACAO', revisao: { increment: 1 } } });
+      await tx.suporteChamado.update({ where: { id: c.id }, data: {
+        restrito: true, fila: 'SUPORTE', tipo: 'RECUPERACAO', revisao: { increment: 1 },
+        ...(c.status === 'ENCAMINHADO_DEVS' ? { status: 'EM_TRIAGEM', responsavelId: null } : {}),
+      } });
       const p = await tx.recuperacaoExcepcional.create({ data: { chamadoId: c.id, usuarioId: u.id, solicitanteId: res.locals.funcionario.id, emailAnterior: u.email, novoEmail: email, justificativa: sanitizar(justificativa) } });
       await tx.suporteHistorico.create({ data: { chamadoId: c.id, operadorId: res.locals.funcionario.id, acao: 'RECUPERACAO_EXCEPCIONAL_SOLICITADA', motivo: 'Aguardando verificação independente e aprovação do administrador.' } });
       return p.id;

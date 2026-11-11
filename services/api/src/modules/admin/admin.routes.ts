@@ -22,6 +22,7 @@ import {
   SUBS_PADRAO,
   parseSuperAdmins,
   papelPlataformaEfetivo,
+  logsTecnicos,
   tipoCategoriaPorIdade,
   validarBusca,
   validarClube,
@@ -31,6 +32,7 @@ import {
 import { criarConvite, listarConvites, revogarConvite, reenviarConvite, consultarCodigoConvite } from '../convites/convite-admin.routes';
 import { limitarOperacaoPesada } from '../../middlewares/rate-limit.middleware';
 import { exigirSuperAdmin, logs } from './superadmin';
+import { exigirAcessoTecnico } from './equipe';
 import { categoriaCalculada, ErroElenco, removerAluno, salvarAluno } from '../jogadores/elenco.service';
 import { notificarCamisas } from '../jogadores/elenco.realtime';
 import { previaEsportivaAtleta } from '../jogadores/perfil.routes';
@@ -88,6 +90,8 @@ const idDe = (valor: unknown, nome: string) => {
 
 export function criarAdminRoutes(io: Server) {
   const router = Router();
+  const tecnico = Router();
+  router.use(tecnico);
   router.use('/admin', exigirSuperAdmin);
 
   // ── Sessão ────────────────────────────────────────────────────────────────
@@ -115,7 +119,7 @@ export function criarAdminRoutes(io: Server) {
       .catch(() => console.error('Falha no push do lembrete; notificação salva no sistema.'));
     res.status(201).json({ enviado: true });
   }));
-  router.get('/admin/overview', rota(async (_req, res) => {
+  tecnico.get('/admin/overview', exigirAcessoTecnico, rota(async (_req, res) => {
     const [clubes, usuarios, jogadores, partidas, aoVivo, jogPorCat, partPorCat, categorias] =
       await Promise.all([
         prisma.clube.findMany({
@@ -170,7 +174,7 @@ export function criarAdminRoutes(io: Server) {
   }));
 
   // ── Clubes ────────────────────────────────────────────────────────────────
-  router.get('/admin/clubes/:id/resumo', rota(async (req, res) => {
+  tecnico.get('/admin/clubes/:id/resumo', exigirAcessoTecnico, rota(async (req, res) => {
     const id = idDe(req.params.id, 'Clube');
     const [clube, jogadores, partidas] = await Promise.all([
       prisma.clube.findUnique({ where: { id }, select: { id:true,nome:true,ativo:true,cnpj:true,endereco:true,escudo:true,cidade:true,estado:true,plano:true,criado_em:true,
@@ -386,7 +390,7 @@ export function criarAdminRoutes(io: Server) {
     const clubeId = idDe(req.params.id, 'Clube');
     res.json({ categoria: await categoriaCalculada(prisma, clubeId, String(req.query.nascimento ?? '')) });
   }));
-  router.get('/admin/clubes/:id/categorias/:categoriaId/jogadores', rota(async (req, res) => {
+  tecnico.get('/admin/clubes/:id/categorias/:categoriaId/jogadores', exigirAcessoTecnico, rota(async (req, res) => {
     const clubeId = idDe(req.params.id, 'Clube'), categoriaId = idDe(req.params.categoriaId, 'Categoria');
     const busca = String(req.query.busca || '').trim().slice(0, 80);
     const offset = Number(req.query.offset ?? 0);
@@ -398,10 +402,10 @@ export function criarAdminRoutes(io: Server) {
     if (!categoria) throw new ErroHttp(404, 'Categoria não encontrada no clube.');
     res.json(categoria.jogadores);
   }));
-  router.get('/admin/clubes/:id/categorias/:categoriaId/jogadores/:jogadorId', rota(async (req, res) => {
+  tecnico.get('/admin/clubes/:id/categorias/:categoriaId/jogadores/:jogadorId', exigirAcessoTecnico, rota(async (req, res) => {
     const clubeId = idDe(req.params.id, 'Clube'), categoriaId = idDe(req.params.categoriaId, 'Categoria'), jogadorId = idDe(req.params.jogadorId, 'Jogador');
     const jogador = await prisma.jogador.findFirst({ where: { id: jogadorId, categoria_id: categoriaId, categoria: { clube_id: clubeId } },
-      select: { ...jogadorResumo, cpf: true, categoria: { select: { id: true, nome: true, tipo: true } } },
+      select: { ...jogadorResumo, cpf: res.locals.funcionario.papel_plataforma === 'SUPERADMIN', categoria: { select: { id: true, nome: true, tipo: true } } },
     });
     if (!jogador) throw new ErroHttp(404, 'Jogador não encontrado neste clube e categoria.');
     res.setHeader('Cache-Control', 'private, no-store');
@@ -469,17 +473,19 @@ export function criarAdminRoutes(io: Server) {
     await handler(req, res);
   });
 
-  router.get('/admin/clubes/:clubeId/convites', noClube(listarConvites));
+  tecnico.get('/admin/clubes/:clubeId/convites', exigirAcessoTecnico, noClube(listarConvites));
   router.post('/admin/clubes/:clubeId/convites', limitarOperacaoPesada, noClube(criarConvite, 'Convite criado'));
   router.post('/admin/clubes/:clubeId/convites/:id/revogar', noClube(revogarConvite, 'Convite revogado'));
   router.get('/admin/clubes/:clubeId/convites/:id/codigo', noClube(consultarCodigoConvite));
   router.post('/admin/clubes/:clubeId/convites/:id/reenviar', limitarOperacaoPesada, noClube(reenviarConvite, 'Convite reenviado'));
-  router.get('/admin/clubes/:clubeId/atividade', noClube(async (req, res) => {
+  tecnico.get('/admin/clubes/:clubeId/atividade', exigirAcessoTecnico, noClube(async (req, res) => {
     const clubeId = idDe(req.params.clubeId, 'Clube');
-    res.json(logs.snapshot(500).filter(item => item.tipo === 'audit' && item.clubeId === clubeId).slice(-50).reverse());
+    const entradas = logs.snapshot(500).filter(item => item.tipo === 'audit' && item.clubeId === clubeId).slice(-50).reverse();
+    res.json(res.locals.funcionario.papel_plataforma === 'SUPERADMIN' ? entradas
+      : entradas.map(({ id, ts, nivel, tipo, mensagem }) => ({ id, ts, nivel, tipo, mensagem: sanitizar(mensagem) })));
   }));
 
-  router.get('/admin/clubes/:id/membros', rota(async (req, res) => {
+  tecnico.get('/admin/clubes/:id/membros', exigirAcessoTecnico, rota(async (req, res) => {
     const clubeId = idDe(req.params.id, 'Clube');
     const [categorias, membros] = await Promise.all([
       prisma.categoria.findMany({ where: { clube_id: clubeId }, select: { id: true, nome: true, ativa: true, faixaIdade: true, tipo: true }, orderBy: { faixaIdade: 'asc' } }),
@@ -583,7 +589,7 @@ export function criarAdminRoutes(io: Server) {
   }));
 
   // ── Usuários ──────────────────────────────────────────────────────────────
-  router.get('/admin/usuarios', rota(async (req, res) => {
+  tecnico.get('/admin/usuarios', exigirAcessoTecnico, rota(async (req, res) => {
     const busca = validarBusca(req.query.busca);
     const limite = validarLimite(req.query.limite, 50, 200);
     const lista = parseSuperAdmins(process.env.SUPERADMIN_EMAILS);
@@ -626,6 +632,35 @@ export function criarAdminRoutes(io: Server) {
     })));
   }));
 
+  tecnico.patch('/admin/usuarios/:id/nome', exigirAcessoTecnico, rota(async (req, res) => {
+    const usuarioId = idDe(req.params.id, 'Usuário');
+    const operadorId = res.locals.funcionario.id as number;
+    const dados = req.body;
+    const nome = typeof dados?.nome === 'string' ? dados.nome.trim() : '';
+    if (!dados || Object.keys(dados).length !== 1 || nome.length < 2 || nome.length > 100) {
+      throw new ErroHttp(400, 'Informe apenas o nome de exibição, de 2 a 100 caracteres.');
+    }
+    const resultado = await prisma.$transaction(async tx => {
+      const [alvo, operador] = await Promise.all([
+        tx.usuario.findUnique({ where: { id: usuarioId }, select: { nome: true, email: true, papel_plataforma: true } }),
+        tx.usuario.findUnique({ where: { id: operadorId }, select: { email: true, papel_plataforma: true, suspenso: true } }),
+      ]);
+      if (!operador || operador.suspenso || !['SUPERADMIN', 'DESENVOLVEDOR'].includes(papelPlataformaEfetivo(operador))) {
+        throw new ErroHttp(403, 'Sua permissão mudou. Entre novamente.');
+      }
+      if (!alvo) throw new ErroHttp(404, 'Usuário não encontrado.');
+      if (papelPlataformaEfetivo(alvo) !== 'USUARIO') throw new ErroHttp(403, 'O nome das contas internas exige tratamento administrativo.');
+      if (alvo.nome === nome) return { nome, alterou: false };
+      await tx.usuario.update({ where: { id: usuarioId }, data: { nome } });
+      await tx.auditoriaContaInterna.create({ data: {
+        usuarioId, operadorId, motivo: 'Nome de exibição corrigido no painel.', antes: { nome: alvo.nome }, depois: { nome },
+      } });
+      return { nome, alterou: true };
+    }, { isolationLevel: 'Serializable' });
+    if (resultado.alterou) auditar(req, `Nome de exibição corrigido: usuário #${usuarioId}`);
+    res.json(resultado);
+  }));
+
   router.patch('/admin/usuarios/:id/controle', rota(async (req, res) => {
     const usuarioId = idDe(req.params.id, 'Usuário');
     const operadorId = (req as any).usuarioId as number;
@@ -658,7 +693,7 @@ export function criarAdminRoutes(io: Server) {
   }));
 
   // ── Prisma / banco ────────────────────────────────────────────────────────
-  router.get('/admin/db/status', rota(async (_req, res) => {
+  tecnico.get('/admin/db/status', exigirAcessoTecnico, rota(async (_req, res) => {
     const t0 = Date.now();
     const [info] = await prisma.$queryRaw<{ agora: Date; versao: string }[]>`select now() as agora, version() as versao`;
     const latenciaMs = Date.now() - t0;
@@ -703,7 +738,7 @@ export function criarAdminRoutes(io: Server) {
   }));
 
   // ── Integrações e sistema ─────────────────────────────────────────────────
-  router.get('/admin/sistema', rota(async (_req, res) => {
+  tecnico.get('/admin/sistema', exigirAcessoTecnico, rota(async (_req, res) => {
     let scout: { configurado: boolean; acessivel: boolean | null; ms?: number } = { configurado: !!PYTHON_AI_URL, acessivel: null };
     if (PYTHON_AI_URL) {
       const t0 = Date.now();
@@ -741,10 +776,11 @@ export function criarAdminRoutes(io: Server) {
   }));
 
   // ── Logs ──────────────────────────────────────────────────────────────────
-  router.get('/admin/logs', rota(async (req, res) => {
+  tecnico.get('/admin/logs', exigirAcessoTecnico, rota(async (req, res) => {
     const limite = validarLimite(req.query.limite, 200, 500);
     const nivel = ['warn', 'error'].includes(String(req.query.nivel)) ? (req.query.nivel as NivelLog) : undefined;
-    res.json(logs.snapshot(limite, nivel));
+    res.json(res.locals.funcionario.papel_plataforma === 'DESENVOLVEDOR'
+      ? logsTecnicos(logs.snapshot(500, nivel)).slice(-limite) : logs.snapshot(limite, nivel));
   }));
 
   return router;

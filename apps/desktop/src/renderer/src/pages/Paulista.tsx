@@ -17,6 +17,7 @@ import { PaulistaStatus } from '../components/PaulistaStatus';
 import { AdminIcon } from '../components/AdminIcon';
 import { PaulistaEventCollection, PaulistaRecentChanges } from '../components/PaulistaEventCollection';
 import { DesktopMenu, DesktopMenuItem } from '../components/DesktopMenu';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
 import './Paulista.css';
 
 type Equipe = { id: number; nome: string; escudo: string | null; vinculo: { clubeId: number; motivo: string; clube?: { nome: string; escudo: string | null } } | null; sugestoes: { id: number; nome: string }[] };
@@ -38,6 +39,7 @@ const envolveClube = (e: Evento, id: number) => e.equipes.some(t => t.vinculo?.c
 const base = '/admin/paulista';
 
 export default function PaulistaAdmin() {
+  const admin = useAdminAuth().usuario?.papel_plataforma === 'SUPERADMIN';
   const [params, setParams] = useSearchParams();
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [painel, setPainel] = useState<Painel | null>(null);
@@ -183,7 +185,7 @@ export default function PaulistaAdmin() {
     {resumo && !evento && <>
       <DesktopSection title="Sincronização com a Federação" className="paulista-health" actions={<PaulistaStatus state={falhou ? 'ERRO' : resumo.fila.length || catalogo.some(e=>e.estado === 'REVISAR_IDENTIDADE') ? 'EM_REVISAO' : 'DESCOBERTO'} label={tituloSaude}/>}>
         <div className="paulista-health-content"><dl><div><dt>Última descoberta</dt><dd>{quando(resumo.rotina?.descobertaEm)}</dd></div><div><dt>Próxima descoberta</dt><dd>{resumo.rotina?.proximaEm ? quando(resumo.rotina.proximaEm) : 'Sem agendamento informado'}</dd></div></dl>
-        <Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${base}/verificar`, titulo: 'Executar rotina pendente', body: {}, rotina: true, impacto: 'Processa as consultas que já estão agendadas. Uma falha preserva a última versão válida.' })}>Executar rotina pendente</Btn>
+        {admin && <Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${base}/verificar`, titulo: 'Executar rotina pendente', body: {}, rotina: true, impacto: 'Processa as consultas que já estão agendadas. Uma falha preserva a última versão válida.' })}>Executar rotina pendente</Btn>}
         </div>{resumo.rotina?.erro && <p role="status" className="paulista-error-text">{resumo.rotina.erro}</p>}
       </DesktopSection>
       <DesktopTabs label="Situação dos campeonatos" value={status} onChange={setStatus} options={[
@@ -223,21 +225,21 @@ export default function PaulistaAdmin() {
       </section>
       <div className="paulista-detail-workspace"><aside className="paulista-detail-sidebar" aria-label="Consultas da integração">
       <DesktopSection title="Sincronização" className="paulista-sync" actions={<Icon name="refresh" size={18}/>}>
-        <dl className="paulista-sync-dates"><div><dt>Último sucesso</dt><dd>{quando(evento.sucessoEm)}</dd></div><div><dt>Próxima tentativa</dt><dd>{evento.proximaEm ? quando(evento.proximaEm) : 'Sem agendamento informado'}</dd></div><div><dt>Versão salva</dt><dd>{evento.versao > 0 ? evento.versao : 'Nenhuma'}</dd></div></dl>
+        <dl className="paulista-sync-dates"><div><dt>Último sucesso</dt><dd>{quando(painel?.evento.consultadoEm || evento.sucessoEm)}</dd></div><div><dt>Próxima tentativa</dt><dd>{evento.proximaEm ? quando(evento.proximaEm) : 'Sem agendamento informado'}</dd></div><div><dt>Versão salva</dt><dd>{evento.versao > 0 ? evento.versao : 'Nenhuma'}</dd></div></dl>
         {evento.erro && <p className="paulista-error-text" role="status">{evento.erro}</p>}
         {evento.manutencao && <p className="notice-error" role="status">Em manutenção desde {quando(evento.manutencao.inicio)}. {evento.manutencao.motivo} Protocolo {evento.manutencao.protocolo}.</p>}
         <div className="actions">
-          <Btn disabled={!!evento.manutencao} onClick={() => revisar({ path: `${path}/sincronizar`, titulo: 'Consultar Federação agora', body: {}, rotina: true, impacto: 'Busca a publicação atual deste evento e aplica atualizações oficiais. Uma falha preserva a última versão válida.' })}><Icon name="refresh" size={16}/>Consultar Federação agora</Btn>
-          <Link className="btn btn-ghost btn-sm" to={`/manutencao?evento=${evento.id}`}>{evento.manutencao ? 'Revisar pausa' : 'Configurar pausa'}</Link>
+          {(admin || evento.acompanhado && evento.versao > 0) && <Btn disabled={!!evento.manutencao} onClick={() => revisar({ path: `${path}/sincronizar`, titulo: 'Consultar Federação agora', body: {}, rotina: true, impacto: 'Busca a publicação atual deste evento e aplica atualizações oficiais. Uma falha preserva a última versão válida.' })}><Icon name="refresh" size={16}/>Consultar Federação agora</Btn>}
+          {(admin || evento.manutencao) && <Link className="btn btn-ghost btn-sm" to={admin ? `/manutencao?evento=${evento.id}` : '/manutencao'}>{admin ? evento.manutencao ? 'Revisar pausa' : 'Configurar pausa' : 'Consultar pausa'}</Link>}
         </div>
         {evento.versao > 0 && <div className="paulista-follow">
           <div><strong>Acompanhamento automático</strong><p>{evento.acompanhado ? 'Ligado' : 'Desligado'} · Consulta programada deste SUB</p></div>
-          <DesktopToggle label="Acompanhamento automático" checked={evento.acompanhado} onChange={() => revisar({
+          {admin && <DesktopToggle label="Acompanhamento automático" checked={evento.acompanhado} onChange={() => revisar({
               path: `${path}/acompanhamento`, titulo: evento.acompanhado ? 'Desligar acompanhamento automático' : 'Ligar acompanhamento automático',
               body: { acompanhado: !evento.acompanhado },
               impacto: evento.acompanhado ? 'Cancela as próximas consultas programadas deste SUB. O calendário salvo continua disponível.' : 'Agenda a primeira consulta deste SUB. As seguintes seguem o intervalo programado da integração.',
               motivos: evento.acompanhado ? ['Edição encerrada', 'Pausa no acompanhamento'] : ['Calendário em andamento', 'Retomada do acompanhamento'],
-            })}/>
+            })}/>}
         </div>}
       </DesktopSection>
       </aside><div className="paulista-detail-work">
@@ -261,15 +263,15 @@ export default function PaulistaAdmin() {
             <PaulistaComparison pendencia={p} mandante={j ? time(j.mandanteId) : undefined} visitante={j ? time(j.visitanteId) : undefined}/>
             <p>Classificação usa o resultado oficial. Scout e acontecimentos do clube ficam preservados.</p>
             <div className="actions">
-              {aberta && p.tipo !== 'IDENTIDADE' && <Btn size="sm" variant="ghost" onClick={() => revisar({ path: p.tipo === 'PLACAR' ? `${path}/avaliar-placar` : `${path}/pendencias/${p.id}`, titulo: 'Registrar conferência do dado oficial', body: { acao: 'MANTER_OFICIAL', jogoId: p.jogoId, esperado: p.dados }, motivos: motivosConferencia, impacto: 'Registra a conferência para a equipe. O placar, os acontecimentos e o scout do clube permanecem como estão.' })}>Manter dado oficial</Btn>}
-              {aberta && p.tipo === 'PLACAR' && p.estado !== 'AGUARDANDO_CLUBE' && <Btn size="sm" variant="ghost" onClick={() => revisar({
+              {admin && aberta && p.tipo !== 'IDENTIDADE' && <Btn size="sm" variant="ghost" onClick={() => revisar({ path: p.tipo === 'PLACAR' ? `${path}/avaliar-placar` : `${path}/pendencias/${p.id}`, titulo: 'Registrar conferência do dado oficial', body: { acao: 'MANTER_OFICIAL', jogoId: p.jogoId, esperado: p.dados }, motivos: motivosConferencia, impacto: 'Registra a conferência para a equipe. O placar, os acontecimentos e o scout do clube permanecem como estão.' })}>Manter dado oficial</Btn>}
+              {admin && aberta && p.tipo === 'PLACAR' && p.estado !== 'AGUARDANDO_CLUBE' && <Btn size="sm" variant="ghost" onClick={() => revisar({
                 path: `${path}/avaliar-placar`, titulo: 'Solicitar correção ao clube', body: { acao: 'SOLICITAR_CORRECAO_CLUBE', jogoId: p.jogoId, esperado: p.dados },
                 motivos: ['Conferir o placar na súmula', 'Conferir acontecimentos registrados', 'Revisar o encerramento da partida'],
                 impacto: 'Exibe um pedido de conferência na aba Avisos do clube. A classificação continua usando a Federação.',
               })}>Solicitar correção ao clube</Btn>}
-              {aberta && p.tipo === 'IDENTIDADE' && <Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${path}/pendencias/${p.id}`, titulo: 'Encaminhar revisão de identidade', body: { acao: 'ENCAMINHAR_REVISAO', esperado: p.dados }, impacto: 'Registra a revisão dos participantes. O vínculo e o histórico ficam preservados.' })}>Encaminhar revisão de identidade</Btn>}
+              {admin && aberta && p.tipo === 'IDENTIDADE' && <Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${path}/pendencias/${p.id}`, titulo: 'Encaminhar revisão de identidade', body: { acao: 'ENCAMINHAR_REVISAO', esperado: p.dados }, impacto: 'Registra a revisão dos participantes. O vínculo e o histórico ficam preservados.' })}>Encaminhar revisão de identidade</Btn>}
               {chamado && <Link className="btn btn-ghost btn-sm" to={`/chamados?id=${chamado.id}`}>Abrir chamado vinculado</Link>}
-              {aberta && (!chamado || chamado.status === 'RESOLVIDO') && <Btn size="sm" onClick={() => revisar({ path: p.id > 0 ? `${path}/pendencias/${p.id}/chamado` : `${path}/chamado-placar`, titulo: 'Encaminhar aos desenvolvedores', body: { jogoId: p.jogoId }, motivos: motivosTecnicos, impacto: 'Envia a comparação e o motivo para a fila técnica. A pendência permanece em revisão.', label: 'Criar chamado técnico' })}>Encaminhar aos desenvolvedores</Btn>}
+              {admin && aberta && (!chamado || chamado.status === 'RESOLVIDO') && <Btn size="sm" onClick={() => revisar({ path: p.id > 0 ? `${path}/pendencias/${p.id}/chamado` : `${path}/chamado-placar`, titulo: 'Encaminhar aos desenvolvedores', body: { jogoId: p.jogoId }, motivos: motivosTecnicos, impacto: 'Envia a comparação e o motivo para a fila técnica. A pendência permanece em revisão.', label: 'Criar chamado técnico' })}>Encaminhar aos desenvolvedores</Btn>}
             </div>
             <h3>Histórico da divergência</h3>
             {erroHistorico ? <p role="alert">{erroHistorico}</p> : historicoPendencia ? historicoPendencia.length ? historicoPendencia.map(h => <PaulistaAudit key={h.id} item={h}/>) : <p className="dica">Nenhuma decisão registrada.</p> : <p role="status">Carregando histórico…</p>}
@@ -280,14 +282,14 @@ export default function PaulistaAdmin() {
       <section className="ticket-day paulista-identities"><h2><Icon name="handshake" size={18}/>Vínculos dos clubes</h2>
         {!evento.equipes.some(e => e.vinculo || e.sugestoes.length) && <p className="dica">Nenhum vínculo confirmado ou sugestão para conferir.</p>}
         <div className="paulista-identity-grid">{evento.equipes.filter(e => e.vinculo || e.sugestoes.length).map(e => <Card key={e.id} className={`ticket-section paulista-identity${e.vinculo ? ' paulista-identity-confirmed' : ''}`}><div className="linha-clube"><ClubBadge src={e.vinculo ? e.vinculo.clube?.escudo : e.escudo} name={e.vinculo?.clube?.nome || e.nome} size={36}/><h3>{e.vinculo?.clube?.nome || e.nome}</h3>
-          {e.vinculo && <DesktopMenu label={`Opções do vínculo de ${e.vinculo.clube?.nome || e.nome}`}><DesktopMenuItem icon={<Icon name="trash" size={16}/>} disabled={!!evento.manutencao} onSelect={() => revisar({ path: `${path}/desvincular`, titulo: 'Desfazer vínculo confirmado', body: { equipeId: e.id }, impacto: 'A API impede reversões que deixem a agenda órfã ou removam contribuições do clube.' })}>Desfazer vínculo</DesktopMenuItem></DesktopMenu>}
+          {admin && e.vinculo && <DesktopMenu label={`Opções do vínculo de ${e.vinculo.clube?.nome || e.nome}`}><DesktopMenuItem icon={<Icon name="trash" size={16}/>} disabled={!!evento.manutencao} onSelect={() => revisar({ path: `${path}/desvincular`, titulo: 'Desfazer vínculo confirmado', body: { equipeId: e.id }, impacto: 'A API impede reversões que deixem a agenda órfã ou removam contribuições do clube.' })}>Desfazer vínculo</DesktopMenuItem></DesktopMenu>}
           </div><PaulistaStatus state={e.vinculo ? 'CONFERIDA' : 'REVISAR_IDENTIDADE'} label={e.vinculo ? 'Identidade confirmada' : 'Identidade a conferir'}/>
           {e.vinculo ? <><p><span className="paulista-field-label">Na Federação</span>{e.nome}</p><div className="actions">
-            <Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${path}/revisar-vinculo`, titulo: 'Solicitar análise de vínculo', body: { equipeId: e.id },
+            {admin && <Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${path}/revisar-vinculo`, titulo: 'Solicitar análise de vínculo', body: { equipeId: e.id },
               motivos: ['Conferir a identidade do clube', 'Conferir partidas e participações', 'Conferir dados da Federação'],
-              impacto: 'Abre uma tarefa de atendimento para conferir identidade e histórico. O vínculo atual fica disponível durante a análise.' })}>Solicitar análise de vínculo</Btn>
-            {painel?.vinculoChamados?.[String(e.id)] && <Link className="btn btn-ghost btn-sm" to={`/chamados?id=${painel.vinculoChamados[String(e.id)]}`}>Acompanhar análise</Link>}
-          </div></> : e.sugestoes.map(c => <div className="actions" key={c.id}><Btn size="sm" variant="ghost" disabled={!!evento.manutencao} onClick={() => revisar({ path: `${path}/confirmar`, titulo: `Confirmar ${e.nome} como ${c.nome}`, body: { equipeId: e.id, clubeId: c.id }, impacto: 'Confirme a identidade, o SUB e o histórico. A associação permite distribuir partidas oficiais para este clube.' })}>Confirmar {c.nome}</Btn><Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${path}/rejeitar-sugestao`, titulo: 'Rejeitar sugestão', body: { equipeId: e.id, clubeId: c.id }, impacto: 'Retira a sugestão de identidade da fila.' })}>Não é este clube</Btn></div>)}
+              impacto: 'Abre uma tarefa de atendimento para conferir identidade e histórico. O vínculo atual fica disponível durante a análise.' })}>Solicitar análise de vínculo</Btn>}
+            {admin && painel?.vinculoChamados?.[String(e.id)] && <Link className="btn btn-ghost btn-sm" to={`/chamados?id=${painel.vinculoChamados[String(e.id)]}`}>Acompanhar análise</Link>}
+          </div></> : e.sugestoes.map(c => <div className="actions" key={c.id}>{admin ? <><Btn size="sm" variant="ghost" disabled={!!evento.manutencao} onClick={() => revisar({ path: `${path}/confirmar`, titulo: `Confirmar ${e.nome} como ${c.nome}`, body: { equipeId: e.id, clubeId: c.id }, impacto: 'Confirme a identidade, o SUB e o histórico. A associação permite distribuir partidas oficiais para este clube.' })}>Confirmar {c.nome}</Btn><Btn size="sm" variant="ghost" onClick={() => revisar({ path: `${path}/rejeitar-sugestao`, titulo: 'Rejeitar sugestão', body: { equipeId: e.id, clubeId: c.id }, impacto: 'Retira a sugestão de identidade da fila.' })}>Não é este clube</Btn></> : <span>{c.nome}</span>}</div>)}
         </Card>)}</div>
       </section>
       </div></div>

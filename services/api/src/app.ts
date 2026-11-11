@@ -74,8 +74,8 @@ export function criarApp(io: Server) {
   app.use(criarOperacoesSuporte(io));
   app.use(criarSuporteRoutes());
   app.use(criarTarefasCadastroRoutes(io));
-  app.use(criarAdminRoutes(io));
   app.use(criarPaulistaRoutes(io));
+  app.use(criarAdminRoutes(io));
   app.use(protegerPaulista);
   app.use(authRoutes);
   app.use(criarCadastroRoutes());

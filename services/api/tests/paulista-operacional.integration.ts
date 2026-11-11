@@ -15,7 +15,10 @@ async function main() {
   const { rankingCalculado } = await import('../src/modules/paulista/rules.js');
   const { OperacaoPausada } = await import('../src/modules/manutencao/service.js');
   try {
-    const staff = await prisma.usuario.findUniqueOrThrow({ where: { email: 'superadmin@equipe.example.test' } });
+    const contas: { papel: string; email: string }[] = JSON.parse(await fs.readFile(path.join(pasta, 'contas.json'), 'utf8'));
+    const admin = contas.find(c => c.papel === 'SUPERADMIN');
+    assert.ok(admin);
+    const staff = await prisma.usuario.findUniqueOrThrow({ where: { email: admin.email } });
     const cliente = await prisma.usuario.findUniqueOrThrow({ where: { email: 'usuario@equipe.example.test' } });
     const id = randomInt(90000000, 92000000);
     const nome = `Ocian Sandbox ${id}`;

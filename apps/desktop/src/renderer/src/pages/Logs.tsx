@@ -12,6 +12,7 @@ import { dentroDoPeriodo, type PeriodoLog } from '../../../shared/log-period';
 import { useEstadoTempoReal } from '../components/useTempoReal';
 import { LIMITE_LOGS, mesclarLogs, interpretarHttp, classeDuracao } from '../../../shared/logs';
 import { Toast } from '@web/components/Toast';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
 
 const NIVEIS = [
   { value: '', label: 'Todos os logs' },
@@ -22,6 +23,7 @@ const NIVEIS = [
 const ordem: Record<NivelLog, number> = { info: 0, audit: 0, warn: 1, error: 2 };
 
 export default function LogsPage() {
+  const dev = useAdminAuth().usuario?.papel_plataforma === 'DESENVOLVEDOR';
   const estado = useEstadoTempoReal();
   const [entradas, setEntradas] = useState<EntradaLog[]>([]);
   const [pausado, setPausado] = useState(false);
@@ -135,12 +137,12 @@ export default function LogsPage() {
   const conteudo = (
     <div className={`logs-pagina desktop-logs${ampliado ? ' desktop-logs-expanded' : ''}`}>
       <div className="page-header">
-        <div><h1 className="page-title">Logs ao vivo</h1><p className="page-sub">Requisições da API e ações do painel · caminhos sem query e sem dados de corpo</p></div>
+        <div><h1 className="page-title">Logs ao vivo</h1><p className="page-sub">{dev ? 'Requisições da API com rota, status e duração.' : 'Requisições da API e ações do painel · caminhos sem query e sem dados de corpo'}</p></div>
       </div>
 
       <section className="desktop-log-viewer" aria-label="Console de logs">
       <div className="desktop-log-toolbar">
-        <DesktopSelect label="Nível dos logs" height={40} value={nivel} options={NIVEIS} onChange={setNivel} className="desktop-log-level"/>
+        <DesktopSelect label="Nível dos logs" height={40} value={nivel} options={dev ? NIVEIS.filter(opcao => opcao.value !== 'audit') : NIVEIS} onChange={setNivel} className="desktop-log-level"/>
         <CollectionSearch label="Filtrar texto" placeholder="Buscar nos logs…" value={texto} onChange={setTexto}/>
         <LogPeriodPicker value={periodo} onChange={valor => {
           setPeriodo(valor); setAgora(Date.now());

@@ -283,9 +283,11 @@ export default function ChamadosPage() {
           {!dev && !!atual.usuarioId && <div className="ticket-toggle-row"><span>Mostrar comentário ao cliente</span><DesktopToggle label="Mostrar comentário ao cliente" checked={publico} onChange={setPublico}/></div>}
           <div className="actions"><Btn disabled={!valido} onClick={() => void agir('COMENTAR')}>Registrar comentário</Btn><Btn variant="ghost" disabled={!valido} onClick={() => void agir('ATRIBUIR')}>Assumir chamado</Btn></div>
           {!dev && <>
-            <DesktopAccordion title="Alterar status ou tipo"><div className="ticket-action-fields">
-              <DesktopSelect label="Novo status" showLabel fullWidth value={status} options={estados.filter(s => !['ENCAMINHADO_DEVS', 'RESOLVIDO'].includes(s.value))} onChange={setStatus}/>
-              <Btn disabled={!valido || !status} onClick={() => void agir('STATUS')}>Registrar status</Btn>
+            <DesktopAccordion title={atual.status === 'ENCAMINHADO_DEVS' ? 'Alterar tipo' : 'Alterar status ou tipo'}><div className="ticket-action-fields">
+              {atual.status !== 'ENCAMINHADO_DEVS' && <>
+                <DesktopSelect label="Novo status" showLabel fullWidth value={status} options={estados.filter(s => !['ENCAMINHADO_DEVS', 'RESOLVIDO'].includes(s.value))} onChange={setStatus}/>
+                <Btn disabled={!valido || !status} onClick={() => void agir('STATUS')}>Registrar status</Btn>
+              </>}
               <DesktopSelect label="Reclassificar tipo" showLabel fullWidth value={tipo} options={tipos} onChange={setTipo}/>
               <Btn variant="ghost" disabled={!valido || !tipo} onClick={() => void agir('CLASSIFICAR')}>Aplicar classificação</Btn>
             </div></DesktopAccordion>
