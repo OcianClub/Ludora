@@ -1,17 +1,17 @@
 import { useMemo } from 'react';
 import { Text, View, useWindowDimensions } from 'react-native';
 import type { JogoPaulista, SnapshotPaulista } from '../../../../../packages/shared-types/src/paulista';
-import { campanhaPublicada, classificacaoProxima, nomeGrupo, nomeOficial, resumoClube, etapaPublicada, hojePaulista, type EstadoEtapa } from '../../utils/paulista';
-import { BarraCampanha, ConfrontoOficial, dataOficial, EscudoOficial, LinkPaulista, Marcador, Medalha, Panel, ResultadoOficial, saldoOficial, usePaulistaStyles } from './PaulistaUI';
+import { campanhaPublicada, classificacaoProxima, nomeGrupo, nomeOficial, resumoClube, etapaPublicada, type EstadoEtapa } from '../../utils/paulista';
+import { BarraCampanha, ConfrontoOficial, dataOficial, EscudoOficial, LinkPaulista, Marcador, Medalha, Panel, ResultadoOficial, saldoOficial, useDestaqueClube, usePaulistaStyles } from './PaulistaUI';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Icon } from '@ludora/icons';
 
 export const estadoEtapa: Record<EstadoEtapa, string> = { advanced: 'Avanço confirmado', ended: 'Eliminação confirmada', published: 'Confronto publicado', pending: 'Aguardando publicação', unreached: 'Não alcançada' };
-export function PaulistaOverview({ snapshot, minhas, clubeNome, chave, onTab, onOpen }: {
-  snapshot: SnapshotPaulista; minhas: Set<number>; clubeNome: string; chave?: string; onTab: (aba: 'jogos' | 'classificacao' | 'chaveamento') => void; onOpen: (jogo: JogoPaulista) => void;
+export function PaulistaOverview({ snapshot, minhas, clubeNome, resumo, chave, onTab, onOpen }: {
+  snapshot: SnapshotPaulista; minhas: Set<number>; clubeNome: string; resumo: ReturnType<typeof resumoClube>; chave?: string; onTab: (aba: 'jogos' | 'classificacao' | 'chaveamento') => void; onOpen: (jogo: JogoPaulista) => void;
 }) {
   const s = usePaulistaStyles(), { colors } = useTheme(), { width } = useWindowDimensions();
-  const resumo = useMemo(() => resumoClube(snapshot, minhas, hojePaulista()), [snapshot, minhas]);
+  const destaqueClube = useDestaqueClube();
   const campanha = useMemo(() => campanhaPublicada(snapshot, minhas, chave), [snapshot, minhas, chave]);
   const vizinhas = useMemo(() => classificacaoProxima(snapshot, resumo.classificacao), [snapshot, resumo.classificacao]);
   const equipes = useMemo(() => new Map(snapshot.equipes.map(e => [e.id, e])), [snapshot.equipes]);
@@ -31,9 +31,13 @@ export function PaulistaOverview({ snapshot, minhas, clubeNome, chave, onTab, on
           <View style={{ flex: 1, gap: 2 }}><Text style={[s.text, { fontFamily: 'Inter_600SemiBold', color: etapa.estado === 'pending' || etapa.estado === 'unreached' ? colors.textoSecundario : colors.texto }]}>{etapa.titulo === 'Semifinais' ? 'Semifinal' : etapa.titulo}</Text><Text style={s.tiny}>{etapa.etapa === -1 ? linha ? `${linha.posicao}º lugar` : 'A confirmar' : estadoEtapa[etapa.estado]}</Text></View>
         </View>)}</View>
       </View>
-      <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: colors.borda, gap: 5, alignItems: 'center' }}>
-        <Text style={s.muted}>Posição na fase de classificação</Text><Text style={[s.number, { fontSize: 48, lineHeight: 59 }]}>{linha ? `${linha.posicao}º` : '—'}</Text>
-        <Text style={[s.tiny, { textAlign: 'center' }]}>{vizinhas.total ? `de ${vizinhas.total} equipes · ` : ''}{linha ? nomeGrupo(nomeOficial(linha.grupo)) : 'Tabela a confirmar'}</Text><LinkPaulista onPress={() => onTab('classificacao')}>Ver classificação</LinkPaulista>
+      <View style={[s.row, { padding: 16, borderTopWidth: 1, borderTopColor: colors.borda, gap: 18, justifyContent: 'center' }]}>
+        <Text style={[s.number, { fontSize: 48, lineHeight: 59 }]}>{linha ? `${linha.posicao}º` : '—'}</Text>
+        <View style={{ flexShrink: 1 }}>
+          <Text style={s.muted}>Posição na fase de classificação</Text>
+          <Text style={s.tiny}>{vizinhas.total ? `de ${vizinhas.total} equipes · ` : ''}{linha ? nomeGrupo(linha.grupo) : 'Tabela a confirmar'}</Text>
+          <LinkPaulista onPress={() => onTab('classificacao')}>Ver classificação</LinkPaulista>
+        </View>
       </View>
     </Panel>
     <Panel style={{ padding: 16 }}>
@@ -65,7 +69,7 @@ export function PaulistaOverview({ snapshot, minhas, clubeNome, chave, onTab, on
       <Panel style={{ width: wide ? undefined : '100%', flex: wide ? 1 : undefined }}>
         <View style={s.body}><Text style={s.heading}>Classificação</Text><Text style={s.tiny}>Na fase de classificação{linha ? ` · ${nomeGrupo(nomeOficial(linha.grupo))}` : ''}</Text>
           <View style={[s.row, s.divider, { minHeight: 38, gap: 7 }]}><Text style={[s.tiny, { width: 32 }]}>Pos.</Text><Text style={[s.tiny, { flex: 1 }]}>Equipe</Text><Text style={[s.tiny, { width: 30, textAlign: 'center' }]}>PTS</Text><Text style={[s.tiny, { width: 32, textAlign: 'right' }]}>SG</Text></View>
-          <View style={{ marginTop: -14 }}>{vizinhas.linhas.map(r => <View key={r.equipeId} style={[s.row, s.divider, { minHeight: 60, gap: 7, borderLeftWidth: 2, borderLeftColor: minhas.has(r.equipeId) ? colors.primaria : 'transparent', backgroundColor: minhas.has(r.equipeId) ? colors.fundoBotao : 'transparent', paddingHorizontal: 6 }]}><Text style={[s.text, { width: 26 }]}>{r.posicao}º</Text><View style={s.team}><EscudoOficial equipe={equipes.get(r.equipeId)} size={23} /><View style={{ flex: 1 }}><Text numberOfLines={1} style={[s.tiny, { color: minhas.has(r.equipeId) ? colors.texto : colors.textoSecundario }]}>{nomeOficial(equipes.get(r.equipeId)?.nome || 'A confirmar')}</Text>{minhas.has(r.equipeId) && <Text style={[s.tiny, { fontSize: 9 }]}>Seu clube</Text>}</View></View><Text style={[s.text, { width: 30, textAlign: 'center' }]}>{r.pontosNota || r.pontos}</Text><Text style={[s.text, { width: 32, textAlign: 'right' }]}>{saldoOficial(r.saldo)}</Text></View>)}</View>
+          <View style={{ marginTop: -14 }}>{vizinhas.linhas.map(r => <View key={r.equipeId} style={[s.row, s.divider, { minHeight: 60, gap: 7, borderLeftWidth: 2, borderLeftColor: minhas.has(r.equipeId) ? destaqueClube.borda : 'transparent', backgroundColor: minhas.has(r.equipeId) ? destaqueClube.fundo : 'transparent', paddingHorizontal: 6 }]}><Text style={[s.text, { width: 26 }]}>{r.posicao}º</Text><View style={s.team}><EscudoOficial equipe={equipes.get(r.equipeId)} size={23} /><View style={{ flex: 1 }}><Text numberOfLines={1} style={[s.tiny, { color: minhas.has(r.equipeId) ? colors.texto : colors.textoSecundario }]}>{nomeOficial(equipes.get(r.equipeId)?.nome || 'A confirmar')}</Text>{minhas.has(r.equipeId) && <Text style={[s.tiny, { fontSize: 9 }]}>Seu clube</Text>}</View></View><Text style={[s.text, { width: 30, textAlign: 'center' }]}>{r.pontosNota || r.pontos}</Text><Text style={[s.text, { width: 32, textAlign: 'right' }]}>{saldoOficial(r.saldo)}</Text></View>)}</View>
           {!vizinhas.linhas.length && <Text style={s.muted}>Classificação oficial ainda não publicada para este grupo.</Text>}
           <View style={{ alignItems: 'center' }}><LinkPaulista onPress={() => onTab('classificacao')}>Ver classificação completa</LinkPaulista></View>
         </View>

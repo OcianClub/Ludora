@@ -28,14 +28,16 @@ import { pageDestination } from "@/src/utils/categoryMotion";
 const PagerGestureContext = createContext<ReturnType<typeof Gesture.Pan> | null>(null);
 
 /** A faixa inteira, inclusive as folgas, pertence ao scroll interno. */
-export function CategoryFilterScroll({ contentContainerStyle, ...props }: ScrollViewProps) {
+export function CategoryFilterScroll({
+  contentContainerStyle, activateOnStart = true, ref, ...props
+}: ScrollViewProps & { activateOnStart?: boolean; ref?: React.Ref<ScrollView> }) {
   const pager = useContext(PagerGestureContext);
   const native = useMemo(() => {
-    const gesture = Gesture.Native().disallowInterruption(true).shouldActivateOnStart(true);
+    const gesture = Gesture.Native().disallowInterruption(true).shouldActivateOnStart(activateOnStart);
     return pager ? gesture.blocksExternalGesture(pager) : gesture;
-  }, [pager]);
+  }, [pager, activateOnStart]);
   return <GestureDetector gesture={native}>
-    <ScrollView {...props} horizontal showsHorizontalScrollIndicator={false}
+    <ScrollView {...props} ref={ref} horizontal showsHorizontalScrollIndicator={false}
       contentContainerStyle={[{ flexGrow: 1, minWidth: '100%' }, contentContainerStyle]} />
   </GestureDetector>;
 }

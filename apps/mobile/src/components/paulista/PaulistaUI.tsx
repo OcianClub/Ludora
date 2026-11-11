@@ -12,15 +12,34 @@ import type { EquipePaulista, JogoPaulista, PosicaoPaulista } from '../../../../
 export const ERRO_PARTIDA = liveBadgeColors.indicador;
 export const coresChave = { OURO: '#F0B84E', PRATA: '#BFC8D6', BRONZE: '#C58B59', RUBI: '#EC7294' };
 export function usePaulistaStyles() { const { colors } = useTheme(); return useMemo(() => estilos(colors), [colors]); }
-export function EscudoOficial({ equipe, size = 26 }: { equipe?: Partial<EquipePaulista>; size?: number }) {
-  const { colors } = useTheme(); const [falhou, setFalhou] = useState<string>();
-  return <View style={{ width: size, height: size, borderRadius: size * .22, backgroundColor: colors.cardSecundario, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+export function useDestaqueClube() {
+  const { colors, tema } = useTheme();
+  return {
+    borda: colors.primaria,
+    fundo: tema === 'light' ? '#E3EFFF' : '#141E2F',
+    forte: tema === 'light' ? '#CEE4FF' : '#1B2C45',
+  };
+}
+
+export function EscudoOficial({ equipe, size = 26, destaque = false }: {
+  equipe?: Partial<EquipePaulista>; size?: number; destaque?: boolean;
+}) {
+  const { colors } = useTheme();
+  const destaqueClube = useDestaqueClube();
+  const [falhou, setFalhou] = useState<string>();
+  return <View style={{ width: size, height: size, borderRadius: size * .22, backgroundColor: colors.cardSecundario, borderWidth: destaque ? 1.5 : 0, borderColor: destaqueClube.borda, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
     {equipe?.escudo && falhou !== equipe.escudo ? <Image accessibilityIgnoresInvertColors source={{ uri: equipe.escudo }} onError={() => setFalhou(equipe.escudo!)} resizeMode="contain" style={{ width: size * .8, height: size * .8 }} /> : <Text style={{ color: colors.texto, fontFamily: 'Inter_600SemiBold', fontSize: Math.max(10, size * .4) }}>{equipe?.nome?.trim()[0]?.toUpperCase() || '?'}</Text>}
   </View>;
 }
+const chavesTemaClaro = { OURO: '#805000', PRATA: '#536174', BRONZE: '#8D502D', RUBI: '#A12C51' };
+export function useCorChave() {
+  const { colors, tema } = useTheme();
+  const paleta = tema === 'light' ? chavesTemaClaro : coresChave;
+  return (chave?: string | null) => paleta[chave as keyof typeof paleta] || colors.textoSecundario;
+}
 export function Medalha({ chave, filled = false }: { chave?: string | null; filled?: boolean }) {
-  const { colors, tema } = useTheme(); const s = usePaulistaStyles();
-  const color = tema === 'light' ? ({ OURO: '#936000', PRATA: '#536174', BRONZE: '#8D502D', RUBI: '#A12C51' }[chave || ''] || colors.textoSecundario) : coresChave[chave as keyof typeof coresChave] || colors.textoSecundario;
+  const s = usePaulistaStyles();
+  const color = useCorChave()(chave);
   return <View style={[s.row, { gap: 7, alignSelf: 'flex-start' }, !filled && { paddingVertical: 5, paddingHorizontal: 8, borderWidth: 1, borderRadius: 4, borderColor: color }]}>{filled ? <Svg width={27} height={27} viewBox="0 0 24 24" fill={color}><Path d="M7 3h10v5a5 5 0 0 1-4 4.9V17h2a2 2 0 0 1 2 2v2H7v-2a2 2 0 0 1 2-2h2v-4.1A5 5 0 0 1 7 8V3Z" /><Path d="M7 4H2v4a6 6 0 0 0 6 6v-2a4 4 0 0 1-4-4V6h3V4Zm10 0h5v4a6 6 0 0 1-6 6v-2a4 4 0 0 0 4-4V6h-3V4Z" /></Svg> : <Icon name="trophy" size={14} color={color} />}<Text style={[s.tiny, { color, fontFamily: 'Inter_600SemiBold' }]}>{chave ? `Chave ${nomeOficial(chave)}` : 'Chave a confirmar'}</Text></View>;
 }
 export function Marcador({ estado }: { estado: EstadoEtapa }) {
@@ -52,15 +71,28 @@ export function BarraCampanha({ linha }: { linha: PosicaoPaulista }) {
 }
 export function ResultadoOficial({ jogo, minhas }: { jogo: JogoPaulista; minhas: Set<number> }) {
   const { colors } = useTheme(); const s = usePaulistaStyles();
-  const saldo = temResultado(jogo) ? (jogo.golsMandante! - jogo.golsVisitante!) * (minhas.has(jogo.mandanteId) ? 1 : -1) : null;
-  const label = saldo === null ? jogo.ocorrencia === 'WO' ? 'W.O.' : jogo.ocorrencia === 'ADIADA' ? 'Adiada' : 'Agendada' : saldo > 0 ? 'Vitória' : saldo < 0 ? 'Derrota' : 'Empate';
+  const emCasa = minhas.has(jogo.mandanteId);
+  const comPerspectiva = emCasa !== minhas.has(jogo.visitanteId);
+  const finalizada = temResultado(jogo);
+  const saldo = finalizada && comPerspectiva
+    ? (jogo.golsMandante! - jogo.golsVisitante!) * (emCasa ? 1 : -1)
+    : null;
+  let label = 'Sem resultado';
+  if (saldo !== null) label = saldo > 0 ? 'Vitória' : saldo < 0 ? 'Derrota' : 'Empate';
+  else if (finalizada) label = 'Finalizada';
+  else if (jogo.ocorrencia === 'WO') label = 'W.O.';
+  else if (jogo.ocorrencia === 'ADIADA') label = 'Adiada';
   return <View style={{ backgroundColor: saldo === null ? colors.cardSecundario : saldo > 0 ? colors.primaria : saldo < 0 ? ERRO_PARTIDA : colors.amarelo, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 5, alignSelf: 'center' }}><Text style={[s.tiny, { color: saldo === 0 ? '#171717' : saldo === null ? colors.texto : '#fff', fontFamily: 'Inter_600SemiBold', fontSize: 10 }]}>{label}</Text></View>;
 }
-export function ConfrontoOficial({ jogo, equipes, minhas, onPress }: { jogo: JogoPaulista; equipes: Map<number, EquipePaulista>; minhas: Set<number>; onPress: () => void }) {
+export function ConfrontoOficial({ jogo, equipes, minhas, onPress }: { jogo: JogoPaulista; equipes: Map<number, EquipePaulista>; minhas: Set<number>; onPress?: () => void }) {
   const s = usePaulistaStyles(), { colors } = useTheme();
   const team = (id: number, reverse = false) => <View style={[s.team, { flexDirection: reverse ? 'row-reverse' : 'row' }]}><EscudoOficial equipe={equipes.get(id)} size={24} /><Text numberOfLines={1} style={[s.tiny, { flexShrink: 1, color: minhas.has(id) ? colors.texto : colors.textoSecundario, fontFamily: minhas.has(id) ? 'Inter_600SemiBold' : 'Inter_400Regular' }]}>{nomeOficial(equipes.get(id)?.nome || 'A confirmar')}</Text></View>;
-  return <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Ver partida: ${equipes.get(jogo.mandanteId)?.nome} contra ${equipes.get(jogo.visitanteId)?.nome}`} onPress={onPress} activeOpacity={.85} style={s.contest}>
-    {team(jogo.mandanteId)}<Text style={s.score}>{temResultado(jogo) ? `${jogo.golsMandante} – ${jogo.golsVisitante}` : jogo.ocorrencia === 'WO' ? 'WO' : 'VS'}</Text>{team(jogo.visitanteId, true)}<Icon name="chevron-right" size={12} color={colors.textoSecundario} />
+  const content = <>{team(jogo.mandanteId)}<Text style={s.score}>{temResultado(jogo) ? `${jogo.golsMandante} – ${jogo.golsVisitante}` : jogo.ocorrencia === 'WO' ? 'WO' : 'VS'}</Text>{team(jogo.visitanteId, true)}</>;
+  if (!onPress) return <View style={s.contest}>{content}</View>;
+  const mandante = equipes.get(jogo.mandanteId)?.nome || 'Equipe a confirmar';
+  const visitante = equipes.get(jogo.visitanteId)?.nome || 'Equipe a confirmar';
+  return <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Ver partida: ${mandante} contra ${visitante}`} onPress={onPress} activeOpacity={.85} style={s.contest}>
+    {content}<Icon name="chevron-right" size={12} color={colors.textoSecundario} />
   </TouchableOpacity>;
 }
 export function Panel({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) { const s = usePaulistaStyles(); return <View style={[s.panel, style]}>{children}</View>; }

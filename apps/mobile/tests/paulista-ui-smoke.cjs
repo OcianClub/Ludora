@@ -6,30 +6,50 @@ const esbuild=createRequire(fs.realpathSync(path.join(root,'apps/web/node_module
 const output=path.join(root,'test-results/mobile-paulista');fs.mkdirSync(output,{recursive:true});
 const shim=path.join(output,'shim.tsx'),backend=path.join(output,'backend.ts'),entry=path.join(output,'entry.tsx');
 fs.writeFileSync(shim,`
-import React,{useEffect} from 'react';import {Text,View,TouchableOpacity} from 'react-native';import {darkColors} from '../../packages/design-tokens/src';
+import React,{useEffect} from 'react';import {ScrollView,Text,View,TouchableOpacity} from 'react-native';import {darkColors} from '../../packages/design-tokens/src';
 export const useTheme=()=>({colors:darkColors,tema:'dark'});
 export const useSessao=()=>({autenticado:!location.search.includes('guest')});
 window.switchClub=id=>window.dispatchEvent(new CustomEvent('fixture-club',{detail:id}));
 export function useClubeAtivo(){const[id,setId]=React.useState(1);useEffect(()=>{const fn=e=>setId(e.detail);window.addEventListener('fixture-club',fn);return()=>window.removeEventListener('fixture-club',fn);},[]);return {clubeAtivo:{id,nome:id===1?'Ocian':'Santos',escudo:null}};}
 export const useSafeAreaInsets=()=>({top:0,bottom:24,left:0,right:0});export const SafeAreaView=View,LinearGradient=View;
-export const useFocusEffect=fn=>useEffect(fn,[fn]);export const useRouter=()=>({push(){},back(){}});
+export function useFocusEffect(fn){
+  const[focused,setFocused]=React.useState(true);
+  useEffect(()=>{const onFocus=e=>setFocused(e.detail);window.addEventListener('fixture-focus',onFocus);return()=>window.removeEventListener('fixture-focus',onFocus);},[]);
+  useEffect(()=>focused?fn():undefined,[focused,fn]);
+}
+window.setFixtureFocus=focused=>window.dispatchEvent(new CustomEvent('fixture-focus',{detail:focused}));export const useRouter=()=>({push(){},back(){}});
 export const getItemAsync=async()=>location.search.includes('guest')?null:'isolated-token';
 export const io=()=>({on(){},removeAllListeners(){},disconnect(){}});
 export const HeaderClube=()=> <View style={{height:54,padding:12}}><Text style={{color:'#fff'}}>Ocian</Text></View>;
+export function useCategoryPagerMotion(pager){
+  const goTo=React.useCallback(index=>pager.current?.setPage(index),[pager]);
+  return {goTo,onSettled(){}};
+}
+export const CategoryPager=React.forwardRef(function CategoryPager({children,initialPage,onPageSelected},ref){
+  const [active,setActive]=React.useState(initialPage);
+  React.useImperativeHandle(ref,()=>({setPage(index){setActive(index);onPageSelected({nativeEvent:{position:index}});}}));
+  return <View style={{flex:1,minHeight:0}}>{React.Children.toArray(children)[active]}</View>;
+});
+export function CategoryFilterScroll({activateOnStart,...props}){return <ScrollView {...props} horizontal />;}
 export const SUBS_INICIACAO=[7,8,9,10].map(n=>({title:'SUB-'+n})),SUBS_BASE=[12,14,16,18].map(n=>({title:'SUB-'+n}));
 export function CarrosselSubs(p){const subs=p.tipoFiltro==='INICIACAO'?SUBS_INICIACAO:SUBS_BASE;return <View style={{padding:12,gap:8}}><View style={{flexDirection:'row'}}>{['INICIACAO','BASE'].map(t=><TouchableOpacity key={t} accessibilityRole='button' accessibilityLabel={t} onPress={()=>p.onTrocarTipo(t)} style={{flex:1,padding:8}}><Text style={{color:'#fff'}}>{t}</Text></TouchableOpacity>)}</View><View style={{flexDirection:'row'}}>{subs.map((s,i)=><TouchableOpacity key={s.title} accessibilityRole='button' accessibilityLabel={s.title} onPress={()=>p.onChangeIndex(i)} style={{flex:1,padding:8}}><Text style={{color:'#fff'}}>{s.title}</Text></TouchableOpacity>)}</View></View>;}
 `);
 fs.writeFileSync(backend,`
 import {paulistaFixture} from '../../apps/mobile/tests/paulista.fixture';
 export const BASE_URL='/isolated';window.fixture={requests:[],fail:false,delay:0};
-export async function apiFetch(url,opts={}){window.fixture.requests.push({url,method:opts.method||'GET'});if(window.fixture.delay)await new Promise(r=>setTimeout(r,window.fixture.delay));if(window.fixture.fail)throw Error('isolated offline');const data=paulistaFixture();return new Response(JSON.stringify(data));}
+export async function apiFetch(url,opts={}){window.fixture.requests.push({url,method:opts.method||'GET'});if(window.fixture.delay)await new Promise(r=>setTimeout(r,window.fixture.delay));if(window.fixture.fail)throw Error('isolated offline');const data=paulistaFixture().map(evento=>({
+  ...evento,
+  equipesClube:url.includes('/clubes/2/')?[9]:evento.equipesClube,
+  jogos:evento.jogos.map(jogo=>jogo.id==='semi'?{...jogo,local:'Ginásio Municipal'}:jogo),
+}));return new Response(JSON.stringify(data));}
 `);
 fs.writeFileSync(entry,`import React from 'react';import {createRoot} from 'react-dom/client';import Screen from '../../apps/mobile/src/screens/PaulistaScreen';createRoot(document.getElementById('root')).render(<Screen/>);`);
 (async()=>{
 await esbuild.build({entryPoints:[entry],outfile:path.join(output,'bundle.js'),bundle:true,jsx:'automatic',platform:'browser',mainFields:['browser','module','main'],resolveExtensions:['.web.tsx','.web.ts','.web.js','.tsx','.ts','.js','.json'],define:{__DEV__:'true','process.env.NODE_ENV':'"development"'},alias:{react:path.dirname(mobile.resolve('react/package.json')),'react-dom':path.dirname(mobile.resolve('react-dom/package.json')),'react-native':mobile.resolve('react-native-web'),'react-native-svg':path.join(path.dirname(mobile.resolve('react-native-svg/package.json')),'src/ReactNativeSVG.web.ts')},plugins:[{name:'isolation',setup(b){
 b.onResolve({filter:/^(expo-router|expo-secure-store|expo-linear-gradient|socket.io-client|react-native-safe-area-context)$/},()=>({path:shim}));
 b.onResolve({filter:/contexts\/(ThemeContext|SessaoContext|ClubeAtivoContext)$/},()=>({path:shim}));
-b.onResolve({filter:/components\/(HeaderClube|CarrosselSubs)$/},()=>({path:shim}));
+b.onResolve({filter:/components\/(HeaderClube|CarrosselSubs|CategoryPager)$/},()=>({path:shim}));
+b.onResolve({filter:/hooks\/useCategoryPagerMotion$/},()=>({path:shim}));
 b.onResolve({filter:/services\/api$/},()=>({path:backend}));
 b.onResolve({filter:/^@ludora\/icons$/},()=>({path:path.join(root,'packages/icons/src/index.ts')}));
 b.onResolve({filter:/^@ludora\/design-tokens$/},()=>({path:path.join(root,'packages/design-tokens/src/index.ts')}));
@@ -51,8 +71,40 @@ await page.getByText('Chave a confirmar',{exact:true}).waitFor();
 await page.getByRole('button',{name:'Selecionar temporada: 2025',exact:true}).click();await page.getByRole('radio',{name:'Temporada 2026',exact:true}).click();
 await page.getByText('Eliminado na semifinal',{exact:true}).waitFor();
 await page.getByRole('button',{name:'SUB-9',exact:true}).click();await page.getByText('Nenhuma participação publicada para SUB-9 na temporada 2026.',{exact:true}).waitFor();
-await page.getByRole('button',{name:'SUB-7',exact:true}).click();
+await page.getByRole('button',{name:'BASE',exact:true}).click();
+await page.getByText('Nenhuma participação publicada para SUB-12 na temporada 2026.',{exact:true}).waitFor();
+await page.getByRole('button',{name:'INICIACAO',exact:true}).click();
+await page.getByText('Eliminado na semifinal',{exact:true}).waitFor();
+assert.equal(await page.evaluate(()=>window.fixture.requests.length),1,'switches reuse the club publication');
+if (width <= 390) {
+  await page.getByRole('tab', {name:'Jogos',exact:true}).click();
+  await page.getByRole('button', {name:/^Ver detalhes:/}).first().waitFor();
+  assert.equal(await page.getByText('Casa',{exact:true}).count(),1);
+  assert.equal(await page.getByText('Fora',{exact:true}).count(),1);
+  await page.getByRole('textbox',{name:'Buscar adversário ou local'}).fill('ginasio municipal');
+  await page.getByText('1 jogo do Ocian',{exact:true}).waitFor();
+  await page.screenshot({path:path.join(output,`games-${role}-${width}.png`),fullPage:true});
+
+  await page.getByRole('tab', {name:'Chaveamento',exact:true}).click();
+  const quartas = page.getByRole('tab',{name:'Quartas',exact:true});
+  const semifinal = page.getByRole('tab',{name:'Semifinal',exact:true});
+  const final = page.getByRole('tab',{name:'Final',exact:true});
+  await semifinal.waitFor();
+  assert.equal(await semifinal.getAttribute('aria-selected'),'true');
+  assert.equal(await quartas.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(20, 30, 47)');
+  await quartas.click();
+  assert.equal(await page.getByRole('button',{name:/^Ver detalhes:/}).count(),4);
+  await final.click();
+  assert.equal(await final.getAttribute('aria-selected'),'true');
+  assert.equal(await page.getByRole('button',{name:/^Ver detalhes:/}).count(),1);
+  assert.equal(await page.getByText('Finalizada',{exact:true}).count(),1);
+  for(const text of ['Derrota','Vitória','Casa','Fora']) assert.equal(await page.getByText(text,{exact:true}).count(),0);
+  await semifinal.click();
+  await page.screenshot({path:path.join(output,`bracket-${role}-${width}.png`),fullPage:true});
+}
 await page.getByRole('tab',{name:'Classificação',exact:true}).click();await page.getByRole('button',{name:'Localizar meu clube',exact:true}).waitFor();
+const row=page.getByLabel('12º, Ocian, seu clube',{exact:true});
+assert.deepEqual(await row.evaluate(e=>[getComputedStyle(e).backgroundColor,getComputedStyle(e).borderLeftColor]),['rgb(20, 30, 47)','rgb(14, 120, 255)']);
 assert.equal(await page.getByText('Chave Ouro',{exact:true}).count(),1);assert.equal(await page.getByText('Chave Bronze',{exact:true}).count(),1);
 await page.screenshot({path:path.join(output,`standings-${role}-${width}.png`),fullPage:true});
 await page.getByRole('button',{name:/Selecionar etapa:/}).click();await page.getByRole('radio',{name:'Fase de classificação',exact:true}).click();
@@ -73,9 +125,17 @@ assert.equal(await page.evaluate(()=>window.fixture.requests.every(r=>r.method==
 assert.deepEqual(errors,[],`${width}/${role} runtime`);await page.close();count++;
 }
 const page=await browser.newPage({viewport:{width:390,height:840}});await page.goto(`${url}/?guest`);await page.getByText('Eliminado na semifinal',{exact:true}).waitFor();
-await page.getByRole('button',{name:'Opções do campeonato',exact:true}).click();await page.getByRole('button',{name:'Atualizar dados',exact:true}).waitFor();
+await page.evaluate(()=>window.setFixtureFocus(false));
+await page.waitForTimeout(100);
+await page.evaluate(()=>window.setFixtureFocus(true));
+await page.waitForTimeout(350);
+assert.equal(await page.evaluate(()=>window.fixture.requests.length),1,'refocus reuses a recent publication');
+await page.getByRole('button',{name:'Opções do campeonato',exact:true}).click();
+await page.getByRole('link',{name:'Consultar fonte oficial',exact:true}).waitFor();
+await page.getByRole('button',{name:'Atualizar dados',exact:true}).waitFor();
 await page.evaluate(()=>{window.fixture.delay=500;window.fixture.fail=true;});
 await page.getByRole('button',{name:'Atualizar dados',exact:true}).click();await page.getByText('Última atualização não concluída',{exact:true}).waitFor();
+assert.equal(await page.evaluate(()=>window.fixture.requests.length),2,'explicit refresh bypasses the recent publication');
 assert.equal(await page.getByText('Eliminado na semifinal',{exact:true}).count(),1,'refresh failure preserves publication');
 await page.screenshot({path:path.join(output,'refresh-error.png'),fullPage:true});await page.close();count++;
 const race=await browser.newPage({viewport:{width:360,height:840}});await race.goto(`${url}/?guest`);await race.getByText('Eliminado na semifinal',{exact:true}).waitFor();
@@ -84,6 +144,9 @@ await race.evaluate(()=>{window.fixture.delay=500;window.switchClub(2);});
 await race.getByText('Partida oficial',{exact:true}).waitFor({state:'hidden'});
 await race.getByText('Santos · SUB-7 · Divisão A2',{exact:true}).waitFor();
 assert.equal(await race.getByText('Ocian · SUB-7 · Divisão A2',{exact:true}).count(),0,'previous club publication cannot leak into selected club');
+await race.getByRole('tab',{name:'Chaveamento',exact:true}).click();
+assert.equal(await race.getByRole('tab',{name:'Final',exact:true}).getAttribute('aria-selected'),'true');
+assert.equal(await race.getByRole('button',{name:/^Ver detalhes: Santos contra /}).count(),1);
 await race.close();count++;
 console.log(JSON.stringify({scenarios:count,output}));
 }finally{await browser.close();server.close();}

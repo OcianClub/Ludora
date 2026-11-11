@@ -14,6 +14,7 @@
     "start:api": "pnpm --filter @ludora/api run start",
     "build:web": "pnpm --filter @ludora/web run build",
     "dev": "node scripts/dev-stack.cjs",
+    "dev:apresentacao": "node scripts/dev-stack.cjs --sem-mobile",
     "dev:web": "pnpm --filter @ludora/web run dev",
     "dev:paulista": "node scripts/dev-paulista.cjs",
     "dev:api": "node scripts/dev-service.cjs api",

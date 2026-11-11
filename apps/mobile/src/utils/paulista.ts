@@ -21,5 +21,10 @@ export function fonteOficialValida(fonte?: string): fonte is string {
   return !!fonte && /^https:\/\/eventos\.admfutsal\.com\.br\/evento\/\d+\/?$/.test(fonte);
 }
 
-const calendarioSP = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' });
-export const hojePaulista = () => calendarioSP.format(new Date());
+const calendarioSP = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+export function hojePaulista() {
+  const partes = calendarioSP.formatToParts(new Date());
+  return ['year', 'month', 'day'].map(tipo => partes.find(parte => parte.type === tipo)?.value).join('-');
+}

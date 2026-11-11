@@ -5,53 +5,144 @@ import * as SecureStore from 'expo-secure-store';
 import { io, type Socket } from 'socket.io-client';
 import { apiFetch, BASE_URL } from '../services/api';
 import type { EventoPublicoPaulista } from '../utils/paulista';
-const EVENTOS_VAZIOS: EventoPublicoPaulista[] = [];
 
-/** Consulta somente a publicação oficial. Nunca inicia sincronização ou escreve na federação. */
+const EVENTOS_VAZIOS: EventoPublicoPaulista[] = [];
+const INTERVALO_CONSULTA = 60_000;
+const INTERVALO_RETORNO = 15_000;
+const AGRUPAR_ATUALIZACOES = 250;
+type Publicacao = { clubeId: number; eventos: EventoPublicoPaulista[]; consultadoEm: number };
+type Estado = { clubeId: number; atualizando: boolean; erro: string };
+
+function publicacaoValida(value: unknown): value is EventoPublicoPaulista[] {
+  return Array.isArray(value) && value.every(evento =>
+    evento && Number.isInteger(evento.id) && Number.isInteger(evento.ano)
+    && typeof evento.categoria === 'string' && typeof evento.divisao === 'string'
+    && Array.isArray(evento.equipes) && Array.isArray(evento.equipesClube)
+    && Array.isArray(evento.jogos) && Array.isArray(evento.classificacao)
+  );
+}
+
+const primeiroPlano = () => AppState.currentState !== 'background' && AppState.currentState !== 'inactive';
+
 export function usePaulistaPublicacao(clubeId: number | undefined, autenticado: boolean) {
-  const [consulta, setConsulta] = useState<{ clubeId: number; eventos: EventoPublicoPaulista[] } | null>(null);
-  const ultimo = useRef(consulta); ultimo.current = consulta;
-  const [carregando, setCarregando] = useState(true);
-  const [atualizando, setAtualizando] = useState(false);
-  const [erro, setErro] = useState('');
+  const [publicacao, setPublicacao] = useState<Publicacao>();
+  const ultima = useRef<Publicacao | undefined>(undefined);
+  const [estado, setEstado] = useState<Estado>();
   const refreshRef = useRef<() => void>(() => {});
   const atualizar = useCallback(() => refreshRef.current(), []);
+
   useFocusEffect(useCallback(() => {
-    let ativo = true, executando = false, pendente = false;
-    let socket: Socket | undefined, timer: ReturnType<typeof setTimeout> | undefined;
+    if (clubeId == null) return;
+    const id = clubeId;
     const controller = new AbortController();
-    setErro(''); setCarregando(!!clubeId && ultimo.current?.clubeId !== clubeId);
-    async function carregar() {
-      if (!ativo || !clubeId) return;
-      if (executando || AppState.currentState !== 'active') { pendente = true; return; }
-      executando = true; pendente = false; setAtualizando(true);
-      try {
-        const response = await apiFetch(`/publico/clubes/${clubeId}/paulista`, { signal: controller.signal, revalidar: true, headers: { 'x-clube-id': String(clubeId) } });
-        if (!response.ok) throw new Error('Não foi possível consultar a publicação oficial.');
-        const eventos: EventoPublicoPaulista[] = await response.json();
-        if (!Array.isArray(eventos)) throw new Error('Publicação inválida.');
-        if (ativo) { setConsulta({ clubeId, eventos }); setErro(''); }
-      } catch {
-        if (ativo) setErro('Não foi possível atualizar o campeonato. Tente novamente.');
-      } finally {
-        executando = false;
-        if (ativo) { setCarregando(false); setAtualizando(false); if (pendente) agendar(); }
+    let executando = false;
+    let pendente = false;
+    let socket: Socket | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    function agendar() {
+      if (controller.signal.aborted) return;
+      if (executando || !primeiroPlano()) {
+        pendente = true;
+        return;
+      }
+      if (!timer) {
+        timer = setTimeout(() => {
+          timer = undefined;
+          void carregar();
+        }, AGRUPAR_ATUALIZACOES);
       }
     }
-    function agendar() { if (ativo && !timer) timer = setTimeout(() => { timer = undefined; void carregar(); }, 250); }
+
+    async function carregar() {
+      if (controller.signal.aborted) return;
+      if (executando || !primeiroPlano()) {
+        pendente = true;
+        return;
+      }
+      executando = true;
+      pendente = false;
+      setEstado({ clubeId: id, atualizando: true, erro: '' });
+      let erro = '';
+      try {
+        const response = await apiFetch(`/publico/clubes/${id}/paulista`, {
+          signal: controller.signal,
+          revalidar: true,
+          headers: { 'x-clube-id': String(id) },
+        });
+        if (!response.ok) throw new Error('Consulta indisponível.');
+        const eventos: unknown = await response.json();
+        if (!publicacaoValida(eventos)) throw new Error('Publicação inválida.');
+        if (!controller.signal.aborted) {
+          const resultado = { clubeId: id, eventos, consultadoEm: Date.now() };
+          ultima.current = resultado;
+          setPublicacao(resultado);
+        }
+      } catch {
+        erro = 'Não foi possível atualizar o campeonato. Tente novamente.';
+      } finally {
+        executando = false;
+        if (!controller.signal.aborted) {
+          setEstado({ clubeId: id, atualizando: false, erro });
+          if (pendente) agendar();
+        }
+      }
+    }
+
+    function revalidarAoVoltar() {
+      const resultado = ultima.current;
+      if (pendente || resultado?.clubeId !== id || Date.now() - resultado.consultadoEm >= INTERVALO_RETORNO) {
+        agendar();
+      }
+    }
+
     refreshRef.current = agendar;
-    void carregar();
-    if (clubeId && autenticado) void SecureStore.getItemAsync('userToken').then(token => {
-      if (!ativo || !token) return;
-      socket = io(BASE_URL, { auth: { token, clubeId } });
-      let conectado = false;
-      socket.on('connect', () => { if (conectado) agendar(); conectado = true; });
-      socket.on('paulista_atualizado', () => agendar());
-    }).catch(() => {});
-    // A publicação pública não recebe operações privadas; consulta novamente em primeiro plano.
-    const poll = setInterval(() => { if (AppState.currentState === 'active') agendar(); }, 60_000);
-    const listener = AppState.addEventListener('change', estado => { if (estado === 'active') agendar(); });
-    return () => { ativo = false; controller.abort(); clearTimeout(timer); clearInterval(poll); socket?.removeAllListeners(); socket?.disconnect(); listener.remove(); refreshRef.current = () => {}; };
+    const resultado = ultima.current;
+    if (resultado?.clubeId === id && Date.now() - resultado.consultadoEm < INTERVALO_RETORNO) {
+      setEstado(anterior => ({ clubeId: id, atualizando: false, erro: anterior?.clubeId === id ? anterior.erro : '' }));
+    } else {
+      void carregar();
+    }
+
+    if (autenticado) {
+      void SecureStore.getItemAsync('userToken').then(token => {
+        if (controller.signal.aborted || !token) return;
+        socket = io(BASE_URL, { auth: { token, clubeId: id } });
+        let conectadoAntes = false;
+        socket.on('connect', () => {
+          if (conectadoAntes) agendar();
+          conectadoAntes = true;
+        });
+        socket.on('paulista_atualizado', agendar);
+      }).catch(() => {});
+    }
+
+    const poll = setInterval(() => {
+      if (primeiroPlano() && !executando) revalidarAoVoltar();
+    }, INTERVALO_CONSULTA);
+    const listener = AppState.addEventListener('change', valor => {
+      if (valor === 'active') revalidarAoVoltar();
+    });
+
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+      clearInterval(poll);
+      socket?.disconnect();
+      socket?.removeAllListeners();
+      listener.remove();
+      refreshRef.current = () => {};
+    };
   }, [clubeId, autenticado]));
-  return { eventos: consulta && consulta.clubeId === clubeId ? consulta.eventos : EVENTOS_VAZIOS, carregando, atualizando, erro, atualizar };
+
+  const recebida = publicacao?.clubeId === clubeId ? publicacao : undefined;
+  const estadoClube = estado?.clubeId === clubeId ? estado : undefined;
+  return {
+    eventos: recebida?.eventos ?? EVENTOS_VAZIOS,
+    recebida: !!recebida,
+    carregando: clubeId != null && !recebida && !estadoClube?.erro,
+    atualizando: estadoClube?.atualizando ?? false,
+    erro: estadoClube?.erro ?? '',
+    atualizar,
+  };
 }
