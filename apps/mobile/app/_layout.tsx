@@ -15,6 +15,7 @@ import { Oswald_700Bold } from '@expo-google-fonts/oswald/700Bold';
 import { ClubeAtivoProvider } from '@/src/contexts/ClubeAtivoContext';
 import { ThemeProvider } from '@/src/contexts/ThemeContext';
 import { NotificacoesProvider } from '@/src/contexts/NotificacoesContext';
+import { SessaoProvider } from '@/src/contexts/SessaoContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -45,7 +46,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}><ThemeProvider>
-      <ClubeAtivoProvider>
+      <SessaoProvider><ClubeAtivoProvider>
         <NotificacoesProvider>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
@@ -54,7 +55,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
           </Stack>
         </NotificacoesProvider>
-      </ClubeAtivoProvider>
+      </ClubeAtivoProvider></SessaoProvider>
     </ThemeProvider></GestureHandlerRootView>
   );
 }

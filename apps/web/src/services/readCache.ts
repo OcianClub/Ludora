@@ -19,6 +19,7 @@ const MAX_BODY_SIZE = 4_000_000;
 
 export function readLifetime(endpoint: string) {
   const path = endpoint.split('?')[0];
+  if (/^\/publico\/clubes\/\d+\/paulista$/.test(path)) return 30_000;
   if (path === '/categorias') return 60_000;
   if (['/times', '/competicoes'].includes(path)) return 30_000;
   if (['/jogadores', '/jogadores/perfis', '/clubes'].includes(path)) return 15_000;

@@ -5,8 +5,11 @@ import { idPositivo } from '../../utils/id';
 import { limitarRequisicoes } from '../../middlewares/rate-limit.middleware';
 import { consultarHome, dataHomeValida } from '../partidas/home.service';
 import { escopoPartidas } from '../partidas/visibilidade';
-import { referenciasCompeticoes } from '../paulista/service';
+import { referenciasCompeticoes, ativo as paulistaAtivo } from '../paulista/service';
+import type { SnapshotPaulista } from '../../../../../packages/shared-types/src/paulista';
 import { consultarAoVivo } from './ao-vivo.service';
+import { consultarAgenda } from '../partidas/agenda.service';
+import { FiltroDataInvalido } from '../partidas/filtros-data.utils';
 import { resumirCompeticoes } from '../cadastros/competicao-resumo.service';
 import { clubePublicoSelect, consultarPartidaPublica, partidaPublicaSelect, publicarPartida, competicaoPublicaSelect, escopoCompeticoesPublicas, classificarPartidas } from './publico.service';
 
@@ -37,6 +40,20 @@ export function criarPublicoRoutes(banco: PrismaClient = prisma) {
     const rows = await banco.time.findMany({ where: { categoria: { clube_id: res.locals.clube.id } }, select: { id: true, nome: true, escudo: true, categoria_id: true, clube_representado_id: true }, orderBy: { nome: 'asc' } });
     res.json(rows);
   }));
+  router.get('/publico/clubes/:clubeId/paulista', clube, safe(async (_req, res) => {
+    if (!paulistaAtivo()) { res.json([]); return; }
+    const links = await banco.fpfsVinculo.findMany({ where: { clubeId: res.locals.clube.id }, select: { equipeId: true } });
+    const ids = links.map(l => l.equipeId);
+    const eventos = await banco.fpfsEvento.findMany({ where: { times: { some: { equipeId: { in: ids } } } },
+      select: { id: true, ano: true, divisao: true, categoria: true, payload: true, verificadoEm: true }, orderBy: [{ ano: 'desc' }, { id: 'asc' }] });
+    // Somente a publicação oficial armazenada. Nenhuma sincronização, motivo interno ou auditoria.
+    res.json(eventos.map(e => {
+      const s = e.payload as unknown as SnapshotPaulista;
+      return { id: e.id, ano: e.ano, divisao: e.divisao, categoria: e.categoria, fonte: s.fonte,
+        equipes: s.equipes, jogos: s.jogos, classificacao: s.classificacao, fasesExcluidas: s.fasesExcluidas || [],
+        equipesClube: ids.filter(id => s.equipes.some(t => t.id === id)), verificadoEm: e.verificadoEm };
+    }));
+  }));
   router.get('/publico/clubes/:clubeId/partidas/home', clube, safe(async (req, res) => {
     if (!dataHomeValida(req.query.hoje)) { res.status(400).json({ error: 'Data inválida.' }); return; }
     const rows = await consultarHome(banco, res.locals.clube.id, req.query.hoje);
@@ -62,6 +79,19 @@ export function criarPublicoRoutes(banco: PrismaClient = prisma) {
     where.AND = [escopoPartidas(res.locals.clube.id), ...filters];
     const rows = await banco.partida.findMany({ where, select: partidaPublicaSelect, take: 1000, orderBy: [{ data: 'desc' }, { horario: 'desc' }, { id: 'desc' }] });
     res.json(rows.map(p => publicarPartida(p, res.locals.clube.id)));
+  }));
+  router.get('/publico/clubes/:clubeId/partidas/agenda', clube, safe(async (req, res) => {
+    try {
+      const rows = await consultarAgenda(banco, res.locals.clube.id, req.query);
+      res.json(rows.map(p => ({ id: p.id, data: p.data, horario: p.horario, local: p.local, status: p.status,
+        gols_mandante: p.gols_mandante, gols_visitante: p.gols_visitante, emCasa: p.emCasa,
+        mandante: p.mandante, visitante: p.visitante, categoria: p.categoria, competicao: p.competicao,
+        competicao_id: p.competicao_id, rodada: p.rodada, grupo: p.grupo, somente_leitura: true,
+        grupo_agenda: p.grupo_agenda, posicao: p.posicao, total_grupo: p.total_grupo })));
+    } catch (error) {
+      if (error instanceof FiltroDataInvalido) { res.status(400).json({ error: error.message }); return; }
+      throw error;
+    }
   }));
   router.get('/publico/partidas/:id', safe(async (req, res) => {
     const id = idPositivo(req.params.id);

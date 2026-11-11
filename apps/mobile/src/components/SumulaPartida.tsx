@@ -5,6 +5,7 @@ import { ModalHeader } from "./ui/AppSheet";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Alert,
   Animated,
   BackHandler,
@@ -15,8 +16,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -37,7 +36,6 @@ import {
   type GestaoPartida,
 } from "../services/partidasCompartilhadas";
 import {
-  criarFilaPublicacao,
   ATRASO_PUBLICACAO,
   type ItemPublicacao,
 } from "../utils/filaPublicacao";
@@ -48,7 +46,6 @@ import {
   ESTATISTICAS_VAZIAS,
   disciplinaTempo,
   eventosSemJogador,
-  mensagemResultado,
   NOMES_EVENTOS,
   placaresEventos,
   timeAutor,
@@ -57,6 +54,12 @@ import {
 import { createStyles } from "../styles/sumulaPartidaStyles";
 import { PositionLabel } from "./PositionIcon";
 import SubstituicaoPartida from "./SubstituicaoPartida";
+import AnalisePartida from './AnalisePartida';
+import PalpitePartida from './PalpitePartida';
+import CompartilharPartida from './CompartilharPartida';
+import { useFilaSumula } from '../hooks/useFilaSumula';
+import { SelectField } from './ui/SelectField';
+import { validarLance, ultimoLance, placarDoPeriodo, trocaValida, ultimoPeriodoIniciado } from '../utils/validacaoSumula';
 
 type Styles = ReturnType<typeof createStyles>;
 type Acao = {
@@ -71,6 +74,8 @@ type Form = {
   timeId: number;
   jogadorId?: number;
   contra: boolean;
+  minuto?: string;
+  assistenteId?: number;
   existente?: EventoPartida;
 };
 type Dialogo =
@@ -214,7 +219,7 @@ function Publicacao({
             ? "Publicando…"
             : item.status === "erro"
               ? item.erro
-              : `Aguardando publicação · ${segundos}s`}
+              : item.status === 'pausado' ? 'Pausado. Retome para ter novos 5 segundos.' : `Aguardando publicação · ${segundos}s`}
         </Text>
         {item.status === "aguardando" && (
           <View style={styles.progressTrack}>
@@ -227,13 +232,13 @@ function Publicacao({
           </View>
         )}
       </View>
-      {item.status === "erro" && (
+      {(item.status === "erro" || item.status === "pausado") && (
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={`Verificar envio de ${item.dados.titulo}`}
           onPress={tentar}
         >
-          <Text style={styles.link}>Verificar</Text>
+          <Text style={styles.link}>{item.status === "pausado" ? "Retomar" : "Verificar"}</Text>
         </TouchableOpacity>
       )}
       {item.status !== "enviando" && (
@@ -243,7 +248,7 @@ function Publicacao({
           accessibilityLabel={`Cancelar ${item.dados.titulo}`}
           onPress={cancelar}
         >
-          <Text style={styles.text}>Cancelar</Text>
+  <Text style={styles.text}>{item.status === "erro" ? "Dispensar aviso" : "Cancelar"}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -282,21 +287,21 @@ export default function SumulaPartida({
   const [busca, setBusca] = useState(""),
     [erro, setErro] = useState(""),
     [ocupado, setOcupado] = useState(false);
-  const [feedback, setFeedback] = useState(""),
-    [pendentes, setPendentes] = useState<ItemPublicacao<Acao>[]>([]);
+  const [feedback, setFeedback] = useState("");
+  const [extrasAbertos, setExtrasAbertos] = useState(false);
+  const ultimaCaptura = useRef({ chave: '', em: 0 });
+  const [limiteEventos, setLimiteEventos] = useState(30);
   const [menu, setMenu] = useState<{
     top: number;
     evento?: EventoPartida;
   } | null>(null);
-  const [auditoriaAberta, setAuditoriaAberta] = useState(true);
+  const [auditoriaAberta, setAuditoriaAberta] = useState(false);
   const [equipeAtiva, setEquipeAtiva] = useState<number | null>(null);
   const [tempoSelecionado, setTempoSelecionado] = useState(0);
   const [sai, setSai] = useState<number>(),
     [entra, setEntra] = useState<number>();
   const [placarCasa, setPlacarCasa] = useState(""),
     [placarFora, setPlacarFora] = useState("");
-  const [incluirNomes, setIncluirNomes] = useState(false),
-    [verMensagem, setVerMensagem] = useState(false);
   const ultimo = useRef(data),
     refreshAtual = useRef(onRefresh),
     montado = useRef(true),
@@ -304,12 +309,17 @@ export default function SumulaPartida({
   if (data.partida.versao >= ultimo.current.partida.versao)
     ultimo.current = data;
   refreshAtual.current = onRefresh;
-  const fila = useMemo(
-    () =>
-      criarFilaPublicacao<Acao>({
-        atualizar: setPendentes,
-        executar: async (item) => {
+  const { fila, pendentes, restaurando, erroPersistencia } = useFilaSumula<Acao>(p.id, clubeId, async (item) => {
+          if (AppState.currentState !== 'active') throw new Error('Envio pausado em segundo plano. Volte à partida e toque em Verificar.');
+          const recenteAntes = await refreshAtual.current();
+          if (recenteAntes) ultimo.current = recenteAntes;
           const atual = ultimo.current;
+          if (AppState.currentState !== 'active') throw new Error('Envio pausado em segundo plano. Volte à partida e toque em Verificar.');
+          if (atual.auditoria?.some(a => a.dados?.request_id === item.id)) return;
+          if (!atual.podeSumula && !(atual.partida.status === 'FINALIZADA' && atual.podeCorrigir) &&
+              !(item.dados.method === 'PATCH' && /eventos\/\d+$/.test(item.dados.endpoint) && atual.podePreparar) &&
+              !(item.dados.endpoint.endsWith('/substituicoes') && atual.podePreparar))
+            throw new Error('Seu acesso à súmula mudou. Atualize antes de continuar.');
           if (!["AO_VIVO", "FINALIZADA"].includes(atual.partida.status))
             throw new Error("A situação da partida mudou. Atualize a súmula.");
           if (
@@ -354,17 +364,8 @@ export default function SumulaPartida({
                 "Registro salvo. Atualize a tela para consultar a súmula mais recente.",
               );
           }
-        },
-      }),
-    [clubeId, p.id],
-  );
-  useEffect(() => {
-    montado.current = true;
-    return () => {
-      montado.current = false;
-      fila.encerrar();
-    };
-  }, [fila]);
+  });
+  useEffect(() => { montado.current = true; return () => { montado.current = false; }; }, []);
   useEffect(() => {
     if (!feedback) return;
     const timer = setTimeout(() => setFeedback(""), 5000);
@@ -385,7 +386,7 @@ export default function SumulaPartida({
                   text: "Cancelar e sair",
                   style: "destructive" as const,
                   onPress: () => {
-                    fila.encerrar();
+                    for (const item of fila.pendentes()) fila.cancelar(item.id);
                     onBack();
                   },
                 },
@@ -402,7 +403,7 @@ export default function SumulaPartida({
     return () => listener.remove();
   }, []);
 
-  const alterando = ocupado || pendentes.length > 0;
+  const alterando = ocupado || restaurando || pendentes.length > 0;
   const tempo = aoVivo
     ? data.podeSumula
       ? p.periodo_atual
@@ -420,9 +421,9 @@ export default function SumulaPartida({
   const eventos = useMemo(
     () =>
       data.eventos
-        .filter((e) => !tempo || e.periodo === tempo)
+        .filter((e) => (aoVivo && !consultandoTempo) || !tempo || e.periodo === tempo)
         .sort((a, b) => b.id - a.id),
-    [data.eventos, tempo],
+    [data.eventos, tempo, aoVivo, consultandoTempo],
   );
   const placares = useMemo(
     () => placaresEventos(data),
@@ -455,14 +456,13 @@ export default function SumulaPartida({
   const equipeAutor = data.equipes.find((e) => e.time_id === atorTime);
   const nomeTime = (id?: number | null) =>
     times.find((t) => t.id === id)?.nome || "Equipe";
-  const roster = [...(equipeAutor?.escalacao || [])]
+  const roster = [...(equipeAutor?.publicada_em ? equipeAutor.escalacao : [])]
     .sort(
       (a, b) =>
         Number(b.titular) - Number(a.titular) || a.numCamisa - b.numCamisa,
     )
     .filter(
       (j) =>
-        (finalizada || form?.existente || j.titular) &&
         `${j.numCamisa} ${j.jogador?.nome}`
           .toLocaleLowerCase("pt-BR")
           .includes(busca.trim().toLocaleLowerCase("pt-BR")),
@@ -474,10 +474,6 @@ export default function SumulaPartida({
         ? p.mandante_id
         : p.visitante_id;
   const link = `${(process.env.EXPO_PUBLIC_WEB_URL || "https://ludora-nine.vercel.app").replace(/\/$/, "")}/partidas/${p.id}`;
-  const mensagem = useMemo(
-    () => mensagemResultado(data, incluirNomes, link),
-    [data, incluirNomes, link],
-  );
 
   async function executar(
     endpoint: string,
@@ -485,7 +481,7 @@ export default function SumulaPartida({
     method = "POST",
     sucesso?: () => void,
   ) {
-    if (operando.current || fila.pendentes().length) return;
+    if (operando.current || restaurando || fila.pendentes().length) return;
     operando.current = true;
     setOcupado(true);
     setErro("");
@@ -525,6 +521,7 @@ export default function SumulaPartida({
     existente?: EventoPartida,
   ) {
     setBusca("");
+    setExtrasAbertos(false);
     setForm({
       tipo,
       timeId,
@@ -555,15 +552,22 @@ export default function SumulaPartida({
     tipo: string,
     method = "POST",
   ) {
+    if (endpoint === "substituicoes" && !trocaValida(minha, payload.sai as number, payload.entra as number)) { setErro("A troca precisa manter exatamente um goleiro em campo. Escolha um titular e um reserva elegíveis."); return; }
     const caminho = endpoint.startsWith("/")
       ? endpoint
       : `/partidas/${p.id}/${endpoint}`;
+    if (restaurando || operando.current) return;
+    const chave = JSON.stringify([caminho, method, payload]);
+    if (ultimaCaptura.current.chave === chave && Date.now() - ultimaCaptura.current.em < 600) return;
+    ultimaCaptura.current = { chave, em: Date.now() };
     fila.adicionar({ endpoint: caminho, payload, method, titulo, tipo });
     setDialogo(null);
     setErro("");
   }
   function registrar(identificarDepois = false) {
-    if (!form) return;
+    if (!form || ocupado || restaurando) return;
+    const falha = validarLance(data, form, identificarDepois);
+    if (falha) { setErro(falha); return; }
     if (finalizada && !motivo.trim()) {
       setErro("Explique o motivo da correção após o encerramento.");
       return;
@@ -597,6 +601,8 @@ export default function SumulaPartida({
           time_id: form.timeId,
           jogador_id: identificarDepois ? undefined : form.jogadorId,
           gol_contra: form.contra,
+          minuto: form.minuto ? Number(form.minuto) : undefined,
+          assistencia_jogador_id: !identificarDepois && !form.contra ? form.assistenteId : undefined,
           autor_pendente: identificarDepois,
           periodo: finalizada
             ? tempoSelecionado || p.periodo_atual
@@ -625,9 +631,7 @@ export default function SumulaPartida({
       fila.cancelar(aguardando.id);
       return;
     }
-    const gol = [...data.eventos]
-      .sort((a, b) => b.id - a.id)
-      .find((e) => e.tipo === "GOL" && e.time_id === timeId);
+    const gol = [...data.eventos].sort((a, b) => b.id - a.id).find((e) => e.tipo === "GOL" && e.time_id === timeId);
     if (gol) pedirRemocao(gol);
     else {
       setPlacarCasa(String(p.gols_mandante));
@@ -637,7 +641,7 @@ export default function SumulaPartida({
   }
   function mudarTempo(n: number) {
     if (!aoVivo) {
-      setTempoSelecionado(n);
+      setTempoSelecionado(Math.max(0, Math.min(n, ultimoPeriodoIniciado(data))));
       return;
     }
     if (!data.podeSumula) {
@@ -774,6 +778,8 @@ export default function SumulaPartida({
         ]}
         keyboardShouldPersistTaps="handled"
       >
+        {restaurando && data.podePreparar && <Text style={styles.muted}>Conferindo lançamentos salvos…</Text>}
+        {!!erroPersistencia && <Text accessibilityRole="alert" style={styles.error}>{erroPersistencia}</Text>}
         <View style={styles.between}>
           <View style={styles.row}>
             <Icon name="cleat" size={18} color={colors.textoSecundario} />
@@ -810,6 +816,7 @@ export default function SumulaPartida({
             Reconectando. Buscando atualizações do servidor.
           </Text>
         )}
+        {finalizada && <View style={[styles.row, { flexWrap: 'wrap' }]}><Text style={styles.muted}>Registros por tempo</Text>{Array.from({ length: ultimoPeriodoIniciado(data) + 1 }, (_, n) => <TouchableOpacity key={n} accessibilityRole="tab" accessibilityState={{ selected: tempo === n }} onPress={() => setTempoSelecionado(n)} style={[styles.button, tempo === n && { borderColor: colors.primaria }]}><Text style={styles.text}>{n ? `${n}º tempo` : 'Todos'}</Text></TouchableOpacity>)}</View>}
         <View style={[styles.panel, aoVivo && styles.match]}>
           <View style={styles.between}>
             {finalizada ? (
@@ -853,7 +860,7 @@ export default function SumulaPartida({
             <View style={[styles.row, { justifyContent: "center" }]}>
               <Icon name="trophy" size={19} color={colors.primaria} />
               <Text style={styles.winner}>
-                {vencedor ? `Vitória do ${nomeTime(vencedor)}` : "Empate"}
+                {vencedor ? `Vitória do ${nomeTime(vencedor)}!` : "Empate entre as equipes"}
               </Text>
             </View>
           )}
@@ -862,7 +869,7 @@ export default function SumulaPartida({
               <React.Fragment key={t.id}>
                 {index === 1 && (
                   <View style={styles.scores}>
-                    {[p.gols_mandante, p.gols_visitante].map((gols, lado) => (
+                    {(consultandoTempo ? placarDoPeriodo(data, tempo) : [p.gols_mandante, p.gols_visitante]).map((gols, lado) => (
                       <React.Fragment key={lado}>
                         {lado === 1 && <Text style={styles.muted}>·</Text>}
                         <View style={styles.scoreColumn}>
@@ -870,7 +877,7 @@ export default function SumulaPartida({
                             <TouchableOpacity
                               accessibilityRole="button"
                               accessibilityLabel={`Registrar gol de ${times[lado].nome}`}
-                              disabled={ocupado}
+                              disabled={ocupado || restaurando || gols >= 99}
                               onPress={() => abrirEvento("GOL", times[lado].id)}
                               style={styles.scoreAction}
                             >
@@ -954,23 +961,7 @@ export default function SumulaPartida({
                               <Text style={styles.tiny}>+{d.faltas - 5}</Text>
                             )}
                           </View>
-                          <View style={styles.cards}>
-                            {[
-                              [d.amarelos, colors.amarelo],
-                              [d.vermelhos, colors.vermelho],
-                              [d.azuis, colors.primaria],
-                            ].map(([n, cor], i) => (
-                              <View key={i} style={[styles.row, { gap: 4 }]}>
-                                <View
-                                  style={[
-                                    styles.miniCard,
-                                    { backgroundColor: String(cor) },
-                                  ]}
-                                />
-                                <Text style={styles.tiny}>{n}</Text>
-                              </View>
-                            ))}
-                          </View>
+
                         </View>
                       );
                     })()}
@@ -1060,8 +1051,6 @@ export default function SumulaPartida({
               {button(
                 "Compartilhar resultado",
                 () => {
-                  setIncluirNomes(false);
-                  setVerMensagem(false);
                   abrir("compartilhar");
                 },
                 true,
@@ -1090,7 +1079,7 @@ export default function SumulaPartida({
             </>
           )}
         </View>
-        {(aoVivo || finalizada) && (
+        {aoVivo && (
           <View style={[styles.panel, styles.period]}>
             <TouchableOpacity
               accessibilityRole="button"
@@ -1145,7 +1134,7 @@ export default function SumulaPartida({
                 tempo >=
                   (aoVivo && !data.podeSumula
                     ? p.periodo_atual
-                    : totalTempos) ||
+                    : finalizada ? p.periodo_atual : totalTempos) ||
                 (aoVivo && data.podeSumula && alterando)
               }
               style={[styles.iconButton, styles.close]}
@@ -1173,7 +1162,7 @@ export default function SumulaPartida({
                   key={tipo}
                   accessibilityRole="button"
                   accessibilityLabel={`Registrar ${NOMES_EVENTOS[tipo].toLowerCase()}`}
-                  disabled={ocupado}
+                  disabled={ocupado || restaurando}
                   style={styles.eventButton}
                   onPress={() => abrirEvento(tipo)}
                 >
@@ -1198,7 +1187,7 @@ export default function SumulaPartida({
                 accessibilityLabel="Desfazer último evento"
                 disabled={alterando || !data.eventos.length}
                 onPress={() =>
-                  pedirRemocao([...data.eventos].sort((a, b) => b.id - a.id)[0])
+                  pedirRemocao(ultimoLance(data)!)
                 }
                 style={[
                   styles.row,
@@ -1216,117 +1205,27 @@ export default function SumulaPartida({
               Nenhum evento registrado{tempo ? " neste tempo" : ""}.
             </Text>
           )}
-          {eventos.map((e) => (
-            <View key={e.id} style={styles.eventRow}>
-              <View style={styles.eventIcon}>
-                <EventoIcon tipo={e.tipo} size={18} />
-              </View>
-              <View style={styles.eventBody}>
-                <Text style={styles.tiny}>
-                  <Text style={styles.name}>
-                    {NOMES_EVENTOS[e.tipo] || e.tipo}
-                    {e.gol_contra ? " contra" : ""}
-                  </Text>{" "}
-                  · {nomeTime(e.time_id)}
-                </Text>
-                <Text style={styles.name} numberOfLines={1}>
-                  {e.jogador?.nome
-                    ? `${String(data.equipes.flatMap((t) => t.escalacao).find((j) => j.jogador_id === e.jogador_id)?.numCamisa || "").padStart(2, "0")} · ${e.jogador.nome}`
-                    : data.equipes.some((t) => t.time_id === timeAutor(data, e))
-                      ? "Jogador a identificar"
-                      : times.find((t) => t.id === timeAutor(data, e))?.nome ||
-                        "Equipe externa"}
-                </Text>
-                {e.tipo === "GOL" && (
-                  <Text style={styles.miniScore}>{placares.get(e.id)}</Text>
-                )}
-              </View>
-              <View style={styles.eventMeta}>
-                <Text style={styles.tiny}>{e.periodo}º tempo</Text>
-                {(podeOperar ||
-                  (data.podePreparar &&
-                    e.tipo === "GOL" &&
-                    !e.jogador_id &&
-                    minha?.time_id === timeAutor(data, e) &&
-                    aoVivo)) && (
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel={`Opções de ${NOMES_EVENTOS[e.tipo]} ${e.id}`}
-                    style={styles.iconButton}
-                    onPress={(event) =>
-                      setMenu({ evento: e, top: event.nativeEvent.pageY + 8 })
-                    }
-                  >
-                    <Icon
-                      name="dots-horizontal"
-                      size={19}
-                      color={colors.textoSecundario}
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          ))}
-        </View>
-        {data.podePreparar && (
-          <View style={styles.panel}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityState={{ expanded: auditoriaAberta }}
-              accessibilityLabel="Histórico de alterações"
-              onPress={() => setAuditoriaAberta((v) => !v)}
-              style={styles.between}
-            >
-              <View style={[styles.row, styles.flex]}>
-                <Icon
-                  name="clipboard-text-outline"
-                  size={18}
-                  color={colors.texto}
-                />
-                <View style={styles.flex}>
-                  <Text style={styles.heading}>Histórico de alterações</Text>
-                  <Text numberOfLines={1} style={styles.tiny}>
-                    {data.auditoria?.length
-                      ? `Última: ${historico[0].descricao.titulo}`
-                      : "Registros da operação da súmula"}
-                  </Text>
+          {eventos.slice(0, limiteEventos).map((e, index) => {
+            const direita = e.time_id === p.visitante_id;
+            const permitido = podeOperar || (data.podePreparar && e.tipo === 'GOL' && !e.jogador_id && minha?.time_id === timeAutor(data, e) && aoVivo);
+            return <React.Fragment key={e.id}>
+              {(index === 0 || eventos[index - 1].periodo !== e.periodo) && <View style={styles.row}><View style={[styles.divider, styles.flex]} /><Text style={styles.tiny}>{e.periodo}º tempo</Text><View style={[styles.divider, styles.flex]} /></View>}
+              <View style={{ flexDirection: direita ? 'row-reverse' : 'row', alignItems: 'flex-start', gap: 8 }}>
+                {permitido && <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Opções de ${NOMES_EVENTOS[e.tipo]} ${e.id}`} style={{ minWidth: 28, minHeight: 40, alignItems: 'center', justifyContent: 'center' }} onPress={event => setMenu({ evento: e, top: event.nativeEvent.pageY + 8 })}><View style={{ transform: [{ rotate: '90deg' }] }}><Icon name="dots-horizontal" size={18} color={colors.textoSecundario} /></View></TouchableOpacity>}
+                <View style={styles.eventIcon}><EventoIcon tipo={e.tipo} size={18} /></View>
+                <View style={{ flexShrink: 1, alignItems: direita ? 'flex-end' : 'flex-start', gap: 4, maxWidth: '76%' }}>
+                  <Text style={styles.name}>{NOMES_EVENTOS[e.tipo] || e.tipo}{e.gol_contra ? ' contra' : ''}</Text>
+                  <Text style={styles.tiny}>{nomeTime(e.time_id)}{e.minuto != null ? ` · ${e.minuto}′` : ''}</Text>
+                  <Text style={[styles.name, { textAlign: direita ? 'right' : 'left' }]}>{e.jogador_id ? `${String(data.equipes.flatMap(t => t.escalacao).find(j => j.jogador_id === e.jogador_id)?.numCamisa || '').padStart(2, '0')} · ${e.jogador?.nome || 'Jogador'}` : data.equipes.some(t => t.time_id === timeAutor(data, e)) ? 'Jogador a identificar' : nomeTime(timeAutor(data, e))}</Text>
+                  {e.tipo === 'GOL' && <Text style={styles.miniScore}>{placares.get(e.id)}</Text>}
                 </View>
               </View>
-              <Icon
-                name={auditoriaAberta ? "chevron-up" : "chevron-down"}
-                size={16}
-                color={colors.textoSecundario}
-              />
-            </TouchableOpacity>
-            {auditoriaAberta &&
-              (!data.auditoria?.length ? (
-                <Text style={styles.muted}>Nenhuma alteração disponível.</Text>
-              ) : (
-                historico.map((a) => (
-                  <View
-                    key={a.id}
-                    style={{
-                      gap: 5,
-                      paddingTop: 12,
-                      borderTopWidth: 1,
-                      borderTopColor: colors.linha,
-                    }}
-                  >
-                    <Text style={styles.name}>{a.descricao.titulo}</Text>
-                    {!!a.descricao.detalhes && (
-                      <Text style={styles.muted}>{a.descricao.detalhes}</Text>
-                    )}
-                    <Text style={styles.tiny}>
-                      {new Date(a.criado_em).toLocaleString("pt-BR")}
-                    </Text>
-                    {!!a.dados?.motivo && (
-                      <Text style={styles.muted}>{String(a.dados.motivo)}</Text>
-                    )}
-                  </View>
-                ))
-              ))}
-          </View>
-        )}
+            </React.Fragment>;
+          })}
+          {eventos.length > limiteEventos && <AppButton label={`Carregar mais acontecimentos (${eventos.length - limiteEventos})`} onPress={() => setLimiteEventos(v => v + 30)} />}
+        </View>
+        {(aoVivo || finalizada) && <PalpitePartida data={data} />}
+        {finalizada && <AnalisePartida data={data} periodo={tempo || null} onPeriodoChange={value => setTempoSelecionado(value || 0)} />}
         {!!data.equipes.length && (
           <View style={styles.section}>
             <View style={styles.between}>
@@ -1434,14 +1333,74 @@ export default function SumulaPartida({
                 alterando && styles.disabled,
               ]}
             >
-              <Icon name="flag" size={19} color={colors.vermelho} />
-              <Text style={[styles.buttonText, { fontSize: 14 }]}>
+              <Icon name="flag" size={19} color={colors.tituloErro} />
+              <Text style={[styles.buttonText, { fontSize: 14, color: colors.tituloErro }]}>
                 Finalizar partida
               </Text>
             </TouchableOpacity>
           </View>
         )}
 
+        {aoVivo && <AnalisePartida data={data} />}
+        {data.podePreparar && (
+          <View style={styles.panel}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityState={{ expanded: auditoriaAberta }}
+              accessibilityLabel="Histórico de alterações"
+              onPress={() => setAuditoriaAberta((v) => !v)}
+              style={styles.between}
+            >
+              <View style={[styles.row, styles.flex]}>
+                <Icon
+                  name="clipboard-text-outline"
+                  size={18}
+                  color={colors.texto}
+                />
+                <View style={styles.flex}>
+                  <Text style={styles.heading}>Histórico de alterações</Text>
+                  <Text numberOfLines={1} style={styles.tiny}>
+                    {data.auditoria?.length
+                      ? `Última: ${historico[0].descricao.titulo}`
+                      : "Registros da operação da súmula"}
+                  </Text>
+                </View>
+              </View>
+              <Icon
+                name={auditoriaAberta ? "chevron-up" : "chevron-down"}
+                size={16}
+                color={colors.textoSecundario}
+              />
+            </TouchableOpacity>
+            {auditoriaAberta &&
+              (!data.auditoria?.length ? (
+                <Text style={styles.muted}>Nenhuma alteração disponível.</Text>
+              ) : (
+                historico.map((a) => (
+                  <View
+                    key={a.id}
+                    style={{
+                      gap: 5,
+                      paddingTop: 12,
+                      borderTopWidth: 1,
+                      borderTopColor: colors.linha,
+                    }}
+                  >
+                    <Text style={styles.name}>{a.descricao.titulo}</Text>
+                    {!!a.descricao.detalhes && (
+                      <Text style={styles.muted}>{a.descricao.detalhes}</Text>
+                    )}
+                    <Text style={styles.tiny}>
+                      {new Date(a.criado_em).toLocaleString("pt-BR")}
+                    </Text>
+                    {!!a.dados?.motivo && (
+                      <Text style={styles.muted}>{String(a.dados.motivo)}</Text>
+                    )}
+                  </View>
+                ))
+              ))}
+          </View>
+        )}
         {!!erro && !dialogo && (
           <View style={styles.notice}>
             <Text accessibilityRole="alert" style={styles.error}>
@@ -1546,7 +1505,7 @@ export default function SumulaPartida({
       </Modal>
 
       <Modal
-        visible={!!dialogo}
+        visible={!!dialogo && dialogo !== "compartilhar"}
         transparent
         animationType={dialogo ? "fade" : "none"}
         onRequestClose={() => {
@@ -1596,6 +1555,7 @@ export default function SumulaPartida({
                             onPress={() =>
                               setForm({
                                 ...form,
+                                assistenteId: undefined,
                                 timeId: t.id,
                                 jogadorId: undefined,
                                 contra: false,
@@ -1692,17 +1652,19 @@ export default function SumulaPartida({
                             selected: form.jogadorId === j.jogador_id,
                           }}
                           accessibilityLabel={`Selecionar ${j.jogador?.nome}, camisa ${j.numCamisa}`}
+                          disabled={aoVivo && !form.existente && !j.titular}
                           style={[
                             styles.pickerRow,
+                            aoVivo && !form.existente && !j.titular && styles.disabled,
                             form.jogadorId === j.jogador_id &&
                               styles.pickerSelected,
                           ]}
                           onPress={() =>
-                            setForm({ ...form, jogadorId: j.jogador_id })
+                            setForm({ ...form, jogadorId: j.jogador_id, assistenteId: form.assistenteId === j.jogador_id ? undefined : form.assistenteId })
                           }
                         >
-                          <View style={styles.shirt}>
-                            <Text style={styles.name}>
+                          <View style={[styles.shirt, j.titular && { backgroundColor: colors.primaria } ]}>
+                            <Text style={[styles.name, j.titular && { color: "#fff" }]}>
                               {String(j.numCamisa).padStart(2, "0")}
                             </Text>
                           </View>
@@ -1716,38 +1678,18 @@ export default function SumulaPartida({
                               suffix={j.titular ? " · Em campo" : " · Reserva"}
                             />
                           </View>
-                          <Icon
-                            name={
-                              form.jogadorId === j.jogador_id ? "check" : "user"
-                            }
-                            size={17}
-                            color={
-                              form.jogadorId === j.jogador_id
-                                ? colors.primaria
-                                : colors.texto
-                            }
-                          />
+                          <View style={{ width: 19, height: 19, borderRadius: 10, borderWidth: 1, borderColor: form.jogadorId === j.jogador_id ? colors.primaria : colors.textoSecundario, backgroundColor: form.jogadorId === j.jogador_id ? colors.primaria : 'transparent', alignItems: 'center', justifyContent: 'center' }}>{form.jogadorId === j.jogador_id && <Icon name="check" size={13} color="#fff" />}</View>
                         </TouchableOpacity>
                       )}
                     />
-                    {form.tipo === "GOL" &&
-                      !form.existente &&
-                      button(
-                        form.contra
-                          ? "✓ Gol contra do adversário"
-                          : "Gol contra do adversário",
-                        () => {
-                          setBusca("");
-                          setForm({
-                            ...form,
-                            contra: !form.contra,
-                            jogadorId: undefined,
-                          });
-                        },
-                        false,
-                        false,
-                        "swap-horizontal",
-                      )}
+                    {!form.existente && <View style={{ gap: 16 }}>
+                      <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: extrasAbertos }} onPress={() => setExtrasAbertos(v => !v)} style={[styles.row, { minHeight: 36 }]}><Icon name={extrasAbertos ? 'chevron-down' : 'chevron-right'} size={14} color={colors.textoSecundario} /><Text style={styles.muted}>{form.tipo === 'GOL' && !form.contra ? 'Adicionar assistência e minuto' : 'Adicionar minuto'}</Text></TouchableOpacity>
+                      {extrasAbertos && <View style={{ gap: 18 }}>
+                        {form.tipo === 'GOL' && !form.contra && <SelectField label="Assistência (opcional)" value={form.assistenteId ? String(form.assistenteId) : ''} options={[{ value: '', label: 'Sem assistência' }, ...(equipeAutor?.escalacao || []).filter(j => j.jogador_id !== form.jogadorId && (!aoVivo || j.titular)).map(j => ({ value: String(j.jogador_id), label: `${String(j.numCamisa).padStart(2, '0')} · ${j.jogador?.nome}` }))]} onChange={value => setForm({ ...form, assistenteId: value ? Number(value) : undefined })} />}
+                        <View style={{ gap: 8 }}><Text style={styles.name}>Minuto (opcional)</Text><TextInput accessibilityLabel="Minuto do lance" value={form.minuto || ''} onChangeText={value => setForm({ ...form, minuto: value.replace(/[^0-9]/g, '').slice(0, 3) })} keyboardType="number-pad" inputMode="numeric" maxLength={3} style={[styles.reason, { minHeight: 44 }]} placeholder="De 0 a 200" placeholderTextColor={colors.textoSecundario} /></View>
+                      </View>}
+                    </View>}
+                    {form.tipo === 'GOL' && !form.existente && <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: form.contra }} style={{ flexDirection: 'row', gap: 10, alignItems: 'center', padding: 11, borderRadius: 8, borderWidth: 1, borderColor: colors.bordaAtencao, backgroundColor: colors.fundoAtencao }} onPress={() => { setBusca(''); setForm({ ...form, contra: !form.contra, jogadorId: undefined, assistenteId: undefined }); }}><Icon name="ball" size={22} color={colors.tituloAtencao} /><View style={styles.flex}><Text style={[styles.name, { color: colors.tituloAtencao }]}>{form.contra ? 'Voltar para gol da equipe' : 'Gol contra do adversário'}</Text><Text style={[styles.tiny, { color: colors.corpoAtencao }]}>Conta a favor do {nomeTime(form.timeId)}.</Text></View><Icon name="chevron-right" size={17} color={colors.tituloAtencao} /></TouchableOpacity>}
                     {(finalizada || form.existente) && (
                       <TextInput
                         accessibilityLabel={
@@ -1785,7 +1727,7 @@ export default function SumulaPartida({
                             : "Registrar evento",
                         () => registrar(),
                         true,
-                        (!!equipeAutor && !form.jogadorId && !form.contra) ||
+                        (!!equipeAutor && !form.jogadorId) || restaurando ||
                           (finalizada && !motivo.trim()),
                       )}
                     </View>
@@ -1794,8 +1736,9 @@ export default function SumulaPartida({
                         accessibilityRole="button"
                         disabled={finalizada && !motivo.trim()}
                         onPress={() => registrar(true)}
+                        style={[styles.button, { backgroundColor: colors.cardSecundario + "88" }]}
                       >
-                        <Text style={[styles.muted, { textAlign: "center" }]}>
+                        <Icon name="user" size={16} color={colors.texto} /><Text style={[styles.name, { textAlign: "center" }]}>
                           {form.tipo === "GOL"
                             ? "Registrar gol sem identificar agora"
                             : "Registrar evento sem identificar agora"}
@@ -1830,8 +1773,8 @@ export default function SumulaPartida({
                         </View>
                         <Text style={styles.muted}>
                           Confira o placar e os acontecimentos antes de
-                          encerrar. Os registros serão incorporados ao Scout
-                          imediatamente; a análise será recalculada em seguida.
+                          encerrar. Os registros da partida serão incorporados ao scout
+                          imediatamente; a avaliação por IA será recalculada em seguida.
                         </Text>
                         {!!semJogador.length && (
                           <View style={styles.notice}>
@@ -1884,6 +1827,7 @@ export default function SumulaPartida({
                             {nomeTime(remover.time_id)}
                           </Text>
                         </View>
+                        <Text style={styles.text}>{remover.jogador?.nome || 'Sem jogador identificado'} · {remover.periodo}º tempo{remover.minuto != null ? ` · ${remover.minuto}′` : ''}</Text>
                         <Text style={styles.muted}>
                           O registro sairá da súmula e os totais serão
                           atualizados. A alteração ficará no histórico.
@@ -1988,7 +1932,7 @@ export default function SumulaPartida({
                       </>
                     )}
                     {dialogo === "substituir" && minha && (
-                      <SubstituicaoPartida
+                      <><Text style={styles.muted}>Mantenha exatamente um goleiro em campo.</Text>{!!sai && !!entra && !trocaValida(minha, sai, entra) && <Text accessibilityRole="alert" style={styles.error}>Esta troca deixaria a equipe sem goleiro ou com dois goleiros.</Text>}<SubstituicaoPartida
                         equipe={minha}
                         sai={sai}
                         entra={entra}
@@ -2001,89 +1945,7 @@ export default function SumulaPartida({
                           });
                           setArrastandoSubstituicao(ativo);
                         }}
-                      />
-                    )}
-                    {dialogo === "compartilhar" && (
-                      <>
-                        <View style={styles.sharePreview}>
-                          <View style={styles.between}>
-                            <Text style={styles.heading}>LUDORA</Text>
-                            <Text style={styles.tiny}>
-                              {p.categoria.nome.toUpperCase()} ·{" "}
-                              {p.data
-                                .slice(0, 10)
-                                .split("-")
-                                .reverse()
-                                .join("/")}
-                            </Text>
-                          </View>
-                          <View style={styles.teamLine}>
-                            <View style={styles.team}>
-                              <Escudo time={p.mandante} styles={styles} />
-                              <Text style={styles.name}>{p.mandante.nome}</Text>
-                            </View>
-                            <Text style={styles.score}>
-                              {p.gols_mandante} · {p.gols_visitante}
-                            </Text>
-                            <View style={styles.team}>
-                              <Escudo time={p.visitante} styles={styles} />
-                              <Text style={styles.name}>
-                                {p.visitante.nome}
-                              </Text>
-                            </View>
-                          </View>
-                          <View style={styles.divider} />
-                          <Text style={styles.winner}>
-                            {vencedor
-                              ? `Vitória do ${nomeTime(vencedor)}`
-                              : "Empate"}
-                          </Text>
-                        </View>
-                        <View style={styles.between}>
-                          <View style={styles.flex}>
-                            <Text style={styles.name}>
-                              Incluir nomes dos jogadores
-                            </Text>
-                            <Text style={styles.muted}>
-                              Adiciona os autores dos lances à mensagem.
-                            </Text>
-                          </View>
-                          <Switch
-                            accessibilityLabel="Incluir nomes dos jogadores"
-                            value={incluirNomes}
-                            onValueChange={setIncluirNomes}
-                            trackColor={{
-                              false: colors.cardSecundario,
-                              true: colors.primaria,
-                            }}
-                            thumbColor={colors.texto}
-                          />
-                        </View>
-                        <TouchableOpacity
-                          accessibilityRole="button"
-                          accessibilityState={{ expanded: verMensagem }}
-                          style={styles.between}
-                          onPress={() => setVerMensagem((v) => !v)}
-                        >
-                          <Text style={styles.muted}>Ver mensagem</Text>
-                          <Icon
-                            name={verMensagem ? "chevron-up" : "chevron-down"}
-                            size={17}
-                            color={colors.textoSecundario}
-                          />
-                        </TouchableOpacity>
-                        {verMensagem && (
-                          <View style={styles.notice}>
-                            <Text selectable style={styles.text}>
-                              {mensagem}
-                            </Text>
-                          </View>
-                        )}
-                        <Text style={styles.tiny}>
-                          Será compartilhado o texto do resultado com o link da
-                          partida.
-                        </Text>
-                      </>
+                      /></>
                     )}
                     {!!erro && (
                       <Text accessibilityRole="alert" style={styles.error}>
@@ -2222,22 +2084,9 @@ export default function SumulaPartida({
                               "SUBSTITUICAO",
                             ),
                           true,
-                          !sai || !entra || alterando,
+                          !trocaValida(minha, sai, entra) || alterando,
                         )}
-                      {dialogo === "compartilhar" &&
-                        button(
-                          "Compartilhar resultado",
-                          () => {
-                            void Share.share({ message: mensagem }).catch(() =>
-                              setErro(
-                                "Não foi possível abrir o compartilhamento. Tente novamente.",
-                              ),
-                            );
-                          },
-                          true,
-                          false,
-                          "share",
-                        )}
+
                     </View>
                   </View>
                 </>
@@ -2246,6 +2095,7 @@ export default function SumulaPartida({
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      {dialogo === 'compartilhar' && <CompartilharPartida data={data} link={link} onClose={() => setDialogo(null)} />}
       <View
         pointerEvents="box-none"
         style={[styles.toastArea, { bottom: insets.bottom + 12 }]}
@@ -2274,7 +2124,7 @@ export default function SumulaPartida({
                 item={item}
                 styles={styles}
                 cancelar={() => fila.cancelar(item.id)}
-                tentar={() => fila.tentar(item.id)}
+                tentar={() => item.status === "pausado" ? fila.retomar() : fila.tentar(item.id)}
               />
             ))}
           </ScrollView>

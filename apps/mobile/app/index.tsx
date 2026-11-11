@@ -50,7 +50,7 @@ export default function Index() {
       const token = await SecureStore.getItemAsync('userToken');
 
       if (!token) {
-        setDestino('/(auth)/login');
+        setDestino('/clubes');
         return;
       }
 
@@ -73,7 +73,7 @@ export default function Index() {
             SecureStore.deleteItemAsync('userRole'),
             SecureStore.deleteItemAsync('clubeAtivoId'),
           ]);
-          setDestino('/(auth)/login');
+          setDestino('/clubes');
           return;
         }
       } catch {
@@ -95,7 +95,7 @@ export default function Index() {
         error,
       );
 
-      setDestino('/(auth)/login');
+      setDestino('/clubes');
     } finally {
       const tempoDecorrido = Date.now() - inicio;
       const tempoRestante = tempoMinimo - tempoDecorrido;

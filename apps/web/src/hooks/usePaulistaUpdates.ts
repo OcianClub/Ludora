@@ -3,8 +3,9 @@ import type { PainelPaulista } from '../../../../packages/shared-types/src/pauli
 import { BASE_URL, invalidateApiReads, requestJson } from '../services/api';
 import { subscribePaulistaUpdates } from '../services/paulistaRealtime';
 import { painelDaSelecao } from '../utils/paulistaView';
+import { consultarPaulistaPublico, type ClubePaulistaPublico } from '../services/paulistaPublico';
 
-export function usePaulistaUpdates(evento: string, clubeId: number | undefined, token: string | null, enabled: boolean, apply: (painel: PainelPaulista) => void, esperado?: { id: number; ano: number; categoria: string; divisao: string }) {
+export function usePaulistaUpdates(evento: string, clubeId: number | undefined, token: string | null, enabled: boolean, apply: (painel: PainelPaulista) => void, esperado?: { id: number; ano: number; categoria: string; divisao: string }, clubePublico?: ClubePaulistaPublico) {
   const [erro, setErro] = useState('');
   const [updating, setUpdating] = useState(false);
   const applyRef = useRef(apply); applyRef.current = apply;
@@ -12,7 +13,7 @@ export function usePaulistaUpdates(evento: string, clubeId: number | undefined, 
   const refresh = useCallback(() => refreshRef.current(), []);
   useEffect(() => {
     setErro(''); setUpdating(false);
-    if (!enabled || !clubeId || !token) return;
+    if (!enabled || !clubeId || (!token && !clubePublico)) return;
     const controller = new AbortController();
     let running = false, queued = false, active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -21,8 +22,10 @@ export function usePaulistaUpdates(evento: string, clubeId: number | undefined, 
       if (document.hidden || running) { queued = true; return; }
       running = true; queued = false; setUpdating(true);
       try {
-        invalidateApiReads(`/paulista/eventos/${evento}`);
-        const next = await requestJson<PainelPaulista>(`/paulista/eventos/${evento}`, { cache: 'no-store', signal: controller.signal });
+        invalidateApiReads(clubePublico ? `/publico/clubes/${clubeId}/paulista` : `/paulista/eventos/${evento}`);
+        const options = { cache: 'no-store' as const, signal: controller.signal };
+        const next = clubePublico ? await consultarPaulistaPublico(evento, clubePublico, options)
+          : await requestJson<PainelPaulista>(`/paulista/eventos/${evento}`, options);
         if (String(next.snapshot.id) !== evento || esperado && !painelDaSelecao(next, esperado, clubeId)) throw new Error('Resposta de outro clube ou evento.');
         if (active) { applyRef.current(next); setErro(''); }
       } catch {
@@ -38,14 +41,16 @@ export function usePaulistaUpdates(evento: string, clubeId: number | undefined, 
       if (!timer) timer = setTimeout(() => void load(), 250);
     };
     const visible = () => { if (!document.hidden) schedule(); };
-    const stop = subscribePaulistaUpdates(BASE_URL, token, clubeId, evento, schedule);
+    // Visitantes atualizam a publicação armazenada; nunca disparam sincronização.
+    const poll = clubePublico ? setInterval(visible, 60_000) : undefined;
+    const stop = clubePublico ? () => {} : subscribePaulistaUpdates(BASE_URL, token!, clubeId, evento, schedule);
     refreshRef.current = schedule;
     window.addEventListener('focus', visible);
     document.addEventListener('visibilitychange', visible);
     return () => {
-      active = false; controller.abort(); clearTimeout(timer); stop(); refreshRef.current = () => {};
+      active = false; controller.abort(); clearTimeout(timer); clearInterval(poll); stop(); refreshRef.current = () => {};
       window.removeEventListener('focus', visible); document.removeEventListener('visibilitychange', visible);
     };
-  }, [evento, clubeId, token, enabled, esperado]);
+  }, [evento, clubeId, token, enabled, esperado, clubePublico]);
   return { refresh, updating, erro };
 }

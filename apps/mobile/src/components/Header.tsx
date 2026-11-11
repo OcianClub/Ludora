@@ -165,7 +165,9 @@ export function Header({
           <TouchableOpacity
             style={styles.profileButton}
             activeOpacity={0.7}
-            onPress={() => router.push("perfil/perfil")}
+            onPress={() => router.push('/(tabs)/perfil/perfil')}
+            accessibilityRole="button"
+            accessibilityLabel="Meu perfil"
           >
             <Icon name="account" size={24} color={colors.primaria} />
           </TouchableOpacity>

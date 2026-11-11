@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { endpointVisitante } from '../utils/acessoPublico';
 import { ErroConexao, ErroConsulta, fetchComTimeout } from '../utils/request';
 import type { Placar, MudancaPlacar } from '../utils/placarPartida';
 import { headersClubeNotificacoes } from '../utils/escopoNotificacoes';
@@ -96,12 +97,14 @@ export async function apiFetch(endpoint: string, options: OpcoesApi = {}) {
   if (clubeId && !headers.has('x-clube-id')) {
     headers.set('x-clube-id', clubeId);
   }
+  const autenticado = !!token || headers.has('Authorization');
+  const destinoEndpoint = autenticado ? endpoint : endpointVisitante(endpoint, headers.get('x-clube-id'), options.method);
 
   try {
     const leituraRapida = ['/partidas/home', '/partidas/agenda', '/jogadores/perfis', '/clubes', '/categorias', '/partidas/solicitacoes'].includes(caminho) ||
       /^\/jogadores\/\d+\/scout-contexto$/.test(caminho) ||
       (caminho === '/jogadores' && new URLSearchParams(endpoint.split('?')[1]).get('resumo') === 'true');
-    const resposta = await consultasRecentes.consultar(`${BASE_URL}${endpoint}`, {
+    const resposta = await consultasRecentes.consultar(`${BASE_URL}${destinoEndpoint}`, {
       ...opcoesFetch,
       headers,
     }, leituraRapida ? 15_000 : 0, revalidar);
@@ -712,7 +715,9 @@ export async function fetchDetalhesPartida(id: number, clubeId: number) {
     headers: { 'x-clube-id': String(clubeId) },
   });
   if (!resposta.ok) throw new Error('Não foi possível atualizar a partida.');
-  const dados = await resposta.json();
+  const resultado = await resposta.json();
+  const dados = resultado.partida ? { ...resultado.partida, eventos: resultado.eventos,
+    escalacao: resultado.equipes.flatMap((e: { escalacao: unknown[] }) => e.escalacao) } : resultado;
   if (
     dados?.id !== id ||
     !dados.mandante ||

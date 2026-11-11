@@ -44,6 +44,8 @@ import { selecionarJogadoresLocais } from '@/src/utils/dadosConsultaLocal';
 import { obterPerfisJogadores } from '@/src/services/mlService';
 import { iniciarMedicaoCarregamento } from '@/src/utils/desempenho';
 import { AvisoConsultaLocal } from '@/src/components/AvisoConsultaLocal';
+import { io } from 'socket.io-client';
+import { BASE_URL, invalidarConsultasRecentes } from '@/src/services/api';
 
 
 const normalizarSub = (nome: string) => nome.trim().replace(/\s+/g, '-').toUpperCase();
@@ -219,6 +221,25 @@ export default function Home() {
     }
   }, [carregarDadosDoClube]);
 
+  useFocusEffect(useCallback(() => {
+    if (!clubeAtivo?.id || podeGerenciar) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const socket = io(`${BASE_URL}/publico`, { auth: { clubeId: clubeAtivo.id } });
+    const atualizar = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (AppState.currentState === 'active') {
+          invalidarConsultasRecentes();
+          void carregarDadosDoClube(true);
+        }
+      }, 250);
+    };
+    socket.on('partidas_alteradas', atualizar);
+    socket.on('connect', atualizar);
+    const intervalo = setInterval(() => { if (!socket.connected) atualizar(); }, 30000);
+    return () => { clearTimeout(timer); clearInterval(intervalo); socket.disconnect(); };
+  }, [clubeAtivo?.id, podeGerenciar, carregarDadosDoClube]));
+
   const fecharDetalhes = useCallback(() => {
     setPartidaSelecionada(null);
     void carregarDadosDoClube(true);
@@ -291,6 +312,10 @@ export default function Home() {
   );
   const abrirPartida = useCallback(
     (partida: Partida) => {
+      if (!podeGerenciar) {
+        router.push({ pathname: '/partida-compartilhada/[id]', params: { id: String(partida.id) } });
+        return;
+      }
       const status = partida.status;
       const opera =
         (partida.sumula_clube_id ?? partida.clube_origem_id) === clubeId;
@@ -309,7 +334,7 @@ export default function Home() {
       }
       setPartidaSelecionada(partida);
     },
-    [clubeId, temAcessoCategoria, router],
+    [clubeId, temAcessoCategoria, router, podeGerenciar],
   );
 
   const handleTrocarFase = useCallback((novaFase: "INICIACAO" | "BASE") => {

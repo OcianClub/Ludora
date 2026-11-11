@@ -17,7 +17,8 @@ import type { SvgProps } from 'react-native-svg';
 import { Icon } from '@ludora/icons';
 
 import LogoArquivo from '@/assets/logo.svg';
-import { BASE_URL } from '@/src/services/api';
+import { BASE_URL, fetchClubes } from '@/src/services/api';
+import { useSessao } from '@/src/contexts/SessaoContext';
 import { limparCacheConsultas } from '@/src/services/cacheConsultas';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { createStyles } from '@/src/styles/loginStyles';
@@ -40,7 +41,8 @@ export default function Login() {
     email?: string;
     senha?: string;
   }>();
-  const { limparClubeAtivo } = useClubeAtivo();
+  const { limparClubeAtivo, clubeAtivo, definirClubeAtivo } = useClubeAtivo();
+  const { atualizar: atualizarSessao } = useSessao();
   const senhaRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
   const envioEmAndamento = useRef(false);
@@ -102,12 +104,28 @@ export default function Login() {
       );
       // Publica a sessão apenas depois de persistir o perfil com sucesso.
       await SecureStore.setItemAsync('userToken', dados.token);
+      await atualizarSessao();
+      // Revalida o cargo no clube que estava sendo explorado; nunca reaproveita o cargo salvo.
+      let clubeRestaurado = false;
+      if (clubeAtivo) {
+        try {
+          const clube = (await fetchClubes()).find(c => c.id === clubeAtivo.id && c.ativo !== false);
+          if (clube) {
+            await definirClubeAtivo({ id: clube.id, nome: clube.nome, escudo: clube.escudo, papel: clube.papel });
+            clubeRestaurado = true;
+          }
+        } catch { /* A seleção de clubes permite tentar novamente quando a rede voltar. */ }
+      }
+      const retorno = await SecureStore.getItemAsync('retornoLogin');
+      await SecureStore.deleteItemAsync('retornoLogin');
 
       const convitePendente = await SecureStore.getItemAsync('convitePendente');
       if (convitePendente) {
         router.replace(`/convite/${convitePendente}`);
       } else {
-        router.replace('/clubes');
+        const destino = retorno && /^\/(?:\(tabs\)\/)?(?:perfil\/perfil|clubes\/clubes)$/.test(retorno)
+          ? retorno : clubeRestaurado ? '/(tabs)' : '/clubes';
+        router.replace(destino as never);
       }
     } catch (error: any) {
       setErro(
@@ -131,7 +149,10 @@ export default function Login() {
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.navigation}>
+        <View style={[styles.navigation, { justifyContent: 'space-between' }]}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Continuar sem entrar" onPress={() => router.canGoBack() ? router.back() : router.replace('/clubes')} disabled={carregando} style={{ padding: 10 }}>
+            <Icon name="arrow-left" size={22} color={colors.texto} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.registerTopButton}
             disabled={carregando}

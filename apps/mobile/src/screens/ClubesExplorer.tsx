@@ -3,6 +3,7 @@ import { Icon, type IconName } from "@ludora/icons";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   SectionList,
   Text,
@@ -27,8 +28,10 @@ import { createStyles } from "@/src/styles/clubesStyles";
 import { agruparClubes, contextoAcessoClube } from "@/src/utils/clubesExplorer";
 import { HeaderClube } from "@/src/components/HeaderClube";
 import { ErroCarregamento } from "@/src/components/ErroCarregamento";
-import { SinalAoVivo } from "@/src/components/SinalAoVivo";
 import { ListSkeleton } from "@/src/components/Skeleton";
+import { HeaderPublico } from '../components/PerfilVisitante';
+import { useSessao } from '../contexts/SessaoContext';
+import AoVivoPublico from '../components/AoVivoPublico';
 
 const papeis: Partial<
   Record<NonNullable<ClubeListado["papel"]>, { nome: string; icone: IconName }>
@@ -159,21 +162,12 @@ const CartaoClube = memo(function CartaoClube({
           <Text style={styles.detalhes} numberOfLines={2}>
             {clube.ativo === false ? "Indisponível" : detalhes}
           </Text>
-          {(papel || !!clube.partidasAoVivo) && (
+          {papel && (
             <View style={styles.tags}>
               {papel && (
                 <View style={styles.papel}>
                   <Icon name={papel.icone} size={12} color={colors.primaria} />
                   <Text style={styles.papelText}>{papel.nome}</Text>
-                </View>
-              )}
-              {!!clube.partidasAoVivo && (
-                <View
-                  style={styles.live}
-                  accessibilityLabel={`${clube.partidasAoVivo} partidas ao vivo`}
-                >
-                  <SinalAoVivo size={13} />
-                  <Text style={styles.liveText}>Ao vivo</Text>
                 </View>
               )}
             </View>
@@ -225,6 +219,7 @@ export default function ClubesExplorer({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { clubeAtivo, definirClubeAtivo } = useClubeAtivo();
+  const { autenticado } = useSessao();
   const atual = useRef(clubeAtivo);
   atual.current = clubeAtivo;
   const [busca, setBusca] = useState("");
@@ -290,6 +285,15 @@ export default function ClubesExplorer({
   );
   const acompanhar = useCallback(
     async (clube: ClubeListado, seguir: boolean) => {
+      if (!autenticado) {
+        Alert.alert('Salve seus clubes favoritos', `Entre para seguir o ${clube.nome} e escolher os avisos que deseja receber.`, [
+          { text: 'Continuar explorando', style: 'cancel' },
+          { text: 'Entrar', onPress: () => {
+            void SecureStore.setItemAsync('retornoLogin', '/(tabs)/clubes/clubes').then(() => router.push('/(auth)/login'));
+          } },
+        ]);
+        return;
+      }
       if (operando.current || (clube.papel && clube.papel !== "TORCEDOR"))
         return;
       operando.current = true;
@@ -326,7 +330,7 @@ export default function ClubesExplorer({
         setProcessandoId(null);
       }
     },
-    [definirClubeAtivo],
+    [definirClubeAtivo, autenticado, router],
   );
   const secoes = useMemo(
     () =>
@@ -351,7 +355,7 @@ export default function ClubesExplorer({
   );
   return (
     <View style={styles.container}>
-      {modo === "trocar" && <HeaderClube />}
+      {modo === 'trocar' && clubeAtivo ? <HeaderClube /> : <HeaderPublico />}
       <SectionList
         sections={secoes}
         keyExtractor={(clube) => String(clube.id)}
@@ -365,7 +369,7 @@ export default function ClubesExplorer({
           styles.conteudo,
           { gap: 0 },
           modo === "entrada" && {
-            paddingTop: insets.top + 24,
+            paddingTop: 16,
             paddingBottom: insets.bottom + 24,
           },
         ]}
@@ -374,8 +378,7 @@ export default function ClubesExplorer({
             <View style={[styles.intro, { marginBottom: 28 }]}>
               <Text style={styles.tituloMain}>Encontre o seu clube</Text>
               <Text style={styles.subtituloMain}>
-                Acesse qualquer clube. Seguir serve para deixar seus favoritos
-                salvos aqui.
+                Acesse clubes, acompanhe partidas e salve seus favoritos.
               </Text>
             </View>
             {!!erro && (
@@ -390,6 +393,7 @@ export default function ClubesExplorer({
                 onTentarNovamente={() => void carregar()}
               />
             )}
+            <AoVivoPublico clubes={carregou.current ? clubes : undefined} />
             {carregando && <ListSkeleton rows={4} inset={0} />}
           </>
         }

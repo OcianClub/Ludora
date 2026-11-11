@@ -7,6 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import { io, type Socket } from 'socket.io-client';
 
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
+import { useSessao } from './SessaoContext';
 import {
   BASE_URL,
   invalidarConsultasRecentes,
@@ -67,6 +68,7 @@ async function registrarTokenPush(solicitarPermissao = true) {
 }
 
 export function NotificacoesProvider({ children }: { children: React.ReactNode }) {
+  const { autenticado } = useSessao();
   const router = useRouter();
   const pushAberto = useRef<string | null>(null);
   const { clubeAtivo, carregandoClubeAtivo, definirClubeAtivo } = useClubeAtivo();
@@ -115,17 +117,17 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
 
   const atualizarNaoLidas = useCallback(async () => {
     const pedido = ++contadorPedido.current;
-    if (!clubeAtivo?.papel) {
+    if (!autenticado || !clubeAtivo?.papel) {
       setContagem({ clubeId: null, total: 0 });
       return;
     }
 
     const resultado = await fetchNotificacoes(1, clubeAtivo.id);
     if (clubeAtualId.current === clubeAtivo.id && pedido === contadorPedido.current) setContagem({ clubeId: clubeAtivo.id, total: resultado.totalNaoLidas });
-  }, [clubeAtivo?.id, clubeAtivo?.papel]);
+  }, [clubeAtivo?.id, clubeAtivo?.papel, autenticado]);
 
   useEffect(() => {
-    if (carregandoClubeAtivo || !clubeAtivo) {
+    if (carregandoClubeAtivo || !clubeAtivo || !autenticado) {
       if (!clubeAtivo) sessaoPreferencia.current = null;
       setCarregandoPreferencia(false);
       return;
@@ -160,7 +162,7 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
     return () => {
       ativo = false;
     };
-  }, [carregandoClubeAtivo, clubeAtivo?.id]);
+  }, [carregandoClubeAtivo, clubeAtivo?.id, autenticado]);
 
   useEffect(() => {
     if (carregandoClubeAtivo) return;
@@ -168,7 +170,7 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
   }, [atualizarNaoLidas, carregandoClubeAtivo]);
 
   useEffect(() => {
-    if (!clubeAtivo) return;
+    if (!clubeAtivo || !autenticado) return;
 
     let socket: Socket | null = null;
     let ativo = true;
@@ -212,7 +214,7 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
       appState.remove();
       socket?.disconnect();
     };
-  }, [clubeAtivo?.id, atualizarNaoLidas]);
+  }, [clubeAtivo?.id, atualizarNaoLidas, autenticado]);
 
   const alterarNotificacoes = useCallback(async (ativa: boolean) => {
     if (preferenciaEmAndamento.current) return false;

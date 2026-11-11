@@ -78,7 +78,7 @@ export default function App() {
             <Route path="/partidas/solicitacoes" element={<ManagementAccess><Page><SolicitacoesPartidas /></Page></ManagementAccess>} />
             <Route path="/partidas/:id" element={<PublicMatchEntry><Page><PartidaDetalhePage /></Page></PublicMatchEntry>} />
             <Route path="/competicoes" element={<Page><CompeticoesPage /></Page>} />
-            <Route path="/competicoes/paulista" element={<SoToken><Page><PaulistaPage /></Page></SoToken>} />
+            <Route path="/competicoes/paulista" element={<Page><PaulistaPage /></Page>} />
             <Route path="/perfil" element={<SoToken><Page><PerfilPage /></Page></SoToken>} />
             <Route path="/membros" element={<ManagementAccess><Page><MembrosPage /></Page></ManagementAccess>} />
           </Route>

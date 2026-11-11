@@ -195,8 +195,8 @@ export default function Jogos() {
       }, 200);
     };
     void SecureStore.getItemAsync('userToken').then(token => {
-      if (!ativo || !token) return;
-      socket = io(BASE_URL, { auth: { token, clubeId }, transports: ['websocket', 'polling'] });
+      if (!ativo) return;
+      socket = io(token ? BASE_URL : `${BASE_URL}/publico`, { auth: token ? { token, clubeId } : { clubeId }, transports: ['websocket', 'polling'] });
       let primeiraConexao = true;
       socket.on('connect', () => {
         if (!primeiraConexao) atualizar();
@@ -204,6 +204,7 @@ export default function Jogos() {
       });
       socket.on('partida_atualizada', atualizar);
       socket.on('placar_atualizado', atualizar);
+      socket.on('partidas_alteradas', atualizar);
       socket.on('solicitacao_partida', () => { invalidarConsultasRecentes(); void atualizarSolicitacoes(); });
       socket.on('connect', () => { void atualizarSolicitacoes(); });
     }).catch(() => undefined);
@@ -223,7 +224,7 @@ export default function Jogos() {
   }, [clubeId, podeGerenciar]));
 
   const abrirJogo = useCallback((item: Partida) => {
-    if (item.organizador_id) {
+    if (item.organizador_id || item.somente_leitura) {
       router.push({ pathname: '/partida-compartilhada/[id]', params: { id: String(item.id) } });
     } else setPartidaSelecionada(item);
   }, [router]);

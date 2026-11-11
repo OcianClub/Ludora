@@ -18,7 +18,7 @@ export function ManagementAccess({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 export function AccessRequired() {
-  return <div className="public-access-state"><Icon name="user" size={28} /><h2>Entre para continuar</h2><p>Esta área é pessoal. Os clubes e as partidas continuam disponíveis sem uma conta.</p><Link className="btn btn-primary" to="/login" onClick={() => rememberAccess()}>Entrar</Link><p><Link to="/selecionar-clube">Explorar clubes</Link></p></div>;
+  return <div className="public-access-state"><Icon name="user" size={28} /><h2>Entre para continuar</h2><p>Esta área é pessoal. Os clubes e as partidas continuam disponíveis sem uma conta.</p><Link className="btn btn-primary btn-md" to="/login" onClick={() => rememberAccess()}>Entrar</Link><p><Link to="/selecionar-clube">Explorar clubes</Link></p></div>;
 }
 export function WorkspaceAccess({ children }: { children: ReactNode }) {
   const { clube } = useAuth();

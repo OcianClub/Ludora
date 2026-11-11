@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import type { JogoPaulista, PainelPaulista } from '../../../../packages/shared-types/src/paulista';
-import { requestJson } from '../services/api';
+import { invalidateApiReads, requestJson } from '../services/api';
+import { consultarPaulistaPublico, listarPaulistaPublico } from '../services/paulistaPublico';
 import { useAuth } from '../contexts/AuthContext';
 import { Btn, Modal } from '../components/UI';
 import { PaulistaSkeleton } from '../components/PaulistaSkeleton';
@@ -33,10 +34,15 @@ const monthFormatter = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: '
 const hojeSP = () => dayFormatter.format(new Date());
 const nomeMes = (mes: string) => monthFormatter.format(new Date(`${mes}-01T12:00:00`));
 export default function PaulistaPage({ competitionHome = false }: { competitionHome?: boolean }) {
-  const { clube, token } = useAuth();
+  const { clube, token, modo } = useAuth();
+  const publico = modo === 'publico';
   const [params, setParams] = useSearchParams(), navigate = useNavigate(), location = useLocation();
   const [ready, setReady] = useState<boolean | null>(null), [eventos, setEventos] = useState<Evento[]>([]);
-  const [painel, setPainel] = useState<PainelPaulista | null>(null), [loading, setLoading] = useState(true);
+  const escopo = `${clube?.id}:${publico ? 'publico' : token}`;
+  const [consulta, setConsulta] = useState<{ painel: PainelPaulista; escopo: string } | null>(null);
+  const painel = consulta?.escopo === escopo ? consulta.painel : null;
+  const setPainel = useCallback((value: PainelPaulista | null) => setConsulta(value ? { painel: value, escopo } : null), [escopo]);
+  const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(''), [refresh, setRefresh] = useState(0), [limite, setLimite] = useState(25);
   const modalPeloClique = useRef(false);
   const navegacaoAbas = useRef<HTMLElement>(null);
@@ -54,7 +60,7 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
   const [rascunho, setRascunho] = useState({ etapa: 'todas', situacao: 'todas', periodo: 'all', ordem: 'asc' });
   const evento = params.get('evento') || '';
   const meta = eventos.find(e => String(e.id) === evento);
-  const updates = usePaulistaUpdates(evento, clube?.id, token, !loading && !!painel && String(painel.snapshot.id) === evento, setPainel, meta);
+  const updates = usePaulistaUpdates(evento, clube?.id, token, !loading && !!painel && String(painel.snapshot.id) === evento, setPainel, meta, publico ? clube || undefined : undefined);
   const ano = Number(params.get('ano') || meta?.ano || eventos[0]?.ano || new Date().getFullYear());
   const phase = params.get('faixa') || (meta ? faixa(meta.categoria) : 'INICIACAO');
   const requestedTab = params.get('aba') === 'pendencias' ? 'avisos' : params.get('aba');
@@ -78,11 +84,21 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
   useEffect(() => {
     const controller = new AbortController();
     let active = true; setLoading(!(painel && meta && painelDaSelecao(painel, meta, clube?.id))); setErro('');
-    requestJson<{ ativo: boolean; bancoPronto: boolean }>('/paulista/status', { signal: controller.signal }).then(async status => {
-      if (!active) return;
+    const carregar = async () => {
+      if (publico) {
+        if (!clube) return [];
+        if (refresh) invalidateApiReads(`/publico/clubes/${clube.id}/paulista`);
+        const list = await listarPaulistaPublico(clube.id, { signal: controller.signal });
+        if (active) setReady(true);
+        return list;
+      }
+      const status = await requestJson<{ ativo: boolean; bancoPronto: boolean }>('/paulista/status', { signal: controller.signal });
+      if (!active) return [];
       const enabled = status.ativo && status.bancoPronto; setReady(enabled);
-      if (!enabled) { setLoading(false); return; }
-      const list = await requestJson<Evento[]>('/paulista/eventos', { signal: controller.signal });
+      if (!enabled) return [];
+      return requestJson<Evento[]>('/paulista/eventos', { signal: controller.signal });
+    };
+    carregar().then(list => {
       if (!active) return;
       setEventos(list);
       if (!list.length) { setPainel(null); setLoading(false); return; }
@@ -92,7 +108,7 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
       }
     }).catch(e => { if (active) { setErro(e.message); setLoading(false); } });
     return () => { active = false; controller.abort(); };
-  }, [clube?.id, refresh]);
+  }, [clube?.id, token, publico, refresh]);
   useEffect(() => {
     if (!ready || !evento || !eventos.some(e => String(e.id) === evento)) return;
     const controller = new AbortController();
@@ -100,14 +116,17 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
     const preserved = !!painel && painelDaSelecao(painel, esperado, clube?.id);
     let active = true; setLoading(!preserved); setErro('');
     if (!preserved) setPainel(null);
-    requestJson<PainelPaulista>(`/paulista/eventos/${evento}`, { signal: controller.signal }).then(p => {
+    const consulta = publico && clube
+      ? consultarPaulistaPublico(evento, clube, { signal: controller.signal })
+      : requestJson<PainelPaulista>(`/paulista/eventos/${evento}`, { signal: controller.signal });
+    consulta.then(p => {
       if (!active) return;
       if (!painelDaSelecao(p, esperado, clube?.id)) throw new Error('Os dados recebidos não correspondem ao clube, categoria e divisão selecionados. Atualize para tentar novamente.');
       setPainel(p);
     })
       .catch(e => { if (active) setErro(e.message); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; controller.abort(); };
-  }, [ready, evento, eventos, clube?.id]);
+  }, [ready, evento, eventos, clube?.id, token, publico]);
   const active = useMemo(() => {
     if (!painel || !meta || !painelDaSelecao(painel, meta, clube?.id) || painel.snapshot.ano !== ano || faixa(painel.snapshot.categoria) !== phase) return null;
     // Identidade do cliente apenas na apresentação. A publicação original fica intacta.

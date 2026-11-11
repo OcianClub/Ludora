@@ -18,7 +18,7 @@ const elenco = (total = 7): Convocado[] =>
     jogador_id: index + 1,
     numCamisa: index + 1,
     titular: index < 5,
-    jogador: { nome: `Jogador ${index + 1}`, posicao: "Fixo" },
+    jogador: { nome: `Jogador ${index + 1}`, posicao: index === 0 ? "Goleiro" : "Fixo" },
   }));
 const dados = (convocados: Convocado[], pronta = false) =>
   ({

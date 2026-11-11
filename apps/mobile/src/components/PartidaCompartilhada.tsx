@@ -18,6 +18,8 @@ import {
 import PreparacaoPartida from "./PreparacaoPartida";
 import SumulaPartida from "./SumulaPartida";
 import { criarFilaConsulta } from "../utils/filaConsulta";
+import { receberPalpite } from '../services/palpitePartida';
+import { useSessao } from '../contexts/SessaoContext';
 
 export default function PartidaCompartilhada({
   id,
@@ -27,6 +29,7 @@ export default function PartidaCompartilhada({
   onBack: () => void;
 }) {
   const { colors } = useTheme();
+  const { autenticado } = useSessao();
   const { clubeAtivo } = useClubeAtivo();
   const [data, setData] = useState<GestaoPartida | null>(null);
   const [loading, setLoading] = useState(true),
@@ -40,13 +43,13 @@ export default function PartidaCompartilhada({
       criarFilaConsulta(async () =>
         clubId ? gestaoPartida(id, clubId) : undefined,
       ),
-    [id, clubId],
+    [id, clubId, autenticado],
   );
   const scope = useRef("");
-  scope.current = `${clubId}:${id}`;
+  scope.current = `${clubId}:${id}:${autenticado}`;
   async function refresh(aposAtual = false) {
     if (!clubId) return;
-    const source = `${clubId}:${id}`;
+    const source = `${clubId}:${id}:${autenticado}`;
     const next = await consultaGestao.consultar(aposAtual);
     if (!next || !mounted.current || source !== scope.current) return;
     if (
@@ -74,7 +77,7 @@ export default function PartidaCompartilhada({
         if (!clubId) return;
         const token = await SecureStore.getItemAsync("userToken");
         if (!active) return;
-        socket = io(BASE_URL, { auth: { token, clubeId: clubId } });
+        socket = io(token ? BASE_URL : `${BASE_URL}/publico`, { auth: token ? { token, clubeId: clubId } : { clubeId: clubId } });
         const sync = () => {
           clearTimeout(timer);
           timer = setTimeout(() => {
@@ -87,6 +90,8 @@ export default function PartidaCompartilhada({
         socket.on("partida_atualizada", (p: { id: number }) => {
           if (p.id === id) sync();
         });
+        socket.on('partidas_alteradas', (p: { partida_id: number }) => { if (p.partida_id === id) sync(); });
+        socket.on('palpite_atualizado', receberPalpite);
         let primeiraConexao = true;
         socket.on("connect", () => {
           if (active) setConnected(true);
@@ -127,7 +132,7 @@ export default function PartidaCompartilhada({
       socket?.disconnect();
       appState.remove();
     };
-  }, [id, clubId]);
+  }, [id, clubId, autenticado]);
   if (loading)
     return (
       <SafeAreaView

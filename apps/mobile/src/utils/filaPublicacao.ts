@@ -3,7 +3,7 @@ export type ItemPublicacao<T> = {
   id: string;
   dados: T;
   enviarEm: number;
-  status: "aguardando" | "enviando" | "erro";
+  status: "aguardando" | "enviando" | "erro" | "pausado";
   erro?: string;
 };
 
@@ -20,16 +20,17 @@ export function criarFilaPublicacao<T>(opcoes: {
   const cancelarTimer = opcoes.cancelarTimer ?? clearTimeout;
   let itens: ItemPublicacao<T>[] = [],
     ocupado = false,
-    encerrada = false;
+    encerrada = false, pausada = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let sequencia = 0;
+  const esperando = new Set<() => void>();
   const avisar = () => {
     if (!encerrada) opcoes.atualizar([...itens]);
   };
   function programar() {
     if (timer !== undefined) cancelarTimer(timer);
     timer = undefined;
-    if (encerrada || ocupado || itens.some((i) => i.status === "erro")) return;
+    if (encerrada || pausada || ocupado || itens.some((i) => i.status === "erro")) return;
     const proximo = itens.find((i) => i.status === "aguardando");
     if (proximo)
       timer = agendar(
@@ -40,7 +41,7 @@ export function criarFilaPublicacao<T>(opcoes: {
       );
   }
   async function publicar(item: ItemPublicacao<T>) {
-    if (encerrada || ocupado || !itens.includes(item)) return;
+    if (encerrada || pausada || ocupado || !itens.includes(item)) return;
     ocupado = true;
     item.status = "enviando";
     avisar();
@@ -57,6 +58,8 @@ export function criarFilaPublicacao<T>(opcoes: {
       ocupado = false;
       avisar();
       programar();
+      for (const resolve of esperando) resolve();
+      esperando.clear();
     }
   }
   return {
@@ -66,7 +69,7 @@ export function criarFilaPublicacao<T>(opcoes: {
         id,
         dados,
         enviarEm: agora() + ATRASO_PUBLICACAO,
-        status: "aguardando",
+        status: pausada ? "pausado" : "aguardando",
       });
       avisar();
       programar();
@@ -82,12 +85,36 @@ export function criarFilaPublicacao<T>(opcoes: {
     tentar(id: string) {
       const item = itens.find((i) => i.id === id && i.status === "erro");
       if (!item) return;
+      // Explicit retry also resumes this action after a background failure.
+      // Other paused actions remain paused until the user resumes them.
+      pausada = false;
       item.status = "aguardando";
       item.enviarEm = agora() + ATRASO_PUBLICACAO;
       avisar();
       programar();
     },
     pendentes: () => [...itens],
+    aguardarOciosa: () => ocupado ? new Promise<void>(resolve => esperando.add(resolve)) : Promise.resolve(),
+    pausar() {
+      pausada = true;
+      if (timer !== undefined) cancelarTimer(timer);
+      timer = undefined;
+      for (const item of itens) if (item.status === 'aguardando') item.status = 'pausado';
+      avisar();
+    },
+    retomar() {
+      pausada = false;
+      for (const item of itens) if (item.status === 'pausado') {
+        item.status = 'aguardando'; item.enviarEm = agora() + ATRASO_PUBLICACAO;
+      }
+      avisar(); programar();
+    },
+    restaurar(salvos: ItemPublicacao<T>[]) {
+      if (itens.length || ocupado) return;
+      pausada = true;
+      itens = salvos.map(item => ({ ...item, status: 'pausado' }));
+      avisar();
+    },
     encerrar() {
       encerrada = true;
       if (timer !== undefined) cancelarTimer(timer);

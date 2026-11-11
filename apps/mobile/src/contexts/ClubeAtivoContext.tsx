@@ -9,6 +9,7 @@ import React, {
 import * as SecureStore from 'expo-secure-store';
 import { iniciarMedicaoCarregamento } from '@/src/utils/desempenho';
 import { criarPersistenciaClube } from '@/src/utils/persistenciaClube';
+import { useSessao } from './SessaoContext';
 
 export type PapelClube =
   | 'ADMIN'
@@ -43,6 +44,7 @@ export function ClubeAtivoProvider({
   children: React.ReactNode;
 }) {
   const [clubeAtivo, setClubeAtivo] = useState<ClubeAtivo | null>(null);
+  const { autenticado, carregando: carregandoSessao } = useSessao();
   const [carregandoClubeAtivo, setCarregandoClubeAtivo] = useState(true);
   const montado = useRef(true);
   const persistencia = useRef<ReturnType<typeof criarPersistenciaClube> | null>(null);
@@ -81,13 +83,13 @@ export function ClubeAtivoProvider({
   }, []);
 
   const podeGerenciar =
-    !!clubeAtivo?.papel && PAPEIS_GESTORES.includes(clubeAtivo.papel);
+    autenticado && !!clubeAtivo?.papel && PAPEIS_GESTORES.includes(clubeAtivo.papel);
 
   return (
     <ClubeAtivoContext.Provider
       value={{
-        clubeAtivo,
-        carregandoClubeAtivo,
+        clubeAtivo: clubeAtivo && !autenticado ? { ...clubeAtivo, papel: null } : clubeAtivo,
+        carregandoClubeAtivo: carregandoClubeAtivo || carregandoSessao,
         podeGerenciar,
         definirClubeAtivo,
         limparClubeAtivo,

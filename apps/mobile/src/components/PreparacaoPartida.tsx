@@ -507,7 +507,7 @@ export default function PreparacaoPartida({
     await operar(async () => {
       if (passo === 2 && !escalaValida(convocados, quantidadeTitulares))
         throw new Error(
-          `Selecione ${quantidadeTitulares} titulares com camisas diferentes de 1 a 99 antes de revisar.`,
+          `Selecione ${quantidadeTitulares} titulares, incluindo exatamente um goleiro, com camisas diferentes de 1 a 99 antes de revisar.`,
         );
       if (etapa === 1 || passo === 2) await salvar();
       await lembrar(passo);
@@ -1419,6 +1419,11 @@ export default function PreparacaoPartida({
           </View>
         )}
         <View style={styles.footer}>
+          {etapa > 0 && !escalaValida(convocados, quantidadeTitulares) && (
+            <Text accessibilityRole="alert" style={styles.error}>
+              A equipe precisa de {quantidadeTitulares} titulares, exatamente um goleiro e camisas únicas de 01 a 99. Outros goleiros podem ficar na reserva.
+            </Text>
+          )}
           <View style={styles.between}>
             <Text style={styles.name}>{tituloRodape}</Text>
             {ocupado && <ActivityIndicator color={colors.primaria} />}

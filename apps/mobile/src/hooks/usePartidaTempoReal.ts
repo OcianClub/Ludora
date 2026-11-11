@@ -64,10 +64,10 @@ export function usePartidaTempoReal<T>(
       origemAtual = origem;
       const pedido = ++versaoConexao;
       const token = await SecureStore.getItemAsync('userToken');
-      if (!ativo || !token || pedido !== versaoConexao) return;
+      if (!ativo || pedido !== versaoConexao) return;
       socket?.disconnect();
-      socket = io(BASE_URL, {
-        auth: { token, clubeId: origem },
+      socket = io(token ? BASE_URL : `${BASE_URL}/publico`, {
+        auth: token ? { token, clubeId: origem } : { clubeId: origem },
         transports: ['websocket', 'polling'],
       });
       socket.on('connect', () => {
@@ -84,6 +84,7 @@ export function usePartidaTempoReal<T>(
       socket.on('placar_atualizado', agendar);
       socket.on('partida_atualizada', agendar);
       socket.on('evento_partida', agendar);
+      socket.on('partidas_alteradas', agendar);
     }
     if (clubeOrigemId) {
       void conectarNaOrigem(clubeOrigemId).catch(() => {

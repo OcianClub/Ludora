@@ -271,7 +271,7 @@ O inventário abaixo inclui arquivos não rastreados e o próprio relatório. Ar
 
 <!-- inventario-gerado -->
 
-97 arquivos pendentes: 80 preexistente; 10 novo nesta tarefa; 7 preexistente + tarefa.
+Inventário atualizado após o complemento de agrupamento. 101 arquivos pendentes: 78 preexistente; 14 novo nesta tarefa; 9 preexistente + tarefa.
 
 | Arquivo | Origem |
 | --- | --- |
@@ -317,10 +317,11 @@ O inventário abaixo inclui arquivos não rastreados e o próprio relatório. Ar
 | `apps/desktop/src/renderer/src/components/PlatformClubCollection.css` | Preexistente |
 | `apps/desktop/src/renderer/src/components/PlatformClubCollection.md` | Preexistente |
 | `apps/desktop/src/renderer/src/components/PlatformClubCollection.tsx` | Preexistente |
+| `apps/desktop/src/renderer/src/components/ReaproveitarTime.tsx` | Novo nesta tarefa |
 | `apps/desktop/src/renderer/src/components/ServicesDiagnostic.tsx` | Preexistente |
 | `apps/desktop/src/renderer/src/components/UserAccountDialog.css` | Preexistente |
 | `apps/desktop/src/renderer/src/components/UsuarioClubeEditor.tsx` | Preexistente |
-| `apps/desktop/src/renderer/src/hooks/useClubRegistrationDraft.ts` | Preexistente |
+| `apps/desktop/src/renderer/src/hooks/useClubRegistrationDraft.ts` | Preexistente + tarefa |
 | `apps/desktop/src/renderer/src/pages/Banco.css` | Preexistente |
 | `apps/desktop/src/renderer/src/pages/Banco.tsx` | Preexistente |
 | `apps/desktop/src/renderer/src/pages/Chamados.css` | Preexistente |
@@ -353,13 +354,15 @@ O inventário abaixo inclui arquivos não rastreados e o próprio relatório. Ar
 | `docs/chamados-de-teste-desktop.md` | Preexistente |
 | `docs/desktop-componentes-menus.md` | Preexistente |
 | `docs/handovers/2026-11-09-desktop-auditoria-interface.md` | Preexistente |
+| `docs/handovers/2026-11-10-clubes-agrupamento-subs.md` | Novo nesta tarefa |
 | `docs/handovers/2026-11-10-desktop-clubes-auditoria-e-relatorio.md` | Novo nesta tarefa |
 | `docs/handovers/2026-11-10-desktop-visao-global.md` | Preexistente |
-| `packages/shared-types/src/admin.ts` | Preexistente |
+| `packages/shared-types/src/admin.ts` | Preexistente + tarefa |
 | `services/api/prisma/migrations/20261110160000_convite_codigo_cifrado/migration.sql` | Novo nesta tarefa |
 | `services/api/prisma/schema.prisma` | Novo nesta tarefa |
 | `services/api/scripts/criar-chamados-teste.cjs` | Preexistente |
 | `services/api/src/modules/admin/admin.routes.ts` | Preexistente + tarefa |
+| `services/api/src/modules/admin/clubes-candidatos.ts` | Novo nesta tarefa |
 | `services/api/src/modules/admin/overview.ts` | Preexistente |
 | `services/api/src/modules/admin/partidas-revisao.ts` | Preexistente |
 | `services/api/src/modules/convites/codigo-seguro.ts` | Novo nesta tarefa |
@@ -368,6 +371,7 @@ O inventário abaixo inclui arquivos não rastreados e o próprio relatório. Ar
 | `services/api/src/modules/suporte/routes.ts` | Preexistente |
 | `services/api/tests/admin.http.test.ts` | Novo nesta tarefa |
 | `services/api/tests/clubes-admin.integration.ts` | Novo nesta tarefa |
+| `services/api/tests/clubes-candidatos.test.ts` | Novo nesta tarefa |
 | `services/api/tests/convite-codigo-seguro.test.ts` | Novo nesta tarefa |
 | `services/api/tests/match-preparation.test.cjs` | Preexistente |
 | `services/api/tests/overview.test.ts` | Preexistente |

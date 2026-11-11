@@ -73,6 +73,7 @@ async function fixture(page, role = 'ADMIN') {
         eventos: [{ id: 1, partida_id: p.id, tipo: 'GOL', periodo: 1, time_id: p.mandante_id, jogador_id: 101, jogador: { id: 101, nome: 'Daniel Young' } }] };
     } else if (club) {
       if (/\/categorias$/.test(endpoint)) response = data.categorias;
+      else if (/\/paulista$/.test(endpoint)) response = require('./paulista-public-fixture.cjs').eventos();
       else if (/\/times$/.test(endpoint)) response = data.times;
       else if (/\/partidas(?:\/home)?$/.test(endpoint)) response = data.partidas;
       else if (/\/competicoes$/.test(endpoint)) response = data.competicoes;
@@ -128,7 +129,7 @@ async function fixture(page, role = 'ADMIN') {
       for (const route of ['/clubes/2/partidas', '/clubes/2/competicoes', '/partidas/105', '/partidas/100', '/partidas/107']) {
         console.log('Checking', width, route);
         await page.goto(base + route, { waitUntil: 'domcontentloaded' });
-        if (route.includes('competicoes')) await page.getByRole('heading', { name: 'Entre para continuar' }).waitFor();
+        if (route.includes('competicoes')) await page.locator('.paulista-overview-screen').waitFor();
         else if (route.endsWith('/partidas')) await page.locator('.match-card').first().waitFor();
         else try { await page.getByRole('heading', { name: /Ocian|Detalhes da partida|Resumo da partida/ }).first().waitFor(); }
         catch (error) { console.log(await page.locator('body').innerText(), f.unexpected, f.errors); throw error; }

@@ -112,20 +112,30 @@ export function HomeSkeleton({ style }: HomeSkeletonProps) {
 
       <View style={styles.homeSectionCard}>
         <Skeleton width="42%" height={16} radius={4} />
-        <Skeleton width="62%" height={11} radius={4} />
-        <View style={styles.heroBottom}>
-          {Array.from({ length: 5 }, (_, index) => <Skeleton key={index} width={34} height={34} radius={17} />)}
+        <View style={styles.homeHistoryRow}>
+          <Skeleton width={34} height={34} radius={7} />
+          <View style={styles.rowText}><Skeleton width="62%" height={13} /><Skeleton width="42%" height={10} /></View>
         </View>
-        <Skeleton width="54%" height={12} radius={4} />
       </View>
 
       <View style={styles.homeHistory}>
-        <View style={styles.cardTop}><Skeleton width="34%" height={16} radius={4} /><Skeleton width={82} height={12} radius={4} /></View>
-        {Array.from({ length: 3 }, (_, index) => <View key={index} style={styles.homeHistoryRow}>
-          <Skeleton width={32} height={32} radius={12} />
-          <View style={styles.rowText}><Skeleton width="72%" height={13} radius={4} /><Skeleton width="45%" height={10} radius={4} /></View>
-          <Skeleton width={28} height={20} radius={5} />
-        </View>)}
+        <Skeleton width="58%" height={16} radius={4} />
+        <Skeleton width="45%" height={12} radius={4} />
+        <View style={styles.homeHistoryTable}>
+          <View style={styles.homeHistorySummary}>
+            <View style={styles.cardTop}>
+              <View style={styles.homeHistoryDots}>{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} width={26} height={26} radius={13} />)}</View>
+              <Skeleton width={74} height={10} radius={4} />
+            </View>
+            <Skeleton width="70%" height={10} radius={4} />
+          </View>
+          {Array.from({ length: 3 }, (_, index) => <View key={index} style={styles.homeHistoryTableRow}>
+            <Skeleton width={24} height={32} radius={4} />
+            <View style={styles.rowText}><Skeleton width="72%" height={12} radius={4} /><Skeleton width="52%" height={12} radius={4} /></View>
+            <Skeleton width={22} height={40} radius={4} />
+            <Skeleton width={48} height={23} radius={4} />
+          </View>)}
+        </View>
       </View>
     </SkeletonPulse>
   );
@@ -184,6 +194,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   homeMeta: { flexDirection: 'row', justifyContent: 'space-between' },
   homeSectionCard: { padding: 18, gap: 14, backgroundColor: colors.card, borderRadius: 10 },
   homeHistory: { gap: 12 },
+  homeHistoryTable: { overflow: 'hidden', borderRadius: 10, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.linha },
+  homeHistorySummary: { padding: 10, gap: 12 },
+  homeHistoryDots: { flexDirection: 'row', gap: 9 },
+  homeHistoryTableRow: { paddingHorizontal: 8, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: colors.borda },
   homeHistoryRow: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 10, backgroundColor: colors.card },
   separator: {
     marginVertical: 4

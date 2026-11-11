@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import type { AddressInfo } from 'node:net';
 import { criarPublicoRoutes } from '../src/modules/publico/publico.routes';
 import { exigirGestorDoClube } from '../src/middlewares/permissoes.middleware';
 import { classificarPartidas } from '../src/modules/publico/publico.service';
+import { criarPaulistaRoutes } from '../src/modules/paulista/routes';
+import { prisma } from '../src/lib/prisma';
+import { JWT_SECRET, JWT_OPTIONS } from '../src/config/env';
 
 test('consulta pública HTTP: escopo, rascunhos e ações de gestão', async t => {
   const clubes = [{ id: 2, nome: 'Ocian', escudo: null, cidade: 'Praia Grande', estado: 'SP' }, { id: 3, nome: 'Santos', escudo: null, cidade: null, estado: null }];
@@ -19,6 +23,10 @@ test('consulta pública HTTP: escopo, rascunhos e ações de gestão', async t =
     participantes: [{ id: 1, clube_id: 2, categoria_id: 7, time_id: 20, pronta: publicada, publicada_em: publicada ? new Date() : null, categoria, clube: clubes[0] }] });
   let lineupCalls = 0, eventCalls = 0;
   const banco: any = {
+    $queryRaw: async () => [{ ...row(), grupo_agenda: 'ao_vivo', posicao: 1, total_grupo: 1, cpf: 'NUNCA EXPOR', auditoria: ['privado'] }],
+    fpfsVinculo: { findMany: async () => [{ equipeId: 20 }] },
+    fpfsEvento: { findMany: async () => [{ id: 925, ano: 2026, divisao: 'A2', categoria: 'SUB-7', verificadoEm: null,
+      diario: true, segredo: 'interno', payload: { fonte: 'https://eventos.admfutsal.com.br/evento/925', equipes: [{ id: 20, nome: 'Ocian', escudo: null }], jogos: [], classificacao: [], fasesExcluidas: ['Fase não homologada'] } }] },
     clube: { findUnique: async ({ where }: any) => clubes.find(c => c.id === where.id) || null, findMany: async () => clubes },
     categoria: { findMany: async ({ where }: any) => { assert.equal(where.clube_id, 2); return [categoria]; } },
     time: { findMany: async () => [] },
@@ -40,6 +48,7 @@ test('consulta pública HTTP: escopo, rascunhos e ações de gestão', async t =
     } },
   };
   const app = express(); app.use(express.json(), criarPublicoRoutes(banco));
+  app.use(criarPaulistaRoutes({} as any));
   app.post('/partidas', exigirGestorDoClube, (_req, res) => { res.json({}); });
   const server = app.listen(0, '127.0.0.1');
   await new Promise<void>(resolve => server.once('listening', resolve));
@@ -59,6 +68,26 @@ test('consulta pública HTTP: escopo, rascunhos e ações de gestão', async t =
     assert.equal(body.podeSumula, false); assert.equal(body.podePreparar, false);
     assert.equal(lineupCalls, 0); assert.equal(eventCalls, 0);
     assert.equal(body.partida.mandante.nome, 'Ocian');
+  });
+  await t.test('agenda pública preserva paginação e filtros sem divulgar campos privados', async () => {
+    const r = await fetch(base + '/publico/clubes/2/partidas/agenda?ano=2026&agora=2026-11-10T12:00&por_situacao=true');
+    assert.equal(r.status, 200);
+    const rows = await r.json();
+    assert.equal(rows[0].grupo_agenda, 'ao_vivo'); assert.equal(rows[0].total_grupo, 1);
+    assert.equal(rows[0].somente_leitura, true);
+    assert.doesNotMatch(JSON.stringify(rows), /cpf|auditoria|escalacao|publicada_em/);
+    assert.equal((await fetch(base + '/publico/clubes/2/partidas/agenda?agora=invalido')).status, 400);
+  });
+  await t.test('Paulista público devolve apenas publicação oficial e não executa sincronização', async () => {
+    const anterior = process.env.PAULISTA_ENABLED;
+    process.env.PAULISTA_ENABLED = 'true';
+    try {
+      const r = await fetch(base + '/publico/clubes/2/paulista'); assert.equal(r.status, 200);
+      const rows = await r.json();
+      assert.deepEqual(rows[0].equipesClube, [20]); assert.equal(rows[0].fonte, 'https://eventos.admfutsal.com.br/evento/925');
+      assert.deepEqual(rows[0].fasesExcluidas, ['Fase não homologada']);
+      assert.doesNotMatch(JSON.stringify(rows), /segredo|diario|pendencias|retroativos|auditoria/);
+    } finally { if (anterior === undefined) delete process.env.PAULISTA_ENABLED; else process.env.PAULISTA_ENABLED = anterior; }
   });
   await t.test('escalação publicada e eventos são somente leitura, sem cadastro pessoal', async () => {
     publicada = true; status = 'AO_VIVO';
@@ -85,6 +114,37 @@ test('consulta pública HTTP: escopo, rascunhos e ações de gestão', async t =
     assert.equal((await fetch(base + '/publico/partidas/50', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 404);
     assert.equal((await fetch(base + '/partidas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 401);
     exists = false; assert.equal((await fetch(base + '/publico/partidas/999')).status, 404);
+  });
+  await t.test('Paulista público não libera painel interno, sincronização, vínculos nem correções', async () => {
+    const headers = { 'Content-Type': 'application/json', 'x-clube-id': '2' };
+    for (const path of ['/paulista/status', '/paulista/eventos', '/paulista/eventos/925', '/paulista/jogos/1/jogadores', '/admin/paulista/eventos/925']) {
+      assert.equal((await fetch(base + path, { headers })).status, 401, path);
+    }
+    for (const path of ['/paulista/jogos/1/retroativo', ...['sincronizar', 'vincular', 'desvincular', 'acompanhamento', 'programar'].map(action => `/admin/paulista/eventos/925/${action}`)]) {
+      assert.equal((await fetch(base + path, { method: 'POST', headers, body: '{}' })).status, 401, path);
+    }
+    for (const method of ['POST', 'PATCH', 'PUT', 'DELETE']) {
+      assert.equal((await fetch(base + '/publico/clubes/2/paulista', { method, headers, body: '{}' })).status, 404, method);
+    }
+  });
+  await t.test('torcedor e olheiro autenticados continuam sem permissão para alterar o Paulista', async () => {
+    const originalUsuario = prisma.usuario.findUnique, originalVinculo = prisma.usuarioClube.findUnique;
+    let papel = 'TORCEDOR';
+    // Delegates Prisma são proxies. Substitui apenas leituras da autorização e restaura ao terminar.
+    (prisma.usuario.findUnique as any) = async () => ({ id: 99, versao_sessao: 0, suspenso: false, papel_plataforma: null });
+    (prisma.usuarioClube.findUnique as any) = async () => ({ papel });
+    try {
+      const token = jwt.sign({ id: 99, versao_sessao: 0 }, JWT_SECRET, JWT_OPTIONS);
+      const headers = { 'Content-Type': 'application/json', 'x-clube-id': '2', Authorization: `Bearer ${token}` };
+      for (papel of ['TORCEDOR', 'OLHEIRO']) {
+        assert.equal((await fetch(base + '/paulista/jogos/1/retroativo', { method: 'POST', headers, body: '{}' })).status, 403, papel);
+        assert.equal((await fetch(base + '/paulista/jogos/1/jogadores', { headers })).status, 403, papel);
+        assert.equal((await fetch(base + '/admin/paulista/eventos/925/sincronizar', { method: 'POST', headers, body: '{}' })).status, 403, papel);
+      }
+    } finally {
+      prisma.usuario.findUnique = originalUsuario;
+      prisma.usuarioClube.findUnique = originalVinculo;
+    }
   });
   await t.test('classificação usa os resultados reais e os clubes representados', () => {
     const result = classificarPartidas([row() as any]);

@@ -1,4 +1,5 @@
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect, usePathname } from 'expo-router';
+import { useSessao } from '@/src/contexts/SessaoContext';
 import { Text } from 'react-native';
 import { useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,10 +11,15 @@ import { useTheme } from '@/src/contexts/ThemeContext';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const { podeGerenciar, carregandoClubeAtivo } = useClubeAtivo();
+  const { podeGerenciar, carregandoClubeAtivo, clubeAtivo } = useClubeAtivo();
+  const { autenticado, carregando } = useSessao();
+  const pathname = usePathname();
 
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  if (carregando || carregandoClubeAtivo) return null;
+  if (!autenticado && /estatisticas|dadosPessoais|notificacoes|organizarPartidas/.test(pathname)) return <Redirect href="/(tabs)/perfil/perfil" />;
+  if (!clubeAtivo && !/clubes|perfil/.test(pathname)) return <Redirect href="/(tabs)/clubes/clubes" />;
 
   return (
     <Tabs
@@ -67,6 +73,10 @@ export default function TabsLayout() {
             <IconeAba nome="shield-outline" cor={color} selecionado={focused} />
           ),
         }}
+      />
+      <Tabs.Screen
+        name="competicoes"
+        options={{ title: 'Paulista', tabBarIcon: ({ color, focused }) => <IconeAba nome="trophy-outline" cor={color} selecionado={focused} /> }}
       />
       <Tabs.Screen
         name="estatisticas/estatisticas"

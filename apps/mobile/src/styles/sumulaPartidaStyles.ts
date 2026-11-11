@@ -262,13 +262,16 @@ export function createStyles(c: ThemeColors) {
     finish: {
       borderTopWidth: 1,
       borderTopColor: c.linha,
+      borderBottomWidth: 1,
+      borderBottomColor: c.linha,
       paddingTop: 16,
+      paddingBottom: 16,
       alignItems: "stretch",
     },
     finishButton: {
       minHeight: 48,
-      backgroundColor: c.card,
-      borderColor: c.vermelho + "70",
+      backgroundColor: c.fundoErro,
+      borderColor: c.bordaErro,
     },
     winner: {
       color: c.primaria,
@@ -290,8 +293,8 @@ export function createStyles(c: ThemeColors) {
     overlay: {
       flex: 1,
       backgroundColor: "#0009",
-      justifyContent: "center",
-      padding: 12,
+      justifyContent: "flex-end",
+      paddingTop: 36,
     },
     sheetWrap: {
       maxHeight: "94%",

@@ -293,46 +293,57 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
           )) : <Text style={styles.secondaryText}>Sem outros compromissos marcados para esta categoria.</Text>}
         </View>
 
-        <View style={styles.sectionHeader}><Text style={styles.sectionTitle} accessibilityRole="header">Momento da categoria</Text></View>
-        <View style={styles.momentCard}>
-          {ultimo ? <>
-            <View style={styles.formRow}>{[...historico].reverse().map((partida, index) => {
-              const resultado = resultadoDoClube(partida);
-              const recente = index === historico.length - 1;
-              return <TouchableOpacity key={partida.id} onPress={() => onVerDetalhes(partida)} accessibilityRole="button"
-                accessibilityLabel={`${recente ? 'Mais recente. ' : ''}${rotuloResultado[resultado]} em ${dataCurta(partida.data)}. Ver partida.`}
-                style={styles.formItem}>
-                <View style={[styles.formPill, { backgroundColor: resultado === 'V' ? colors.primaria : resultado === 'E' ? amareloEmpate : VERMELHO_DERROTA }]}>
-                  <Text style={[styles.formLetter, { color: resultado === 'V' ? colors.textoSobrePrimaria : resultado === 'E' ? darkColors.fundo : colors.textoSobrePrimaria }]}>{resultado}</Text>
-                </View>
-                <Text style={[styles.formDate, recente && styles.formDateRecent]}>{dataCurta(partida.data)}</Text>
-              </TouchableOpacity>;
-            })}</View>
-            <View style={styles.formSummary}>
-              <Text style={styles.formSummaryText}><Text style={{ color: colors.primaria }}>{contagem.V} vit.</Text>  ·  {contagem.E} emp.  ·  <Text style={{ color: colors.tituloErro }}>{contagem.D} der.</Text></Text>
-              <Text style={styles.formLegend}>Mais recente à direita</Text>
-            </View>
-          </> : <Text style={styles.secondaryText}>A sequência de resultados aparece após a primeira partida finalizada.</Text>}
-        </View>
-
-        <View style={styles.sectionHeader}>
+        <View style={styles.historyTitleRow}>
           <Text style={styles.sectionTitle} accessibilityRole="header">Histórico de partidas</Text>
           <Text style={styles.formLegend}>{sub}</Text>
         </View>
+        <TouchableOpacity onPress={() => verJogos('FINALIZADA')} style={styles.historyAllButton} accessibilityRole="button">
+          <Text style={styles.historyAllText}>Ver histórico completo</Text>
+          <Icon name="chevron-right" size={16} color={colors.primaria} />
+        </TouchableOpacity>
         {historico.length > 0 ? <>
           <View style={styles.historyList}>
-            <View style={[styles.historyRow, styles.historyHeader]} accessible accessibilityLabel="Data, confronto, placar e resultado">
+            <View style={styles.historySummary}>
+              <View style={styles.historySummaryTop}>
+                <View style={styles.formRow}>{historico.map((partida, index) => {
+                  const resultado = resultadoDoClube(partida);
+                  return <TouchableOpacity key={partida.id} onPress={() => onVerDetalhes(partida)} accessibilityRole="button"
+                    accessibilityLabel={`${index === 0 ? 'Mais recente. ' : ''}${rotuloResultado[resultado]} em ${dataCurta(partida.data)}. Ver partida.`}
+                    hitSlop={{ top: 6, bottom: 6, left: 3, right: 3 }} style={styles.formItem}>
+                    <View style={[styles.formPill, { backgroundColor: resultado === 'V' ? colors.primaria : resultado === 'E' ? amareloEmpate : VERMELHO_DERROTA }]}>
+                      <Text style={[styles.formLetter, { color: resultado === 'E' ? darkColors.fundo : '#fff' }]}>{resultado}</Text>
+                    </View>
+                  </TouchableOpacity>;
+                })}</View>
+                <Text style={styles.historySummaryLabel}>{historico.length === 1 ? 'Último jogo' : `Últimos ${historico.length} jogos`}</Text>
+              </View>
+              <Text style={styles.formSummaryText}>
+                <Text style={{ color: colors.primaria }}>{contagem.V} {contagem.V === 1 ? 'vitória' : 'vitórias'}</Text>
+                {'  ·  '}{contagem.E} {contagem.E === 1 ? 'empate' : 'empates'}{'  ·  '}
+                <Text style={{ color: VERMELHO_DERROTA }}>{contagem.D} {contagem.D === 1 ? 'derrota' : 'derrotas'}</Text>
+              </Text>
+            </View>
+            <View style={[styles.historyRow, styles.historyHeader]} accessible accessibilityLabel="Data, competição, confronto, placar e resultado">
               <Text style={[styles.historyHeaderText, styles.historyDateCell]}>Data</Text>
+              <Text style={[styles.historyHeaderText, styles.historyCompetitionCell]}>Comp.</Text>
               <Text style={[styles.historyHeaderText, styles.historyConfronto]}>Confronto</Text>
               <Text style={[styles.historyHeaderText, styles.historyScoreCell]}>Placar</Text>
               <Text style={[styles.historyHeaderText, styles.historyResultCell]}>Resultado</Text>
             </View>
             {historico.map(partida => {
               const resultado = resultadoDoClube(partida);
+              const [dia, mes] = dataCurta(partida.data).replace(/\s+de\s+/, ' ').split(' ');
+              const competicao = partida.competicao?.nome || 'Amistoso';
               return <TouchableOpacity key={partida.id} style={styles.historyRow} activeOpacity={0.75}
                 onPress={() => onVerDetalhes(partida)} accessibilityRole="button"
-                accessibilityLabel={`${dataCurta(partida.data)}. ${partida.mandante.nome} ${partida.gols_mandante} a ${partida.gols_visitante} ${partida.visitante.nome}. ${rotuloResultado[resultado]}. Ver partida.`}>
-                <Text style={[styles.historyDate, styles.historyDateCell]}>{dataCurta(partida.data)}</Text>
+                accessibilityLabel={`${dataCurta(partida.data)}. ${competicao}. ${partida.mandante.nome} ${partida.gols_mandante} a ${partida.gols_visitante} ${partida.visitante.nome}. ${rotuloResultado[resultado]}. Ver partida.`}>
+                <View style={styles.historyDateCell}>
+                  <Text style={styles.historyDate}>{dia}</Text>
+                  <Text style={styles.historyMonth}>{mes}</Text>
+                </View>
+                <View style={styles.historyCompetitionCell}>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.historyCompetition}>{competicao}</Text>
+                </View>
                 <View style={styles.historyConfronto}>
                   {[partida.mandante, partida.visitante].map((time, index) => (
                     <View key={index} style={styles.historyTeamRow}>
@@ -346,16 +357,12 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
                   <Text style={styles.historyGoals}>{partida.gols_visitante}</Text>
                 </View>
                 <View style={styles.historyResultCell}>
-                  <Text style={[styles.historyResult, { backgroundColor: resultado === 'V' ? colors.primaria : resultado === 'D' ? VERMELHO_DERROTA : amareloEmpate, color: resultado === 'E' ? darkColors.fundo : '#fff' }]}>{rotuloResultado[resultado]}</Text>
+                  <Text numberOfLines={1} style={[styles.historyResult, { backgroundColor: resultado === 'V' ? colors.primaria : resultado === 'D' ? VERMELHO_DERROTA : amareloEmpate, color: resultado === 'E' ? darkColors.fundo : '#fff' }]}>{rotuloResultado[resultado]}</Text>
                   <Icon name="chevron-right" size={14} color={colors.primaria} />
                 </View>
               </TouchableOpacity>;
             })}
           </View>
-          <TouchableOpacity onPress={() => verJogos('FINALIZADA')} style={styles.historyAllButton} accessibilityRole="button">
-            <Text style={styles.historyAllText}>Ver histórico completo</Text>
-            <Icon name="chevron-right" size={16} color={colors.primaria} />
-          </TouchableOpacity>
         </> : <Text style={styles.secondaryText}>Nenhuma partida finalizada neste sub.</Text>}
       </>}
     </ScrollView>

@@ -54,6 +54,37 @@ test("lançamento não sai antes de cinco segundos e cancelar evita a escrita/no
   await f.avancar(5000);
   assert.deepEqual(enviados, ["falta"]);
 });
+test('segundo plano pausa os prazos; retomar oferece cinco segundos completos sem publicar silenciosamente', async () => {
+  const enviados: string[] = [];
+  const f = fixture(async item => { enviados.push(item.dados); });
+  f.fila.adicionar('gol'); await f.avancar(4000); f.fila.pausar();
+  await f.avancar(60000);
+  assert.deepEqual(enviados, []); assert.equal(f.itens()[0].status, 'pausado');
+  f.fila.retomar(); await f.avancar(4999); assert.deepEqual(enviados, []);
+  await f.avancar(1); assert.deepEqual(enviados, ['gol']);
+});
+test('restauração após saída preserva request_id e exige retomada explícita', async () => {
+  const enviados: string[] = [];
+  const f = fixture(async item => { enviados.push(item.id); });
+  f.fila.restaurar([{ id: 'mobile-envio-anterior', dados: 'gol', enviarEm: 0, status: 'enviando' }]);
+  await f.avancar(60000); assert.deepEqual(enviados, []);
+  f.fila.retomar(); await f.avancar(5000); assert.deepEqual(enviados, ['mobile-envio-anterior']);
+});
+
+test('falha de envio em segundo plano pode ser verificada ao retornar sem travar a fila', async () => {
+  let rejeitar!: (erro: Error) => void;
+  let chamadas = 0;
+  const f = fixture(async () => {
+    chamadas++;
+    if (chamadas === 1) await new Promise<void>((_resolve, reject) => { rejeitar = reject; });
+  });
+  const id = f.fila.adicionar('gol');
+  await f.avancar(5000); f.fila.pausar(); rejeitar(new Error('resposta não confirmada'));
+  await f.avancar(1000); assert.equal(f.itens()[0].status, 'erro');
+  f.fila.tentar(id);
+  await f.avancar(4999); assert.equal(chamadas, 1);
+  await f.avancar(1); assert.equal(chamadas, 2); assert.deepEqual(f.itens(), []);
+});
 test("escritas são sequenciais e repetição manual preserva o identificador idempotente", async () => {
   const ids: string[] = [];
   let falha = true;

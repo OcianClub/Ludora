@@ -17,7 +17,7 @@ export interface GestaoPartida {
 }
 export interface EventoPartida {
   id: number; tipo: string; time_id?: number | null; jogador_id?: number | null;
-  gol_contra?: boolean; periodo: number; minuto?: number | null; jogador?: { nome: string } | null;
+  gol_contra?: boolean; periodo: number; minuto?: number | null; jogador?: { nome: string } | null; criado_em?: string;
 }
 export interface PropostaPartida {
   id: string; tipo: string; origem_id: number; destino_id: number; respondente_id: number; status: string; versao: number; partida_id?: number;

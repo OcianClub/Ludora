@@ -57,6 +57,7 @@ export function atualizarCamisas(
 export function escalaValida(convocados: Convocado[], titulares = 5) {
   return (
     convocados.filter((jogador) => jogador.titular).length === titulares &&
+    convocados.filter((jogador) => jogador.titular && jogador.jogador?.posicao === 'Goleiro').length === 1 &&
     convocados.every(
       (jogador) =>
         Number.isInteger(jogador.numCamisa) &&

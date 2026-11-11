@@ -26,6 +26,8 @@ import { desvincularDispositivoPush, fetchClubes, type ClubeListado } from '@/sr
 import type { PreferenciaTema } from '@/src/utils/tema';
 
 import DadosPessoais from "./dadosPessoais/dadosPessoais";
+import PerfilVisitante from '@/src/components/PerfilVisitante';
+import { useSessao } from '@/src/contexts/SessaoContext';
 
 const SECOES = [
   { id: 'conta', label: 'Conta', icon: 'account' },
@@ -87,6 +89,12 @@ function CardMenu({
 }
 
 export default function Perfil() {
+  const { autenticado, carregando } = useSessao();
+  if (carregando) return null;
+  return autenticado ? <PerfilAutenticado /> : <PerfilVisitante />;
+}
+
+function PerfilAutenticado() {
   const [secao, setSecao] = useState<SecaoPerfil>('conta');
   const scrollRef = useRef<ScrollView>(null);
   const { colors, preferenciaTema, carregandoTema, definirPreferenciaTema } = useTheme();
@@ -144,7 +152,7 @@ export default function Perfil() {
       await limparCacheConsultas();
       await limparClubeAtivo();
       await Promise.all(['userToken', 'userRole', 'userName', 'userEmail', 'userCriadoEm', 'userData', 'expoPushToken'].map(chave => SecureStore.deleteItemAsync(chave)));
-      router.replace("/(auth)/login");
+      router.replace('/clubes');
     } catch {
       Alert.alert('Não foi possível sair', 'Confira sua conexão e tente novamente para desvincular as notificações desta conta com segurança.');
     } finally {

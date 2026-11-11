@@ -11,6 +11,16 @@ import { FluxoInvalido, acesso, auditar, bloquearDuplicidade, criarOficial, exig
 
 const contexto = (req: Request): Contexto => ({ usuarioId: (req as any).usuarioId, clubeId: (req as any).clubeId });
 const json = (value: unknown): any => JSON.parse(JSON.stringify(value));
+// Optional for older clients. A retry must describe exactly the same action.
+async function reenvio(tx: Parameters<Parameters<typeof transacao>[0]>[0], ctx: Contexto, partidaId: number, acao: string, requestId: unknown, assinatura: string) {
+  exigir(requestId == null || (typeof requestId === 'string' && /^[a-zA-Z0-9-]{16,80}$/.test(requestId)), 'Identificador de envio inválido.');
+  if (!requestId) return false;
+  const anterior = await tx.auditoriaPartida.findFirst({ where: { partida_id: partidaId, usuario_id: ctx.usuarioId, clube_id: ctx.clubeId, acao,
+    dados: { path: ['request_id'], equals: requestId as string } } });
+  if (!anterior) return false;
+  exigir((anterior.dados as { assinatura?: string } | null)?.assinatura === assinatura, 'Este envio já foi usado para outra alteração.', 409);
+  return true;
+}
 export function criarCompartilhadasRoutes(io: Server) {
   const router = Router();
   const tratar = (fn: (req: Request, res: Response) => Promise<unknown>) => async (req: Request, res: Response) => {
@@ -379,20 +389,24 @@ export function criarCompartilhadasRoutes(io: Server) {
 
   router.post('/partidas/:id/substituicoes', exigirGestorDoClube, tratar(async (req, res) => {
     const ctx = contexto(req), id = inteiro(req.params.id);
-    await transacao(async tx => {
+    const repetido = await transacao(async tx => {
       const { p, equipe } = await partida(tx, id, ctx, true);
-      exigir(p.status === 'AO_VIVO', 'Substituições só podem ser registradas durante o jogo.');
       const sai = inteiro(req.body.sai), entra = inteiro(req.body.entra);
+      const assinatura = JSON.stringify([sai, entra]);
+      if (await reenvio(tx, ctx, id, 'SUBSTITUICAO', req.body.request_id, assinatura)) return true;
+      exigir(p.status === 'AO_VIVO', 'Substituições só podem ser registradas durante o jogo.');
       exigir(sai !== entra, 'Escolha dois jogadores diferentes.');
-      const rows = await tx.escalacaoPartida.findMany({ where: { partida_id: id, time_id: equipe!.time_id, jogador_id: { in: [sai, entra] } } });
+      const rows = await tx.escalacaoPartida.findMany({ where: { partida_id: id, time_id: equipe!.time_id, jogador_id: { in: [sai, entra] } }, include: { jogador: { select: { posicao: true } } } });
       exigir(rows.length === 2 && rows.find(r => r.jogador_id === sai)?.titular && !rows.find(r => r.jogador_id === entra)?.titular, 'Selecione um titular para sair e um reserva para entrar.');
       exigir(rows.every(r => Number.isInteger(r.numCamisa) && r.numCamisa >= 1 && r.numCamisa <= 99), 'Os dois jogadores precisam ter camisa definida na súmula.');
+      exigir((rows.find(r => r.jogador_id === sai)?.jogador.posicao === 'Goleiro') === (rows.find(r => r.jogador_id === entra)?.jogador.posicao === 'Goleiro'), 'A substituição deve manter exatamente um goleiro em campo. Troque goleiro por goleiro ou jogador de linha por jogador de linha.');
       await tocar(tx, p, req.body.versao);
       await tx.escalacaoPartida.updateMany({ where: { partida_id: id, time_id: equipe!.time_id, jogador_id: sai }, data: { titular: false } });
       await tx.escalacaoPartida.updateMany({ where: { partida_id: id, time_id: equipe!.time_id, jogador_id: entra }, data: { titular: true } });
-      await auditar(tx, ctx, id, 'SUBSTITUICAO', { time_id: equipe!.time_id, sai, entra, periodo: p.periodo_atual });
+      await auditar(tx, ctx, id, 'SUBSTITUICAO', { time_id: equipe!.time_id, sai, entra, periodo: p.periodo_atual, request_id: req.body.request_id || null, assinatura });
+      return false;
     });
-    await transmitir(id); res.json({ ok: true });
+    if (!repetido) await transmitir(id); res.json({ ok: true });
   }));
   router.patch('/partidas/:id/periodo', exigirGestorDoClube, tratar(async (req, res) => {
     const ctx = contexto(req), id = inteiro(req.params.id);
@@ -490,8 +504,12 @@ export function criarCompartilhadasRoutes(io: Server) {
       const autorTime = evento.gol_contra ? evento.time_id === p.mandante_id ? p.visitante_id : p.mandante_id : evento.time_id;
       const equipe = p.participantes.find(item => item.time_id === autorTime);
       const operador = await podeCorrigirSumula(tx, p, ctx);
-      exigir(operador || (p.status === 'AO_VIVO' && evento.tipo === 'GOL' && !evento.jogador_id && equipe?.clube_id === ctx.clubeId), 'Você pode identificar apenas os gols pendentes da própria equipe.', 403);
       const jogadorId = inteiro(req.body.jogador_id);
+      const motivo = String(req.body.motivo || '').trim().slice(0, 500);
+      const assinatura = JSON.stringify([evento.id, jogadorId, motivo]);
+      const repetido = await reenvio(tx, ctx, id, 'AUTORIA_IDENTIFICADA', req.body.request_id, assinatura);
+      exigir(operador || (p.status === 'AO_VIVO' && evento.tipo === 'GOL' && (!evento.jogador_id || repetido) && equipe?.clube_id === ctx.clubeId), 'Você pode identificar apenas os gols pendentes da própria equipe.', 403);
+      if (repetido) return { evento, repetido: true };
       exigir(await tx.escalacaoPartida.count({ where: { partida_id: id, time_id: autorTime, jogador_id: jogadorId } }), 'Escolha um jogador convocado pela equipe autora do evento.');
       if (evento.tipo === 'GOL' && !evento.gol_contra) {
         const origem = await tx.auditoriaPartida.findFirst({ where: { partida_id: id, acao: 'EVENTO_REGISTRADO', dados: { path: ['evento_id'], equals: evento.id } } });
@@ -505,17 +523,18 @@ export function criarCompartilhadasRoutes(io: Server) {
         const gol = golId ? await tx.evento.findFirst({ where: { id: golId, partida_id: id } }) : null;
         exigir(gol?.jogador_id !== jogadorId, 'A assistência deve ser de outro jogador da equipe que marcou.');
       }
-      const motivo = String(req.body.motivo || '').trim().slice(0, 500);
       if (p.status === 'FINALIZADA') exigir(motivo, 'Informe o motivo da correção após o encerramento.');
       await tocar(tx, p, req.body.versao);
       const novo = await tx.evento.update({ where: { id: evento.id }, data: { jogador_id: jogadorId }, include: { jogador: { select: { nome: true } } } });
-      await auditar(tx, ctx, id, 'AUTORIA_IDENTIFICADA', { evento_id: evento.id, jogador_anterior: evento.jogador_id, jogador_id: jogadorId, tipo: evento.tipo, time_id: evento.time_id, gol_contra: evento.gol_contra, jogador_nome: novo.jogador?.nome || '', motivo });
-      return novo;
+      await auditar(tx, ctx, id, 'AUTORIA_IDENTIFICADA', { evento_id: evento.id, jogador_anterior: evento.jogador_id, jogador_id: jogadorId, tipo: evento.tipo, time_id: evento.time_id, gol_contra: evento.gol_contra, jogador_nome: novo.jogador?.nome || '', motivo, request_id: req.body.request_id || null, assinatura });
+      return { evento: novo, repetido: false };
     });
-    await transmitir(id);
-    const equipes = await prisma.participantePartida.findMany({ where: { partida_id: id } });
-    for (const equipe of equipes) void processarMachineLearning(equipe.clube_id).catch(() => undefined);
-    res.json(atualizado);
+    if (!atualizado.repetido) {
+      await transmitir(id);
+      const equipes = await prisma.participantePartida.findMany({ where: { partida_id: id } });
+      for (const equipe of equipes) void processarMachineLearning(equipe.clube_id).catch(() => undefined);
+    }
+    res.json(atualizado.evento);
   }));
   router.delete('/eventos/:id', exigirGestorDoClube, tratar(async (req, res) => {
     const ctx = contexto(req);
@@ -565,12 +584,14 @@ export function criarCompartilhadasRoutes(io: Server) {
       const { p } = await partida(tx, id, ctx, true);
       exigir(await podeCorrigirSumula(tx, p, ctx) && ['AO_VIVO', 'FINALIZADA'].includes(p.status), 'Esta ação exige autorização do responsável pela súmula.', 403);
       exigir(String(req.body.motivo || '').trim(), 'Registre gols pelos eventos. Para uma correção manual, informe a justificativa.');
+      const assinatura = JSON.stringify([inteiro(req.body.gols_mandante, 0, 99), inteiro(req.body.gols_visitante, 0, 99), String(req.body.motivo).slice(0, 500)]);
+      if (await reenvio(tx, ctx, id, 'PLACAR_CORRIGIDO', req.body.request_id, assinatura)) return { partida: p, repetido: true };
       await tocar(tx, p, req.body.versao);
       const dados = { gols_mandante: inteiro(req.body.gols_mandante, 0, 99), gols_visitante: inteiro(req.body.gols_visitante, 0, 99) };
-      await auditar(tx, ctx, id, 'PLACAR_CORRIGIDO', { anterior: { gols_mandante: p.gols_mandante, gols_visitante: p.gols_visitante }, novo: dados, motivo: String(req.body.motivo).slice(0, 500) });
-      return tx.partida.update({ where: { id }, data: dados });
+      await auditar(tx, ctx, id, 'PLACAR_CORRIGIDO', { anterior: { gols_mandante: p.gols_mandante, gols_visitante: p.gols_visitante }, novo: dados, motivo: String(req.body.motivo).slice(0, 500), request_id: req.body.request_id || null, assinatura });
+      return { partida: await tx.partida.update({ where: { id }, data: dados }), repetido: false };
     });
-    await transmitir(id); await agendamento(id, 'Placar corrigido'); res.json(result);
+    if (!result.repetido) { await transmitir(id); await agendamento(id, 'Placar corrigido'); } res.json(result.partida);
   }));
   return router;
 }

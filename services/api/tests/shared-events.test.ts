@@ -10,8 +10,8 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
   let nextId = 1;
   let correcaoAceita = false;
   const roster = [
-    { jogador_id: 101, time_id: 10, titular: true, numCamisa: 1 }, { jogador_id: 102, time_id: 10, titular: true, numCamisa: 2 },
-    { jogador_id: 103, time_id: 10, titular: false, numCamisa: 3 }, { jogador_id: 201, time_id: 20, titular: true, numCamisa: 1 },
+    { jogador_id: 101, time_id: 10, jogador: { posicao: 'Fixo' }, titular: true, numCamisa: 1 }, { jogador_id: 102, time_id: 10, jogador: { posicao: 'Fixo' }, titular: true, numCamisa: 2 },
+    { jogador_id: 103, time_id: 10, jogador: { posicao: 'Fixo' }, titular: false, numCamisa: 3 }, { jogador_id: 201, time_id: 20, jogador: { posicao: 'Fixo' }, titular: true, numCamisa: 1 },
   ];
   const withPlayer = (event: any) => ({ ...event, jogador: event.jogador_id ? { nome: `Jogador ${event.jogador_id}` } : null });
   function reset() {
@@ -72,6 +72,34 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
     return result;
   }
   const post = '/partidas/:id/eventos', patch = '/partidas/:id/eventos/:eventoId';
+  await t.test('reenviar correção de autoria ou placar não duplica auditoria nem transmissão', async () => {
+    reset(); broadcasts.length = 0;
+    const goal = await call('post', post, { tipo: 'GOL', time_id: 10, jogador_id: 101 });
+    const body = { jogador_id: 102, request_id: 'mobile-authorship-000001', versao: p.versao };
+    await call('patch', patch, body, 2, goal.id, 200);
+    const version = p.versao, count = audits.length, sent = broadcasts.length;
+    await call('patch', patch, body, 2, goal.id, 200);
+    assert.equal(p.versao, version); assert.equal(audits.length, count); assert.equal(broadcasts.length, sent);
+    await call('patch', patch, { ...body, jogador_id: 101 }, 2, goal.id, 409);
+    const score = { gols_mandante: 3, gols_visitante: 2, motivo: 'Conferência da súmula', request_id: 'mobile-score-0000001', versao: p.versao };
+    await call('patch', '/partidas/:id/placar', score, 2, undefined, 200);
+    const finalVersion = p.versao, finalAudits = audits.length;
+    await call('patch', '/partidas/:id/placar', score, 2, undefined, 200);
+    assert.equal(p.versao, finalVersion); assert.equal(audits.length, finalAudits);
+    assert.equal(p.gols_mandante, 3); assert.equal(p.gols_visitante, 2);
+    await call('patch', '/partidas/:id/placar', { ...score, gols_mandante: 4 }, 2, undefined, 409);
+  });
+  await t.test('reenviar substituição mantém a troca sem refazê-la', async () => {
+    reset(); roster[0].titular = true; roster[2].titular = false;
+    const body = { sai: 101, entra: 103, versao: 0, request_id: 'mobile-substitute-00001' };
+    await call('post', '/partidas/:id/substituicoes', body, 2, undefined, 200);
+    const version = p.versao, count = audits.length;
+    await call('post', '/partidas/:id/substituicoes', body, 2, undefined, 200);
+    assert.equal(p.versao, version); assert.equal(audits.length, count);
+    assert.equal(roster[0].titular, false); assert.equal(roster[2].titular, true);
+    await call('post', '/partidas/:id/substituicoes', { ...body, entra: 102 }, 2, undefined, 409);
+    roster[0].titular = true; roster[2].titular = false;
+  });
   await t.test('gol e assistência são atômicos; repetir envio não duplica o placar ou as notificações', async () => {
     reset(); broadcasts.length = 0;
     const body = { tipo: 'GOL', time_id: 10, jogador_id: 101, assistencia_jogador_id: 102, request_id: 'request-goal-000001', versao: 0 };
@@ -177,6 +205,16 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
     await call('patch', patch, { jogador_id: 101, motivo: 'Identificação após conferir a súmula' }, 2, goal.id, 200);
     await call('delete', '/eventos/:id', { partida_id: 1, motivo: 'Anulação confirmada' }, 2, goal.id, 200);
     assert.equal(events.length, 0); assert.equal(p.gols_mandante, 0);
+  });
+  await t.test('substituição não pode retirar o único goleiro nem colocar um segundo em campo', async () => {
+    reset();
+    roster[0].jogador.posicao = 'Goleiro';
+    await call('post', '/partidas/:id/substituicoes', { sai: 101, entra: 103 }, 2, undefined, 400);
+    roster[2].jogador.posicao = 'Goleiro';
+    await call('post', '/partidas/:id/substituicoes', { sai: 102, entra: 103 }, 2, undefined, 400);
+    await call('post', '/partidas/:id/substituicoes', { sai: 101, entra: 103 }, 2, undefined, 200);
+    roster[0].titular = true; roster[2].titular = false;
+    roster[0].jogador.posicao = 'Fixo'; roster[2].jogador.posicao = 'Fixo';
   });
   await t.test('substituição respeita titular/reserva, clube, camisa, situação e versão; reenvio não troca de novo', async () => {
     reset(); const path = '/partidas/:id/substituicoes';

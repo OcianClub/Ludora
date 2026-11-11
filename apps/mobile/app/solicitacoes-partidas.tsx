@@ -22,6 +22,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useTheme } from "@/src/contexts/ThemeContext";
 import { useClubeAtivo } from "@/src/contexts/ClubeAtivoContext";
+import PerfilVisitante from '@/src/components/PerfilVisitante';
+import { useSessao } from '@/src/contexts/SessaoContext';
 import {
   requisicaoPartida,
   type PropostaPartida,
@@ -67,6 +69,11 @@ const rotulosStatus: Record<string, string> = {
 };
 
 export default function SolicitacoesPartidas() {
+  const { autenticado, carregando } = useSessao();
+  if (carregando) return null;
+  return autenticado ? <SolicitacoesAutenticadas /> : <PerfilVisitante />;
+}
+function SolicitacoesAutenticadas() {
   const { colors } = useTheme();
   const { clubeAtivo } = useClubeAtivo();
   const router = useRouter();
