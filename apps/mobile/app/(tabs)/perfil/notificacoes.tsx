@@ -1,3 +1,5 @@
+import { UndoNotice } from "@/src/components/ui/UndoNotice";
+import { useFocusEffect } from "expo-router";
 import { IconButton } from "@/src/components/ui/Controls";
 import { useRouter } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -210,6 +212,18 @@ export default function Notificacoes() {
   const [ocupado, setOcupado] = useState(false);
   const [excluindo, setExcluindo] = useState<number[]>([]);
   const pendentes = useRef(new Set<number>());
+  const [remocao, setRemocao] = useState<Notificacao | null>(null);
+  const remocaoRef = useRef<Notificacao | null>(null);
+  const timerRemocao = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const desfazerRemocao = useCallback(() => {
+    if (timerRemocao.current) clearTimeout(timerRemocao.current);
+    timerRemocao.current = null;
+    remocaoRef.current = null;
+    setRemocao(null);
+  }, []);
+  // Sair da tela ou mudar de clube cancela uma exclusão ainda não publicada.
+  useFocusEffect(useCallback(() => () => desfazerRemocao(), [desfazerRemocao]));
+  useEffect(() => desfazerRemocao(), [clubeAtivo?.id, clubeAtivo?.papel, desfazerRemocao]);
   const requisicao = useRef(0);
   const [filtro, setFiltro] = useState<"todas" | "naoLidas">("todas");
   const [erro, setErro] = useState("");
@@ -339,7 +353,7 @@ export default function Notificacoes() {
     acao: "ler" | "excluir-lidas" | "excluir-todas",
     clubeEsperado = clubeAtivo?.id,
   ) => {
-    if (ocupado || pendentes.current.size) return;
+    if (ocupado || pendentes.current.size || remocaoRef.current) return;
     const operacao = escopo.iniciar();
     if (!operacao) return;
     if (operacao.clubeId !== clubeEsperado) {
@@ -362,8 +376,20 @@ export default function Notificacoes() {
     }
   };
 
-  const acoesCartao = useRef({ ler, excluir });
-  acoesCartao.current = { ler, excluir };
+  const agendarExclusao = (item: Notificacao) => {
+    if (ocupado || remocaoRef.current || pendentes.current.has(item.id)) return;
+    const contexto = escopo.capturar();
+    remocaoRef.current = item;
+    setRemocao(item);
+    timerRemocao.current = setTimeout(() => {
+      timerRemocao.current = null;
+      remocaoRef.current = null;
+      setRemocao(null);
+      if (contexto.atual()) void excluir(item);
+    }, 5000);
+  };
+  const acoesCartao = useRef({ ler, excluir: agendarExclusao });
+  acoesCartao.current = { ler, excluir: agendarExclusao };
   const lerCartao = useCallback((item: Notificacao) => {
     void acoesCartao.current.ler(item);
   }, []);
@@ -375,12 +401,13 @@ export default function Notificacoes() {
     () =>
       notificacoes.filter(
         (item) =>
+          item.id !== remocao?.id && !excluindo.includes(item.id) &&
           (filtro === "todas" || !item.lida) &&
           (tipoAtivo === "todos" || tipoNotificacao(item) === tipoAtivo),
       ),
-    [notificacoes, filtro, tipoAtivo],
+    [notificacoes, filtro, tipoAtivo, remocao, excluindo],
   );
-  const bloqueado = ocupado || excluindo.length > 0;
+  const bloqueado = ocupado || excluindo.length > 0 || remocao !== null;
   const possuiLidas = notificacoes.some((item) => item.lida);
   const confirmarLimpeza = (todas = false) => {
     setPainel(null);
@@ -443,7 +470,7 @@ export default function Notificacoes() {
         <FlatList
           data={visiveis}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, remocao && { paddingBottom: 100 }]}
           showsVerticalScrollIndicator={false}
           initialNumToRender={8}
           maxToRenderPerBatch={6}
@@ -628,6 +655,7 @@ export default function Notificacoes() {
           }
         />
       )}
+      {remocao && <UndoNotice key={remocao.id} onUndo={desfazerRemocao} />}
       <Modal
         visible={painel === "tipos"}
         transparent

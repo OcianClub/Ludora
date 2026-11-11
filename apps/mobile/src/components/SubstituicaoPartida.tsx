@@ -173,7 +173,7 @@ export default function SubstituicaoPartida({
   const styles = useMemo(() => estilos(colors), [colors]);
   const { height } = useWindowDimensions();
   const [arrastando, setArrastando] = useState(false);
-  const alturaLista = Math.max(100, Math.min(190, (height * 0.88 - 330) / 2));
+  const alturaLista = Math.max(145, Math.min(300, (height - 320) / 2));
   const linhas = useRef(new Map<number, View>()),
     areas = useRef(new Map<number, Area>());
   const listas = useRef(new Map<boolean, View>()),

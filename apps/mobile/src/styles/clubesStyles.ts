@@ -25,7 +25,7 @@ export const createStyles = (colors: ThemeColors) =>
       fontFamily: typography.fontFamily.corpo.regular,
       fontSize: 13,
       lineHeight: 20,
-      color: colors.textoSecundario,
+      color: `${colors.texto}B8`,
     },
     secao: { gap: 16 },
     secaoHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -33,12 +33,12 @@ export const createStyles = (colors: ThemeColors) =>
       fontFamily: typography.fontFamily.corpo.semiBold,
       fontSize: 12,
       letterSpacing: 1,
-      color: colors.textoSecundario,
+      color: `${colors.texto}B8`,
     },
     quantidade: {
       fontFamily: typography.fontFamily.corpo.regular,
       fontSize: 11,
-      color: colors.textoSecundario,
+      color: `${colors.texto}B8`,
     },
     cards: { gap: 10 },
     clubeCard: {
@@ -86,12 +86,12 @@ export const createStyles = (colors: ThemeColors) =>
     },
     atual: {
       fontFamily: typography.fontFamily.corpo.regular,
-      color: colors.textoSecundario,
+      color: `${colors.texto}B8`,
       fontSize: 10,
     },
     detalhes: {
       fontFamily: typography.fontFamily.corpo.regular,
-      color: colors.textoSecundario,
+      color: `${colors.texto}B8`,
       fontSize: 11,
       lineHeight: 17,
     },
@@ -110,6 +110,7 @@ export const createStyles = (colors: ThemeColors) =>
       paddingVertical: 3,
       borderRadius: 4,
     },
+    papelAdmin: { backgroundColor: `${colors.primaria}2E` },
     papelText: {
       fontFamily: typography.fontFamily.corpo.medium,
       fontSize: 10,
@@ -153,7 +154,7 @@ export const createStyles = (colors: ThemeColors) =>
     vazioText: {
       flex: 1,
       fontFamily: typography.fontFamily.corpo.regular,
-      color: colors.textoSecundario,
+      color: `${colors.texto}B8`,
       fontSize: 13,
       lineHeight: 21,
     },

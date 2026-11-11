@@ -92,7 +92,7 @@ export const createStyles = (colors: ThemeColors) =>
     },
 
     // Busca e cabeçalho da lista
-    filtrosContainer: { paddingBottom: 10 },
+    filtrosContainer: { paddingBottom: 0 },
     perfisContent: { paddingHorizontal: MARGEM, gap: 8, paddingBottom: 10 },
     perfilFiltro: {
       flexDirection: "row",
@@ -132,10 +132,7 @@ export const createStyles = (colors: ThemeColors) =>
       marginTop: 8,
     },
     listaTitulo: {
-      fontFamily: typography.fontFamily.corpo.semiBold,
-      color: colors.texto,
-      fontSize: typography.fontSize.md,
-      letterSpacing: 0.4,
+      fontFamily: typography.fontFamily.corpo.semiBold, color: colors.texto, fontSize: 13,
     },
     listaContador: {
       fontFamily: typography.fontFamily.corpo.medium,
@@ -180,14 +177,10 @@ export const createStyles = (colors: ThemeColors) =>
 
     // Card do atleta
     cardJogador: {
-      gap: 10,
-      borderWidth: 1,
-      borderColor: colors.linha,
-      backgroundColor: colors.card,
-      borderRadius: 10,
-      padding: 12,
-      marginHorizontal: MARGEM,
-      marginBottom: 12,
+      flexDirection: "row", alignItems: "center", gap: 8,
+      borderWidth: 1, borderColor: colors.linha, backgroundColor: colors.card,
+      borderRadius: 9, paddingHorizontal: 10, paddingVertical: 12,
+      marginHorizontal: MARGEM, marginBottom: 9, minHeight: 68,
     },
     cardTopo: { flexDirection: "row", alignItems: "center", gap: 9 },
     cardRodape: {
@@ -200,25 +193,16 @@ export const createStyles = (colors: ThemeColors) =>
       borderTopColor: colors.linha,
       paddingTop: 12,
     },
-    cardStats: { flexDirection: "row", alignItems: "center", gap: 12 },
+    cardStats: { flexDirection: "row", alignItems: "center", gap: 6 },
     cardMetricText: {
-      fontFamily: typography.fontFamily.corpo.regular,
-      color: colors.textoSecundario,
-      fontSize: 10,
+      color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.regular, fontSize: 8,
     },
     perfilDot: { width: 5, height: 5, borderRadius: 3 },
     cardNumCamisa: {
-      width: 42,
-      height: 44,
-      borderRadius: 8,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.cardSecundario,
+      width: 27, alignItems: "center", justifyContent: "center",
     },
     cardNumCamisaTxt: {
-      color: colors.texto,
-      fontFamily: typography.fontFamily.corpo.semiBold,
-      fontSize: typography.fontSize.sm,
+      color: colors.texto, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 16,
     },
     cardInfos: {
       flex: 1,
@@ -499,21 +483,12 @@ export const createStyles = (colors: ThemeColors) =>
       textTransform: "uppercase",
     },
     resumoCards: {
-      flexDirection: "row",
-      gap: 8,
-      marginHorizontal: MARGEM,
-      marginBottom: 18,
+      flexDirection: "row", marginHorizontal: MARGEM, marginBottom: 14,
+      backgroundColor: colors.card, borderRadius: 9, borderWidth: 1, borderColor: colors.borda, overflow: "hidden",
     },
     resumoCard: {
-      flex: 1,
-      minWidth: 0,
-      gap: 5,
-      padding: 10,
-      backgroundColor: colors.card,
-      borderRadius: 9,
-      borderWidth: 1,
-      borderColor: colors.linha,
-      minHeight: 78,
+      flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center", gap: 3,
+      paddingVertical: 13, paddingHorizontal: 7, minHeight: 110,
     },
     resumoIcone: {
       width: 32,
@@ -523,11 +498,7 @@ export const createStyles = (colors: ThemeColors) =>
       alignItems: "center",
     },
     resumoCardLabel: {
-      flex: 1,
-      minWidth: 0,
-      fontFamily: typography.fontFamily.corpo.regular,
-      fontSize: 10,
-      color: colors.textoSecundario,
+      fontFamily: typography.fontFamily.corpo.regular, fontSize: 10, color: colors.textoSecundario, textAlign: "center",
     },
     resumoCardValor: {
       fontFamily: typography.fontFamily.titulo.semiBold,
@@ -535,10 +506,7 @@ export const createStyles = (colors: ThemeColors) =>
       color: colors.texto,
     },
     resumoCardNome: {
-      fontFamily: typography.fontFamily.corpo.medium,
-      fontSize: 11,
-      lineHeight: 16,
-      color: colors.texto,
+      fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 10, lineHeight: 15, color: colors.texto, textAlign: "center",
     },
     infoAnalise: {
       flexDirection: "row",

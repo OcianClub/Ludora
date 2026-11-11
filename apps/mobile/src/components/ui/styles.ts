@@ -48,7 +48,7 @@ export const createControlStyles = (c: ThemeColors) =>
       justifyContent: "center",
     },
     back: { width: 42, height: 42, minHeight: 42, alignSelf: "center", borderRadius: 10, backgroundColor: c.card, borderWidth: 1, borderColor: c.borda },
-    outline: { borderWidth: 1, borderColor: c.borda },
+    outline: { borderWidth: 1, borderColor: c.borda, backgroundColor: c.card },
     filled: { backgroundColor: c.cardSecundario },
     badge: {
       position: "absolute",
@@ -91,6 +91,8 @@ export const createControlStyles = (c: ThemeColors) =>
     primary: { backgroundColor: c.primaria },
     secondary: { borderWidth: 1, borderColor: c.borda },
     buttonText: {
+      flexShrink: 1,
+      textAlign: "center",
       fontFamily: typography.fontFamily.corpo.semiBold,
       fontSize: 13,
       lineHeight: 18,

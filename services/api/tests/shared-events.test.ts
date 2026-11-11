@@ -16,10 +16,12 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
   const withPlayer = (event: any) => ({ ...event, jogador: event.jogador_id ? { nome: `Jogador ${event.jogador_id}` } : null });
   function reset() {
     nextId = 1; events = []; audits = []; correcaoAceita = false;
+    roster.splice(4);
+    roster.forEach((row, i) => { row.titular = i !== 2; row.jogador.posicao = 'Fixo'; row.numCamisa = i === 3 ? 1 : i + 1; });
     p = { id: 1, data: new Date('2026-10-30'), horario: '19:30', status: 'AO_VIVO', versao: 0, mandante_id: 10, visitante_id: 20, sumula_clube_id: 2, organizador_id: 2,
       categoria: { clube_id: 2 }, mandante: { nome: 'Ocian', clube_representado_id: 2 }, visitante: { nome: 'Santos', clube_representado_id: 3 },
       participantes: [{ clube_id: 2, time_id: 10, categoria_id: 7 }, { clube_id: 3, time_id: 20, categoria_id: 8 }],
-      gols_mandante: 0, gols_visitante: 0, periodo_atual: 1 };
+      gols_mandante: 0, gols_visitante: 0, periodo_atual: 1, titulares_necessarios: 2 };
   }
   const tx: any = {
     propostaPartida: { findFirst: async () => correcaoAceita ? { id: 1 } : null },
@@ -41,7 +43,11 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
     evento: {
       create: async ({ data }: any) => { const event = { id: nextId++, ...data }; events.push(event); return withPlayer(event); },
       findUnique: async ({ where }: any) => { const event = events.find(e => e.id === where.id); return event ? withPlayer(event) : null; },
-      findFirst: async ({ where }: any) => events.find(e => e.id === where.id && e.partida_id === where.partida_id) || null,
+      findFirst: async ({ where }: any) => {
+        const event = events.find(e => Object.entries(where).every(([key, value]: any) =>
+          typeof value === 'object' && value !== null ? e[key] !== value.not : e[key] === value));
+        return event ? withPlayer(event) : null;
+      },
       update: async ({ where, data }: any) => { const event = events.find(e => e.id === where.id); Object.assign(event, data); return withPlayer(event); },
       delete: async ({ where }: any) => { events = events.filter(e => e.id !== where.id); },
       deleteMany: async ({ where }: any) => { events = events.filter(e => e.id !== where.id); },
@@ -55,8 +61,8 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
   };
   function replace(target: any, key: string, value: any) { const old = target[key]; target[key] = value; t.after(() => { target[key] = old; }); }
   replace(prisma, '$transaction', async (callback: any) => {
-    const snapshot = structuredClone({ p, events, audits });
-    try { return await callback(tx); } catch (error) { ({ p, events, audits } = snapshot); throw error; }
+    const snapshot = structuredClone({ p, events, audits, roster });
+    try { return await callback(tx); } catch (error) { ({ p, events, audits } = snapshot); roster.splice(0, roster.length, ...snapshot.roster); throw error; }
   });
   replace(prisma.partida, 'findUniqueOrThrow', async () => p);
   replace(prisma.participantePartida, 'findMany', async () => []);
@@ -235,4 +241,49 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
     await call('post', path, { sai: 103, entra: 101 }, 2, undefined, 400);
     roster[0].titular = true; roster[2].titular = false;
   });
+  await t.test('vermelho retira de campo, bloqueia retorno, repõe uma única vaga e reenvio não duplica a troca', async () => {
+    reset();
+    roster.push({ jogador_id: 104, time_id: 10, jogador: { posicao: 'Goleiro' }, titular: false, numCamisa: 4 });
+    const red = await call('post', post, { tipo: 'CARTAO_VERMELHO', time_id: 10, jogador_id: 101, request_id: 'red-test-0000000001' });
+    assert.equal(roster[0].titular, false);
+    assert.equal(audits.find(a => a.acao === 'JOGADOR_EXPULSO').dados.estava_em_campo, true);
+    await call('post', post, { tipo: 'GOL', time_id: 10, jogador_id: 101 }, 2, undefined, 400);
+    await call('post', '/partidas/:id/substituicoes', { sai: 102, entra: 101 }, 2, undefined, 400);
+    await call('post', '/partidas/:id/substituicoes', { sai: 101, entra: 103 }, 2, undefined, 400);
+    const troca = { sai: 101, entra: 104, reposicao_expulsao: true, request_id: 'red-replacement-00001', versao: p.versao };
+    await call('post', '/partidas/:id/substituicoes', troca, 3, undefined, 400);
+    await call('post', '/partidas/:id/substituicoes', troca, 2, undefined, 200);
+    assert.equal(roster.filter(j => j.time_id === 10 && j.titular).length, 2);
+    const version = p.versao, auditCount = audits.length;
+    await call('post', '/partidas/:id/substituicoes', troca, 2, undefined, 200);
+    assert.equal(p.versao, version); assert.equal(audits.length, auditCount);
+    await call('post', '/partidas/:id/substituicoes', { sai: 101, entra: 103, reposicao_expulsao: true }, 2, undefined, 409);
+    await call('delete', '/eventos/:id', { partida_id: 1, desfeito: true }, 2, red.id, 200);
+    assert.equal(roster[0].titular, false, 'Anular vermelho depois da reposição não cria jogador extra');
+    assert.equal(roster.filter(j => j.time_id === 10 && j.titular).length, 2);
+    assert.equal(audits.at(-1).dados.desfeito, true);
+  });
+  await t.test('corrigir ou anular expulsão antes da reposição ajusta a escalação sem perder histórico', async () => {
+    reset();
+    const red = await call('post', post, { tipo: 'CARTAO_VERMELHO', time_id: 10, jogador_id: 101 });
+    await call('patch', patch, { jogador_id: 102 }, 2, red.id, 200);
+    assert.equal(roster[0].titular, true); assert.equal(roster[1].titular, false);
+    assert(audits.some(a => a.acao === 'AUTORIA_IDENTIFICADA'));
+    await call('delete', '/eventos/:id', { partida_id: 1 }, 2, red.id, 200);
+    assert.equal(roster[1].titular, true);
+    assert(audits.some(a => a.acao === 'EXPULSAO_REVERTIDA'));
+  });
+  await t.test('identificar vermelho pendente expulsa; correção retroativa após fim não muda escalação', async () => {
+    reset();
+    const red = await call('post', post, { tipo: 'CARTAO_VERMELHO', time_id: 10, autor_pendente: true });
+    assert.equal(roster[0].titular, true);
+    await call('patch', patch, { jogador_id: 101 }, 2, red.id, 200);
+    assert.equal(roster[0].titular, false);
+    reset(); p.status = 'FINALIZADA';
+    const encerrada = await call('post', post, { tipo: 'CARTAO_VERMELHO', time_id: 10, jogador_id: 101, motivo: 'Conferência' });
+    assert.equal(roster[0].titular, true);
+    await call('delete', '/eventos/:id', { partida_id: 1, motivo: 'Registro incorreto' }, 2, encerrada.id, 200);
+    assert.equal(roster[0].titular, true);
+  });
+
 });

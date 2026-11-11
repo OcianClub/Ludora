@@ -1,3 +1,6 @@
+import { AccountMenu } from "./AccountMenu";
+import { useSessao } from "../contexts/SessaoContext";
+import { useNotificacoes } from "../contexts/NotificacoesContext";
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,12 +11,16 @@ import { useTheme } from '../contexts/ThemeContext';
 export function HeaderPublico() {
   const { colors } = useTheme();
   const router = useRouter(), insets = useSafeAreaInsets();
+  const { autenticado } = useSessao();
+  const { totalNaoLidas } = useNotificacoes();
   return <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.fundo }}>
     <Image source={require('../../assets/icon.png')} style={{ width: 34, height: 34, borderRadius: 8 }} />
     <Text style={{ flex: 1, color: colors.texto, fontFamily: 'Oswald_600SemiBold', fontSize: 24 }}>LUDORA</Text>
-    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Perfil e opções de acesso" onPress={() => router.navigate('/(tabs)/perfil/perfil')} style={{ padding: 10, borderRadius: 10, backgroundColor: colors.card }}>
-      <Icon name="account" size={22} color={colors.texto} />
-    </TouchableOpacity>
+    {autenticado && <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Notificações, ${totalNaoLidas} não lidas`} onPress={() => router.push('/(tabs)/perfil/notificacoes')} style={{ width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name="bell" size={24} color={colors.texto} />
+      {totalNaoLidas > 0 && <View style={{ position: 'absolute', right: 7, top: 5, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.tituloErro }} />}
+    </TouchableOpacity>}
+    <AccountMenu />
   </View>;
 }
 

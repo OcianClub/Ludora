@@ -1,7 +1,10 @@
+import { SeletorEscalacao } from "./SeletorEscalacao";
+import { equipesEscalacao, equipeEscalacaoVisivel } from "../utils/equipesEscalacao";
 import { enviarComConfirmacao } from "../utils/confirmacaoPublicacao";
 import { ErroConexao } from "../utils/request";
 import { SearchField, IconButton, AppButton } from "./ui/Controls";
-import { ModalHeader } from "./ui/AppSheet";
+import { useSheetKeyboard } from "../hooks/useSheetKeyboard";
+import { SheetFrame } from "./ui/AppSheet";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -9,11 +12,8 @@ import {
   Alert,
   Animated,
   BackHandler,
-  FlatList,
   Image,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -282,6 +282,7 @@ export default function SumulaPartida({
   ];
   const [dialogo, setDialogo] = useState<Dialogo>(null),
     [form, setForm] = useState<Form | null>(null);
+  const [desfazendo, setDesfazendo] = useState(false);
   const [remover, setRemover] = useState<EventoPartida | null>(null),
     [motivo, setMotivo] = useState("");
   const [busca, setBusca] = useState(""),
@@ -298,8 +299,11 @@ export default function SumulaPartida({
   const [auditoriaAberta, setAuditoriaAberta] = useState(false);
   const [equipeAtiva, setEquipeAtiva] = useState<number | null>(null);
   const [tempoSelecionado, setTempoSelecionado] = useState(0);
+  const [proximoTempo, setProximoTempo] = useState<number | null>(null);
   const [sai, setSai] = useState<number>(),
     [entra, setEntra] = useState<number>();
+  const reposicao = minha?.escalacao.find(j => j.jogador_id === sai && j.expulso && j.reposicao_pendente);
+  const equipeParaTroca = minha && { ...minha, escalacao: minha.escalacao.filter(j => !j.expulso || j.jogador_id === reposicao?.jogador_id).map(j => ({ ...j, titular: reposicao ? j.jogador_id === reposicao.jogador_id || (j.titular && !j.expulso) : j.titular })) };
   const [placarCasa, setPlacarCasa] = useState(""),
     [placarFora, setPlacarFora] = useState("");
   const ultimo = useRef(data),
@@ -403,15 +407,25 @@ export default function SumulaPartida({
     return () => listener.remove();
   }, []);
 
+  const vermelhosVistos = useRef(new Set(data.eventos.filter(e => e.tipo === 'CARTAO_VERMELHO').map(e => e.id)));
+  useEffect(() => {
+    for (const evento of data.eventos.filter(e => e.tipo === 'CARTAO_VERMELHO')) {
+      if (vermelhosVistos.current.has(evento.id)) continue;
+      vermelhosVistos.current.add(evento.id);
+      const jogador = minha?.escalacao.find(j => j.jogador_id === evento.jogador_id);
+      if (!aoVivo || !data.podePreparar || !jogador?.reposicao_pendente) continue;
+      Alert.alert('Jogador expulso', `${jogador.jogador?.nome} saiu de campo. Escolha um reserva para repor a vaga.`, [
+        { text: 'Depois', style: 'cancel' },
+        { text: 'Escolher reposição', onPress: () => { setSai(jogador.jogador_id); setEntra(undefined); abrir('substituir'); } },
+      ]);
+    }
+  }, [data.eventos, minha, aoVivo, data.podePreparar]);
+
   const alterando = ocupado || restaurando || pendentes.length > 0;
-  const tempo = aoVivo
-    ? data.podeSumula
-      ? p.periodo_atual
-      : Math.min(tempoSelecionado || p.periodo_atual, p.periodo_atual)
-    : tempoSelecionado;
-  const consultandoTempo =
-    aoVivo && !data.podeSumula && tempo !== p.periodo_atual;
+  const tempo = aoVivo ? Math.min(tempoSelecionado || p.periodo_atual, p.periodo_atual) : tempoSelecionado;
+  const consultandoTempo = aoVivo && tempo !== p.periodo_atual;
   const scrollDialogo = useRef<ScrollView>(null);
+  const revelarCampo = useSheetKeyboard(scrollDialogo);
   const [arrastandoSubstituicao, setArrastandoSubstituicao] = useState(false);
   const totalTempos = Math.max(
     /(?:16|18)/.test(p.categoria.nome) ? 2 : 4,
@@ -446,10 +460,8 @@ export default function SumulaPartida({
       descricao: descreverAlteracao(registro, data, indice),
     }));
   }, [data]);
-  const equipeVisivel =
-    data.equipes.find((e) => e.time_id === equipeAtiva) ||
-    minha ||
-    data.equipes[0];
+  const equipesDaEscalacao = useMemo(() => equipesEscalacao(data), [data.equipes, p.mandante_id, p.visitante_id]);
+  const equipeVisivel = equipeEscalacaoVisivel(equipesDaEscalacao, equipeAtiva, data.minhaEquipeId);
   const atorTime = form
     ? timeAutor(data, { time_id: form.timeId, gol_contra: form.contra })
     : undefined;
@@ -461,6 +473,7 @@ export default function SumulaPartida({
       (a, b) =>
         Number(b.titular) - Number(a.titular) || a.numCamisa - b.numCamisa,
     )
+    .filter(j => !aoVivo || !!form?.existente || !j.expulso)
     .filter(
       (j) =>
         `${j.numCamisa} ${j.jogador?.nome}`
@@ -520,6 +533,7 @@ export default function SumulaPartida({
     timeId = minha?.time_id || p.mandante_id,
     existente?: EventoPartida,
   ) {
+    if (aoVivo && !existente) setTempoSelecionado(0);
     setBusca("");
     setExtrasAbertos(false);
     setForm({
@@ -552,7 +566,7 @@ export default function SumulaPartida({
     tipo: string,
     method = "POST",
   ) {
-    if (endpoint === "substituicoes" && !trocaValida(minha, payload.sai as number, payload.entra as number)) { setErro("A troca precisa manter exatamente um goleiro em campo. Escolha um titular e um reserva elegíveis."); return; }
+    if (endpoint === "substituicoes" && !trocaValida(minha, payload.sai as number, payload.entra as number)) { setErro("Escolha uma vaga elegível e um reserva disponível. Na troca comum, preserve a posição do goleiro."); return; }
     const caminho = endpoint.startsWith("/")
       ? endpoint
       : `/partidas/${p.id}/${endpoint}`;
@@ -614,7 +628,8 @@ export default function SumulaPartida({
       );
     }
   }
-  function pedirRemocao(e: EventoPartida) {
+  function pedirRemocao(e: EventoPartida, desfazer = false) {
+    setDesfazendo(desfazer);
     setRemover(e);
     abrir("remover");
   }
@@ -640,19 +655,11 @@ export default function SumulaPartida({
     }
   }
   function mudarTempo(n: number) {
-    if (!aoVivo) {
-      setTempoSelecionado(Math.max(0, Math.min(n, ultimoPeriodoIniciado(data))));
-      return;
-    }
-    if (!data.podeSumula) {
-      setTempoSelecionado(n >= p.periodo_atual ? 0 : Math.max(1, n));
-      return;
-    }
-    if (alterando) return;
-    if (n < p.periodo_atual) {
-      setTempoSelecionado(n);
-      abrir("tempo");
-    } else void executar("periodo", { periodo: n }, "PATCH");
+    if (!aoVivo) { setTempoSelecionado(Math.max(0, Math.min(n, ultimoPeriodoIniciado(data)))); return; }
+    if (n <= p.periodo_atual) { setTempoSelecionado(n === p.periodo_atual ? 0 : Math.max(1, n)); return; }
+    if (!data.podeSumula || alterando || n !== p.periodo_atual + 1 || n > totalTempos) return;
+    setProximoTempo(n);
+    abrir("tempo");
   }
   function button(
     label: string,
@@ -668,6 +675,7 @@ export default function SumulaPartida({
         icon={icon}
         variant={primary ? "primary" : "secondary"}
         disabled={disabled || ocupado}
+        style={{ flexShrink: 1, minWidth: 0 }}
       />
     );
   }
@@ -743,16 +751,16 @@ export default function SumulaPartida({
     evento: form?.existente
       ? "Corrigir jogador do lance"
       : form?.tipo === "GOL"
-        ? `Quem marcou pelo ${nomeTime(form.timeId)}?`
+        ? form.contra ? `Quem fez o gol contra pelo ${nomeTime(atorTime)}?` : `Quem marcou pelo ${nomeTime(form.timeId)}?`
         : `Registrar ${NOMES_EVENTOS[form?.tipo || "FALTA"].toLowerCase()}`,
     remover: "Remover evento?",
     encerrar: "Encerrar a partida?",
     substituir: "Fazer substituição",
-    responsavel: "Responsável pela súmula",
+    responsavel: data.podeSumula ? "Transferir súmula" : "Solicitar responsabilidade",
     compartilhar: "Compartilhar resultado",
     placar: "Corrigir placar",
     solicitar: "Solicitar edição da súmula",
-    tempo: "Voltar o tempo?",
+    tempo: "Iniciar próximo tempo?",
   };
 
   return (
@@ -1187,7 +1195,7 @@ export default function SumulaPartida({
                 accessibilityLabel="Desfazer último evento"
                 disabled={alterando || !data.eventos.length}
                 onPress={() =>
-                  pedirRemocao(ultimoLance(data)!)
+                  pedirRemocao(ultimoLance(data)!, true)
                 }
                 style={[
                   styles.row,
@@ -1226,7 +1234,7 @@ export default function SumulaPartida({
         </View>
         {(aoVivo || finalizada) && <PalpitePartida data={data} />}
         {finalizada && <AnalisePartida data={data} periodo={tempo || null} onPeriodoChange={value => setTempoSelecionado(value || 0)} />}
-        {!!data.equipes.length && (
+        {!!equipesDaEscalacao.length && (
           <View style={styles.section}>
             <View style={styles.between}>
               <Text style={styles.heading}>Escalação</Text>
@@ -1244,35 +1252,12 @@ export default function SumulaPartida({
                   "swap-horizontal",
                 )}
             </View>
-            {data.equipes.length > 1 && (
-              <View style={styles.segmented} accessibilityRole="tablist">
-                {data.equipes.map((e) => (
-                  <TouchableOpacity
-                    key={e.id}
-                    accessibilityRole="tab"
-                    accessibilityState={{
-                      selected: e.id === equipeVisivel?.id,
-                    }}
-                    onPress={() => setEquipeAtiva(e.time_id)}
-                    style={[
-                      styles.segment,
-                      e.id === equipeVisivel?.id && styles.selectedSegment,
-                    ]}
-                  >
-                    <View style={styles.row}>
-                      <Icon
-                        name="group"
-                        size={16}
-                        color={colors.textoSecundario}
-                      />
-                      <Text numberOfLines={1} style={styles.name}>
-                        {e.clube.nome}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            {aoVivo && data.podePreparar && minha?.escalacao.filter(j => j.reposicao_pendente).map(j => <View key={j.jogador_id} style={styles.notice}>
+              <Text style={styles.name}>Expulsão · {j.jogador?.nome}</Text>
+              <Text style={styles.muted}>Há uma vaga para reposição. O jogador expulso não pode retornar.</Text>
+              {button('Escolher reposição', () => { setSai(j.jogador_id); setEntra(undefined); abrir('substituir'); }, false, alterando, 'swap-horizontal')}
+            </View>)}
+            <SeletorEscalacao equipes={equipesDaEscalacao} timeSelecionado={equipeVisivel?.time_id} onSelecionar={setEquipeAtiva} />
             {!equipeVisivel?.publicada_em ? (
               <Text style={styles.muted}>
                 Escalação ainda não divulgada pelo clube.
@@ -1296,18 +1281,18 @@ export default function SumulaPartida({
                       <Text style={styles.tiny}>
                         {
                           equipeVisivel.escalacao.filter(
-                            (j) => j.titular === titular,
+                            (j) => j.titular === titular && (!aoVivo || !j.expulso),
                           ).length
                         }
                       </Text>
                     </View>
                     <View style={styles.playerList}>
                       {equipeVisivel.escalacao
-                        .filter((j) => j.titular === titular)
+                        .filter((j) => j.titular === titular && (!aoVivo || !j.expulso))
                         .map(jogadorLinha)}
                     </View>
                     {!equipeVisivel.escalacao.some(
-                      (j) => j.titular === titular,
+                      (j) => j.titular === titular && (!aoVivo || !j.expulso),
                     ) && (
                       <Text style={styles.muted}>
                         Nenhum{" "}
@@ -1320,6 +1305,10 @@ export default function SumulaPartida({
             )}
           </View>
         )}
+        {aoVivo && !!equipeVisivel?.escalacao.some(j => j.expulso) && <View style={styles.section}>
+          <Text style={styles.muted}>EXPULSOS</Text>
+          {equipeVisivel.escalacao.filter(j => j.expulso).map(jogadorLinha)}
+        </View>}
         {aoVivo && data.podeSumula && (
           <View style={styles.finish}>
             <TouchableOpacity
@@ -1470,7 +1459,7 @@ export default function SumulaPartida({
                   onPress={() => abrir("responsavel")}
                 >
                   <Icon name="group" size={17} color={colors.texto} />
-                  <Text style={styles.text}>Responsável pela súmula</Text>
+                  <Text style={styles.text}>{data.podeSumula ? "Transferir súmula" : "Solicitar responsabilidade pela súmula"}</Text>
                 </TouchableOpacity>
                 {podeOperar && (
                   <TouchableOpacity
@@ -1504,41 +1493,15 @@ export default function SumulaPartida({
         </Pressable>
       </Modal>
 
-      <Modal
-        visible={!!dialogo && dialogo !== "compartilhar"}
-        transparent
-        animationType={dialogo ? "fade" : "none"}
-        onRequestClose={() => {
-          if (!ocupado) setDialogo(null);
-        }}
+      {dialogo && dialogo !== "compartilhar" && <SheetFrame
+        title={nomesDialogo[dialogo]}
+        disabled={ocupado}
+        onClose={() => setDialogo(null)}
+        expanded={dialogo === "substituir"}
       >
-        <View style={styles.overlay}>
-          <Pressable
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-            }}
-            accessibilityLabel="Fechar janela"
-            onPress={() => {
-              if (!ocupado) setDialogo(null);
-            }}
-          />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={styles.sheetWrap}
-          >
-            <View accessibilityViewIsModal style={styles.sheet}>
-              <ModalHeader
-                title={dialogo ? nomesDialogo[dialogo] : ""}
-                disabled={ocupado}
-                onClose={() => setDialogo(null)}
-              />
               {dialogo === "evento" && form ? (
                 <>
-                  <View style={styles.sheetBody}>
+                  <ScrollView ref={scrollDialogo} style={{ flexShrink: 1 }} contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" nestedScrollEnabled>
                     {(finalizada || form.tipo !== "GOL") && !form.existente && (
                       <View style={styles.segmented}>
                         {times.map((t) => (
@@ -1616,7 +1579,7 @@ export default function SumulaPartida({
                     )}
                     <Text style={styles.muted}>
                       {form.contra
-                        ? `Gol contra de ${nomeTime(atorTime)}. O ponto será do ${nomeTime(form.timeId)}.`
+                        ? `Escolha quem fez o gol contra no ${nomeTime(atorTime)}. O gol será somado ao ${nomeTime(form.timeId)}.`
                         : equipeAutor
                           ? "Selecione o jogador. Os atletas em campo aparecem primeiro."
                           : "Equipe externa ao Ludora. O registro será vinculado apenas à equipe."}
@@ -1628,25 +1591,13 @@ export default function SumulaPartida({
                         value={busca}
                         onChangeText={setBusca}
                         containerStyle={{ flex: 0 }}
+                        onFocus={revelarCampo}
                       />
                     )}
-                    <FlatList
-                      style={styles.pickerList}
-                      contentContainerStyle={styles.pickerContent}
-                      data={roster}
-                      keyExtractor={(j) => String(j.jogador_id)}
-                      keyboardShouldPersistTaps="handled"
-                      initialNumToRender={6}
-                      maxToRenderPerBatch={6}
-                      ListEmptyComponent={
-                        equipeAutor ? (
-                          <Text style={styles.muted}>
-                            Nenhum jogador encontrado.
-                          </Text>
-                        ) : null
-                      }
-                      renderItem={({ item: j }) => (
-                        <TouchableOpacity
+                    <ScrollView style={styles.pickerList} contentContainerStyle={styles.pickerContent} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                      {!roster.length && !!equipeAutor && <Text style={styles.muted}>Nenhum jogador encontrado.</Text>}
+                      {roster.map(j => (
+                        <TouchableOpacity key={j.jogador_id}
                           accessibilityRole="button"
                           accessibilityState={{
                             selected: form.jogadorId === j.jogador_id,
@@ -1680,18 +1631,18 @@ export default function SumulaPartida({
                           </View>
                           <View style={{ width: 19, height: 19, borderRadius: 10, borderWidth: 1, borderColor: form.jogadorId === j.jogador_id ? colors.primaria : colors.textoSecundario, backgroundColor: form.jogadorId === j.jogador_id ? colors.primaria : 'transparent', alignItems: 'center', justifyContent: 'center' }}>{form.jogadorId === j.jogador_id && <Icon name="check" size={13} color="#fff" />}</View>
                         </TouchableOpacity>
-                      )}
-                    />
+                      ))}
+                    </ScrollView>
                     {!form.existente && <View style={{ gap: 16 }}>
                       <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: extrasAbertos }} onPress={() => setExtrasAbertos(v => !v)} style={[styles.row, { minHeight: 36 }]}><Icon name={extrasAbertos ? 'chevron-down' : 'chevron-right'} size={14} color={colors.textoSecundario} /><Text style={styles.muted}>{form.tipo === 'GOL' && !form.contra ? 'Adicionar assistência e minuto' : 'Adicionar minuto'}</Text></TouchableOpacity>
                       {extrasAbertos && <View style={{ gap: 18 }}>
                         {form.tipo === 'GOL' && !form.contra && <SelectField label="Assistência (opcional)" value={form.assistenteId ? String(form.assistenteId) : ''} options={[{ value: '', label: 'Sem assistência' }, ...(equipeAutor?.escalacao || []).filter(j => j.jogador_id !== form.jogadorId && (!aoVivo || j.titular)).map(j => ({ value: String(j.jogador_id), label: `${String(j.numCamisa).padStart(2, '0')} · ${j.jogador?.nome}` }))]} onChange={value => setForm({ ...form, assistenteId: value ? Number(value) : undefined })} />}
-                        <View style={{ gap: 8 }}><Text style={styles.name}>Minuto (opcional)</Text><TextInput accessibilityLabel="Minuto do lance" value={form.minuto || ''} onChangeText={value => setForm({ ...form, minuto: value.replace(/[^0-9]/g, '').slice(0, 3) })} keyboardType="number-pad" inputMode="numeric" maxLength={3} style={[styles.reason, { minHeight: 44 }]} placeholder="De 0 a 200" placeholderTextColor={colors.textoSecundario} /></View>
+                        <View style={{ gap: 8 }}><Text style={styles.name}>Minuto (opcional)</Text><TextInput onFocus={revelarCampo} accessibilityLabel="Minuto do lance" value={form.minuto || ''} onChangeText={value => setForm({ ...form, minuto: value.replace(/[^0-9]/g, '').slice(0, 3) })} keyboardType="number-pad" inputMode="numeric" maxLength={3} style={[styles.reason, { minHeight: 44 }]} placeholder="De 0 a 200" placeholderTextColor={colors.textoSecundario} /></View>
                       </View>}
                     </View>}
-                    {form.tipo === 'GOL' && !form.existente && <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: form.contra }} style={{ flexDirection: 'row', gap: 10, alignItems: 'center', padding: 11, borderRadius: 8, borderWidth: 1, borderColor: colors.bordaAtencao, backgroundColor: colors.fundoAtencao }} onPress={() => { setBusca(''); setForm({ ...form, contra: !form.contra, jogadorId: undefined, assistenteId: undefined }); }}><Icon name="ball" size={22} color={colors.tituloAtencao} /><View style={styles.flex}><Text style={[styles.name, { color: colors.tituloAtencao }]}>{form.contra ? 'Voltar para gol da equipe' : 'Gol contra do adversário'}</Text><Text style={[styles.tiny, { color: colors.corpoAtencao }]}>Conta a favor do {nomeTime(form.timeId)}.</Text></View><Icon name="chevron-right" size={17} color={colors.tituloAtencao} /></TouchableOpacity>}
+                    {form.tipo === 'GOL' && !form.existente && <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: form.contra }} style={{ flexDirection: 'row', gap: 10, alignItems: 'center', padding: 11, borderRadius: 8, borderWidth: 1, borderColor: colors.bordaAtencao, backgroundColor: colors.fundoAtencao }} onPress={() => { setBusca(''); setForm({ ...form, contra: !form.contra, jogadorId: undefined, assistenteId: undefined }); }}><Icon name="ball" size={22} color={colors.tituloAtencao} /><View style={styles.flex}><Text style={[styles.name, { color: colors.tituloAtencao }]}>{form.contra ? `Voltar aos jogadores do ${nomeTime(form.timeId)}` : `Gol contra do ${nomeTime(form.timeId === p.mandante_id ? p.visitante_id : p.mandante_id)}`}</Text><Text style={[styles.tiny, { color: colors.corpoAtencao }]}>{form.contra ? `Conta para o ${nomeTime(form.timeId)}.` : 'Abre a escalação adversária para escolher o autor.'}</Text></View><Icon name="chevron-right" size={17} color={colors.tituloAtencao} /></TouchableOpacity>}
                     {(finalizada || form.existente) && (
-                      <TextInput
+                      <TextInput onFocus={revelarCampo}
                         accessibilityLabel={
                           finalizada
                             ? "Justificativa da correção"
@@ -1715,7 +1666,7 @@ export default function SumulaPartida({
                         {erro}
                       </Text>
                     )}
-                  </View>
+                  </ScrollView>
                   <View style={styles.sheetFooter}>
                     <View style={styles.footerButtons}>
                       {button("Voltar", () => setDialogo(null))}
@@ -1738,7 +1689,7 @@ export default function SumulaPartida({
                         onPress={() => registrar(true)}
                         style={[styles.button, { backgroundColor: colors.cardSecundario + "88" }]}
                       >
-                        <Icon name="user" size={16} color={colors.texto} /><Text style={[styles.name, { textAlign: "center" }]}>
+                        <Icon name="user" size={16} color={colors.texto} /><Text style={[styles.name, { textAlign: "center", flexShrink: 1 }]}>
                           {form.tipo === "GOL"
                             ? "Registrar gol sem identificar agora"
                             : "Registrar evento sem identificar agora"}
@@ -1832,7 +1783,7 @@ export default function SumulaPartida({
                           O registro sairá da súmula e os totais serão
                           atualizados. A alteração ficará no histórico.
                         </Text>
-                        <TextInput
+                        <TextInput onFocus={revelarCampo}
                           accessibilityLabel={
                             finalizada
                               ? "Motivo da remoção"
@@ -1854,9 +1805,7 @@ export default function SumulaPartida({
                     )}
                     {dialogo === "tempo" && (
                       <Text style={styles.text}>
-                        Voltar para o {tempoSelecionado}º tempo? Os eventos
-                        registrados serão preservados. Os contadores mostrarão
-                        apenas os registros desse tempo.
+                        Iniciar o {proximoTempo}º tempo? Os eventos anteriores serão preservados e os contadores passarão a mostrar o novo tempo.
                       </Text>
                     )}
                     {dialogo === "responsavel" && (
@@ -1867,9 +1816,9 @@ export default function SumulaPartida({
                         </View>
                         <Text style={styles.muted}>
                           O responsável controla o placar e os acontecimentos.
-                          Cada clube gerencia as substituições da própria
-                          equipe. A transferência de responsabilidade é definida
-                          na preparação.
+                          {data.podeSumula
+                            ? 'Envie uma proposta para o outro clube assumir a súmula. Você continua operando até ele aceitar.'
+                            : 'Peça ao clube responsável para assumir a súmula. A operação muda somente após o aceite.'}
                         </Text>
                       </>
                     )}
@@ -1880,7 +1829,7 @@ export default function SumulaPartida({
                           Após o aceite, seu clube poderá editar a súmula por 30
                           minutos, sempre com justificativa.
                         </Text>
-                        <TextInput
+                        <TextInput onFocus={revelarCampo}
                           accessibilityLabel="O que precisa ser corrigido"
                           placeholder="O que precisa ser corrigido?"
                           placeholderTextColor={colors.textoSecundario}
@@ -1907,7 +1856,7 @@ export default function SumulaPartida({
                             <View key={String(nome)} style={styles.flex}>
                               <Text style={styles.name}>{String(nome)}</Text>
                               <View style={styles.search}>
-                                <TextInput
+                                <TextInput onFocus={revelarCampo}
                                   accessibilityLabel={`Placar de ${nome}`}
                                   value={String(valor)}
                                   onChangeText={set as (v: string) => void}
@@ -1919,7 +1868,7 @@ export default function SumulaPartida({
                             </View>
                           ))}
                         </View>
-                        <TextInput
+                        <TextInput onFocus={revelarCampo}
                           accessibilityLabel="Justificativa do placar"
                           placeholder="Explique a correção"
                           placeholderTextColor={colors.textoSecundario}
@@ -1932,11 +1881,11 @@ export default function SumulaPartida({
                       </>
                     )}
                     {dialogo === "substituir" && minha && (
-                      <><Text style={styles.muted}>Mantenha exatamente um goleiro em campo.</Text>{!!sai && !!entra && !trocaValida(minha, sai, entra) && <Text accessibilityRole="alert" style={styles.error}>Esta troca deixaria a equipe sem goleiro ou com dois goleiros.</Text>}<SubstituicaoPartida
-                        equipe={minha}
+                      <><Text style={styles.muted}>{reposicao ? `Escolha um reserva para a vaga de ${reposicao.jogador?.nome}. O expulso não poderá voltar.` : 'Selecione quem sai e quem entra. Mantenha um goleiro em campo.'}</Text>{!!sai && !!entra && !trocaValida(minha, sai, entra) && <Text accessibilityRole="alert" style={styles.error}>Selecione um reserva elegível. A troca comum deve manter um goleiro em campo.</Text>}<SubstituicaoPartida
+                        equipe={equipeParaTroca!}
                         sai={sai}
                         entra={entra}
-                        onSai={setSai}
+                        onSai={id => { if (!reposicao) setSai(id); }}
                         onEntra={setEntra}
                         bloqueado={alterando}
                         onArrastando={(ativo) => {
@@ -1966,7 +1915,7 @@ export default function SumulaPartida({
                           () =>
                             enfileirar(
                               `/eventos/${remover.id}`,
-                              { partida_id: p.id, motivo: motivo.trim() },
+                              { partida_id: p.id, motivo: motivo.trim(), desfeito: desfazendo },
                               `Remover ${NOMES_EVENTOS[remover.tipo].toLowerCase()}`,
                               remover.tipo,
                               "DELETE",
@@ -2000,13 +1949,13 @@ export default function SumulaPartida({
                           () => {
                             void executar(
                               "periodo",
-                              { periodo: tempoSelecionado },
+                              { periodo: proximoTempo },
                               "PATCH",
-                              () => setDialogo(null),
+                              () => { setDialogo(null); setTempoSelecionado(0); setProximoTempo(null); },
                             );
                           },
                           true,
-                          alterando,
+                          alterando || proximoTempo !== p.periodo_atual + 1,
                         )}
                       {dialogo === "responsavel" &&
                         aoVivo &&
@@ -2014,8 +1963,8 @@ export default function SumulaPartida({
                         data.equipes.length > 1 &&
                         button(
                           data.podeSumula
-                            ? "Propor transferência"
-                            : "Solicitar operação",
+                            ? "Solicitar transferência"
+                            : "Pedir responsabilidade",
                           () => {
                             void executar("sumula", {}, "POST", () => {
                               setDialogo(null);
@@ -2079,7 +2028,7 @@ export default function SumulaPartida({
                           () =>
                             enfileirar(
                               "substituicoes",
-                              { sai, entra, periodo: p.periodo_atual },
+                              { sai, entra, periodo: p.periodo_atual, reposicao_expulsao: !!reposicao },
                               `Substituição · ${minha?.clube.nome}`,
                               "SUBSTITUICAO",
                             ),
@@ -2091,10 +2040,7 @@ export default function SumulaPartida({
                   </View>
                 </>
               )}
-            </View>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
+      </SheetFrame>}
       {dialogo === 'compartilhar' && <CompartilharPartida data={data} link={link} onClose={() => setDialogo(null)} />}
       <View
         pointerEvents="box-none"

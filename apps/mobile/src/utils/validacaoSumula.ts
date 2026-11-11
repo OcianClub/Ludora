@@ -12,11 +12,11 @@ export function validarLance(data: GestaoPartida, form: { tipo: string; timeId: 
   if (form.minuto && (!/^\d{1,3}$/.test(form.minuto) || Number(form.minuto) > 200)) return 'Informe um minuto de 0 a 200.';
   if (form.contra && form.tipo !== 'GOL') return 'Gol contra só é válido para gols.';
   const jogador = equipe?.escalacao.find(j => j.jogador_id === form.jogadorId);
-  if (!depois && form.jogadorId && (!jogador || !equipe?.publicada_em || (aoVivo && !form.existente && !jogador.titular))) return 'O jogador não está mais elegível. Confira a escalação atual.';
+  if (!depois && form.jogadorId && (!jogador || !equipe?.publicada_em || (aoVivo && !form.existente && (!jogador.titular || jogador.expulso)))) return 'O jogador não está mais elegível. Confira a escalação atual.';
   if (!depois && equipe && !form.jogadorId) return 'Selecione o jogador ou escolha identificar depois.';
   if (!depois && form.assistenteId) {
     const assistente = equipe?.escalacao.find(j => j.jogador_id === form.assistenteId);
-    if (form.tipo !== 'GOL' || form.contra || !form.jogadorId || form.assistenteId === form.jogadorId || !assistente || (aoVivo && !assistente.titular)) return 'A assistência deve ser de outro jogador em campo da equipe que marcou.';
+    if (form.tipo !== 'GOL' || form.contra || !form.jogadorId || form.assistenteId === form.jogadorId || !assistente || (aoVivo && (!assistente.titular || assistente.expulso))) return 'A assistência deve ser de outro jogador em campo da equipe que marcou.';
   }
   return '';
 }
@@ -30,8 +30,10 @@ export function placarDoPeriodo(data: GestaoPartida, periodo: number) {
 }
 export function trocaValida(equipe: EquipePartida | undefined, sai?: number, entra?: number) {
   if (!equipe?.publicada_em || !sai || !entra || sai === entra) return false;
-  const fora = equipe.escalacao.find(j => j.jogador_id === sai && j.titular), dentro = equipe.escalacao.find(j => j.jogador_id === entra && !j.titular);
+  const fora = equipe.escalacao.find(j => j.jogador_id === sai && (j.titular || j.reposicao_pendente)), dentro = equipe.escalacao.find(j => j.jogador_id === entra && !j.titular && !j.expulso);
   if (!fora || !dentro || !fora.numCamisa || !dentro.numCamisa) return false;
-  const titulares = equipe.escalacao.filter(j => j.titular && j.jogador_id !== sai).concat({ ...dentro, titular: true });
-  return titulares.filter(j => j.jogador?.posicao === 'Goleiro').length === 1;
+  if (fora.expulso) return !!fora.reposicao_pendente;
+  // Preserve the existing goalkeeper slots, including a keeper playing outfield
+  // after a red-card replacement. The API uses the same position check.
+  return (fora.jogador?.posicao === 'Goleiro') === (dentro.jogador?.posicao === 'Goleiro');
 }

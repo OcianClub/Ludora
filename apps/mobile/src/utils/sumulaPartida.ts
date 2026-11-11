@@ -60,7 +60,7 @@ export function descreverAlteracao(
   const lance = `${tipo.startsWith("CARTAO_") ? `Cartão ${NOMES_EVENTOS[tipo].toLowerCase()}` : NOMES_EVENTOS[tipo] || "Lance"}${dados.gol_contra || evento?.gol_contra ? " contra" : ""}`;
   const titulos: Record<string, string> = {
     EVENTO_REGISTRADO: `${lance} registrad${feminino ? "a" : "o"}`,
-    EVENTO_REMOVIDO: `${lance} removid${feminino ? "a" : "o"}`,
+    EVENTO_REMOVIDO: `${lance} ${dados.desfeito ? `desfeit${feminino ? 'a' : 'o'}` : `removid${feminino ? 'a' : 'o'}`}`,
     AUTORIA_IDENTIFICADA: `Autoria ${feminino ? "da" : "do"} ${lance.toLowerCase()} corrigida`,
     STATUS_AO_VIVO: "Partida iniciada",
     STATUS_FINALIZADA: "Partida encerrada",
@@ -71,6 +71,9 @@ export function descreverAlteracao(
     SUBSTITUICAO: "Substituição realizada",
     PLACAR_CORRIGIDO: "Placar corrigido",
     PERIODO_ALTERADO: `Tempo alterado para ${dados.periodo}º`,
+    JOGADOR_EXPULSO: "Jogador expulso · removido de campo",
+    EXPULSAO_REVERTIDA: "Expulsão revertida",
+    SUMULA_SOLICITADA: "Transferência da súmula solicitada",
     SUMULA_TRANSFERIDA: "Responsabilidade pela súmula transferida",
     CORRECAO_SOLICITADA: "Edição da súmula solicitada",
     CORRECAO_AUTORIZADA: "Edição da súmula autorizada",
@@ -80,7 +83,7 @@ export function descreverAlteracao(
   const complemento =
     registro.acao === "SUBSTITUICAO"
       ? `${porJogador(dados.sai)} → ${porJogador(dados.entra)}`
-      : nome;
+      : nome || (dados.jogador_id ? porJogador(dados.jogador_id) : '');
   return {
     titulo:
       titulos[registro.acao] || registro.acao.toLowerCase().replace(/_/g, " "),

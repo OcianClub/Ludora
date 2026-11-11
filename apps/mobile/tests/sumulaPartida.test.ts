@@ -185,3 +185,13 @@ test("índice do histórico mantém autoria de eventos removidos e preferência 
     "Falta registrada",
   );
 });
+
+
+test('histórico diferencia desfazer, remoção e disciplina sem perder a autoria', () => {
+  const jogo = { ...data, equipes: [{ time_id: 10, escalacao: [{ jogador_id: 1, jogador: { nome: 'Daniel' } }] }] } as unknown as GestaoPartida;
+  const registro = { id: 20, criado_em: '', acao: 'EVENTO_REMOVIDO', dados: { tipo: 'GOL', time_id: 10, jogador_id: 1, desfeito: true } };
+  assert.match(descreverAlteracao(registro, jogo).titulo, /desfeit/);
+  const expulsao = descreverAlteracao({ ...registro, acao: 'JOGADOR_EXPULSO' }, jogo);
+  assert.match(expulsao.titulo, /expuls/i);
+  assert.match(expulsao.detalhes, /Daniel/);
+});

@@ -1,4 +1,6 @@
-import { IconButton } from "@/src/components/ui/Controls";
+import { mascaraDataPartida, mascaraHorarioPartida } from "@/src/utils/organizarPartida";
+import { AppSheet } from "@/src/components/ui/AppSheet";
+import { IconButton, AppButton } from "@/src/components/ui/Controls";
 import { Icon } from "@ludora/icons";
 import { Header } from "@/src/components/Header";
 import { FiltrosSolicitacoes } from "@/src/components/FiltrosSolicitacoes";
@@ -9,7 +11,6 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Image,
   ScrollView,
   StyleSheet,
@@ -52,7 +53,7 @@ function ClubeSolicitacao({ clube }: { clube: PropostaPartida["origem"] }) {
         )}
       </View>
       <Text
-        numberOfLines={2}
+        numberOfLines={1}
         style={[styles.clubName, { color: colors.texto }]}
       >
         {clube.nome}
@@ -187,6 +188,7 @@ function SolicitacoesAutenticadas() {
         onPress={onPress}
         style={[
           styles.button,
+          label === "Cancelar proposta" && { width: "100%" },
           {
             backgroundColor: primary ? colors.primaria : colors.cardSecundario,
             opacity: busy ? 0.5 : 1,
@@ -406,6 +408,11 @@ function SolicitacoesAutenticadas() {
                       })}
                   </>
                 )}
+                {p.respondente_id !== clubId && (
+                  <Text style={[styles.detailText, muted, { width: '100%' }]}>
+                    Aguardando a resposta do outro clube.
+                  </Text>
+                )}
                 {p.origem_id === clubId &&
                   button("Cancelar proposta", () =>
                     Alert.alert(
@@ -422,11 +429,7 @@ function SolicitacoesAutenticadas() {
                       ],
                     ),
                   )}
-                {p.respondente_id !== clubId && (
-                  <Text style={[styles.detailText, muted]}>
-                    Aguardando a resposta do outro clube.
-                  </Text>
-                )}
+
               </View>
             )}
             {!!p.partida_id &&
@@ -450,66 +453,26 @@ function SolicitacoesAutenticadas() {
           }}
         />
       )}
-      <Modal
-        visible={!!editing}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-          if (!busy) setEditing(null);
-        }}
-      >
-        <View style={styles.overlay}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[
-              styles.content,
-              { backgroundColor: colors.card },
-            ]}
-          >
-            <Text style={[text, styles.title]}>Sugerir outra data</Text>
-            {[
-              ["Data · DD/MM/AAAA", date, setDate],
-              ["Horário · HH:MM", time, setTime],
-              ["Local", local, setLocal],
-            ].map(([label, value, change]) => (
-              <TextInput
-                key={String(label)}
-                accessibilityLabel={String(label)}
-                placeholder={String(label)}
-                placeholderTextColor={colors.textoSecundario}
-                value={String(value)}
-                onChangeText={change as (v: string) => void}
-                style={[
-                  styles.input,
-                  text,
-                  { borderColor: colors.borda, backgroundColor: colors.fundo },
-                ]}
-              />
-            ))}
-            {!!error && (
-              <Text
-                accessibilityRole="alert"
-                style={{ color: colors.tituloErro }}
-              >
-                {error}
-              </Text>
-            )}
-            {button(
-              "Enviar sugestão",
-              () => {
-                if (editing)
-                  void respond(editing, "SUGERIR", {
-                    data: date.split("/").reverse().join("-"),
-                    horario: time,
-                    local,
-                  });
-              },
-              true,
-            )}
-            {button("Voltar", () => setEditing(null))}
-          </ScrollView>
+      {editing && <AppSheet title="Sugerir alteração" subtitle={`${editing.origem.nome} × ${editing.destino.nome}`} onClose={() => { if (!busy) setEditing(null); }} footer={
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <AppButton label="Voltar" disabled={busy} onPress={() => setEditing(null)} />
+          <AppButton label="Enviar sugestão" variant="primary" disabled={busy || !date || !time} onPress={() => void respond(editing, 'SUGERIR', { data: date.split('/').reverse().join('-'), horario: time, local })} />
         </View>
-      </Modal>
+      }>
+        <Text style={[styles.detailText, muted]}>O outro clube receberá a sugestão para conferir e responder.</Text>
+        {[
+          { label: 'Data', hint: 'DD/MM/AAAA', value: date, change: (v: string) => setDate(mascaraDataPartida(v)), max: 10 },
+          { label: 'Horário', hint: 'HH:MM', value: time, change: (v: string) => setTime(mascaraHorarioPartida(v)), max: 5 },
+          { label: 'Local', hint: 'Nome ou endereço da quadra', value: local, change: setLocal, max: 300 },
+        ].map(field => <View key={field.label} style={{ gap: 8 }}>
+          <Text style={[styles.actionText, text]}>{field.label}</Text>
+          <TextInput accessibilityLabel={field.label} placeholder={field.hint} placeholderTextColor={colors.textoSecundario}
+            value={field.value} onChangeText={field.change} maxLength={field.max} keyboardType={field.label === 'Local' ? 'default' : 'numbers-and-punctuation'}
+            style={[styles.input, text, { borderColor: colors.borda, backgroundColor: colors.card }]} />
+        </View>)}
+        {!!error && <Text accessibilityRole="alert" style={{ color: colors.tituloErro }}>{error}</Text>}
+      </AppSheet>}
+
     </SafeAreaView>
   );
 }
@@ -566,9 +529,11 @@ const styles = StyleSheet.create({
   },
   club: {
     flex: 1,
+    flexBasis: 0,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
   crest: {
@@ -581,8 +546,8 @@ const styles = StyleSheet.create({
   },
   crestImage: { width: "100%", height: "100%" },
   crestInitial: { fontSize: 17, fontWeight: "600" },
-  clubName: { flex: 1, fontSize: 12, fontWeight: "600", lineHeight: 17 },
-  versus: { fontSize: 14 },
+  clubName: { flexShrink: 1, fontSize: 12, fontWeight: "600", lineHeight: 17 },
+  versus: { fontSize: 14, width: 20, textAlign: "center" },
   metadata: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -618,21 +583,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    alignItems: "center",
+    alignItems: "stretch",
   },
   button: {
     minHeight: 40,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
+    justifyContent: "center",
     alignItems: "center",
+    flexGrow: 1,
+    flexBasis: 'auto',
   },
   card: { padding: 16, borderRadius: 9, borderWidth: 1, gap: 12 },
   input: { minHeight: 46, borderWidth: 1, borderRadius: 8, padding: 12 },
-  overlay: {
-    flex: 1,
-    backgroundColor: "#0008",
-    justifyContent: "flex-end",
-    paddingTop: "35%",
-  },
 });

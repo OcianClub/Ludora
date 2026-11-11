@@ -89,3 +89,26 @@ test('contrato de votação rejeita dados inválidos e não confunde partidas', 
   assert.equal(validPoll(poll, 2), false);
   assert.equal(validPoll({ ...poll, total: 3 }, 1), false);
 });
+
+
+test('expulso não registra lance nem retorna como reserva; reposição usa apenas a vaga pendente', () => {
+  const data = sumulaFixture(), equipe = data.equipes[0];
+  const expulso = equipe.escalacao.find(j => j.jogador_id === 101)!;
+  expulso.expulso = true;
+  // Even an outdated field flag must not make an expelled player eligible.
+  assert.match(validarLance(data, { tipo: 'GOL', timeId: 10, jogadorId: 101, contra: false }), /elegível/);
+  assert.match(validarLance(data, { tipo: 'GOL', timeId: 10, jogadorId: 102, assistenteId: 101, contra: false }), /assistência/);
+  expulso.titular = false;
+  assert.equal(trocaValida(equipe, 102, 101), false);
+  assert.equal(trocaValida(equipe, 101, 106), false);
+  expulso.reposicao_pendente = true;
+  assert.equal(trocaValida(equipe, 101, 106), true);
+  assert.equal(trocaValida(equipe, 101, 105), true, 'goleiro reserva também pode ocupar a vaga');
+  equipe.escalacao.find(j => j.jogador_id === 106)!.expulso = true;
+  assert.equal(trocaValida(equipe, 101, 106), false);
+  expulso.reposicao_pendente = false;
+  assert.equal(trocaValida(equipe, 101, 105), false);
+  equipe.escalacao.find(j => j.jogador_id === 105)!.titular = true;
+  equipe.escalacao.find(j => j.jogador_id === 106)!.expulso = false;
+  assert.equal(trocaValida(equipe, 102, 106), true, 'trocas posteriores preservam a composição aceita na reposição');
+});

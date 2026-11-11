@@ -371,6 +371,7 @@ export default function Home() {
               <PaginaCategoria grupo={`${clubeAtivo?.id}-${faseAtiva}`} preparar>
                 <HomeCategoria
                   sub={sub.title}
+                  proximaCategoria={resumos.find((item) => item.sub.title !== sub.title && item.agenda.length > 0)?.sub.title}
                   semPerfil={
                     scoutHome?.clubeId === clubeId
                       ? scoutHome?.contagens.get(sub.title)

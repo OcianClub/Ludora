@@ -20,7 +20,7 @@ export const useSessao = () => ({ autenticado: !location.search.includes('guest'
 export const getItemAsync = async key => key === 'userToken' ? location.search.includes('guest') ? null : 'test-token' : sessionStorage.getItem(key);
 export const setItemAsync = async (key,value) => { sessionStorage.setItem(key,value); };
 export const SafeAreaView = View, LinearGradient = View;
-export const useSafeAreaInsets = () => ({ top:0,bottom:0,left:0,right:0 });
+export const useSafeAreaInsets = () => ({ top:0,bottom:24,left:0,right:0 });
 const navigation = { addListener: (name,fn) => { listeners.set(name,fn); return () => listeners.delete(name); } };
 export const useNavigation = () => navigation;
 window.pauseFixture = () => listeners.get('blur')?.();
@@ -56,6 +56,7 @@ export async function apiFetch(endpoint, opts = {}) {
     model.auditoria.unshift({id,acao:'EVENTO_REGISTRADO',criado_em:new Date().toISOString(),dados:{request_id:body.request_id,evento_id:id}});
   }
   if (method==='DELETE') { const id=Number(endpoint.split('/').at(-1)); const e=model.eventos.find(e=>e.id===id); model.eventos=model.eventos.filter(e=>e.id!==id); if(e?.tipo==='GOL')model.partida[e.time_id===10?'gols_mandante':'gols_visitante']--; }
+  if (endpoint.endsWith('/periodo')) model.partida.periodo_atual=body.periodo;
   if (endpoint.endsWith('/status')) model.partida.status=body.status;
   model.partida.versao++;
   if(window.fixture.loseResponse && endpoint.endsWith('/eventos')) {window.fixture.loseResponse=false;throw Error('resposta perdida após salvar');}
@@ -99,6 +100,41 @@ const aliasModules = /^(expo-router|expo-secure-store|expo-linear-gradient|expo-
       await page.screenshot({path:path.join(output,`${role}-${width}.png`),fullPage:true});
       assert.deepEqual(errors,[],`${width}/${role}: runtime`);await page.close();scenarios++;
     }
+    const periodPage=await browser.newPage({viewport:{width:320,height:840}});
+    await periodPage.goto(`${url}/?manager`);
+    await periodPage.getByRole('button',{name:'Tempo anterior',exact:true}).click();
+    await periodPage.getByText('Voltar ao vivo',{exact:true}).waitFor();
+    assert.equal(await periodPage.evaluate(()=>window.fixture.model.partida.periodo_atual),2,'voltar consulta sem alterar período oficial');
+    assert.equal(await periodPage.evaluate(()=>window.fixture.writes.length),0);
+    await periodPage.getByRole('button',{name:'Registrar gol de Ocian',exact:true}).click();
+    assert.equal(await periodPage.getByText('Voltar ao vivo',{exact:true}).count(),0,'novo lance retorna ao tempo atual');
+    await periodPage.waitForTimeout(400);
+    await periodPage.screenshot({path:path.join(output,'goal-dialog-320.png')});
+    const anonymous=await periodPage.getByRole('button',{name:'Registrar gol sem identificar agora',exact:true}).boundingBox();
+    assert.ok(anonymous && anonymous.y+anonymous.height<=840-24,'registro sem autor respeita a área segura');
+    assert.ok(anonymous && anonymous.x>=0 && anonymous.x+anonymous.width<=320,'ação não ultrapassa a tela estreita');
+    await periodPage.getByText('Gol contra do Santos',{exact:true}).click();
+    await periodPage.getByText('Quem fez o gol contra pelo Santos?',{exact:true}).waitFor();
+    await periodPage.getByRole('button',{name:'Selecionar Atleta 2-1, camisa 2',exact:true}).waitFor();
+    assert.equal(await periodPage.getByRole('button',{name:'Selecionar Atleta 1-1, camisa 2',exact:true}).count(),0,'gol contra mostra a autoria adversária');
+    await periodPage.getByRole('button',{name:'Fechar janela',exact:true}).last().click();
+    await periodPage.getByRole('button',{name:'Próximo tempo',exact:true}).click();
+    await periodPage.getByText('Iniciar próximo tempo?',{exact:true}).waitFor();
+    assert.equal(await periodPage.evaluate(()=>window.fixture.writes.length),0,'avanço depende de confirmação');
+    await periodPage.getByRole('button',{name:'Voltar',exact:true}).last().click();
+    assert.equal(await periodPage.evaluate(()=>window.fixture.model.partida.periodo_atual),2);
+    await periodPage.getByRole('button',{name:'Próximo tempo',exact:true}).click();
+    await periodPage.getByRole('button',{name:'Confirmar tempo',exact:true}).click();
+    await periodPage.waitForFunction(()=>window.fixture.model.partida.periodo_atual===3);
+    await periodPage.getByRole('button',{name:'Fazer substituição',exact:true}).click();
+    await periodPage.waitForTimeout(400);
+    await periodPage.screenshot({path:path.join(output,'substitution-320.png'),fullPage:true});
+    const substitute=await periodPage.getByText('Fazer substituição',{exact:true}).last().boundingBox();
+    assert.ok(substitute && substitute.y<100,'substituição aproveita a altura disponível');
+    const footer=await periodPage.getByRole('button',{name:'Confirmar substituição',exact:true}).boundingBox();
+    assert.ok(footer && footer.y+footer.height<=840-24,'ação acima da área segura');
+    await periodPage.screenshot({path:path.join(output,'substitution-320.png'),fullPage:true});
+    await periodPage.close();scenarios++;
     const page=await browser.newPage({viewport:{width:390,height:840}}); page.on('pageerror',e=>console.error('Queue UI:',e.message)); await page.goto(`${url}/?manager`);await page.getByRole('button',{name:'Registrar gol de Ocian',exact:true}).click();
     await page.getByRole('button',{name:'Selecionar Atleta 1-1, camisa 2',exact:true}).click();
     await page.waitForTimeout(300);await page.screenshot({path:path.join(output,'goal-dialog-390.png'),fullPage:true});

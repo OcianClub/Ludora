@@ -12,6 +12,7 @@ import {
   type FiltrosScout,
   type OrdenacaoScout,
   type DirecaoScout,
+  type PerfilScout,
 } from "@/src/utils/filtrosScout";
 
 export const ORDENS_SCOUT: { label: string; value: OrdenacaoScout }[] = [
@@ -145,20 +146,23 @@ export function ScoutHelp({ onClose }: { onClose: () => void }) {
 }
 export function ScoutFilters({
   initial,
+  perfilInicial,
   order,
   direction,
   onApply,
   onClose,
 }: {
   initial: FiltrosScout;
+  perfilInicial: PerfilScout;
   order: OrdenacaoScout;
   direction: DirecaoScout;
-  onApply: (f: FiltrosScout, o: OrdenacaoScout, d: DirecaoScout) => void;
+  onApply: (f: FiltrosScout, o: OrdenacaoScout, d: DirecaoScout, perfil: PerfilScout) => void;
   onClose: () => void;
 }) {
   const { colors } = useTheme();
   const f = useMemo(() => createFilterStyles(colors), [colors]);
   const [filters, setFilters] = useState(initial);
+  const [perfil, setPerfil] = useState(perfilInicial);
   const [sort, setSort] = useState(`${order}:${direction}`);
   function chips(
     label: string,
@@ -208,6 +212,7 @@ export function ScoutFilters({
             variant="ghost"
             onPress={() => {
               setFilters(FILTROS_SCOUT_INICIAIS);
+              setPerfil("Todos");
               setSort("NOTA:");
             }}
           />
@@ -216,13 +221,22 @@ export function ScoutFilters({
             variant="primary"
             onPress={() => {
               const [o, d] = sort.split(":");
-              onApply(filters, o as OrdenacaoScout, d as DirecaoScout);
+              onApply(filters, o as OrdenacaoScout, d as DirecaoScout, perfil);
               onClose();
             }}
           />
         </>
       }
     >
+      <View style={{ gap: 9 }}>
+        <Text style={f.label}>Contribuição</Text>
+        <View style={f.chipRow}>
+          {(['Todos', 'Artilheiro', 'Armador', 'Paredão', 'Misto', 'Sem dados'] as PerfilScout[]).map((value) => <TouchableOpacity key={value} accessibilityRole="radio" accessibilityState={{ checked: perfil === value }}
+            onPress={() => setPerfil(value)} style={[f.chip, perfil === value && { backgroundColor: colors.primaria, borderColor: colors.primaria }]}>
+            <Text style={[f.optionText, perfil === value && { color: colors.textoSobrePrimaria }]}>{value === 'Sem dados' ? 'Sem perfil' : value}</Text>
+          </TouchableOpacity>)}
+        </View>
+      </View>
       {chips("Posição", "posicao", [
         ["", "Todas"],
         ["Goleiro", "Goleiro"],

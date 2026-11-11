@@ -1,3 +1,4 @@
+import { CategoryFilterScroll } from "@/src/components/CategoryPager";
 import { SearchField, IconButton } from "@/src/components/ui/Controls";
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
@@ -392,7 +393,7 @@ export default function Jogos() {
   const renderControles = useCallback(
     (contagem: (typeof totaisPorSub)[number]) => (
       <View style={{ marginHorizontal: -12 }}>
-        <ScrollView
+        <CategoryFilterScroll
           horizontal
           showsHorizontalScrollIndicator={false}
           accessibilityRole="tablist"
@@ -428,17 +429,9 @@ export default function Jogos() {
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+        </CategoryFilterScroll>
 
         <View style={styles.filterBarContainer}>
-          {podeGerenciar && (
-            <IconButton
-              icon="email-outline"
-              label={`Solicitações: ${solicitacoesPendentes} aguardando sua resposta`}
-              badge={solicitacoesPendentes}
-              onPress={() => router.push("/solicitacoes-partidas")}
-            />
-          )}
           <SearchField
             value={busca}
             onChangeText={setBusca}
@@ -761,7 +754,7 @@ export default function Jogos() {
 
   return (
     <View style={styles.container}>
-      <HeaderClube />
+      <HeaderClube rightAccessory={podeGerenciar ? <IconButton icon="email-outline" variant="ghost" label={`Solicitações: ${solicitacoesPendentes} aguardando sua resposta`} badge={solicitacoesPendentes} onPress={() => router.push("/solicitacoes-partidas")} /> : undefined} />
 
       <CarrosselSubs
         tipoFiltro={tipoFiltro}

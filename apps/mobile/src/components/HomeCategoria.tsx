@@ -67,6 +67,7 @@ export interface PartidaHome {
 interface Props {
   sub: string;
   semPerfil?: number;
+  proximaCategoria?: string;
   pendencias?: { semCamisa: number | null; solicitacoes: number | null };
   carregando: boolean;
   atualizando: boolean;
@@ -290,7 +291,15 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
                 <Icon name="chevron-right" size={16} color={colors.primaria} />
               </TouchableOpacity>
             </View>
-          )) : <Text style={styles.secondaryText}>Sem outros compromissos marcados para esta categoria.</Text>}
+          )) : <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 3 }}>
+            <Icon name="calendar" size={23} color={colors.textoSecundario} />
+            <View style={{ flex: 1, gap: 7 }}>
+              <Text style={styles.cardTitle}>Nenhuma partida futura no {sub}</Text>
+              <Text style={styles.secondaryText}>{props.proximaCategoria
+                ? `Há jogos agendados em ${props.proximaCategoria}. Troque a categoria para consultar.`
+                : 'Os próximos jogos desta categoria aparecerão aqui.'}</Text>
+            </View>
+          </View>}
         </View>
 
         <View style={styles.historyTitleRow}>

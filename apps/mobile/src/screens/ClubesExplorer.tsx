@@ -165,7 +165,7 @@ const CartaoClube = memo(function CartaoClube({
           {papel && (
             <View style={styles.tags}>
               {papel && (
-                <View style={styles.papel}>
+                <View style={[styles.papel, clube.papel === "ADMIN" && styles.papelAdmin]}>
                   <Icon name={papel.icone} size={12} color={colors.primaria} />
                   <Text style={styles.papelText}>{papel.nome}</Text>
                 </View>
@@ -353,6 +353,7 @@ export default function ClubesExplorer({
           ],
     [grupos, carregando],
   );
+  const aoVivoAposCargo = autenticado && secoes.some(secao => secao.key === "cargo");
   return (
     <View style={styles.container}>
       {modo === 'trocar' && clubeAtivo ? <HeaderClube /> : <HeaderPublico />}
@@ -393,7 +394,7 @@ export default function ClubesExplorer({
                 onTentarNovamente={() => void carregar()}
               />
             )}
-            <AoVivoPublico clubes={carregou.current ? clubes : undefined} />
+            {!aoVivoAposCargo && <AoVivoPublico clubes={carregou.current ? clubes : undefined} />}
             {carregando && <ListSkeleton rows={4} inset={0} />}
           </>
         }
@@ -414,7 +415,7 @@ export default function ClubesExplorer({
           <View
             style={[
               styles.secao,
-              { marginTop: section === secoes[0] ? 0 : 18, marginBottom: 16 },
+              { marginTop: section === secoes[0] || (aoVivoAposCargo && section === secoes[1]) ? 0 : 18, marginBottom: 16 },
             ]}
           >
             <View style={styles.secaoHeading}>
@@ -448,7 +449,11 @@ export default function ClubesExplorer({
           </View>
         )}
         renderSectionFooter={({ section }) =>
-          section.key === "descobrir" && !section.data.length && !erro ? (
+          section.key === "cargo" && aoVivoAposCargo ? (
+            <View style={{ paddingTop: 18 }}>
+              <AoVivoPublico clubes={clubes} />
+            </View>
+          ) : section.key === "descobrir" && !section.data.length && !erro ? (
             <View style={styles.vazio}>
               <Icon
                 name="shield-half"

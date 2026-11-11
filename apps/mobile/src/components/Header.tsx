@@ -1,3 +1,4 @@
+import { AccountMenu } from "./AccountMenu";
 import { IconButton } from "./ui/Controls";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@ludora/icons";
@@ -138,7 +139,7 @@ export function Header({
         {rightAccessory}
         {btnNotificacao && (
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, { backgroundColor: "transparent" }]}
             activeOpacity={0.7}
             onPress={
               onPressNotificacao ??
@@ -161,17 +162,7 @@ export function Header({
             )}
           </TouchableOpacity>
         )}
-        {showProfile && (
-          <TouchableOpacity
-            style={styles.profileButton}
-            activeOpacity={0.7}
-            onPress={() => router.push('/(tabs)/perfil/perfil')}
-            accessibilityRole="button"
-            accessibilityLabel="Meu perfil"
-          >
-            <Icon name="account" size={24} color={colors.primaria} />
-          </TouchableOpacity>
-        )}
+        {showProfile && <AccountMenu />}
       </View>
     </View>
   );

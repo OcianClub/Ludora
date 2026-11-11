@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, Image, StyleSheet, Text, TouchableOpacity, View, type ListRenderItem, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { io } from 'socket.io-client';
 import { Icon } from '@ludora/icons';
@@ -131,10 +131,13 @@ export default function AoVivoPublico({ clubes }: { clubes?: ClubeListado[] }) {
   const tamanhoCard = disponiveis.length === 1 ? largura : Math.min(310, largura * 0.82);
   const medidas = useRef({ largura: 0, conteudo: 0, offset: 0 });
   const [setas, setSetas] = useState({ anterior: false, proximo: false });
+  const limitesAtuais = useRef(setas);
   const medir = useCallback(() => {
     const m = medidas.current;
     const limites = limitesCarrossel(m.largura, m.conteudo, m.offset);
-    setSetas(antes => antes.anterior === limites.anterior && antes.proximo === limites.proximo ? antes : limites);
+    if (limitesAtuais.current.anterior === limites.anterior && limitesAtuais.current.proximo === limites.proximo) return;
+    limitesAtuais.current = limites;
+    setSetas(limites);
   }, []);
   useEffect(() => {
     const total = disponiveis.length * tamanhoCard + Math.max(0, disponiveis.length - 1) * GAP;
@@ -149,6 +152,14 @@ export default function AoVivoPublico({ clubes }: { clubes?: ClubeListado[] }) {
     lista.current?.scrollToOffset({ offset, animated: true });
   };
 
+  const renderizarPartida = useCallback<ListRenderItem<PartidaDescoberta>>(({ item }) => (
+    <CartaoPartida jogo={item} largura={tamanhoCard} ocupado={abrindoId !== null} abrindo={abrindoId === item.id} onAbrir={abrir} />
+  ), [tamanhoCard, abrindoId, abrir]);
+  const acompanharDeslize = useCallback((evento: NativeSyntheticEvent<NativeScrollEvent>) => {
+    medidas.current.offset = evento.nativeEvent.contentOffset.x;
+    medir();
+  }, [medir]);
+
   if (!carregando && !erroConsulta && !disponiveis.length) return null;
   return <View style={styles.secao}>
     <View style={styles.tituloRow}><SinalAoVivo size={17} /><Text accessibilityRole="header" style={styles.titulo}>Ao vivo no Ludora</Text></View>
@@ -159,12 +170,13 @@ export default function AoVivoPublico({ clubes }: { clubes?: ClubeListado[] }) {
           ref={lista} data={disponiveis} horizontal showsHorizontalScrollIndicator={false}
           keyExtractor={j => String(j.id)} initialNumToRender={3} maxToRenderPerBatch={4} windowSize={3}
           extraData={abrindoId} ItemSeparatorComponent={Espaco}
-          snapToInterval={tamanhoCard + GAP} decelerationRate="fast"
+          snapToInterval={tamanhoCard + GAP} snapToAlignment="start" decelerationRate="normal"
+          disableIntervalMomentum directionalLockEnabled nestedScrollEnabled
           getItemLayout={(_, index) => ({ length: tamanhoCard + GAP, offset: index * (tamanhoCard + GAP), index })}
           onContentSizeChange={w => { medidas.current.conteudo = w; medir(); }}
-          onScroll={e => { medidas.current.offset = e.nativeEvent.contentOffset.x; medir(); }} scrollEventThrottle={32}
+          onScroll={acompanharDeslize} scrollEventThrottle={32}
           accessibilityLabel="Carrossel de partidas ao vivo"
-          renderItem={({ item }) => <CartaoPartida jogo={item} largura={tamanhoCard} ocupado={abrindoId !== null} abrindo={abrindoId === item.id} onAbrir={abrir} />}
+          renderItem={renderizarPartida}
         />}
       {setas.anterior && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Partidas ao vivo anteriores" style={[styles.seta, styles.anterior]} onPress={() => mover(-1)}><Icon name="chevron-left" size={20} color={colors.texto} /></TouchableOpacity>}
       {setas.proximo && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Próximas partidas ao vivo" style={[styles.seta, styles.proximo]} onPress={() => mover(1)}><Icon name="chevron-right" size={20} color={colors.texto} /></TouchableOpacity>}
@@ -183,7 +195,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   carrossel: { position: 'relative' },
   card: { backgroundColor: colors.card, borderWidth: 1, borderColor: `${liveBadgeColors.indicador}40`, borderRadius: 10, padding: 14, gap: 14, minHeight: 152 },
   meta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  categoria: { color: colors.textoSecundario, fontSize: 10, fontFamily: typography.fontFamily.corpo.regular },
+  categoria: { color: `${colors.texto}B8`, fontSize: 10, fontFamily: typography.fontFamily.corpo.regular },
   indicador: { width: 6, height: 6, borderRadius: 3, backgroundColor: liveBadgeColors.indicador },
   placarRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   equipe: { flex: 1, minWidth: 0, alignItems: 'center', gap: 7 },
@@ -195,7 +207,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   gols: { color: colors.texto, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 28, fontVariant: ['tabular-nums'] },
   separador: { color: colors.textoSecundario, fontSize: 16 },
   rodape: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'space-between', marginTop: 'auto' },
-  data: { flex: 1, color: colors.textoSecundario, fontSize: 11, fontFamily: typography.fontFamily.corpo.regular },
+  data: { flex: 1, color: `${colors.texto}B8`, fontSize: 11, fontFamily: typography.fontFamily.corpo.regular },
   seta: { position: 'absolute', top: '50%', marginTop: -22, width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.borda, backgroundColor: colors.cardSecundario, alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
   anterior: { left: 0 }, proximo: { right: 0 },
   erroRow: { gap: 4 }, erroConsulta: { color: colors.textoSecundario, fontSize: 12 },

@@ -4,7 +4,7 @@ import { ErroConsulta } from '../utils/request';
 export interface EquipePartida {
   id: number; clube_id: number; categoria_id: number; time_id: number; pronta: boolean; publicada_em: string | null;
   clube: { id: number; nome: string }; categoria: { id: number; nome: string };
-  escalacao: { jogador_id: number; numCamisa: number; titular: boolean; titular_inicial?: boolean; jogador?: { nome: string; posicao: string } }[];
+  escalacao: { jogador_id: number; numCamisa: number; titular: boolean; expulso?: boolean; reposicao_pendente?: boolean; titular_inicial?: boolean; jogador?: { nome: string; posicao: string } }[];
 }
 export interface GestaoPartida {
   partida: { id: number; status: string; versao: number; data: string; horario: string; local?: string; periodo_atual: number; titulares_necessarios: number; sumula_clube_id: number; organizador_id: number;

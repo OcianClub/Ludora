@@ -1,10 +1,11 @@
+import type { ReactNode } from 'react';
 import { Header } from '@/src/components/Header';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 import { identidadeClubeHeader } from '@/src/utils/identidadeHeader';
 import { useSessao } from '../contexts/SessaoContext';
 import { HeaderPublico } from './PerfilVisitante';
 
-export function HeaderClube() {
+export function HeaderClube({ rightAccessory }: { rightAccessory?: ReactNode } = {}) {
   const { clubeAtivo } = useClubeAtivo();
   const { autenticado } = useSessao();
   const identidade = identidadeClubeHeader(clubeAtivo);
@@ -12,12 +13,13 @@ export function HeaderClube() {
 
   return (
     <Header
+      rightAccessory={rightAccessory}
       title={identidade.nome}
       logoUrl={identidade.escudo}
       papelUsuario={identidade.papel}
       showLogo
       btnNotificacao={autenticado ? 'bell' : undefined}
-      showProfile={!autenticado}
+      showProfile
     />
   );
 }

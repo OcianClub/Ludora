@@ -1,3 +1,4 @@
+import { aplicarExpulsao, reverterExpulsao, expulsaoDoJogador, validarReposicao } from './disciplina-escalacao.service';
 import { exigirOperacao, responderPausa } from '../manutencao/service';
 import { Router, type Request, type Response } from 'express';
 import type { Server } from 'socket.io';
@@ -225,7 +226,17 @@ export function criarCompartilhadasRoutes(io: Server) {
       pode ? prisma.auditoriaPartida.findMany({ where: { partida_id: p.id }, orderBy: { id: 'desc' }, take: 40 }) : [],
       pode && p.status === 'FINALIZADA' ? podeCorrigirSumula(prisma, p, ctx) : false,
     ]);
-    const dados = p.participantes.map(e => ({ ...e, escalacao: e.publicada_em || (pode && e.clube_id === ctx.clubeId) ? rows.filter(r => r.time_id === e.time_id) : [] }));
+    const disciplina = pode && p.status === 'AO_VIVO' && eventos.some(e => e.tipo === 'CARTAO_VERMELHO')
+      ? await prisma.auditoriaPartida.findMany({ where: { partida_id: p.id, acao: { in: ['JOGADOR_EXPULSO', 'SUBSTITUICAO'] } }, orderBy: { id: 'desc' } }) : [];
+    const dados = p.participantes.map(e => ({ ...e, escalacao: e.publicada_em || (pode && e.clube_id === ctx.clubeId) ? rows.filter(r => r.time_id === e.time_id).map(r => {
+      const expulso = eventos.some(evento => evento.tipo === 'CARTAO_VERMELHO' && evento.time_id === r.time_id && evento.jogador_id === r.jogador_id);
+      const expulsao = eventos.find(evento => evento.tipo === 'CARTAO_VERMELHO' && evento.time_id === r.time_id && evento.jogador_id === r.jogador_id);
+      const origem = disciplina.find(a => a.acao === 'JOGADOR_EXPULSO' && (a.dados as any)?.evento_id === expulsao?.id && (a.dados as any)?.jogador_id === r.jogador_id);
+      const reposta = disciplina.some(a => a.acao === 'SUBSTITUICAO' && (a.dados as any)?.expulsao_evento_id === expulsao?.id);
+      return { ...r, expulso, reposicao_pendente: !!origem && !!(origem.dados as any)?.estava_em_campo && !reposta,
+        ...(expulso && p.status === 'AO_VIVO' ? { titular: false } : {}) };
+
+    }) : [] }));
     const identidade = (time: typeof p.mandante) => time.clubeRepresentado ? { ...time, nome: time.clubeRepresentado.nome, escudo: time.clubeRepresentado.escudo } : time;
     const paulista = await publicacaoPartida(prisma, p.id);
     res.json({ partida: { ...p, mandante: identidade(p.mandante), visitante: identidade(p.visitante) }, organizador, equipes: dados, minhaEquipeId: equipe?.id, podePreparar: pode, podeSumula: pode && p.sumula_clube_id === ctx.clubeId,
@@ -312,8 +323,10 @@ export function criarCompartilhadasRoutes(io: Server) {
       const outro = p.participantes.find(e => e.clube_id !== ctx.clubeId);
       exigir(outro, 'Esta partida não tem outro clube participante.');
       exigir(!await tx.propostaPartida.count({ where: { partida_id: id, tipo: 'SUMULA', status: 'PENDENTE' } }), 'Já há uma transferência aguardando resposta.', 409);
-      return tx.propostaPartida.create({ data: { tipo: 'SUMULA', origem_id: ctx.clubeId, destino_id: outro.clube_id, respondente_id: outro.clube_id,
+      const criada = await tx.propostaPartida.create({ data: { tipo: 'SUMULA', origem_id: ctx.clubeId, destino_id: outro.clube_id, respondente_id: outro.clube_id,
         categoria_origem_id: equipe!.categoria_id, categoria_destino_id: outro.categoria_id, criado_por_id: ctx.usuarioId, partida_id: id, dados: { versao_partida: p.versao, responsavel_atual_id: p.sumula_clube_id, novo_responsavel_id: p.sumula_clube_id === ctx.clubeId ? outro.clube_id : ctx.clubeId } } });
+      await auditar(tx, ctx, id, 'SUMULA_SOLICITADA', { solicitacao_id: criada.id, responsavel_atual_id: p.sumula_clube_id, novo_responsavel_id: p.sumula_clube_id === ctx.clubeId ? outro.clube_id : ctx.clubeId });
+      return criada;
     });
     await avisoProposta(proposta.id).catch(() => console.error('Falha ao notificar transferência.')); res.json(proposta);
   }));
@@ -392,18 +405,24 @@ export function criarCompartilhadasRoutes(io: Server) {
     const repetido = await transacao(async tx => {
       const { p, equipe } = await partida(tx, id, ctx, true);
       const sai = inteiro(req.body.sai), entra = inteiro(req.body.entra);
-      const assinatura = JSON.stringify([sai, entra]);
+      const reposicao = req.body.reposicao_expulsao === true;
+      const assinatura = JSON.stringify(reposicao ? [sai, entra, true] : [sai, entra]);
       if (await reenvio(tx, ctx, id, 'SUBSTITUICAO', req.body.request_id, assinatura)) return true;
       exigir(p.status === 'AO_VIVO', 'Substituições só podem ser registradas durante o jogo.');
       exigir(sai !== entra, 'Escolha dois jogadores diferentes.');
       const rows = await tx.escalacaoPartida.findMany({ where: { partida_id: id, time_id: equipe!.time_id, jogador_id: { in: [sai, entra] } }, include: { jogador: { select: { posicao: true } } } });
-      exigir(rows.length === 2 && rows.find(r => r.jogador_id === sai)?.titular && !rows.find(r => r.jogador_id === entra)?.titular, 'Selecione um titular para sair e um reserva para entrar.');
+      exigir(rows.length === 2 && !rows.find(r => r.jogador_id === entra)?.titular, 'Escolha um jogador da equipe e um reserva para entrar.');
+      exigir(!await expulsaoDoJogador(tx, id, equipe!.time_id, entra), 'Um jogador expulso não pode retornar à partida.');
+      const expulsao = reposicao ? await validarReposicao(tx, p, equipe!.time_id, sai) : null;
+      if (!reposicao) {
+        exigir(rows.find(r => r.jogador_id === sai)?.titular && !await expulsaoDoJogador(tx, id, equipe!.time_id, sai), 'Selecione um titular para sair. Para uma expulsão, use a reposição.');
+      }
       exigir(rows.every(r => Number.isInteger(r.numCamisa) && r.numCamisa >= 1 && r.numCamisa <= 99), 'Os dois jogadores precisam ter camisa definida na súmula.');
-      exigir((rows.find(r => r.jogador_id === sai)?.jogador.posicao === 'Goleiro') === (rows.find(r => r.jogador_id === entra)?.jogador.posicao === 'Goleiro'), 'A substituição deve manter exatamente um goleiro em campo. Troque goleiro por goleiro ou jogador de linha por jogador de linha.');
+      if (!reposicao) exigir((rows.find(r => r.jogador_id === sai)?.jogador.posicao === 'Goleiro') === (rows.find(r => r.jogador_id === entra)?.jogador.posicao === 'Goleiro'), 'A substituição deve manter exatamente um goleiro em campo. Troque goleiro por goleiro ou jogador de linha por jogador de linha.');
       await tocar(tx, p, req.body.versao);
       await tx.escalacaoPartida.updateMany({ where: { partida_id: id, time_id: equipe!.time_id, jogador_id: sai }, data: { titular: false } });
       await tx.escalacaoPartida.updateMany({ where: { partida_id: id, time_id: equipe!.time_id, jogador_id: entra }, data: { titular: true } });
-      await auditar(tx, ctx, id, 'SUBSTITUICAO', { time_id: equipe!.time_id, sai, entra, periodo: p.periodo_atual, request_id: req.body.request_id || null, assinatura });
+      await auditar(tx, ctx, id, 'SUBSTITUICAO', { time_id: equipe!.time_id, sai, entra, expulsao_evento_id: expulsao?.id || null, periodo: p.periodo_atual, request_id: req.body.request_id || null, assinatura });
       return false;
     });
     if (!repetido) await transmitir(id); res.json({ ok: true });
@@ -466,12 +485,14 @@ export function criarCompartilhadasRoutes(io: Server) {
       const equipe = p.participantes.find(e => e.time_id === autorTimeId);
       const jogadorId = req.body.jogador_id ? inteiro(req.body.jogador_id) : null;
       if (jogadorId) {
+        if (p.status === 'AO_VIVO') exigir(!await expulsaoDoJogador(tx, id, autorTimeId, jogadorId), 'O jogador foi expulso e não pode registrar novos lances.');
         exigir(await tx.escalacaoPartida.count({ where: { partida_id: id, time_id: autorTimeId, jogador_id: jogadorId, ...(p.status === 'AO_VIVO' ? { titular: true } : {}) } }), 'O jogador deve estar convocado pela equipe selecionada e em campo durante o jogo.');
       }
       if (equipe && tipo === 'GOL' && !contra) exigir(jogadorId || req.body.autor_pendente === true, 'Selecione o autor ou escolha identificar depois.');
       if (equipe && tipo !== 'GOL') exigir(jogadorId || req.body.autor_pendente === true, 'Selecione o jogador responsável pelo evento.');
       const assistente = req.body.assistencia_jogador_id ? inteiro(req.body.assistencia_jogador_id) : null;
       if (assistente) {
+        if (p.status === 'AO_VIVO') exigir(!await expulsaoDoJogador(tx, id, timeId, assistente), 'Um jogador expulso não pode receber a assistência.');
         exigir(tipo === 'GOL' && !contra && jogadorId && assistente !== jogadorId, 'A assistência deve ser de outro jogador da equipe que marcou.');
         exigir(await tx.escalacaoPartida.count({ where: { partida_id: id, time_id: timeId, jogador_id: assistente, ...(p.status === 'AO_VIVO' ? { titular: true } : {}) } }), 'O autor da assistência deve estar na escalação e em campo.');
       }
@@ -479,6 +500,7 @@ export function criarCompartilhadasRoutes(io: Server) {
       await tocar(tx, p, req.body.versao);
       const e = await tx.evento.create({ data: { partida_id: id, tipo, time_id: timeId, jogador_id: jogadorId, gol_contra: contra,
         criado_por_id: ctx.usuarioId, periodo: req.body.periodo == null ? p.periodo_atual : inteiro(req.body.periodo, 1, 10), minuto: req.body.minuto == null || req.body.minuto === '' ? null : inteiro(req.body.minuto, 0, 200) }, include: { jogador: { select: { nome: true } } } });
+      if (tipo === 'CARTAO_VERMELHO') await aplicarExpulsao(tx, p, ctx, e);
       if (tipo === 'GOL') await tx.partida.update({ where: { id }, data: timeId === p.mandante_id ? { gols_mandante: { increment: 1 } } : { gols_visitante: { increment: 1 } } });
       const assistencia = assistente ? await tx.evento.create({ data: { partida_id: id, tipo: 'ASSISTENCIA', time_id: timeId, jogador_id: assistente,
         criado_por_id: ctx.usuarioId, periodo: e.periodo, minuto: e.minuto } }) : null;
@@ -526,6 +548,10 @@ export function criarCompartilhadasRoutes(io: Server) {
       if (p.status === 'FINALIZADA') exigir(motivo, 'Informe o motivo da correção após o encerramento.');
       await tocar(tx, p, req.body.versao);
       const novo = await tx.evento.update({ where: { id: evento.id }, data: { jogador_id: jogadorId }, include: { jogador: { select: { nome: true } } } });
+      if (evento.tipo === 'CARTAO_VERMELHO' && evento.jogador_id !== jogadorId) {
+        await reverterExpulsao(tx, p, ctx, evento);
+        await aplicarExpulsao(tx, p, ctx, novo);
+      }
       await auditar(tx, ctx, id, 'AUTORIA_IDENTIFICADA', { evento_id: evento.id, jogador_anterior: evento.jogador_id, jogador_id: jogadorId, tipo: evento.tipo, time_id: evento.time_id, gol_contra: evento.gol_contra, jogador_nome: novo.jogador?.nome || '', motivo, request_id: req.body.request_id || null, assinatura });
       return { evento: novo, repetido: false };
     });
@@ -568,7 +594,8 @@ export function criarCompartilhadasRoutes(io: Server) {
       const assistenciaId = (origem?.dados as { assistencia_evento_id?: number } | null)?.assistencia_evento_id;
       if (assistenciaId) await tx.evento.deleteMany({ where: { id: assistenciaId, partida_id: p.id, tipo: 'ASSISTENCIA' } });
       await tx.evento.delete({ where: { id: e.id } });
-      await auditar(tx, ctx, p.id, 'EVENTO_REMOVIDO', { evento: json(e), motivo: String(req.body.motivo || '').trim().slice(0, 500), request_id: requestId || null });
+      if (e.tipo === 'CARTAO_VERMELHO') await reverterExpulsao(tx, p, ctx, e);
+      await auditar(tx, ctx, p.id, 'EVENTO_REMOVIDO', { evento: json(e), desfeito: req.body.desfeito === true, motivo: String(req.body.motivo || '').trim().slice(0, 500), request_id: requestId || null });
       return { id: p.id, repetido: false };
     });
     if (!result.repetido) {

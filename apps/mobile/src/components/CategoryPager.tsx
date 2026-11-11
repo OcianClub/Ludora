@@ -1,5 +1,7 @@
 import {
   Children,
+  createContext,
+  useContext,
   forwardRef,
   useCallback,
   useImperativeHandle,
@@ -9,7 +11,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Keyboard, View, type StyleProp, type ViewStyle } from "react-native";
+import { Keyboard, ScrollView, View, type ScrollViewProps, type StyleProp, type ViewStyle } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
@@ -22,6 +24,21 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { pageDestination } from "@/src/utils/categoryMotion";
+
+const PagerGestureContext = createContext<ReturnType<typeof Gesture.Pan> | null>(null);
+
+/** A faixa inteira, inclusive as folgas, pertence ao scroll interno. */
+export function CategoryFilterScroll({ contentContainerStyle, ...props }: ScrollViewProps) {
+  const pager = useContext(PagerGestureContext);
+  const native = useMemo(() => {
+    const gesture = Gesture.Native().disallowInterruption(true).shouldActivateOnStart(true);
+    return pager ? gesture.blocksExternalGesture(pager) : gesture;
+  }, [pager]);
+  return <GestureDetector gesture={native}>
+    <ScrollView {...props} horizontal showsHorizontalScrollIndicator={false}
+      contentContainerStyle={[{ flexGrow: 1, minWidth: '100%' }, contentContainerStyle]} />
+  </GestureDetector>;
+}
 
 export type CategoryPagerHandle = {
   setPage: (index: number, velocity?: number) => void;
@@ -303,34 +320,36 @@ export const CategoryPager = forwardRef<CategoryPagerHandle, Props>(
       transform: [{ translateX: -progress.value * width }],
     }));
     return (
-      <GestureDetector gesture={pan}>
-        <View
-          style={[{ flex: 1, overflow: "hidden" }, style]}
-          onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-        >
-          <Animated.View
-            style={[
-              { flex: 1, flexDirection: "row", width: width * count },
-              track,
-            ]}
+      <PagerGestureContext.Provider value={pan}>
+        <GestureDetector gesture={pan}>
+          <View
+            style={[{ flex: 1, overflow: "hidden" }, style]}
+            onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
           >
-            {pages.map((page, index) => (
-              <View
-                key={(page as { key?: string }).key || index}
-                style={{ width, flexShrink: 0, height: "100%" }}
-                accessibilityElementsHidden={index !== active}
-                importantForAccessibility={
-                  index === active ? "auto" : "no-hide-descendants"
-                }
-              >
-                {visited.has(index) || Math.abs(index - active) <= 1
-                  ? page
-                  : null}
-              </View>
-            ))}
-          </Animated.View>
-        </View>
-      </GestureDetector>
+            <Animated.View
+              style={[
+                { flex: 1, flexDirection: "row", width: width * count },
+                track,
+              ]}
+            >
+              {pages.map((page, index) => (
+                <View
+                  key={(page as { key?: string }).key || index}
+                  style={{ width, flexShrink: 0, height: "100%" }}
+                  accessibilityElementsHidden={index !== active}
+                  importantForAccessibility={
+                    index === active ? "auto" : "no-hide-descendants"
+                  }
+                >
+                  {visited.has(index) || Math.abs(index - active) <= 1
+                    ? page
+                    : null}
+                </View>
+              ))}
+            </Animated.View>
+          </View>
+        </GestureDetector>
+      </PagerGestureContext.Provider>
     );
   },
 );
