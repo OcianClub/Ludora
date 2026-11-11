@@ -432,6 +432,14 @@ export default function Jogos() {
         </CategoryFilterScroll>
 
         <View style={styles.filterBarContainer}>
+          {podeGerenciar && (
+            <IconButton
+              icon="email-outline"
+              label={`Solicitações: ${solicitacoesPendentes} aguardando sua resposta`}
+              badge={solicitacoesPendentes}
+              onPress={() => router.push("/solicitacoes-partidas")}
+            />
+          )}
           <SearchField
             value={busca}
             onChangeText={setBusca}
@@ -754,7 +762,7 @@ export default function Jogos() {
 
   return (
     <View style={styles.container}>
-      <HeaderClube rightAccessory={podeGerenciar ? <IconButton icon="email-outline" variant="ghost" label={`Solicitações: ${solicitacoesPendentes} aguardando sua resposta`} badge={solicitacoesPendentes} onPress={() => router.push("/solicitacoes-partidas")} /> : undefined} />
+      <HeaderClube />
 
       <CarrosselSubs
         tipoFiltro={tipoFiltro}

@@ -59,7 +59,7 @@ import PalpitePartida from './PalpitePartida';
 import CompartilharPartida from './CompartilharPartida';
 import { useFilaSumula } from '../hooks/useFilaSumula';
 import { SelectField } from './ui/SelectField';
-import { validarLance, ultimoLance, placarDoPeriodo, trocaValida, ultimoPeriodoIniciado } from '../utils/validacaoSumula';
+import { validarLance, ultimoLance, placarDoPeriodo, trocaValida, ultimoPeriodoIniciado, podeControlarAoVivo, podeAvancarTempo } from '../utils/validacaoSumula';
 
 type Styles = ReturnType<typeof createStyles>;
 type Acao = {
@@ -95,6 +95,7 @@ type Props = {
   connected: boolean;
   onBack: () => void;
   onRefresh: () => Promise<GestaoPartida | undefined>;
+  headerAccessory?: React.ReactNode;
 };
 
 function Escudo({
@@ -261,6 +262,7 @@ export default function SumulaPartida({
   connected,
   onBack,
   onRefresh,
+  headerAccessory,
 }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -320,9 +322,10 @@ export default function SumulaPartida({
           const atual = ultimo.current;
           if (AppState.currentState !== 'active') throw new Error('Envio pausado em segundo plano. Volte à partida e toque em Verificar.');
           if (atual.auditoria?.some(a => a.dados?.request_id === item.id)) return;
+          if (item.dados.endpoint.endsWith('/substituicoes') && !podeControlarAoVivo(atual))
+            throw new Error('Somente o responsável pela súmula pode fazer substituições durante o jogo.');
           if (!atual.podeSumula && !(atual.partida.status === 'FINALIZADA' && atual.podeCorrigir) &&
-              !(item.dados.method === 'PATCH' && /eventos\/\d+$/.test(item.dados.endpoint) && atual.podePreparar) &&
-              !(item.dados.endpoint.endsWith('/substituicoes') && atual.podePreparar))
+              !(item.dados.method === 'PATCH' && /eventos\/\d+$/.test(item.dados.endpoint) && atual.podePreparar))
             throw new Error('Seu acesso à súmula mudou. Atualize antes de continuar.');
           if (!["AO_VIVO", "FINALIZADA"].includes(atual.partida.status))
             throw new Error("A situação da partida mudou. Atualize a súmula.");
@@ -413,13 +416,13 @@ export default function SumulaPartida({
       if (vermelhosVistos.current.has(evento.id)) continue;
       vermelhosVistos.current.add(evento.id);
       const jogador = minha?.escalacao.find(j => j.jogador_id === evento.jogador_id);
-      if (!aoVivo || !data.podePreparar || !jogador?.reposicao_pendente) continue;
+      if (!podeControlarAoVivo(data) || !jogador?.reposicao_pendente) continue;
       Alert.alert('Jogador expulso', `${jogador.jogador?.nome} saiu de campo. Escolha um reserva para repor a vaga.`, [
         { text: 'Depois', style: 'cancel' },
         { text: 'Escolher reposição', onPress: () => { setSai(jogador.jogador_id); setEntra(undefined); abrir('substituir'); } },
       ]);
     }
-  }, [data.eventos, minha, aoVivo, data.podePreparar]);
+  }, [data.eventos, minha, aoVivo, data.podeSumula]);
 
   const alterando = ocupado || restaurando || pendentes.length > 0;
   const tempo = aoVivo ? Math.min(tempoSelecionado || p.periodo_atual, p.periodo_atual) : tempoSelecionado;
@@ -466,6 +469,8 @@ export default function SumulaPartida({
     ? timeAutor(data, { time_id: form.timeId, gol_contra: form.contra })
     : undefined;
   const equipeAutor = data.equipes.find((e) => e.time_id === atorTime);
+  const golContraSemAutor = !!form?.contra && !form.existente;
+  const podeSubstituir = podeControlarAoVivo(data);
   const nomeTime = (id?: number | null) =>
     times.find((t) => t.id === id)?.nome || "Equipe";
   const roster = [...(equipeAutor?.publicada_em ? equipeAutor.escalacao : [])]
@@ -523,6 +528,7 @@ export default function SumulaPartida({
     }
   }
   function abrir(dialog: Dialogo) {
+    if (dialog === "substituir" && !podeControlarAoVivo(ultimo.current)) return;
     setErro("");
     setMotivo("");
     setMenu(null);
@@ -566,6 +572,7 @@ export default function SumulaPartida({
     tipo: string,
     method = "POST",
   ) {
+    if (endpoint === "substituicoes" && !podeControlarAoVivo(ultimo.current)) { setErro("Somente o responsável pela súmula pode fazer substituições."); return; }
     if (endpoint === "substituicoes" && !trocaValida(minha, payload.sai as number, payload.entra as number)) { setErro("Escolha uma vaga elegível e um reserva disponível. Na troca comum, preserve a posição do goleiro."); return; }
     const caminho = endpoint.startsWith("/")
       ? endpoint
@@ -613,7 +620,7 @@ export default function SumulaPartida({
         {
           tipo: form.tipo,
           time_id: form.timeId,
-          jogador_id: identificarDepois ? undefined : form.jogadorId,
+          jogador_id: identificarDepois || form.contra ? undefined : form.jogadorId,
           gol_contra: form.contra,
           minuto: form.minuto ? Number(form.minuto) : undefined,
           assistencia_jogador_id: !identificarDepois && !form.contra ? form.assistenteId : undefined,
@@ -656,6 +663,7 @@ export default function SumulaPartida({
   }
   function mudarTempo(n: number) {
     if (!aoVivo) { setTempoSelecionado(Math.max(0, Math.min(n, ultimoPeriodoIniciado(data)))); return; }
+    if (n > tempo && !podeAvancarTempo(data, tempo, totalTempos, alterando)) return;
     if (n <= p.periodo_atual) { setTempoSelecionado(n === p.periodo_atual ? 0 : Math.max(1, n)); return; }
     if (!data.podeSumula || alterando || n !== p.periodo_atual + 1 || n > totalTempos) return;
     setProximoTempo(n);
@@ -751,7 +759,7 @@ export default function SumulaPartida({
     evento: form?.existente
       ? "Corrigir jogador do lance"
       : form?.tipo === "GOL"
-        ? form.contra ? `Quem fez o gol contra pelo ${nomeTime(atorTime)}?` : `Quem marcou pelo ${nomeTime(form.timeId)}?`
+        ? form.contra ? `Gol contra a favor do ${nomeTime(form.timeId)}` : `Quem marcou pelo ${nomeTime(form.timeId)}?`
         : `Registrar ${NOMES_EVENTOS[form?.tipo || "FALTA"].toLowerCase()}`,
     remover: "Remover evento?",
     encerrar: "Encerrar a partida?",
@@ -778,6 +786,7 @@ export default function SumulaPartida({
         <Text numberOfLines={1} style={styles.headerTitle}>
           {p.mandante.nome} × {p.visitante.nome}
         </Text>
+        {headerAccessory}
       </View>
       <ScrollView
         contentContainerStyle={[
@@ -1138,14 +1147,9 @@ export default function SumulaPartida({
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="Próximo tempo"
-              disabled={
-                tempo >=
-                  (aoVivo && !data.podeSumula
-                    ? p.periodo_atual
-                    : finalizada ? p.periodo_atual : totalTempos) ||
-                (aoVivo && data.podeSumula && alterando)
-              }
-              style={[styles.iconButton, styles.close]}
+              accessibilityState={{ disabled: !podeAvancarTempo(data, tempo, totalTempos, alterando) }}
+              disabled={!podeAvancarTempo(data, tempo, totalTempos, alterando)}
+              style={[styles.iconButton, styles.close, !podeAvancarTempo(data, tempo, totalTempos, alterando) && styles.disabled]}
               onPress={() => mudarTempo(tempo + 1)}
             >
               <Icon name="chevron-right" size={22} color={colors.texto} />
@@ -1238,8 +1242,7 @@ export default function SumulaPartida({
           <View style={styles.section}>
             <View style={styles.between}>
               <Text style={styles.heading}>Escalação</Text>
-              {aoVivo &&
-                data.podePreparar &&
+              {podeSubstituir &&
                 button(
                   "Fazer substituição",
                   () => {
@@ -1252,7 +1255,7 @@ export default function SumulaPartida({
                   "swap-horizontal",
                 )}
             </View>
-            {aoVivo && data.podePreparar && minha?.escalacao.filter(j => j.reposicao_pendente).map(j => <View key={j.jogador_id} style={styles.notice}>
+            {podeSubstituir && minha?.escalacao.filter(j => j.reposicao_pendente).map(j => <View key={j.jogador_id} style={styles.notice}>
               <Text style={styles.name}>Expulsão · {j.jogador?.nome}</Text>
               <Text style={styles.muted}>Há uma vaga para reposição. O jogador expulso não pode retornar.</Text>
               {button('Escolher reposição', () => { setSai(j.jogador_id); setEntra(undefined); abrir('substituir'); }, false, alterando, 'swap-horizontal')}
@@ -1578,13 +1581,13 @@ export default function SumulaPartida({
                       </ScrollView>
                     )}
                     <Text style={styles.muted}>
-                      {form.contra
-                        ? `Escolha quem fez o gol contra no ${nomeTime(atorTime)}. O gol será somado ao ${nomeTime(form.timeId)}.`
+                      {golContraSemAutor
+                        ? `Gol contra do adversário. Conta a favor do ${nomeTime(form.timeId)}, sem identificar jogador.`
                         : equipeAutor
                           ? "Selecione o jogador. Os atletas em campo aparecem primeiro."
                           : "Equipe externa ao Ludora. O registro será vinculado apenas à equipe."}
                     </Text>
-                    {!!equipeAutor && (
+                    {!!equipeAutor && !golContraSemAutor && (
                       <SearchField
                         accessibilityLabel="Buscar autor por nome ou camisa"
                         placeholder="Nome ou camisa"
@@ -1594,7 +1597,7 @@ export default function SumulaPartida({
                         onFocus={revelarCampo}
                       />
                     )}
-                    <ScrollView style={styles.pickerList} contentContainerStyle={styles.pickerContent} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                    {!golContraSemAutor && <ScrollView style={styles.pickerList} contentContainerStyle={styles.pickerContent} nestedScrollEnabled keyboardShouldPersistTaps="handled">
                       {!roster.length && !!equipeAutor && <Text style={styles.muted}>Nenhum jogador encontrado.</Text>}
                       {roster.map(j => (
                         <TouchableOpacity key={j.jogador_id}
@@ -1632,7 +1635,7 @@ export default function SumulaPartida({
                           <View style={{ width: 19, height: 19, borderRadius: 10, borderWidth: 1, borderColor: form.jogadorId === j.jogador_id ? colors.primaria : colors.textoSecundario, backgroundColor: form.jogadorId === j.jogador_id ? colors.primaria : 'transparent', alignItems: 'center', justifyContent: 'center' }}>{form.jogadorId === j.jogador_id && <Icon name="check" size={13} color="#fff" />}</View>
                         </TouchableOpacity>
                       ))}
-                    </ScrollView>
+                    </ScrollView>}
                     {!form.existente && <View style={{ gap: 16 }}>
                       <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: extrasAbertos }} onPress={() => setExtrasAbertos(v => !v)} style={[styles.row, { minHeight: 36 }]}><Icon name={extrasAbertos ? 'chevron-down' : 'chevron-right'} size={14} color={colors.textoSecundario} /><Text style={styles.muted}>{form.tipo === 'GOL' && !form.contra ? 'Adicionar assistência e minuto' : 'Adicionar minuto'}</Text></TouchableOpacity>
                       {extrasAbertos && <View style={{ gap: 18 }}>
@@ -1640,7 +1643,24 @@ export default function SumulaPartida({
                         <View style={{ gap: 8 }}><Text style={styles.name}>Minuto (opcional)</Text><TextInput onFocus={revelarCampo} accessibilityLabel="Minuto do lance" value={form.minuto || ''} onChangeText={value => setForm({ ...form, minuto: value.replace(/[^0-9]/g, '').slice(0, 3) })} keyboardType="number-pad" inputMode="numeric" maxLength={3} style={[styles.reason, { minHeight: 44 }]} placeholder="De 0 a 200" placeholderTextColor={colors.textoSecundario} /></View>
                       </View>}
                     </View>}
-                    {form.tipo === 'GOL' && !form.existente && <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: form.contra }} style={{ flexDirection: 'row', gap: 10, alignItems: 'center', padding: 11, borderRadius: 8, borderWidth: 1, borderColor: colors.bordaAtencao, backgroundColor: colors.fundoAtencao }} onPress={() => { setBusca(''); setForm({ ...form, contra: !form.contra, jogadorId: undefined, assistenteId: undefined }); }}><Icon name="ball" size={22} color={colors.tituloAtencao} /><View style={styles.flex}><Text style={[styles.name, { color: colors.tituloAtencao }]}>{form.contra ? `Voltar aos jogadores do ${nomeTime(form.timeId)}` : `Gol contra do ${nomeTime(form.timeId === p.mandante_id ? p.visitante_id : p.mandante_id)}`}</Text><Text style={[styles.tiny, { color: colors.corpoAtencao }]}>{form.contra ? `Conta para o ${nomeTime(form.timeId)}.` : 'Abre a escalação adversária para escolher o autor.'}</Text></View><Icon name="chevron-right" size={17} color={colors.tituloAtencao} /></TouchableOpacity>}
+                    {form.tipo === 'GOL' && !form.existente && (
+                      <TouchableOpacity
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: form.contra }}
+                        aria-checked={form.contra}
+                        style={{ flexDirection: 'row', gap: 10, alignItems: 'center', padding: 11, borderRadius: 8, borderWidth: form.contra ? 2 : 1, borderColor: form.contra ? colors.tituloAtencao : colors.bordaAtencao, backgroundColor: colors.fundoAtencao }}
+                        onPress={() => { setBusca(''); setErro(''); setForm({ ...form, contra: !form.contra, jogadorId: undefined, assistenteId: undefined }); }}
+                      >
+                        <Icon name="ball" size={22} color={colors.tituloAtencao} />
+                        <View style={styles.flex}>
+                          <Text style={[styles.name, { color: colors.tituloAtencao }]}>Gol contra do adversário</Text>
+                          <Text style={[styles.tiny, { color: colors.corpoAtencao }]}>{form.contra ? 'Selecionado · sem identificar jogador.' : `Conta a favor do ${nomeTime(form.timeId)}.`}</Text>
+                        </View>
+                        <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: colors.tituloAtencao, backgroundColor: form.contra ? colors.tituloAtencao : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                          {form.contra && <Icon name="check" size={14} color={colors.fundo} />}
+                        </View>
+                      </TouchableOpacity>
+                    )}
                     {(finalizada || form.existente) && (
                       <TextInput onFocus={revelarCampo}
                         accessibilityLabel={
@@ -1678,11 +1698,11 @@ export default function SumulaPartida({
                             : "Registrar evento",
                         () => registrar(),
                         true,
-                        (!!equipeAutor && !form.jogadorId) || restaurando ||
+                        (!!equipeAutor && !form.jogadorId && !golContraSemAutor) || restaurando ||
                           (finalizada && !motivo.trim()),
                       )}
                     </View>
-                    {!form.existente && !!equipeAutor && (
+                    {!form.existente && !!equipeAutor && !golContraSemAutor && (
                       <TouchableOpacity
                         accessibilityRole="button"
                         disabled={finalizada && !motivo.trim()}
@@ -1880,7 +1900,7 @@ export default function SumulaPartida({
                         />
                       </>
                     )}
-                    {dialogo === "substituir" && minha && (
+                    {dialogo === "substituir" && podeSubstituir && minha && (
                       <><Text style={styles.muted}>{reposicao ? `Escolha um reserva para a vaga de ${reposicao.jogador?.nome}. O expulso não poderá voltar.` : 'Selecione quem sai e quem entra. Mantenha um goleiro em campo.'}</Text>{!!sai && !!entra && !trocaValida(minha, sai, entra) && <Text accessibilityRole="alert" style={styles.error}>Selecione um reserva elegível. A troca comum deve manter um goleiro em campo.</Text>}<SubstituicaoPartida
                         equipe={equipeParaTroca!}
                         sai={sai}
@@ -2033,7 +2053,7 @@ export default function SumulaPartida({
                               "SUBSTITUICAO",
                             ),
                           true,
-                          !trocaValida(minha, sai, entra) || alterando,
+                          !podeSubstituir || !trocaValida(minha, sai, entra) || alterando,
                         )}
 
                     </View>

@@ -79,7 +79,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="competicoes"
-        options={{ title: 'Campeonatos', tabBarIcon: ({ color, focused }) => <IconeAba nome="trophy-outline" cor={color} selecionado={focused} /> }}
+        options={{ title: 'Torneios', tabBarIcon: ({ color, focused }) => <IconeAba nome="trophy-outline" cor={color} selecionado={focused} /> }}
       />
       <Tabs.Screen
         name="estatisticas/estatisticas"

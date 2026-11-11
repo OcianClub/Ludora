@@ -1,5 +1,11 @@
 import type { EquipePartida, EventoPartida, GestaoPartida } from '../services/partidasCompartilhadas';
 import { timeAutor } from './sumulaPartida';
+export function podeControlarAoVivo(data: GestaoPartida) {
+  return data.partida.status === 'AO_VIVO' && data.podeSumula;
+}
+export function podeAvancarTempo(data: GestaoPartida, tempo: number, total: number, alterando = false) {
+  return podeControlarAoVivo(data) && !alterando && tempo >= 1 && tempo < total;
+}
 export function ultimoPeriodoIniciado(data: GestaoPartida) {
   return Math.max(1, data.partida.periodo_atual,
     ...data.eventos.map(e => e.periodo),
@@ -13,7 +19,7 @@ export function validarLance(data: GestaoPartida, form: { tipo: string; timeId: 
   if (form.contra && form.tipo !== 'GOL') return 'Gol contra só é válido para gols.';
   const jogador = equipe?.escalacao.find(j => j.jogador_id === form.jogadorId);
   if (!depois && form.jogadorId && (!jogador || !equipe?.publicada_em || (aoVivo && !form.existente && (!jogador.titular || jogador.expulso)))) return 'O jogador não está mais elegível. Confira a escalação atual.';
-  if (!depois && equipe && !form.jogadorId) return 'Selecione o jogador ou escolha identificar depois.';
+  if (!depois && equipe && !form.jogadorId && (!form.contra || form.existente)) return 'Selecione o jogador ou escolha identificar depois.';
   if (!depois && form.assistenteId) {
     const assistente = equipe?.escalacao.find(j => j.jogador_id === form.assistenteId);
     if (form.tipo !== 'GOL' || form.contra || !form.jogadorId || form.assistenteId === form.jogadorId || !assistente || (aoVivo && (!assistente.titular || assistente.expulso))) return 'A assistência deve ser de outro jogador em campo da equipe que marcou.';

@@ -41,11 +41,11 @@ const CartaoPartida = memo(function CartaoPartida({ jogo, largura, ocupado, abri
     accessibilityState={{ disabled: ocupado, busy: abrindo }}
     accessibilityLabel={`Acompanhar ${nomeEquipeDescoberta(jogo.mandante.nome)} ${jogo.gols_mandante} a ${jogo.gols_visitante} ${nomeEquipeDescoberta(jogo.visitante.nome)}, ${jogo.categoria}, ao vivo`}
   >
-    <View style={styles.meta}>
+    <View style={styles.meta} collapsable={false}>
       <Text style={styles.categoria}>{jogo.categoria.toUpperCase()}</Text>
       <View style={styles.indicador} />
     </View>
-    <View style={styles.placarRow}>
+    <View style={styles.placarRow} collapsable={false}>
       <Equipe equipe={jogo.mandante} />
       <View style={styles.placar}>
         <Text style={styles.gols}>{jogo.gols_mandante}</Text>
@@ -54,7 +54,7 @@ const CartaoPartida = memo(function CartaoPartida({ jogo, largura, ocupado, abri
       </View>
       <Equipe equipe={jogo.visitante} />
     </View>
-    <View style={styles.rodape}>
+    <View style={styles.rodape} collapsable={false}>
       <Text numberOfLines={1} style={styles.data}>{dataPartidaDescoberta(jogo.data, jogo.horario)}</Text>
       {abrindo ? <ActivityIndicator size="small" color={colors.primaria} /> : <Icon name="chevron-right" size={16} color={colors.textoSecundario} />}
     </View>
@@ -78,6 +78,8 @@ export default function AoVivoPublico({ clubes }: { clubes?: ClubeListado[] }) {
   useEffect(() => { montado.current = true; return () => { montado.current = false; }; }, []);
   const atualizar = useRef<() => void>(() => {});
   useFocusEffect(useCallback(() => {
+    abrindo.current = false;
+    setAbrindoId(null);
     let ativo = true, pendente = false, repetir = false;
     const controller = new AbortController();
     async function carregar() {
@@ -115,15 +117,22 @@ export default function AoVivoPublico({ clubes }: { clubes?: ClubeListado[] }) {
   const abrir = useCallback(async (jogo: PartidaDescoberta) => {
     if (abrindo.current) return;
     abrindo.current = true; setAbrindoId(jogo.id); setErro('');
+    let navegou = false;
     try {
       const ctx = contexto.current;
       const lista = ctx.clubes ?? await fetchClubes();
       const clube = clubeParaPartida(jogo, lista, ctx.clubeAtivo?.id);
       if (!clube) throw new Error();
       await ctx.definirClubeAtivo({ id: clube.id, nome: clube.nome, escudo: clube.escudo, papel: clube.papel });
-      if (montado.current) ctx.router.push({ pathname: '/partida-compartilhada/[id]', params: { id: String(jogo.id) } });
+      if (montado.current) {
+        ctx.router.push({ pathname: '/partida-compartilhada/[id]', params: { id: String(jogo.id) } });
+        navegou = true;
+      }
     } catch { if (montado.current) setErro('Não foi possível abrir a partida. Tente novamente.'); }
-    finally { abrindo.current = false; if (montado.current) setAbrindoId(null); }
+    finally {
+      // O efeito de foco libera o card ao retornar, fora da transição de saída.
+      if (!navegou) { abrindo.current = false; if (montado.current) setAbrindoId(null); }
+    }
   }, []);
 
   const lista = useRef<FlatList<PartidaDescoberta>>(null);
@@ -167,6 +176,7 @@ export default function AoVivoPublico({ clubes }: { clubes?: ClubeListado[] }) {
       {carregando && !disponiveis.length
         ? <View accessibilityLabel="Carregando partidas ao vivo" accessibilityRole="progressbar"><Skeleton height={152} /></View>
         : largura > 0 && <FlatList
+          removeClippedSubviews={false}
           ref={lista} data={disponiveis} horizontal showsHorizontalScrollIndicator={false}
           keyExtractor={j => String(j.id)} initialNumToRender={3} maxToRenderPerBatch={4} windowSize={3}
           extraData={abrindoId} ItemSeparatorComponent={Espaco}

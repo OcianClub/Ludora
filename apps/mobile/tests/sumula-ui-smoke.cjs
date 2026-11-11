@@ -36,6 +36,7 @@ fs.writeFileSync(backend, `
 import { sumulaFixture } from '../../apps/mobile/tests/sumula.fixture';
 export let model = sumulaFixture();
 if (/guest|common/.test(location.search)) { model.podePreparar = false; model.podeSumula = false; model.auditoria = []; }
+if (location.search.includes('opponent')) { model.podeSumula = false; model.minhaEquipeId = 2; }
 if (location.search.includes('final')) model.partida.status = 'FINALIZADA';
 model.eventos = []; model.partida.gols_mandante = 0; model.partida.gols_visitante = 0;
 export const BASE_URL = '/isolated';
@@ -86,14 +87,21 @@ const aliasModules = /^(expo-router|expo-secure-store|expo-linear-gradient|expo-
   const browser=await chromium.launch({channel:'msedge',headless:true});
   let scenarios=0;
   try {
-    for(const width of [320,390,600,900])for(const role of ['manager','guest','common','final','final-guest']){
+    for(const width of [320,390,600,900])for(const role of ['manager','guest','common','opponent','final','final-guest']){
       const page=await browser.newPage({viewport:{width,height:840}}), errors=[];page.on('pageerror',e=>errors.push(e.message));
       await page.goto(`${url}/?${role}`);
       try { await page.getByText('Acontecimentos',{exact:true}).waitFor({timeout:7000}); }
       catch(error) { await page.screenshot({path:path.join(output,'failure.png'),fullPage:true}); console.error({errors, text:await page.locator('body').innerText()}); throw error; }
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${width}/${role}: overflow`);
-      if(/guest|common/.test(role)) {
-        for(const name of ['Registrar gol de Ocian','Fazer substituição','Finalizar partida','Histórico de alterações']) assert.equal(await page.getByRole('button',{name,exact:true}).count(),0);
+      if(/guest|common|opponent/.test(role)) {
+        for(const name of ['Registrar gol de Ocian','Fazer substituição','Finalizar partida',...(role==='opponent'?[]:['Histórico de alterações'])]) assert.equal(await page.getByRole('button',{name,exact:true}).count(),0,`${width}/${role}: ${name}`);
+      }
+      if(/guest|common|opponent/.test(role) && !role.startsWith('final')) {
+        assert.equal(await page.getByRole('button',{name:'Próximo tempo',exact:true}).isDisabled(),true);
+        await page.getByRole('button',{name:'Tempo anterior',exact:true}).click();
+        assert.equal(await page.getByRole('button',{name:'Próximo tempo',exact:true}).isDisabled(),true);
+        assert.equal(await page.evaluate(()=>window.fixture.writes.length),0);
+        await page.getByText('Voltar ao vivo',{exact:true}).click();
       }
       if(role.startsWith('final')) {await page.getByRole('button',{name:'Compartilhar resultado',exact:true}).click();await page.getByText('Incluir destaques',{exact:true}).waitFor();await page.getByRole('button',{name:'Fechar janela',exact:true}).last().click();}
       if(role==='common' && width===390){await page.getByRole('radio',{name:'Empate, 0% dos votos',exact:true}).click();await page.getByText('Palpite salvo. Você pode trocar até o encerramento.',{exact:true}).waitFor();assert.equal(await page.evaluate(()=>window.fixture.vote),'EMPATE');}
@@ -113,10 +121,13 @@ const aliasModules = /^(expo-router|expo-secure-store|expo-linear-gradient|expo-
     const anonymous=await periodPage.getByRole('button',{name:'Registrar gol sem identificar agora',exact:true}).boundingBox();
     assert.ok(anonymous && anonymous.y+anonymous.height<=840-24,'registro sem autor respeita a área segura');
     assert.ok(anonymous && anonymous.x>=0 && anonymous.x+anonymous.width<=320,'ação não ultrapassa a tela estreita');
-    await periodPage.getByText('Gol contra do Santos',{exact:true}).click();
-    await periodPage.getByText('Quem fez o gol contra pelo Santos?',{exact:true}).waitFor();
-    await periodPage.getByRole('button',{name:'Selecionar Atleta 2-1, camisa 2',exact:true}).waitFor();
-    assert.equal(await periodPage.getByRole('button',{name:'Selecionar Atleta 1-1, camisa 2',exact:true}).count(),0,'gol contra mostra a autoria adversária');
+    await periodPage.getByRole('checkbox',{name:/Gol contra do adversário/}).click();
+    await periodPage.getByText('Gol contra a favor do Ocian',{exact:true}).waitFor();
+    assert.equal(await periodPage.getByRole('checkbox',{name:/Gol contra do adversário/}).isChecked(),true);
+    assert.equal(await periodPage.getByRole('button',{name:/Selecionar Atleta/}).count(),0,'gol contra não exige escolher jogador');
+    assert.equal(await periodPage.getByRole('button',{name:'Registrar gol',exact:true}).isEnabled(),true);
+    await periodPage.getByRole('checkbox',{name:/Gol contra do adversário/}).click();
+    assert.equal(await periodPage.getByRole('button',{name:'Registrar gol',exact:true}).isDisabled(),true,'desmarcar restaura a seleção obrigatória de autor');
     await periodPage.getByRole('button',{name:'Fechar janela',exact:true}).last().click();
     await periodPage.getByRole('button',{name:'Próximo tempo',exact:true}).click();
     await periodPage.getByText('Iniciar próximo tempo?',{exact:true}).waitFor();
@@ -135,6 +146,31 @@ const aliasModules = /^(expo-router|expo-secure-store|expo-linear-gradient|expo-
     assert.ok(footer && footer.y+footer.height<=840-24,'ação acima da área segura');
     await periodPage.screenshot({path:path.join(output,'substitution-320.png'),fullPage:true});
     await periodPage.close();scenarios++;
+    const ownGoalPage=await browser.newPage({viewport:{width:390,height:840}});
+    await ownGoalPage.goto(`${url}/?manager`);
+    await ownGoalPage.getByRole('button',{name:'Registrar gol de Ocian',exact:true}).click();
+    await ownGoalPage.getByRole('button',{name:'Selecionar Atleta 1-1, camisa 2',exact:true}).click();
+    await ownGoalPage.getByRole('checkbox',{name:/Gol contra do adversário/}).click();
+    await ownGoalPage.getByRole('button',{name:'Registrar gol',exact:true}).click();
+    await ownGoalPage.waitForFunction(()=>window.fixture.writes.length===1);
+    const ownGoal=await ownGoalPage.evaluate(()=>window.fixture.writes[0].body);
+    assert.equal(ownGoal.gol_contra,true);
+    assert.equal(ownGoal.time_id,10,'beneficiário permanece o time escolhido');
+    assert.equal(ownGoal.jogador_id,undefined,'seleção anterior não vaza para o gol contra');
+    assert.equal(ownGoal.assistencia_jogador_id,undefined);
+    assert.equal(await ownGoalPage.evaluate(()=>window.fixture.model.partida.gols_mandante),1);
+    await ownGoalPage.close();scenarios++;
+    const permissionPage=await browser.newPage({viewport:{width:390,height:840}});
+    await permissionPage.goto(`${url}/?manager`);
+    await permissionPage.getByRole('button',{name:'Fazer substituição',exact:true}).click();
+    await permissionPage.getByRole('radio',{name:'Sai: Atleta 1-1',exact:true}).click();
+    await permissionPage.getByRole('radio',{name:'Entra: Atleta 1-6',exact:true}).click();
+    await permissionPage.getByRole('button',{name:'Confirmar substituição',exact:true}).click();
+    await permissionPage.evaluate(()=>{window.fixture.model.podeSumula=false;});
+    await permissionPage.getByText('Somente o responsável pela súmula pode fazer substituições durante o jogo.',{exact:true}).waitFor({timeout:12000});
+    assert.equal(await permissionPage.evaluate(()=>window.fixture.writes.length),0,'transferência durante a contagem cancela a permissão do envio');
+    assert.equal(await permissionPage.getByRole('button',{name:'Fazer substituição',exact:true}).count(),0);
+    await permissionPage.close();scenarios++;
     const page=await browser.newPage({viewport:{width:390,height:840}}); page.on('pageerror',e=>console.error('Queue UI:',e.message)); await page.goto(`${url}/?manager`);await page.getByRole('button',{name:'Registrar gol de Ocian',exact:true}).click();
     await page.getByRole('button',{name:'Selecionar Atleta 1-1, camisa 2',exact:true}).click();
     await page.waitForTimeout(300);await page.screenshot({path:path.join(output,'goal-dialog-390.png'),fullPage:true});

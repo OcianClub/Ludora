@@ -74,6 +74,7 @@ type Props = {
   clubeId: number;
   onBack: () => void;
   onRefresh: () => Promise<GestaoPartida | undefined>;
+  headerAccessory?: React.ReactNode;
 };
 
 const ajudaTroca =
@@ -270,6 +271,7 @@ export default function PreparacaoPartida({
   clubeId,
   onBack,
   onRefresh,
+  headerAccessory,
 }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -926,6 +928,7 @@ export default function PreparacaoPartida({
         >
           Preparação da partida
         </Text>
+        {headerAccessory}
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Opções da partida"

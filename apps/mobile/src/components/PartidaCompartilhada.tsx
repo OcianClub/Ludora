@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
+  Modal,
   Text,
   TouchableOpacity,
 } from "react-native";
@@ -13,9 +14,12 @@ import { useClubeAtivo } from "../contexts/ClubeAtivoContext";
 import { BASE_URL } from "../services/api";
 import {
   gestaoPartida,
+  requisicaoPartida,
   type GestaoPartida,
 } from "../services/partidasCompartilhadas";
 import PreparacaoPartida from "./PreparacaoPartida";
+import SolicitacoesPartidas from "./SolicitacoesPartidas";
+import { IconButton } from "./ui/Controls";
 import SumulaPartida from "./SumulaPartida";
 import { criarFilaConsulta } from "../utils/filaConsulta";
 import { receberPalpite } from '../services/palpitePartida';
@@ -30,7 +34,10 @@ export default function PartidaCompartilhada({
 }) {
   const { colors } = useTheme();
   const { autenticado } = useSessao();
-  const { clubeAtivo } = useClubeAtivo();
+  const { clubeAtivo, podeGerenciar } = useClubeAtivo();
+  const [solicitacoesAbertas, setSolicitacoesAbertas] = useState(false);
+  const [solicitacoesPendentes, setSolicitacoesPendentes] = useState(0);
+  const [partidaConsulta, setPartidaConsulta] = useState<number | null>(null);
   const [data, setData] = useState<GestaoPartida | null>(null);
   const [loading, setLoading] = useState(true),
     [error, setError] = useState("");
@@ -62,6 +69,21 @@ export default function PartidaCompartilhada({
     setData(next);
     return next;
   }
+  async function atualizarSolicitacoes() {
+    if (!autenticado || !podeGerenciar || !clubId) return;
+    const source = `${clubId}:${id}:${autenticado}`;
+    try {
+      const resumo = await requisicaoPartida<{ pendentes: number }>(
+        "/partidas/solicitacoes/resumo", clubId,
+      );
+      if (mounted.current && scope.current === source)
+        setSolicitacoesPendentes(resumo.pendentes);
+    } catch { /* Uma falha no contador não bloqueia a partida nem as solicitações. */ }
+  }
+  function atualizarAposSolicitacao() {
+    void atualizarSolicitacoes();
+    void refresh(true).catch((e) => setError(e.message));
+  }
   useEffect(() => {
     mounted.current = true;
     setLoading(true);
@@ -69,6 +91,8 @@ export default function PartidaCompartilhada({
     setError("");
     snapshot.current = null;
     setConnected(false);
+    setSolicitacoesPendentes(0);
+    void atualizarSolicitacoes();
     let active = true,
       socket: ReturnType<typeof io> | undefined;
     let timer: ReturnType<typeof setTimeout>;
@@ -92,10 +116,14 @@ export default function PartidaCompartilhada({
         });
         socket.on('partidas_alteradas', (p: { partida_id: number }) => { if (p.partida_id === id) sync(); });
         socket.on('palpite_atualizado', receberPalpite);
+        socket.on('solicitacao_partida', () => {
+          void atualizarSolicitacoes();
+          sync();
+        });
         let primeiraConexao = true;
         socket.on("connect", () => {
           if (active) setConnected(true);
-          if (!primeiraConexao) sync();
+          if (!primeiraConexao) { sync(); void atualizarSolicitacoes(); }
           primeiraConexao = false;
         });
         socket.on("disconnect", () => {
@@ -117,12 +145,16 @@ export default function PartidaCompartilhada({
       });
     void load();
     const interval = setInterval(() => {
-      if (active && AppState.currentState === "active" && !socket?.connected)
+      if (active && AppState.currentState === "active" && !socket?.connected) {
         void refresh().catch(() => undefined);
+        void atualizarSolicitacoes();
+      }
     }, 12000);
     const appState = AppState.addEventListener("change", (state) => {
-      if (state === "active" && active)
+      if (state === "active" && active) {
         void refresh(true).catch(() => undefined);
+        void atualizarSolicitacoes();
+      }
     });
     return () => {
       active = false;
@@ -132,7 +164,7 @@ export default function PartidaCompartilhada({
       socket?.disconnect();
       appState.remove();
     };
-  }, [id, clubId, autenticado]);
+  }, [id, clubId, autenticado, podeGerenciar]);
   if (loading)
     return (
       <SafeAreaView
@@ -180,28 +212,68 @@ export default function PartidaCompartilhada({
         </TouchableOpacity>
       </SafeAreaView>
     );
-  if (
-    data.podePreparar &&
-    ["AGENDADA", "PREPARADA"].includes(data.partida.status) &&
-    clubId
-  )
-    return (
-      <PreparacaoPartida
-        key={`${clubId}:${id}`}
-        data={data}
-        clubeId={clubId}
-        onBack={onBack}
-        onRefresh={() => refresh(true)}
+  const headerAccessory = autenticado && podeGerenciar &&
+    ["AGENDADA", "PREPARADA", "AO_VIVO"].includes(data.partida.status) ? (
+      <IconButton
+        icon="email-outline"
+        variant="ghost"
+        label={`Solicitações: ${solicitacoesPendentes} aguardando sua resposta`}
+        badge={solicitacoesPendentes}
+        onPress={() => setSolicitacoesAbertas(true)}
       />
-    );
+    ) : undefined;
+  const emPreparacao = data.podePreparar &&
+    ["AGENDADA", "PREPARADA"].includes(data.partida.status) && clubId;
   return (
-    <SumulaPartida
-      key={`${clubId}:${id}`}
-      data={data}
-      clubeId={clubId!}
-      connected={connected}
-      onBack={onBack}
-      onRefresh={() => refresh(true)}
-    />
+    <>
+      {emPreparacao ? (
+        <PreparacaoPartida
+          key={`${clubId}:${id}`}
+          data={data}
+          clubeId={clubId!}
+          onBack={onBack}
+          onRefresh={() => refresh(true)}
+          headerAccessory={headerAccessory}
+        />
+      ) : (
+        <SumulaPartida
+          key={`${clubId}:${id}`}
+          data={data}
+          clubeId={clubId!}
+          connected={connected}
+          onBack={onBack}
+          onRefresh={() => refresh(true)}
+          headerAccessory={headerAccessory}
+        />
+      )}
+      <Modal
+        visible={solicitacoesAbertas}
+        animationType="slide"
+        onRequestClose={() => setSolicitacoesAbertas(false)}
+      >
+        {solicitacoesAbertas && (
+          <SolicitacoesPartidas
+            onClose={() => setSolicitacoesAbertas(false)}
+            onChanged={atualizarAposSolicitacao}
+            onOpenMatch={(partidaId) => {
+              if (partidaId === id) setSolicitacoesAbertas(false);
+              else setPartidaConsulta(partidaId);
+            }}
+          />
+        )}
+        <Modal
+          visible={partidaConsulta !== null}
+          animationType="slide"
+          onRequestClose={() => setPartidaConsulta(null)}
+        >
+          {partidaConsulta !== null && (
+            <PartidaCompartilhada
+              id={partidaConsulta}
+              onBack={() => setPartidaConsulta(null)}
+            />
+          )}
+        </Modal>
+      </Modal>
+    </>
   );
 }

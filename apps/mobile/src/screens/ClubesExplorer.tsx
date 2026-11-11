@@ -142,7 +142,7 @@ const CartaoClube = memo(function CartaoClube({
         .filter(Boolean)
         .join(" · ");
   return (
-    <View key={clube.id} style={styles.clubeCard}>
+    <View key={clube.id} style={styles.clubeCard} collapsable={false} collapsableChildren={false}>
       <TouchableOpacity
         style={styles.acessar}
         activeOpacity={0.8}
@@ -152,8 +152,8 @@ const CartaoClube = memo(function CartaoClube({
         accessibilityLabel={`Acessar ${clube.nome}`}
       >
         <Escudo clube={clube} />
-        <View style={styles.info}>
-          <View style={styles.nomeRow}>
+        <View style={styles.info} collapsable={false}>
+          <View style={styles.nomeRow} collapsable={false}>
             <Text style={styles.nome} numberOfLines={1} ellipsizeMode="tail">
               {clube.nome}
             </Text>
@@ -222,6 +222,10 @@ export default function ClubesExplorer({
   const { autenticado } = useSessao();
   const atual = useRef(clubeAtivo);
   atual.current = clubeAtivo;
+  // A lista de saída mantém sua ordem/identidade durante a transição nativa.
+  // Atualizar o clube global não deve mover as mesmas views para outros pais.
+  const [clubeExibido, setClubeExibido] = useState(clubeAtivo);
+  const emFoco = useRef(false);
   const [busca, setBusca] = useState("");
   const [clubes, setClubes] = useState<ClubeListado[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -248,16 +252,21 @@ export default function ClubesExplorer({
   }, []);
   useFocusEffect(
     useCallback(() => {
+      emFoco.current = true;
+      operando.current = false;
+      setProcessandoId(null);
+      setClubeExibido(atual.current);
       if (!carregou.current) setCarregando(true);
       void carregar();
       return () => {
+        emFoco.current = false;
         pedido.current++;
       };
     }, [carregar]),
   );
   const grupos = useMemo(
-    () => agruparClubes(clubes, clubeAtivo?.id, busca),
-    [clubes, clubeAtivo?.id, busca],
+    () => agruparClubes(clubes, clubeExibido?.id, busca),
+    [clubes, clubeExibido?.id, busca],
   );
   const acessar = useCallback(
     async (clube: ClubeListado) => {
@@ -265,6 +274,7 @@ export default function ClubesExplorer({
       operando.current = true;
       setProcessandoId(clube.id);
       setErro("");
+      let navegou = false;
       try {
         await definirClubeAtivo({
           id: clube.id,
@@ -272,13 +282,19 @@ export default function ClubesExplorer({
           escudo: clube.escudo,
           papel: clube.papel,
         });
+        if (!emFoco.current) return;
         if (modo === "trocar") router.navigate("/(tabs)");
         else router.replace("/(tabs)");
+        navegou = true;
       } catch {
-        setErro("Não foi possível acessar o clube. Tente novamente.");
+        if (emFoco.current) setErro("Não foi possível acessar o clube. Tente novamente.");
       } finally {
-        operando.current = false;
-        setProcessandoId(null);
+        // Ao voltar, o efeito de foco libera os botões. Não atualizamos a
+        // árvore que o Android ainda está removendo na animação de saída.
+        if (!navegou && emFoco.current) {
+          operando.current = false;
+          setProcessandoId(null);
+        }
       }
     },
     [definirClubeAtivo, modo, router],
@@ -355,12 +371,13 @@ export default function ClubesExplorer({
   );
   const aoVivoAposCargo = autenticado && secoes.some(secao => secao.key === "cargo");
   return (
-    <View style={styles.container}>
-      {modo === 'trocar' && clubeAtivo ? <HeaderClube /> : <HeaderPublico />}
+    <View style={styles.container} collapsable={false} collapsableChildren={false}>
+      {modo === 'trocar' && clubeExibido ? <HeaderClube /> : <HeaderPublico />}
       <SectionList
         sections={secoes}
         keyExtractor={(clube) => String(clube.id)}
         stickySectionHeadersEnabled={false}
+        removeClippedSubviews={false}
         initialNumToRender={8}
         maxToRenderPerBatch={6}
         windowSize={5}
@@ -375,7 +392,7 @@ export default function ClubesExplorer({
           },
         ]}
         ListHeaderComponent={
-          <>
+          <View collapsable={false}>
             <View style={[styles.intro, { marginBottom: 28 }]}>
               <Text style={styles.tituloMain}>Encontre o seu clube</Text>
               <Text style={styles.subtituloMain}>
@@ -396,14 +413,14 @@ export default function ClubesExplorer({
             )}
             {!aoVivoAposCargo && <AoVivoPublico clubes={carregou.current ? clubes : undefined} />}
             {carregando && <ListSkeleton rows={4} inset={0} />}
-          </>
+          </View>
         }
         renderItem={({ item, section }) => (
           <View style={{ marginBottom: 10 }}>
             <CartaoClube
               clube={item}
               descoberta={section.key === "descobrir"}
-              atual={item.id === clubeAtivo?.id}
+              atual={item.id === clubeExibido?.id}
               desabilitado={processandoId !== null}
               processando={processandoId === item.id}
               onAcessar={acessar}

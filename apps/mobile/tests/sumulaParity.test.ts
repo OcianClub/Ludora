@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { GestaoPartida } from '../src/services/partidasCompartilhadas';
-import { validarLance, ultimoLance, placarDoPeriodo, trocaValida, ultimoPeriodoIniciado } from '../src/utils/validacaoSumula';
+import { validarLance, ultimoLance, placarDoPeriodo, trocaValida, ultimoPeriodoIniciado, podeControlarAoVivo, podeAvancarTempo } from '../src/utils/validacaoSumula';
 import { escalaValida } from '../src/utils/preparacaoPartida';
 import { matchInsights } from '../../../packages/shared-types/src/matchInsights';
 import { validPoll } from '../../../packages/shared-types/src/matchPoll';
@@ -26,8 +26,10 @@ test('preparação exige exatamente um goleiro titular, reservas adicionais são
   assert.equal(escalaValida(lista.map(j => ({ ...j, jogador: { ...j.jogador!, posicao: 'Fixo' } }))), false);
   assert.equal(escalaValida(lista.map((j, i) => i === 2 ? { ...j, jogador: { ...j.jogador!, posicao: 'Goleiro' } } : j)), false);
 });
-test('gol contra exige a autoria adversária sem pontuar o autor nos destaques', () => {
+test('gol contra aceita registro sem jogador e valida autoria adversária nas correções', () => {
   const data = sumulaFixture();
+  for (const timeId of [10, 20]) assert.equal(validarLance(data, { tipo: 'GOL', timeId, contra: true }), '');
+  assert.notEqual(validarLance(data, { tipo: 'GOL', timeId: 10, contra: true, existente: data.eventos[2] }), '', 'corrigir autoria ainda exige jogador');
   assert.equal(validarLance(data, { tipo: 'GOL', timeId: 10, contra: true, jogadorId: 201 }), '');
   assert.match(validarLance(data, { tipo: 'GOL', timeId: 10, contra: true, jogadorId: 101 }), /elegível/);
   assert.equal(matchInsights(data, null)[1].attack[0].goals, 1);
@@ -111,4 +113,27 @@ test('expulso não registra lance nem retorna como reserva; reposição usa apen
   equipe.escalacao.find(j => j.jogador_id === 105)!.titular = true;
   equipe.escalacao.find(j => j.jogador_id === 106)!.expulso = false;
   assert.equal(trocaValida(equipe, 102, 106), true, 'trocas posteriores preservam a composição aceita na reposição');
+});
+
+
+test('somente o operador ao vivo avança tempos ou substitui, mesmo com permissão de preparação', () => {
+  const data = sumulaFixture();
+  assert.equal(podeControlarAoVivo(data), true);
+  assert.equal(podeAvancarTempo(data, 1, 4), true);
+  assert.equal(podeAvancarTempo(data, 2, 4), true);
+  assert.equal(podeAvancarTempo(data, 4, 4), false);
+  assert.equal(podeAvancarTempo(data, 2, 4, true), false);
+  data.podeSumula = false;
+  for (const podePreparar of [true, false]) {
+    data.podePreparar = podePreparar;
+    assert.equal(podeControlarAoVivo(data), false);
+    assert.equal(podeAvancarTempo(data, 1, 4), false, 'consultar tempo anterior não libera a seta de avanço');
+    assert.equal(podeAvancarTempo(data, 2, 4), false);
+  }
+  data.podeSumula = true;
+  for (const status of ['AGENDADA', 'PREPARADA', 'FINALIZADA', 'CANCELADA']) {
+    data.partida.status = status;
+    assert.equal(podeControlarAoVivo(data), false);
+    assert.equal(podeAvancarTempo(data, 1, 4), false);
+  }
 });
