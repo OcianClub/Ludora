@@ -104,7 +104,7 @@ function ScheduleAccordion({ title, icon, matches, initialOpen = false, renderMa
   if (!matches.length) return null;
   return <section className="schedule-section schedule-status-section">
     <h2>
-      <button id={`${id}-heading`} className="schedule-section-toggle" type="button"
+      <button id={`${id}-heading`} className="schedule-section-toggle" type="button" data-live={icon === 'live' || undefined}
         aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)}>
         <span className="schedule-section-copy"><strong>
           <Icon name={icon} size={18} />

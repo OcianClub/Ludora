@@ -2,16 +2,10 @@
 .desktop-role-badge > :first-child { flex-shrink:0; }
 .desktop-role-badge > span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis; }
 .desktop-role-badge[data-role="ADMIN"], .desktop-role-badge[data-role="SUPERADMIN"] { background:color-mix(in srgb,var(--primaria) 78%,#000); color:#fff; }
-.desktop-role-badge[data-role="TECNICO"] > :first-child { color:var(--amarelo,#f2bc50); }
-.desktop-role-badge[data-role="OLHEIRO"] > :first-child { color:#b4a0e4; }
-.desktop-role-badge[data-role="MESARIO"] > :first-child { color:#43c9ac; }
-.desktop-role-badge[data-role="SUPORTE"] > :first-child { color:var(--amarelo,#f2bc50); }
-:root[data-theme="light"] .desktop-role-badge[data-role="OLHEIRO"] > :first-child { color:#7148a5; }
-:root[data-theme="light"] .desktop-role-badge[data-role="MESARIO"] > :first-child { color:#16734f; }
 .desktop-role-icon { display:inline-flex; align-items:center; flex-shrink:0; }
-.desktop-role-icon:is([data-role="ADMIN"],[data-role="SUPERADMIN"]) { color:var(--primaria); }
-.desktop-role-icon:is([data-role="TECNICO"],[data-role="SUPORTE"]) { color:var(--amarelo); }
-.desktop-role-icon[data-role="OLHEIRO"] { color:#b4a0e4; }
-.desktop-role-icon[data-role="MESARIO"] { color:#43c9ac; }
-:root[data-theme="light"] .desktop-role-icon[data-role="OLHEIRO"] { color:#7148a5; }
-:root[data-theme="light"] .desktop-role-icon[data-role="MESARIO"] { color:#16734f; }
+.desktop-role-icon:is([data-role="ADMIN"],[data-role="SUPERADMIN"]) { --role-icon:var(--cargo-admin); }
+:is(.desktop-role-icon,.desktop-role-badge):is([data-role="TECNICO"],[data-role="SUPORTE"]) { --role-icon:var(--cargo-tecnico); }
+:is(.desktop-role-icon,.desktop-role-badge)[data-role="OLHEIRO"] { --role-icon:var(--cargo-olheiro); }
+:is(.desktop-role-icon,.desktop-role-badge)[data-role="MESARIO"] { --role-icon:var(--cargo-mesario); }
+:is(.desktop-role-icon,.desktop-role-badge)[data-role="TORCEDOR"] { --role-icon:var(--cargo-torcedor); }
+.desktop-role-icon, .desktop-role-badge > :first-child { color:var(--role-icon,inherit); }

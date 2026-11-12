@@ -111,7 +111,7 @@
 .paulista-detail-sidebar .actions { display: grid; gap: 10px; }
 .paulista-detail-sidebar .actions :is(.btn, a) { width: 100%; justify-content: center; }
 .paulista-detail-sidebar .paulista-follow { align-items: flex-start; }
-.paulista-detail-sidebar .paulista-follow .desktop-toggle-control { margin-top: 2px; }
+.paulista-detail-sidebar .paulista-follow .toggle-control { margin-top: 2px; }
 .paulista-admin :is(.paulista-detail-alerts, .paulista-identities) > h2 { display: flex; align-items: center; gap: 8px; }
 .paulista-detail-alerts > h2 > .icon { color: var(--primaria); }
 .paulista-detail-description { margin:0 0 6px; color:var(--texto-sec); font-size:12px; line-height:1.6; }

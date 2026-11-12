@@ -35,9 +35,6 @@
   background: var(--fundo);
   border: 0;
 }
-.layout .home-phase {
-  background: var(--fundo);
-}
 .layout .home-category-picker {
   background: transparent;
 }
@@ -329,7 +326,7 @@
   color: var(--texto-sec);
 }
 .home-pending-items a:hover {
-  background: color-mix(in srgb, var(--fundo-card) 45%, var(--fundo-card-sec));
+  background: var(--controle-hover-claro, color-mix(in srgb, var(--fundo-card) 45%, var(--fundo-card-sec)));
 }
 .home-pending-item-icon {
   width: 36px;

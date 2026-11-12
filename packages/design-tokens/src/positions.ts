@@ -19,6 +19,7 @@ export const positionDefinitions = {
   ] },
 } as const;
 export const positionStrokeWidth = 1.6;
+export const lightPositionStrokeWidth = 2.1;
 export function getPositionDefinition(position: string | null | undefined) {
   const name = (position || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
   const key = name === 'goleiro' ? 'goalkeeper' : name === 'fixo' ? 'defender' : name.startsWith('ala') ? 'wing' : name === 'pivo' ? 'pivot' : null;

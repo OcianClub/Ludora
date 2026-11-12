@@ -1,4 +1,4 @@
-.paulista-page { --paulista-ouro:var(--amarelo); --paulista-prata:#BDC8D8; --paulista-bronze:#C08B60; --paulista-rubi:#D87991; display:grid; grid-template-columns:minmax(0,1fr); gap:20px; min-width:0; container-type:inline-size; container-name:paulista; }
+.paulista-page { display:grid; grid-template-columns:minmax(0,1fr); gap:20px; min-width:0; container-type:inline-size; container-name:paulista; }
 .paulista-page > *, .paulista-page section { min-width:0; }
 .paulista-update-notice { display:grid; grid-template-columns:16px minmax(0,1fr) auto; align-items:center; gap:10px; padding:12px 14px; border:1px solid var(--borda); border-radius:8px; background:var(--fundo-card); color:var(--texto-sec); font-size:12px; line-height:1.6; }
 .paulista-header { order:-1; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:16px 24px; }
@@ -52,11 +52,10 @@
 .paulista-section-heading, .paulista-results-toolbar { display:flex; align-items:center; justify-content:space-between; gap:14px; }
 .paulista-section-heading > div { min-width:0; }
 .paulista-medal { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-weight:600; font-size:13px; }
-.medal-ouro { color:var(--paulista-ouro); }
-.medal-prata { color:var(--paulista-prata); }
-.medal-bronze { color:var(--paulista-bronze); }
-.medal-rubi { color:var(--paulista-rubi); }
-[data-theme="light"] .paulista-page { --paulista-ouro:var(--titulo-atencao); --paulista-prata:#57677B; --paulista-bronze:#965D34; --paulista-rubi:#A33F5C; }
+.medal-ouro { --medal-fundo:var(--paulista-ouro-fundo); color:var(--paulista-ouro); }
+.medal-prata { --medal-fundo:var(--paulista-prata-fundo); color:var(--paulista-prata); }
+.medal-bronze { --medal-fundo:var(--paulista-bronze-fundo); color:var(--paulista-bronze); }
+.medal-rubi { --medal-fundo:var(--paulista-rubi-fundo); color:var(--paulista-rubi); }
 .paulista-empty { display:grid; gap:12px; justify-items:center; text-align:center; padding:35px 20px; border:1px dashed var(--borda); border-radius:8px; }
 .paulista-empty p { max-width:520px; color:var(--texto-sec); line-height:1.6; font-size:14px; }
 .paulista-game-toolbar { display:flex; align-items:center; gap:10px; }
@@ -177,7 +176,6 @@
 .paulista-bracket-warnings ul { display:grid; gap:14px; padding:0 15px 15px; margin:0; list-style:none; }
 .paulista-bracket-warnings li { border-top:1px solid var(--linha); padding-top:12px; }
 .paulista-bracket-warnings li p { margin:5px 0 0; color:var(--texto-sec); line-height:1.6; }
-.medal-rubi { color:var(--vermelho); }
 .paulista-reading-score { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:15px; padding:20px 0; text-align:center; }
 .paulista-reading-score b { font:600 28px var(--font-titulo); }
 .paulista-reading-facts { display:grid; gap:14px; }

@@ -140,20 +140,12 @@
   white-space: nowrap;
 }
 .match-list-row .status-agendada {
-  color: #C3A9FF;
-  background: color-mix(in srgb, #C3A9FF 13%, var(--fundo-card));
+  color: var(--agendada-texto-claro, #C3A9FF);
+  background: var(--agendada-fundo-claro, color-mix(in srgb, #C3A9FF 13%, var(--fundo-card)));
 }
 .match-list-row .status-preparada {
-  color: #70DFC7;
-  background: color-mix(in srgb, #70DFC7 13%, var(--fundo-card));
-}
-[data-theme="light"] .match-list-row .status-agendada {
-  color: #654095;
-  background: color-mix(in srgb, #654095 13%, var(--fundo-card));
-}
-[data-theme="light"] .match-list-row .status-preparada {
-  color: #096653;
-  background: color-mix(in srgb, #096653 13%, var(--fundo-card));
+  color: var(--preparada-texto-claro, #70DFC7);
+  background: var(--preparada-fundo-claro, color-mix(in srgb, #70DFC7 13%, var(--fundo-card)));
 }
 .match-list-row .status-cancelada,
 .match-list-row .match-venue {
@@ -165,7 +157,7 @@
   color: #fff;
 }
 .match-list-row .match-result.result-D {
-  background: #E5485D;
+  background: var(--derrota-claro, #E5485D);
   color: #fff;
 }
 .match-list-row .match-result.result-E {
@@ -181,7 +173,7 @@
 @media (hover: hover) {
   .match-list-row:hover {
     border-color: var(--borda-botao);
-    background: color-mix(in srgb, var(--fundo-card) 85%, var(--fundo-card-sec));
+    background: var(--card-hover-claro, color-mix(in srgb, var(--fundo-card) 85%, var(--fundo-card-sec)));
   }
 }
 @media (max-width: 1150px) {

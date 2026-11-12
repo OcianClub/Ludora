@@ -21,6 +21,7 @@
 .btn-primary:hover { background: var(--primaria-hover); }
 .btn-ghost { background: transparent; border-color: var(--borda); color: var(--texto-sec); }
 .btn-ghost:hover { border-color: var(--primaria); color: var(--primaria); }
+:where([data-theme="light"]) .btn-ghost:hover:where(:not(:disabled)) { background-color: var(--card-hover-claro); }
 .btn-danger { background: transparent; border-color: var(--borda-erro); color: var(--titulo-erro); }
 .btn-danger:hover { background: var(--fundo-erro); }
 .btn-sm { padding: 8px 12px; font-size: 12px; min-height: 36px; }
@@ -56,8 +57,8 @@ select.field-input option { background: var(--fundo-card-sec); }
   font-weight: 600;
   letter-spacing: 0.3px;
 }
-.status-agendada   { background: var(--fundo-botao); color: var(--primaria); }
-.status-preparada  { background: var(--fundo-atencao); color: var(--titulo-atencao); }
+.status-agendada   { background: var(--agendada-fundo-claro, var(--fundo-botao)); color: var(--agendada-texto-claro, var(--primaria)); }
+.status-preparada  { background: var(--preparada-fundo-claro, var(--fundo-atencao)); color: var(--preparada-texto-claro, var(--titulo-atencao)); }
 .status-ao-vivo,
 .home-live {
   display: inline-flex;
@@ -229,7 +230,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: var(--texto-sec); border-bottom: 1px solid var(--borda); white-space: nowrap; }
 td { padding: 12px 14px; border-bottom: 1px solid var(--linha); vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--fundo-card-sec); }
+tr:hover td { background: var(--linha-hover-claro, var(--fundo-card-sec)); }
 
 /* ── Actions row ── */
 .actions { display: flex; gap: 6px; }

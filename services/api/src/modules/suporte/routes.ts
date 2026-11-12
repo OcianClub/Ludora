@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { Router } from 'express';
+import type { Server } from 'socket.io';
 import { prisma } from '../../lib/prisma';
 import { exigirAutenticacao } from '../../middlewares/auth.middleware';
 import { exigirEquipe } from '../admin/equipe';
@@ -8,6 +9,9 @@ import { classificar, rotaSegura, sanitizar, STATUS_CHAMADO, TIPOS_CHAMADO } fro
 import { dadosPublicos, registrarFalha } from './service';
 
 const limite = limitarRequisicoes({ janelaMs: 60000, limite: 10, prefixo: 'suporte' });
+const limiteLeitura = limitarRequisicoes({ janelaMs: 60000, limite: 120, prefixo: 'suporte-leitura', porEmail: false });
+const respostasEquipe = ['COMENTAR', 'FINALIZAR', 'STATUS'];
+const filtroResposta = { publico: true, acao: { in: respostasEquipe } };
 const permitido = (cargo: string, c: { restrito: boolean; fila: string; origem: string; tipo: string }) =>
   cargo === 'SUPERADMIN' || cargo === 'SUPORTE' || (cargo === 'DESENVOLVEDOR' && !c.restrito && (c.fila === 'DESENVOLVIMENTO' || c.origem === 'AUTOMATICO' && c.tipo === 'ERRO'));
 
@@ -18,12 +22,35 @@ function dataFiltro(valor: unknown) {
 }
 const idsAfetados = (valor: Prisma.JsonValue) => Array.isArray(valor) ? valor.filter((id): id is number => typeof id === 'number') : [];
 
-export function criarSuporteRoutes() {
+export function criarSuporteRoutes(io: Server) {
   const router = Router();
-  router.use('/suporte', exigirAutenticacao, limite);
+  router.use('/suporte', exigirAutenticacao, (req, res, next) =>
+    (req.method === 'GET' ? limiteLeitura : limite)(req, res, next));
+  router.get('/suporte/avisos', async (req, res) => {
+    const usuarioId = (req as any).usuarioId as number;
+    const avisos = await prisma.suporteHistorico.findMany({
+      where: { ...filtroResposta, chamado: { usuarioId } },
+      orderBy: { id: 'desc' },
+      select: { id: true, chamadoId: true },
+      take: 100,
+    });
+    res.json(avisos);
+  });
   router.get('/suporte', async (req, res) => {
-    const lista = await prisma.suporteChamado.findMany({ where: { usuarioId: (req as any).usuarioId }, orderBy: { criadoEm: 'desc' }, take: 100 });
-    res.json(lista.map(dadosPublicos));
+    const lista = await prisma.suporteChamado.findMany({
+      where: { usuarioId: (req as any).usuarioId },
+      orderBy: { atualizadoEm: 'desc' },
+      take: 100,
+      include: { historico: {
+        where: filtroResposta,
+        orderBy: [{ criadoEm: 'desc' }, { id: 'desc' }],
+        take: 1,
+        select: { id: true, motivo: true, criadoEm: true },
+      } },
+    });
+    res.json(lista.map(({ historico, ...chamado }) => ({
+      ...dadosPublicos(chamado), ultimaResposta: historico[0] || null,
+    })));
   });
   router.post('/suporte', async (req, res) => {
     const usuarioId = (req as any).usuarioId as number;
@@ -203,9 +230,24 @@ export function criarSuporteRoutes() {
     } });
     if (!c || !permitido(res.locals.funcionario.papel_plataforma, c)) { res.status(403).json({ error: 'Chamado indisponível para seu cargo.' }); return; }
     const tecnico = res.locals.funcionario.papel_plataforma !== 'SUPORTE';
-    const clubesAfetados = await prisma.clube.findMany({ where: { id: { in: idsAfetados(c.clubesAfetados) } }, select: { nome: true } });
+    const idsOperadores = [...new Set([c.responsavelId, ...c.historico.map(h => h.operadorId)]
+      .filter((id): id is number => id !== null && id !== c.usuarioId))];
+    const [clubesAfetados, operadores] = await Promise.all([
+      prisma.clube.findMany({ where: { id: { in: idsAfetados(c.clubesAfetados) } }, select: { nome: true } }),
+      idsOperadores.length ? prisma.usuario.findMany({
+        where: { id: { in: idsOperadores }, papel_plataforma: { in: ['SUPERADMIN', 'SUPORTE', 'DESENVOLVEDOR'] } },
+        select: { id: true, nome: true },
+      }) : [],
+    ]);
+    const nomesOperadores = new Map(operadores.map(pessoa => [pessoa.id, pessoa.nome]));
     res.json({ ...c, clubesAfetadosNomes: clubesAfetados.map(v => v.nome), detalhesTecnicos: tecnico ? c.detalhesTecnicos : undefined,
-      historico: c.historico.map(h => ({ ...h, dados: tecnico || ['MANUTENCAO_PAUSADA', 'MANUTENCAO_REATIVADA'].includes(h.acao) ? h.dados : undefined })) });
+      responsavelNome: c.responsavelId !== null ? nomesOperadores.get(c.responsavelId) ?? null : null,
+      historico: c.historico.map(h => ({
+        ...h,
+        autorNome: h.operadorId === null ? null : h.operadorId === c.usuarioId ? 'Cliente' : nomesOperadores.get(h.operadorId) ?? null,
+        dados: tecnico || ['MANUTENCAO_PAUSADA', 'MANUTENCAO_REATIVADA'].includes(h.acao) ? h.dados : undefined,
+      })),
+    });
   });
   router.patch('/admin/equipe/chamados/:id', async (req, res) => {
     const operador = res.locals.funcionario;
@@ -247,15 +289,19 @@ export function criarSuporteRoutes() {
         else data.fila = 'DESENVOLVIMENTO';
       }
     } else if (acao !== 'COMENTAR') { res.status(400).json({ error: 'Ação desconhecida.' }); return; }
+    const publico = req.body.publico === true && !!c.usuarioId && operador.papel_plataforma !== 'DESENVOLVEDOR' && respostasEquipe.includes(acao);
     const resultado = await prisma.$transaction(async tx => {
       const atualizado = await tx.suporteChamado.updateMany({ where: { id: c.id, revisao }, data });
-      if (!atualizado.count) return false;
-      await tx.suporteHistorico.create({ data: { chamadoId: c.id, operadorId: operador.id, acao, motivo: sanitizar(motivo),
-        publico: req.body.publico === true && !!c.usuarioId && operador.papel_plataforma !== 'DESENVOLVEDOR' && ['COMENTAR', 'FINALIZAR', 'STATUS'].includes(acao),
-        dados: { antes: { status: c.status, fila: c.fila }, depois: { status: data.status || c.status, fila: data.fila || c.fila } },
-      } });
-      return true;
+      if (!atualizado.count) return null;
+      return tx.suporteHistorico.create({
+        data: {
+          chamadoId: c.id, operadorId: operador.id, acao, motivo: sanitizar(motivo), publico,
+          dados: { antes: { status: c.status, fila: c.fila }, depois: { status: data.status || c.status, fila: data.fila || c.fila } },
+        },
+        select: { id: true, chamadoId: true },
+      });
     });
+    if (resultado && publico) io.of('/suporte').to('usuario:' + c.usuarioId).emit('resposta_suporte', resultado);
     res.status(resultado ? 200 : 409).json(resultado ? { ok: true } : { error: 'O chamado mudou. Atualize antes de registrar.' });
   });
   return router;

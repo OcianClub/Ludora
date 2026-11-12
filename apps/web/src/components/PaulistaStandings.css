@@ -16,12 +16,12 @@
 .paulista-standings .paulista-ranking-team { gap:8px; min-width:0; }
 .paulista-standings .paulista-ranking-team small { font-size:9px; }
 .paulista-ranking-band { --band-color:var(--texto-sec); }
-.paulista-ranking-band.band-ouro { --band-color:var(--paulista-ouro); }
-.paulista-ranking-band.band-prata { --band-color:var(--paulista-prata); }
-.paulista-ranking-band.band-bronze { --band-color:var(--paulista-bronze); }
-.paulista-ranking-band.band-rubi { --band-color:var(--paulista-rubi); }
+.paulista-ranking-band.band-ouro { --band-color:var(--paulista-ouro); --band-fundo:var(--paulista-ouro-fundo); }
+.paulista-ranking-band.band-prata { --band-color:var(--paulista-prata); --band-fundo:var(--paulista-prata-fundo); }
+.paulista-ranking-band.band-bronze { --band-color:var(--paulista-bronze); --band-fundo:var(--paulista-bronze-fundo); }
+.paulista-ranking-band.band-rubi { --band-color:var(--paulista-rubi); --band-fundo:var(--paulista-rubi-fundo); }
 .paulista-standings .paulista-table-scroll .paulista-ranking-band > th,
-.paulista-standings .paulista-table-scroll .paulista-ranking-band:hover > th { padding:9px 14px; background:var(--fundo); text-align:left; font-size:10px; }
+.paulista-standings .paulista-table-scroll .paulista-ranking-band:hover > th { padding:9px 14px; background:var(--band-fundo,var(--fundo)); text-align:left; font-size:10px; }
 .paulista-ranking-band-label { display:inline-flex; align-items:center; gap:9px; white-space:nowrap; }
 .paulista-ranking-band-label > span { color:var(--band-color); font-weight:700; }
 .paulista-ranking-band-label > span::before { content:''; display:inline-block; vertical-align:middle; width:5px; height:5px; margin-right:7px; border-radius:50%; background:var(--band-color); }
@@ -42,6 +42,7 @@
 .paulista-standing-position > span { color:var(--texto-sec); font-size:11px; line-height:1.5; }
 .paulista-standing-position small { display:block; font-size:10px; margin-top:4px; }
 .paulista-standing-key { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+[data-theme="light"] .paulista-standings .paulista-standing-key .paulista-medal { background:var(--medal-fundo,var(--fundo-card)); }
 .paulista-standing-key .paulista-medal { gap:6px; font-size:11px; padding:5px 8px; border:1px solid color-mix(in srgb,currentColor 40%,transparent); border-radius:5px; background:color-mix(in srgb,currentColor 5%,var(--fundo-card)); }
 .paulista-standing-key svg { width:15px; height:15px; }
 .paulista-standing-key > small { font-size:10px; color:var(--texto-sec); white-space:nowrap; }

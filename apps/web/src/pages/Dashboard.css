@@ -1,5 +1,5 @@
 .dashboard {
-  --home-loss: #E5485D;
+  --home-loss: var(--derrota-claro, #E5485D);
   --home-draw: var(--resultado-empate);
 }
 .dashboard > .page-header { margin-bottom: 16px; }

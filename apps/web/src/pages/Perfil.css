@@ -312,22 +312,6 @@
 .perfil-preferencia .account-theme-options .icon {
   color: inherit;
 }
-.perfil-preferencia .settings-switch::before,
-.perfil-preferencia .settings-switch[aria-checked="true"]::before {
-  border: 0;
-  background: var(--fundo);
-}
-.perfil-preferencia .settings-switch .settings-switch-thumb {
-  background: var(--fundo-card-sec);
-  color: var(--texto-sec);
-}
-.perfil-preferencia .settings-switch[aria-checked="true"] .settings-switch-thumb {
-  background: var(--fundo-card-sec);
-  color: var(--primaria);
-}
-.perfil-preferencia .settings-switch .settings-switch-thumb .icon {
-  color: inherit;
-}
 .perfil-clubes-group {
   margin-top: 22px;
 }

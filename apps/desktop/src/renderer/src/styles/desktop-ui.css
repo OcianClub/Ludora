@@ -11,7 +11,9 @@
   --desktop-modal-control: #14171F;
 }
 :root[data-theme="light"] .desktop-app {
+  --desktop-surface-hover: var(--card-hover-claro);
   --desktop-surface-raised: color-mix(in srgb, var(--fundo-card) 97%, var(--texto) 3%);
+  --desktop-surface-raised-hover: var(--controle-hover-claro);
   --desktop-modal-surface: var(--fundo);
   --desktop-modal-control: var(--fundo-card);
 }

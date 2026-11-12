@@ -72,7 +72,7 @@ export function criarApp(io: Server) {
   app.use(criarEquipeRoutes());
   app.use(criarManutencaoRoutes());
   app.use(criarOperacoesSuporte(io));
-  app.use(criarSuporteRoutes());
+  app.use(criarSuporteRoutes(io));
   app.use(criarTarefasCadastroRoutes(io));
   app.use(criarPaulistaRoutes(io));
   app.use(criarAdminRoutes(io));

@@ -50,6 +50,25 @@ export function criarSocketServer(
     delete socket.data.token;
   });
 
+  const suporte = io.of('/suporte');
+  suporte.use(async (socket, next) => {
+    try {
+      const token = String(socket.handshake.auth?.token || '');
+      const usuarioId = await autenticarToken(token);
+      if (!usuarioId) return next(new Error('Não autorizado'));
+      socket.data.usuarioId = usuarioId;
+      socket.data.token = token;
+      next();
+    } catch {
+      next(new Error('Não autorizado'));
+    }
+  });
+  suporte.on('connection', socket => {
+    void socket.join('usuario:' + socket.data.usuarioId);
+    agendarExpiracaoTokenVerificado(socket, socket.data.token);
+    delete socket.data.token;
+  });
+
   registrarNamespacePublico(io, banco);
   registrarNamespaceAdmin(io);
   return io;

@@ -147,7 +147,7 @@
   font-size: 13px;
   text-align: left;
 }
-.match-actions-popover button:hover { background: var(--fundo-card-sec); }
+.match-actions-popover button:hover { background: var(--controle-hover-claro, var(--fundo-card-sec)); }
 .match-actions-popover .match-actions-delete { color: var(--titulo-erro, var(--vermelho)); }
 .match-detail-card {
   margin-bottom: 24px;
@@ -173,13 +173,13 @@
 .placar-gols { display: flex; align-items: center; gap: 14px; font-family: var(--font-titulo); font-size: 44px; font-weight: 600; color: var(--texto); }
 .placar-x { font-size: 24px; color: var(--texto-sec); }
 .match-detail-card .status-badge { padding: 4px 8px; border-radius: 6px; font-size: 11px; line-height: 1.3; }
-.match-detail-card .status-agendada { --preparation-accent: #C3A9FF; }
-.match-detail-card .status-preparada { --preparation-accent: #70DFC7; }
-[data-theme="light"] .match-detail-card .status-agendada { --preparation-accent: #654095; }
-[data-theme="light"] .match-detail-card .status-preparada { --preparation-accent: #096653; }
-.match-detail-card .status-badge:is(.status-agendada, .status-preparada) {
-  background: color-mix(in srgb, var(--preparation-accent) 13%, var(--fundo-card));
-  color: var(--preparation-accent);
+.match-detail-card .status-agendada {
+  color: var(--agendada-texto-claro, #C3A9FF);
+  background: var(--agendada-fundo-claro, color-mix(in srgb, #C3A9FF 13%, var(--fundo-card)));
+}
+.match-detail-card .status-preparada {
+  color: var(--preparada-texto-claro, #70DFC7);
+  background: var(--preparada-fundo-claro, color-mix(in srgb, #70DFC7 13%, var(--fundo-card)));
 }
 .match-detail-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding-top: 22px; border-top: 1px solid var(--linha); }
 .match-detail-facts > div { display: grid; align-content: start; justify-items: center; gap: 7px; min-width: 0; padding-inline: 16px; text-align: center; }

@@ -149,16 +149,10 @@
   color: var(--primaria);
 }
 .scout-leaders > button:nth-child(2) .scout-leader-icon {
-  color: #9d82dc;
+  color: var(--scout-playmaker-texto);
 }
 .scout-leaders > button:nth-child(3) .scout-leader-icon {
-  color: #31b9a2;
-}
-[data-theme="light"] .scout-leaders > button:nth-child(2) .scout-leader-icon {
-  color: #7450b8;
-}
-[data-theme="light"] .scout-leaders > button:nth-child(3) .scout-leader-icon {
-  color: #167b69;
+  color: var(--scout-keeper-texto);
 }
 .scout-leader-title {
   color: var(--texto-sec);
@@ -221,29 +215,31 @@
 .scout-player:hover,
 .scout-player:has(.scout-player-main:focus-visible) {
   border-color: var(--borda);
-  background: var(--fundo-card-claro);
+  background: var(--card-hover-claro, var(--fundo-card-claro));
 }
 .scout-player-main:focus-visible {
   outline: 2px solid var(--primaria);
   outline-offset: -3px;
 }
 .scout-tone-scorer {
-  --scout-accent: var(--primaria);
+  --scout-profile-surface: var(--scout-scorer-fundo);
+  --scout-accent: var(--scout-scorer-texto);
 }
 .scout-tone-playmaker {
-  --scout-accent: #9d82dc;
+  --scout-profile-surface: var(--scout-playmaker-fundo);
+  --scout-accent: var(--scout-playmaker-texto);
 }
 .scout-tone-keeper {
-  --scout-accent: #31b9a2;
+  --scout-profile-surface: var(--scout-keeper-fundo);
+  --scout-accent: var(--scout-keeper-texto);
+}
+.scout-tone-mixed {
+  --scout-profile-surface: var(--scout-mixed-fundo);
+  --scout-accent: var(--scout-mixed-texto);
 }
 .scout-tone-pending {
-  --scout-accent: var(--texto-sec);
-}
-[data-theme="light"] .scout-tone-playmaker {
-  --scout-accent: #7450b8;
-}
-[data-theme="light"] .scout-tone-keeper {
-  --scout-accent: #167b69;
+  --scout-profile-surface: var(--scout-pending-fundo);
+  --scout-accent: var(--scout-pending-texto);
 }
 .scout-player-main {
   display: grid;
@@ -817,7 +813,7 @@
 }
 .scout-history-table tbody tr:hover > th,
 .scout-history-table tbody tr:hover > td {
-  background: var(--fundo-card-sec);
+  background: var(--linha-hover-claro, var(--fundo-card-sec));
 }
 .scout-history-table small {
   display: block;

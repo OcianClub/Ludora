@@ -1,9 +1,9 @@
 import { StyleSheet } from 'react-native';
-import { typography, liveBadgeColors } from '@ludora/design-tokens';
+import { typography, liveBadgeColors, interfaceColors } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 import { MARGEM_TELA } from './layout';
 
-export const createStyles = (colors: ThemeColors) =>
+export const createStyles = (colors: ThemeColors, tema: keyof typeof interfaceColors) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -87,7 +87,8 @@ export const createStyles = (colors: ThemeColors) =>
     accordionFirstItem: { paddingTop: 8 },
     accordionLastItem: { borderBottomWidth: 1, borderBottomLeftRadius: 10, borderBottomRightRadius: 10 },
     accordionTitle: { color: colors.texto, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 14 },
-    accordionCount: { color: colors.textoSecundario, backgroundColor: colors.cardSecundario, fontSize: 11, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
+    accordionCount: { color: interfaceColors[tema].contador.texto, backgroundColor: interfaceColors[tema].contador.fundo, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 11, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
+    selectedCount: { color: interfaceColors[tema].contador.textoAtivo, backgroundColor: interfaceColors[tema].contador.fundoAtivo },
     cardDateBlock: { flexShrink: 1, gap: 4 },
     cardDate: { fontFamily: typography.fontFamily.titulo.bold, fontSize: 22, color: colors.texto },
     cardStatusBadge: {

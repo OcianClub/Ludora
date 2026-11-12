@@ -11,3 +11,4 @@ test-results/
 reorganizar-ludora.sh
 __pycache__/
 *.pyc
+apps/mobile/.eas-inspect/

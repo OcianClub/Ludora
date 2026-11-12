@@ -2,6 +2,7 @@ import { CategoryFilterScroll } from "@/src/components/CategoryPager";
 import { SearchField, IconButton, AppButton } from "@/src/components/ui/Controls";
 import { PositionLabel } from "@/src/components/PositionIcon";
 import { Icon, type IconName } from "@ludora/icons";
+import { interfaceColors } from "@ludora/design-tokens";
 import React, {
   memo,
   useDeferredValue,
@@ -40,7 +41,7 @@ import {
   SUBS_INICIACAO,
   SUBS_BASE,
 } from "@/src/components/CarrosselSubs";
-import { useTheme, type ThemeColors } from "@/src/contexts/ThemeContext";
+import { useTheme } from "@/src/contexts/ThemeContext";
 import { createStyles } from "@/src/styles/estatisticasStyles";
 import { CardsSkeleton } from "@/src/components/Skeleton";
 import { ErroCarregamento } from "@/src/components/ErroCarregamento";
@@ -74,17 +75,6 @@ import {
   CATEGORIA_SCOUT_VAZIA,
   normalizarCategoriaScout as normalizarCategoria,
 } from "@/src/utils/catalogoScout";
-
-// ── Cores por perfil ──────────────────────────────────────────────────────────
-const getCoresPerfil = (
-  colors: ThemeColors,
-  escuro: boolean,
-): Record<string, string> => ({
-  Artilheiro: colors.primaria,
-  Paredão: escuro ? "#2DD4BF" : "#087F72",
-  Armador: escuro ? "#B69AFF" : "#703BD1",
-  "Sem dados": colors.textoSecundario,
-});
 
 const OPCOES_ORDENACAO = ORDENS_SCOUT;
 const ATLETAS_POR_PAGINA = 10;
@@ -129,9 +119,8 @@ function ModalScout({
 }) {
   const { colors, tema } = useTheme();
   const styles = createStyles(colors);
-  const corPerfil =
-    getCoresPerfil(colors, tema === "dark")[jogador.perfil_ml] ??
-    colors.textoSecundario;
+  const perfis = interfaceColors[tema].perfilScout;
+  const corPerfil = perfis[jogador.perfil_ml as keyof typeof perfis]?.texto ?? perfis['Sem dados'].texto;
   const idade = jogador.idade ?? null;
 
   const stats = [
@@ -241,10 +230,7 @@ function ModalScout({
 export default function Estatisticas() {
   const { colors, tema } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const coresPerfil = useMemo(
-    () => getCoresPerfil(colors, tema === "dark"),
-    [colors, tema],
-  );
+  const coresPerfil = interfaceColors[tema].perfilScout;
   const { clubeAtivo, podeGerenciar, carregandoClubeAtivo } = useClubeAtivo();
   const carregouUmaVez = useRef(false);
   const clubeCarregadoId = useRef<number | null>(null);
@@ -615,7 +601,7 @@ export default function Estatisticas() {
                                   }
                                 >
                                   <Icon name={h.field === 'gols' ? 'soccer' : h.field === 'assistencias' ? 'cleat' : 'group'} size={17}
-                                    color={h.field === 'gols' ? colors.primaria : h.field === 'assistencias' ? coresPerfil.Armador : coresPerfil.Paredão} />
+                                    color={h.field === 'gols' ? colors.primaria : h.field === 'assistencias' ? coresPerfil.Armador.texto : coresPerfil.Paredão.texto} />
                                   <Text style={styles.resumoCardLabel} numberOfLines={1}>{h.label}</Text>
                                   <Text style={styles.resumoCardValor}>{h.value}</Text>
                                   <Text style={styles.resumoCardNome} numberOfLines={1}>{lideres[0]?.nome || 'Sem registros'}</Text>

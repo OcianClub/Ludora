@@ -43,6 +43,7 @@ async function main() {
     console.log('Web aberto para envio do chamado.');
     await page.getByRole('button', { name: 'Suporte e ajuda', exact: true }).click();
     const modal = page.getByRole('dialog', { name: 'Suporte e ajuda' });
+    await modal.getByRole('button', { name: 'Novo chamado', exact: true }).click();
     await modal.getByLabel('Assunto', { exact: true }).fill(subject);
     await modal.getByLabel('O que aconteceu?', { exact: true }).fill('The invitation did not arrive after the administrator sent it.');
     const sent = page.waitForResponse(r => r.url().endsWith('/suporte') && r.request().method() === 'POST');
@@ -54,13 +55,16 @@ async function main() {
       await page.evaluate(async value => (await import('/src/styles/theme.ts')).setThemePreference(value), theme);
       await page.screenshot({ path: path.join(out, `cliente-${theme}.png`), fullPage: true });
     }
+    await modal.getByRole('button', { name: 'Acompanhar chamado', exact: true }).click();
+    await modal.getByLabel('Responder ao atendimento').fill('Rascunho preservado durante a atualização.');
     const occurrence = page.waitForResponse(r => r.url().endsWith('/suporte/ocorrencias'));
     await page.evaluate(() => { window.dispatchEvent(new ErrorEvent('error', { error: new Error('Synthetic isolated test') })); });
     assert.equal((await occurrence).status(), 201);
   } catch (error) {
     if (webPage) { await webPage.screenshot({ path: path.join(out, 'web-falha.png'), fullPage: true }); console.error((await webPage.locator('body').innerText()).slice(-1200)); }
+    await browser.close();
     throw error;
-  } finally { await browser.close(); }
+  }
   const profile = path.join(out, 'profile-' + Date.now());
   await fs.mkdir(profile); await fs.writeFile(path.join(profile, 'config.json'), JSON.stringify({ apiUrl: 'http://127.0.0.1:3018' }));
   const wrapper = path.join(profile, 'launch.cjs');
@@ -113,8 +117,42 @@ async function main() {
         await page.getByRole('button', { name: new RegExp(subject) }).click();
       }
       await page.getByText('Protocolo ' + id, { exact: true }).waitFor();
+      if (etapa === 'ENCAMINHAR') {
+        const modal = webPage.getByRole('dialog', { name: 'Suporte e ajuda' });
+        await page.getByRole('button', { name: /^Modelos de nota:/ }).click();
+        await page.getByRole('menuitemradio', { name: 'Triagem inicial', exact: true }).click();
+        const nota = await page.getByRole('textbox', { name: 'Nota interna', exact: true }).inputValue();
+        assert.match(nota, /Triagem iniciada/);
+        await page.getByRole('button', { name: 'Registrar nota interna', exact: true }).click();
+        await page.getByText(nota, { exact: true }).waitFor();
+
+        await page.getByRole('tab', { name: 'Responder ao cliente' }).click();
+        await page.getByRole('button', { name: /^Modelos de resposta:/ }).click();
+        await page.getByRole('menuitemradio', { name: 'Confirmar recebimento', exact: true }).click();
+        const resposta = await page.getByRole('textbox', { name: 'Resposta ao cliente', exact: true }).inputValue();
+        assert.match(resposta, /Recebemos seu chamado/);
+        await page.getByRole('button', { name: 'Enviar resposta ao cliente', exact: true }).click();
+        await modal.getByText(resposta, { exact: true }).waitFor({ timeout: 8000 });
+        await modal.getByText('Nova resposta da equipe Ludora.', { exact: true }).waitFor();
+        assert.equal(await modal.getByText(nota, { exact: true }).count(), 0);
+        assert.equal(await modal.getByLabel('Responder ao atendimento').inputValue(), 'Rascunho preservado durante a atualização.');
+        await page.getByText(resposta, { exact: true }).waitFor();
+
+        await modal.getByRole('button', { name: 'Fechar janela', exact: true }).click();
+        await page.getByRole('button', { name: /^Modelos de resposta:/ }).click();
+        await page.getByRole('menuitemradio', { name: 'Análise em andamento', exact: true }).click();
+        const progresso = await page.getByRole('textbox', { name: 'Resposta ao cliente', exact: true }).inputValue();
+        await page.getByRole('button', { name: 'Enviar resposta ao cliente', exact: true }).click();
+        await webPage.getByRole('button', { name: 'Ver resposta', exact: true }).click({ timeout: 8000 });
+        await modal.getByText(progresso, { exact: true }).waitFor();
+        console.log('PASS modelos de nota e resposta, atualização sem fechar, rascunho preservado e aviso fora do chamado.');
+      }
       if (etapa === 'ENCAMINHAR' && process.argv.includes('--email-isolado')) {
-        await page.getByText('Convite não recebido', { exact: true }).click();
+        await page.getByText('Atendimento guiado', { exact: true }).click();
+        const campoConvite = page.getByLabel('E-mail usado no convite');
+        const acaoConvite = page.getByText('Convite não recebido', { exact: true });
+        await acaoConvite.waitFor();
+        if (!await campoConvite.isVisible()) await acaoConvite.click();
         await page.getByLabel('E-mail usado no convite').fill(emailConvite);
         await page.getByRole('button', { name: 'Localizar convite', exact: true }).click();
         const select = page.getByRole('combobox', { name: /Convite do clube/ });
@@ -133,16 +171,27 @@ async function main() {
         await page.getByRole('button', { name: 'Confirmar decisão', exact: true }).click();
         await page.getByRole('heading', { name: 'Caixa de desenvolvimento' }).waitFor();
       } else if (etapa === 'ENCAMINHAR') {
+        await page.getByRole('button', { name: 'Mais ações', exact: true }).click();
         await page.getByRole('button', { name: 'Encaminhar aos desenvolvedores', exact: true }).click();
         await page.getByLabel('Passos para reproduzir o problema').fill('Open invitations, submit and observe the delivery failure.');
         await page.getByRole('button', { name: 'Confirmar decisão', exact: true }).click();
         await page.getByText('Alteração registrada no histórico.', { exact: true }).waitFor();
       } else {
         await page.getByText('Correção conferida. Solicitar validação do cliente.', { exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Mais ações', exact: true }).click();
+        await webPage.goto('about:blank');
         await page.getByRole('button', { name: 'Finalizar chamado', exact: true }).click();
         await page.getByLabel('Como o problema foi resolvido?').fill('Corrigimos o envio e conferimos a entrega.');
         await page.getByRole('button', { name: 'Confirmar decisão', exact: true }).click();
         await page.getByText('Corrigimos o envio e conferimos a entrega.', { exact: true }).waitFor();
+        await webPage.goto('http://localhost:5198/dashboard');
+        await webPage.getByRole('button', { name: 'Ver resposta', exact: true }).click({ timeout: 8000 });
+        const modal = webPage.getByRole('dialog', { name: 'Suporte e ajuda' });
+        await modal.getByText('Corrigimos o envio e conferimos a entrega.', { exact: true }).waitFor();
+        await webPage.waitForFunction(chamadoId => Object.keys(localStorage).some(key =>
+          key.startsWith('ludora_suporte_vistos:') && Number(JSON.parse(localStorage.getItem(key))[chamadoId]) > 0), id);
+        console.log('PASS aviso recuperado ao voltar ao Web após uma resposta offline.');
+
       }
       for (const theme of ['light', 'dark']) {
         await page.getByRole('radio', { name: theme === 'light' ? 'Tema claro' : 'Tema escuro', exact: true }).click();
@@ -155,6 +204,6 @@ async function main() {
     await page.screenshot({ path: path.join(out, 'desktop-falha.png'), fullPage: true });
     console.error((await page.locator('body').innerText()).slice(-1500));
     throw error;
-  } finally { await app.close(); }
+  } finally { await app.close(); await browser.close(); }
 }
 main().catch(e => { console.error(e.message); process.exitCode = 1; });

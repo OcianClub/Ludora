@@ -6,5 +6,6 @@
 .desktop-tabs-list > button:focus-visible { outline:2px solid var(--primaria); outline-offset:-3px; }
 .desktop-tabs-list > button:disabled { opacity:.45; cursor:default; }
 .desktop-tabs-panel { min-width:0; }
-.desktop-tabs-count { display:inline-flex; align-items:center; justify-content:center; min-width:19px; padding:1px 5px; border-radius:4px; color:var(--texto-sec); background:var(--fundo-card-sec); font-size:11px; line-height:1.4; font-weight:500; font-variant-numeric:tabular-nums; }
+.desktop-tabs-count { display:inline-flex; align-items:center; justify-content:center; min-width:19px; padding:1px 5px; border-radius:4px; color:var(--contador-texto); background:var(--contador-fundo); font-size:11px; line-height:1.4; font-weight:600; font-variant-numeric:tabular-nums; }
 .desktop-tabs-panel:focus-visible { outline:2px solid var(--primaria); outline-offset:3px; }
+.desktop-tabs-list > button[aria-selected="true"] .desktop-tabs-count { color:var(--contador-texto-ativo); background:var(--contador-fundo-ativo); }

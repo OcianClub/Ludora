@@ -62,7 +62,7 @@
   transition: left var(--sidebar-motion) var(--sidebar-ease), top var(--sidebar-motion) var(--sidebar-ease), background-color 140ms ease;
 }
 .sidebar-toggle:hover {
-  background: var(--fundo-card-sec);
+  background: var(--controle-hover-claro, var(--fundo-card-sec));
   color: var(--texto);
 }
 .layout[data-sidebar-expanded="true"] .sidebar-top { height: 74px; }
@@ -240,7 +240,7 @@
   left: 13px;
   transition: top var(--sidebar-motion) var(--sidebar-ease), left var(--sidebar-motion) var(--sidebar-ease), background-color 140ms ease;
 }
-.sidebar-club-switch:hover, .mobile-club-switch:hover { background: var(--fundo-card-sec); color: var(--texto); }
+.sidebar-club-switch:hover, .mobile-club-switch:hover { background: var(--controle-hover-claro, var(--fundo-card-sec)); color: var(--texto); }
 .layout[data-sidebar-expanded="true"] .sidebar-club { height: 67px; }
 .layout[data-sidebar-expanded="true"] .sidebar-club .current-club { left: 4px; right: 44px; }
 .layout[data-sidebar-expanded="true"] .sidebar-club-switch { top: 16px; left: calc(100% - 34px); }

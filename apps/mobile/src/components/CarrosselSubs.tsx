@@ -1,7 +1,7 @@
 import { Icon } from "@ludora/icons";
 import { memo, useEffect, useMemo, useState } from "react";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
-import { typography } from "@ludora/design-tokens";
+import { interfaceColors, typography } from "@ludora/design-tokens";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -75,7 +75,9 @@ const SubItem = memo(function SubItem({
       accessibilityState={{ selected: ativo }}
     >
       <View style={styles.item}>
-        <Text style={styles.texto}>{title}</Text>
+        <View style={styles.itemInativo}>
+          <Text style={styles.texto}>{title}</Text>
+        </View>
         <Animated.View
           pointerEvents="none"
           style={[styles.itemDestaque, destaque]}
@@ -96,8 +98,8 @@ export const CarrosselSubs = memo(function CarrosselSubs({
   originPagina,
   settlingPagina,
 }: CarrosselSubsProps) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, tema } = useTheme();
+  const styles = useMemo(() => createStyles(colors, tema), [colors, tema]);
   const [larguraTrack, setLarguraTrack] = useState(0);
   const progressoLocal = useSharedValue(indexAtual);
   const progresso = progressoPagina ?? progressoLocal;
@@ -288,7 +290,7 @@ export const CarrosselSubs = memo(function CarrosselSubs({
   );
 });
 
-const createStyles = (colors: ThemeColors) =>
+const createStyles = (colors: ThemeColors, tema: keyof typeof interfaceColors) =>
   StyleSheet.create({
     wrapper: {
       alignItems: "center",
@@ -298,7 +300,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     tipoSwitchContainer: {
       flexDirection: "row",
-      backgroundColor: colors.card,
+      backgroundColor: interfaceColors[tema].categoria.trilho,
       borderRadius: 10,
       padding: 4,
       width: "100%",
@@ -313,7 +315,7 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: 8,
     },
     tipoSwitchBtnAtivo: {
-      backgroundColor: colors.cardSecundario,
+      backgroundColor: interfaceColors[tema].categoria.ativo,
     },
     tipoSwitchTxt: {
       fontFamily: typography.fontFamily.corpo.semiBold,
@@ -322,7 +324,7 @@ const createStyles = (colors: ThemeColors) =>
       letterSpacing: 0.5,
     },
     tipoSwitchTxtAtivo: {
-      color: colors.texto,
+      color: interfaceColors[tema].categoria.textoAtivo,
     },
     internal: {
       flexDirection: "row",
@@ -362,14 +364,14 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: "center",
       marginHorizontal: GAP_ITEM / 2,
     },
-    itemAtivo: {
-      width: LARGURA_ITEM,
-      height: 34,
+    itemInativo: {
+      ...StyleSheet.absoluteFillObject,
       justifyContent: "center",
       alignItems: "center",
+      borderWidth: 1,
+      borderColor: interfaceColors[tema].categoria.sub.borda,
       borderRadius: 8,
-      marginHorizontal: GAP_ITEM / 2,
-      backgroundColor: colors.primaria,
+      backgroundColor: interfaceColors[tema].categoria.sub.fundo,
     },
     texto: {
       fontFamily: typography.fontFamily.corpo.medium,

@@ -19,7 +19,7 @@
 .alunos-inline-number { cursor: pointer; background: var(--fundo-card-sec); }
 .alunos-inline-number.is-missing { border: 1px dashed var(--texto-sec); color: var(--texto-sec); background: transparent; }
 .alunos-inline-number.is-missing:hover { background: transparent; color: var(--texto); }
-.alunos-inline-number:hover { background: var(--fundo-card-sec); }
+.alunos-inline-number:hover { background: var(--controle-hover-claro, var(--fundo-card-sec)); }
 .alunos-inline-shirt > input { border-color: var(--primaria); background: var(--fundo); outline: none; }
 .alunos-inline-shirt:focus-within { z-index: 3; }
 .alunos-shirt-edit-actions { position: absolute; top: 100%; left: 0; display: flex; background: var(--fundo-card); border: 1px solid var(--borda); border-radius: 5px; z-index: 4; }
@@ -36,7 +36,7 @@
 .alunos-page .alunos-table-scroll {
   --alunos-surface: var(--fundo-card);
   --alunos-header: color-mix(in srgb, var(--fundo-card) 82%, var(--fundo));
-  --alunos-row-hover: var(--fundo-card-sec);
+  --alunos-row-hover: var(--linha-hover-claro, var(--fundo-card-sec));
   --alunos-separator: var(--linha);
   border: 1px solid var(--borda);
   border-radius: 9px;

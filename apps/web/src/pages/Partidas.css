@@ -166,8 +166,8 @@
   height: 20px;
   place-items: center;
   border-radius: 5px;
-  background: var(--fundo-botao);
-  color: var(--primaria);
+  background: var(--contador-fundo-ativo);
+  color: var(--contador-texto-ativo);
 }
 .schedule-active-filters {
   display: flex;
@@ -301,8 +301,14 @@
   text-align: left;
   transition: background .15s ease;
 }
-.schedule-section-toggle:hover {
-  background: var(--fundo-card-claro);
+.schedule-section-toggle:is(:hover, :focus-visible) {
+  background: var(--acordeao-hover);
+}
+.schedule-section-toggle[data-live]:is(:hover, :focus-visible) {
+  background: var(--acordeao-ao-vivo-hover);
+}
+.schedule-section-toggle:not([data-live]):is(:hover, :focus-visible) .schedule-section-chevron {
+  background: var(--acordeao-controle-hover);
 }
 .schedule-section-toggle[aria-expanded="true"] {
   border-radius: 9px 9px 0 0;
@@ -324,9 +330,10 @@
   min-width: 24px;
   padding: 2px 7px;
   border-radius: 5px;
-  background: var(--fundo-card-sec);
-  color: var(--texto-sec);
+  background: var(--contador-fundo);
+  color: var(--contador-texto);
   font-size: 12px;
+  font-weight: 600;
   text-align: center;
 }
 .schedule-section-title {
@@ -415,10 +422,14 @@
 .schedule-live-heading h2 > span:not(.icon) {
   padding: 1px 7px;
   border-radius: 4px;
-  background: var(--fundo-card-sec);
-  color: var(--texto-sec);
+  background: var(--contador-fundo);
+  color: var(--contador-texto);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
+}
+.schedule-status-summary button:is([aria-selected="true"], [aria-pressed="true"]) > span:not(.icon) {
+  background: var(--contador-fundo-ativo);
+  color: var(--contador-texto-ativo);
 }
 .schedule-status-summary button[aria-pressed="true"] {
   border-color: transparent;

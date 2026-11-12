@@ -4,6 +4,7 @@ import { Fragment, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
+import { SupportCenter } from './components/SupportCenter';
 import { TooltipLayer } from './components/Tooltip';
 import { WorkspaceAccess, ManagementAccess, AccessRequired, PublicClubEntry, PublicMatchEntry } from './components/PublicAccess';
 import { clubAccessScope } from './services/authSession';
@@ -48,6 +49,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <SupportCenter>
         <RouteNavigation />
         <TooltipLayer />
         <Routes>
@@ -84,6 +86,7 @@ export default function App() {
           </Route>
           <Route path="*" element={<Navigate to="/selecionar-clube" replace />} />
         </Routes>
+        </SupportCenter>
       </BrowserRouter>
     </AuthProvider>
   );

@@ -1,9 +1,0 @@
-.desktop-menu-toggle { display:flex; align-items:center; width:32px; height:19px; flex:0 0 32px; margin-left:auto; padding:2px; border:1px solid var(--borda); border-radius:12px; background:var(--fundo-card-sec); box-sizing:border-box; }
-.desktop-menu-toggle > span { width:13px; height:13px; border-radius:50%; background:var(--texto-sec); transition:transform .15s; }
-.desktop-menu-toggle[data-checked="true"] { background:var(--primaria); border-color:var(--primaria); }
-.desktop-menu-toggle[data-checked="true"] > span { background:#fff; transform:translateX(13px); }
-.desktop-app .desktop-toggle-control { display:inline-flex; justify-content:center; align-items:center; flex-shrink:0; min-width:44px; min-height:36px; padding:6px; border:0; background:transparent; cursor:pointer; }
-.desktop-toggle-control .desktop-menu-toggle { margin:0; }
-.desktop-toggle-control:focus-visible { outline:2px solid var(--primaria); outline-offset:2px; border-radius:6px; }
-.desktop-toggle-control:disabled { opacity:.5; cursor:default; }
-@media (prefers-reduced-motion:reduce) { .desktop-menu-toggle > span { transition:none; } }

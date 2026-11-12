@@ -6,7 +6,7 @@
 .club-live-track::-webkit-scrollbar { display: none; }
 .club-live-track:focus-visible { outline: 2px solid var(--primaria); outline-offset: 4px; }
 .club-live-match { display: flex; flex-direction: column; flex: 0 0 calc((100% - 24px) / 3); min-width: 0; gap: 14px; padding: 14px; border: 1px solid color-mix(in srgb, var(--ao-vivo-indicador) 24%, var(--linha)); border-radius: 9px; background: var(--fundo-card); color: var(--texto); text-decoration: none; scroll-snap-align: start; scroll-margin: 3px; }
-.club-live-match:hover { background: color-mix(in srgb, var(--fundo-card) 85%, var(--fundo-card-sec)); border-color: color-mix(in srgb, var(--ao-vivo-indicador) 50%, var(--linha)); }
+.club-live-match:hover { background: var(--card-hover-claro, color-mix(in srgb, var(--fundo-card) 85%, var(--fundo-card-sec))); border-color: color-mix(in srgb, var(--ao-vivo-indicador) 50%, var(--linha)); }
 .club-live-match:focus-visible { outline: 2px solid var(--primaria); outline-offset: -3px; }
 .club-live-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .club-live-meta small { color: var(--texto-sec); font-size: 10px; }

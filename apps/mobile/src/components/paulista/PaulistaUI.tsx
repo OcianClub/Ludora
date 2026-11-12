@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { Icon } from '@ludora/icons';
-import { liveBadgeColors } from '@ludora/design-tokens';
+import { interfaceColors, liveBadgeColors } from '@ludora/design-tokens';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { AnchoredMenu } from '../ui/AnchoredMenu';
 import { nomeOficial, temResultado } from '../../utils/paulista';
@@ -10,7 +10,6 @@ import type { EstadoEtapa } from '../../utils/paulista';
 import type { EquipePaulista, JogoPaulista, PosicaoPaulista } from '../../../../../packages/shared-types/src/paulista';
 
 export const ERRO_PARTIDA = liveBadgeColors.indicador;
-export const coresChave = { OURO: '#F0B84E', PRATA: '#BFC8D6', BRONZE: '#C58B59', RUBI: '#EC7294' };
 export function usePaulistaStyles() { const { colors } = useTheme(); return useMemo(() => estilos(colors), [colors]); }
 export function useDestaqueClube() {
   const { colors, tema } = useTheme();
@@ -31,16 +30,16 @@ export function EscudoOficial({ equipe, size = 26, destaque = false }: {
     {equipe?.escudo && falhou !== equipe.escudo ? <Image accessibilityIgnoresInvertColors source={{ uri: equipe.escudo }} onError={() => setFalhou(equipe.escudo!)} resizeMode="contain" style={{ width: size * .8, height: size * .8 }} /> : <Text style={{ color: colors.texto, fontFamily: 'Inter_600SemiBold', fontSize: Math.max(10, size * .4) }}>{equipe?.nome?.trim()[0]?.toUpperCase() || '?'}</Text>}
   </View>;
 }
-const chavesTemaClaro = { OURO: '#805000', PRATA: '#536174', BRONZE: '#8D502D', RUBI: '#A12C51' };
-export function useCorChave() {
+export function usePaletaChave() {
   const { colors, tema } = useTheme();
-  const paleta = tema === 'light' ? chavesTemaClaro : coresChave;
-  return (chave?: string | null) => paleta[chave as keyof typeof paleta] || colors.textoSecundario;
+  const chaves = interfaceColors[tema].chaves;
+  return (chave?: string | null) => chaves[chave as keyof typeof chaves] ?? { texto: colors.textoSecundario, fundo: colors.fundo };
 }
 export function Medalha({ chave, filled = false }: { chave?: string | null; filled?: boolean }) {
   const s = usePaulistaStyles();
-  const color = useCorChave()(chave);
-  return <View style={[s.row, { gap: 7, alignSelf: 'flex-start' }, !filled && { paddingVertical: 5, paddingHorizontal: 8, borderWidth: 1, borderRadius: 4, borderColor: color }]}>{filled ? <Svg width={27} height={27} viewBox="0 0 24 24" fill={color}><Path d="M7 3h10v5a5 5 0 0 1-4 4.9V17h2a2 2 0 0 1 2 2v2H7v-2a2 2 0 0 1 2-2h2v-4.1A5 5 0 0 1 7 8V3Z" /><Path d="M7 4H2v4a6 6 0 0 0 6 6v-2a4 4 0 0 1-4-4V6h3V4Zm10 0h5v4a6 6 0 0 1-6 6v-2a4 4 0 0 0 4-4V6h-3V4Z" /></Svg> : <Icon name="trophy" size={14} color={color} />}<Text style={[s.tiny, { color, fontFamily: 'Inter_600SemiBold' }]}>{chave ? `Chave ${nomeOficial(chave)}` : 'Chave a confirmar'}</Text></View>;
+  const { tema } = useTheme();
+  const { texto: color, fundo } = usePaletaChave()(chave);
+  return <View style={[s.row, { gap: 7, alignSelf: 'flex-start' }, !filled && { paddingVertical: 5, paddingHorizontal: 8, borderWidth: 1, borderRadius: 4, borderColor: color, backgroundColor: tema === 'light' ? fundo : 'transparent' }]}>{filled ? <Svg width={27} height={27} viewBox="0 0 24 24" fill={color}><Path d="M7 3h10v5a5 5 0 0 1-4 4.9V17h2a2 2 0 0 1 2 2v2H7v-2a2 2 0 0 1 2-2h2v-4.1A5 5 0 0 1 7 8V3Z" /><Path d="M7 4H2v4a6 6 0 0 0 6 6v-2a4 4 0 0 1-4-4V6h3V4Zm10 0h5v4a6 6 0 0 1-6 6v-2a4 4 0 0 0 4-4V6h-3V4Z" /></Svg> : <Icon name="trophy" size={14} color={color} />}<Text style={[s.tiny, { color, fontFamily: 'Inter_600SemiBold' }]}>{chave ? `Chave ${nomeOficial(chave)}` : 'Chave a confirmar'}</Text></View>;
 }
 export function Marcador({ estado }: { estado: EstadoEtapa }) {
   const { colors } = useTheme();

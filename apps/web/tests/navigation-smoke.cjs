@@ -173,7 +173,7 @@ const output = path.resolve(__dirname, '../../../test-results/web-navigation');
         assert.equal(await notificationPreference.isVisible(), true);
         assert.equal(await notificationPreference.getAttribute('aria-checked'), 'true');
         await notificationPreference.click();
-        await page.waitForFunction(() => document.querySelector('.perfil-switch')?.getAttribute('aria-checked') === 'false');
+        await page.getByRole('switch', { name: 'Receber notificações', checked: false }).waitFor();
         await page.getByRole('tab', { name: 'Dados pessoais' }).click();
         assert.equal(await page.getByRole('textbox', { name: 'Nome', exact: true }).inputValue(), 'Nome em edição');
         await page.getByRole('tab', { name: 'Conta', exact: true }).click();

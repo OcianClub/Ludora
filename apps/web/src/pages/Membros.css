@@ -39,8 +39,14 @@
 .members-tabs small {
   padding: 3px 6px;
   border-radius: 5px;
-  background: var(--fundo-card-sec);
+  background: var(--contador-fundo);
+  color: var(--contador-texto);
   font-size: 11px;
+  font-weight: 600;
+}
+.members-tabs > button[aria-pressed="true"] small {
+  background: var(--contador-fundo-ativo);
+  color: var(--contador-texto-ativo);
 }
 .members-tabs .members-help {
   margin-left: auto;
@@ -125,7 +131,7 @@
 }
 .members-table tbody tr:hover td,
 .members-table tbody tr:focus-within td {
-  background: var(--fundo-card-sec);
+  background: var(--linha-hover-claro, var(--fundo-card-sec));
 }
 .members-person {
   display: flex;
@@ -525,14 +531,13 @@
   color: var(--texto);
   gap: 6px;
 }
-.members-role.role-tecnico, .members-status.status-pendente {
-  --members-role-dot: #F0B84E;
-}
+.members-status.status-pendente { --members-role-dot: var(--titulo-atencao); }
+.members-role.role-tecnico { --members-role-dot: var(--cargo-tecnico); }
 .members-role.role-olheiro {
-  --members-role-dot: #9D82DC;
+  --members-role-dot: var(--cargo-olheiro);
 }
 .members-role.role-mesario {
-  --members-role-dot: #31B9A2;
+  --members-role-dot: var(--cargo-mesario);
 }
 .members-role {
   gap: 6px;
@@ -546,15 +551,6 @@
 }
 .members-role.role-admin > .icon, .members-status.status-aceito > .icon {
   color: #fff;
-}
-[data-theme="light"] .members-role.role-tecnico {
-  --members-role-dot: var(--titulo-atencao);
-}
-[data-theme="light"] .members-role.role-olheiro {
-  --members-role-dot: #7450B8;
-}
-[data-theme="light"] .members-role.role-mesario {
-  --members-role-dot: #167B69;
 }
 .members-table:not(.members-invites-table) .members-actions > * {
   display: inline-flex;
@@ -612,10 +608,10 @@
 .members-access-modal .choice-value { display:inline-flex; align-items:center; gap:8px; min-width:0; }
 .members-access-modal .choice-options button { display:flex; align-items:center; gap:8px; }
 .members-access-modal .choice-option-icon { display:inline-flex; flex:none; color:var(--texto-sec); }
-.members-access-modal .choice-icon-admin { color:var(--primaria); }
-.members-access-modal .choice-icon-tecnico { color:var(--amarelo); }
-.members-access-modal .choice-icon-olheiro { color:#9D82DC; }
-.members-access-modal .choice-icon-mesario { color:#31B9A2; }
+.members-access-modal .choice-icon-admin { color:var(--cargo-admin); }
+.members-access-modal .choice-icon-tecnico { color:var(--cargo-tecnico); }
+.members-access-modal .choice-icon-olheiro { color:var(--cargo-olheiro); }
+.members-access-modal .choice-icon-mesario { color:var(--cargo-mesario); }
 .members-access-modal .choice-options button[aria-pressed="true"] .choice-option-icon { color:inherit; }
 .member-delivery {
   grid-template-columns: repeat(2, minmax(0, 1fr));

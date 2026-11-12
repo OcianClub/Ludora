@@ -7,7 +7,7 @@
 .match-poll-options button { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 11px 6px 14px; border: 1px solid var(--borda); border-radius: 8px; background: var(--fundo); color: var(--texto); overflow: hidden; cursor: pointer; }
 .match-poll-options button > :not(.match-poll-fill) { position: relative; z-index: 1; }
 .match-poll-options button:disabled { opacity: 1; cursor: default; }
-.match-poll-options button:not(:disabled):hover { background: var(--fundo-card-sec); }
+.match-poll-options button:not(:disabled):hover { background: var(--controle-hover-claro, var(--fundo-card-sec)); }
 .match-poll-options button[aria-pressed="true"] { border-color: var(--primaria); background: var(--fundo-card-sec); }
 .match-poll-options .club-badge { background: var(--fundo-card-sec); border-radius: 5px; flex-shrink: 0; }
 .match-poll-choice-team { min-width: 0; max-width: 100%; display: flex; flex-direction: column; align-items: center; gap: 7px; }

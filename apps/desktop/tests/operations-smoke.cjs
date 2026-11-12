@@ -28,7 +28,7 @@ function fixture({ theme }) {
   ];
   window.__cadastroCompleto = false;
   let pausas = [];
-  let chamados = [{ id: 'ch-1', assunto: 'Problema visual na partida', descricao: 'Descrição detalhada para testar o atendimento.', criadoEm: '2026-11-09T20:00:00Z', revisao: 1, regra: 'MANUAL', fila: 'SUPORTE', status: 'NOVO', origem: 'CLIENTE', tipo: 'ERRO', prioridade: 'NORMAL', ocorrencias: 1, clube: { nome: 'Ocian' }, clubeId: 1, restrito: false, rota: '/partidas', servico: 'web', versao: '0.0.1', historico: [] }];
+  let chamados = [{ id: 'ch-1', assunto: 'Problema visual na partida', descricao: 'Descrição detalhada para testar o atendimento.', criadoEm: '2026-11-09T20:00:00Z', revisao: 1, regra: 'MANUAL', fila: 'SUPORTE', status: 'NOVO', origem: 'CLIENTE', tipo: 'ERRO', prioridade: 'NORMAL', impacto: 'OPERACAO_BLOQUEADA', usuarioId: 2, ocorrencias: 1, clube: { nome: 'Ocian' }, clubeId: 1, restrito: false, rota: '/partidas', servico: 'web', versao: '0.0.1', historico: [] }];
   chamados[0].revisarEm = new Date(Date.now() + 86400000).toISOString();
   chamados.push(
     {...chamados[0],id:'ch-atrasado',assunto:'Revisão de prazo vencido',status:'EM_TRIAGEM',prioridade:'ALTA',criadoEm:'2026-11-07T20:00:00Z',revisarEm:new Date(Date.now() - 3600000).toISOString()},
@@ -75,13 +75,14 @@ function fixture({ theme }) {
           cadastro[1].tarefas[0].estado = 'DISPENSADA'; cadastro[1].tarefas[0].justificativa = body.motivo;
           return { ok: true, status: 200, data: { ok: true } };
         }
-        if (p === '/admin/equipe/chamados') { chamados = [{ ...chamados[0], id: 'ch-2', assunto: body.assunto, descricao: body.descricao }, ...chamados]; return { ok: true, status: 200, data: { id: 'ch-2' } }; }
+        if (p === '/admin/equipe/chamados') { chamados = [{ ...chamados[0], id: 'ch-2', assunto: body.assunto, descricao: body.descricao, usuarioId: null, responsavelId: null }, ...chamados]; return { ok: true, status: 200, data: { id: 'ch-2' } }; }
         if (method === 'PATCH' && p.startsWith('/admin/equipe/chamados/')) {
           const item = chamados.find(c => c.id === p.split('/').at(-1));
+          if (body.acao === 'ATRIBUIR') item.responsavelId = admin.id;
           if (body.acao === 'FINALIZAR') { item.status = 'RESOLVIDO'; item.finalizadoEm = new Date().toISOString(); }
           if (body.acao === 'STATUS') { item.status = body.status; if (body.status !== 'RESOLVIDO') item.finalizadoEm = null; }
           item.revisao++;
-          item.historico = [...item.historico,{id:item.historico.length + 1,acao:body.acao,motivo:body.motivo,criadoEm:new Date().toISOString()}];
+          item.historico = [...item.historico,{id:item.historico.length + 1,acao:body.acao,motivo:body.motivo,publico:body.publico,autorNome:admin.nome,criadoEm:new Date().toISOString()}];
           return {ok:true,status:200,data:{ok:true}};
         }
         if (p === '/admin/equipe/manutencao') pausas.push({ id: 'pausa-1', ...body, ativa: true, inicio: new Date().toISOString(), revisao: 1, historico: [{id:1,operadorId:1,motivo:body.motivo,criadoEm:new Date().toISOString(),depois:{ativa:true}}] });
@@ -123,6 +124,130 @@ function fixture({ theme }) {
   };
 }
 
+async function testarChamados(page, base, scenario) {
+  await page.goto(base + 'chamados');
+  await page.getByRole('button', { name: /Problema visual na partida/ }).waitFor();
+  const primeiroChamado = page.locator('.desktop-tickets-page .ticket-card').first();
+  assert.ok((await primeiroChamado.textContent()).includes('Revisão de prazo vencido'), 'Prioridade alta antiga aparece antes dos chamados normais recentes');
+  assert.match(await primeiroChamado.innerText(), /Sem responsável[\s\S]*Revisão atrasada/);
+  assert.equal(await page.locator('.ticket-queue .ticket-card').count(), 5, 'Cada chamado ativo aparece uma vez');
+  assert.equal(await primeiroChamado.locator(':scope > .icon').count(), 0, 'Linha sem chevron decorativo');
+  await page.mouse.move(5,5);
+  await page.waitForTimeout(200); // Aguarda o fim do hover antes de comparar as superfícies.
+  const superficie = await page.getByRole('button', {name:'Período: Todos os períodos',exact:true}).evaluate(el => getComputedStyle(el).backgroundColor);
+  assert.equal(superficie, await page.locator('.ticket-toolbar .collection-search').evaluate(el => getComputedStyle(el).backgroundColor), 'Período e busca usam o mesmo fundo');
+  assert.ok((await page.getByRole('heading', {level:1,name:'Chamados',exact:true}).boundingBox()).height >= 24, 'Título permanece legível na janela menor');
+  if (scenario.width === 640) {
+    const busca = await page.getByRole('searchbox', {name:'Buscar chamados',exact:true}).boundingBox();
+    const filtros = await page.getByRole('button', {name:'Mais filtros',exact:true}).boundingBox();
+    assert.ok(Math.abs(busca.y - filtros.y) < 5, 'Busca e filtros ficam na mesma linha');
+  }
+  for (const [label, assunto] of [['Novos', 'Problema visual na partida'], ['Revisão atrasada', 'Revisão de prazo vencido'], ['Recorrentes', 'Falha recorrente na busca'], ['Meus chamados', 'Atendimento sob minha responsabilidade']]) {
+    await page.getByRole('tab', { name: new RegExp('^' + label) }).click();
+    await page.getByRole('button', { name: new RegExp(assunto) }).waitFor();
+    assert.equal(await page.locator('.desktop-tickets-page .ticket-card').count(), 1, 'Categoria mostra o exemplo correspondente');
+  }
+  await page.getByRole('tab', { name: /^Todos/ }).click();
+  await page.getByRole('button', { name: /Problema visual na partida/ }).waitFor();
+  await page.screenshot({ path: path.join(output, `chamados-fila-${scenario.width}.png`), fullPage: true });
+  await page.getByRole('tab', {name:/^Finalizados/}).click();
+  const closed = page.getByRole('region', {name:'Chamados finalizados',exact:true});
+  await closed.getByRole('button', {name:/^Hoje/}).waitFor();
+  assert.equal(await page.getByRole('button', {name:/Atendimento finalizado hoje/}).count(), 0, 'Encerrados começam recolhidos');
+  const accordion = closed.getByRole('button', {name:/^Hoje/});
+  await accordion.focus(); await page.keyboard.press('Enter');
+  assert.equal(await accordion.getAttribute('aria-expanded'), 'true');
+  await page.getByRole('button', {name:/Atendimento finalizado hoje/}).click();
+  await page.getByRole('heading', {level:1,name:'Atendimento finalizado hoje'}).waitFor();
+  assert.equal(await page.getByRole('button', {name:'Finalizar chamado',exact:true}).count(), 0, 'Não oferece finalizar novamente');
+  await page.getByRole('heading', {name:'Histórico do atendimento',exact:true}).waitFor();
+  await page.screenshot({path:path.join(output,`chamado-detalhe-${scenario.width}.png`),fullPage:true});
+  await page.getByRole('button', {name:'Contexto e diagnóstico',exact:true}).click();
+  await page.getByRole('button', {name:'Voltar à fila',exact:true}).click();
+  assert.equal(await closed.getByRole('button', {name:/^Hoje/}).getAttribute('aria-expanded'), 'true', 'O grupo aberto é preservado ao voltar');
+  await closed.getByRole('button', {name:/^Ontem/}).click();
+  await page.getByRole('button', {name:/Atendimento finalizado ontem/}).waitFor();
+  const closedRow = page.getByRole('button', {name:/Atendimento finalizado ontem/});
+  assert.ok(await closedRow.evaluate(el=>Math.abs(el.getBoundingClientRect().width - el.parentElement.clientWidth) < 2), 'Linha do chamado encerrado ocupa toda a seção');
+  await page.screenshot({path:path.join(output,`chamados-finalizados-${scenario.width}.png`),fullPage:true});
+  await page.getByRole('tab', {name:/^Todos/}).click();
+  await page.getByRole('button', {name:/Problema visual na partida/}).waitFor();
+  await page.getByRole('button', { name: 'Mais filtros', exact: true }).click();
+  let dialog = page.getByRole('dialog', { name: 'Filtrar chamados', exact: true });
+  if (scenario.theme === 'dark') {
+    assert.equal(await dialog.evaluate(el=>getComputedStyle(el).backgroundColor), 'rgb(11, 13, 18)');
+    assert.equal(await dialog.getByRole('button', {name:'Situação: Todas as situações',exact:true}).evaluate(el=>getComputedStyle(el).backgroundColor), 'rgb(20, 23, 31)');
+  }
+  await dialog.getByRole('button', {name:'Limpar filtros',exact:true}).hover();
+  await page.waitForTimeout(200);
+  assert.equal(await dialog.getByRole('button', {name:'Limpar filtros',exact:true}).evaluate(el=>getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
+  await dialog.getByRole('button', { name: 'Situação: Todas as situações', exact: true }).click();
+  await dialog.getByRole('menuitemradio', { name: 'Em triagem', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
+  await page.getByRole('button', { name: /Revisão de prazo vencido/ }).waitFor();
+  assert.equal(await page.locator('.desktop-tickets-page .ticket-card').count(), 1);
+  await page.getByRole('button', { name: 'Limpar tudo', exact: true }).click();
+  await page.getByRole('button', { name: /Problema visual na partida/ }).click();
+  await page.getByRole('textbox', { name: 'Nota interna', exact: true }).fill('Informação restrita à equipe.');
+  await page.getByRole('tab', { name: 'Responder ao cliente', exact: true }).click();
+  assert.equal(await page.getByRole('textbox', { name: 'Resposta ao cliente', exact: true }).inputValue(), '');
+  await page.getByRole('textbox', { name: 'Resposta ao cliente', exact: true }).fill('A equipe já está analisando a partida.');
+  await page.getByRole('button', { name: 'Enviar resposta ao cliente', exact: true }).click();
+  await page.getByRole('heading', { name: 'Resposta ao cliente', exact: true }).waitFor();
+  await page.getByRole('tab', { name: 'Nota interna', exact: true }).click();
+  assert.equal(await page.getByRole('textbox', { name: 'Nota interna', exact: true }).inputValue(), 'Informação restrita à equipe.');
+  await page.getByRole('button', { name: 'Registrar nota interna', exact: true }).click();
+  await page.getByRole('heading', { name: 'Nota interna', exact: true }).waitFor();
+  const visibilidade = await page.evaluate(() => window.__writes.filter(w => w.body?.acao === 'COMENTAR').slice(-2).map(w => w.body.publico));
+  assert.deepEqual(visibilidade, [true, false], 'Resposta pública e nota privada usam rascunhos independentes');
+  await page.getByRole('button', { name: 'Voltar à fila', exact: true }).click();
+  await page.getByRole('button', { name: 'Novo chamado', exact: true }).click();
+  await page.evaluate(() => { window.__failWrite = true; });
+  dialog = page.getByRole('dialog', { name: 'Novo chamado manual', exact: true });
+  await dialog.getByRole('textbox', { name: 'Assunto (obrigatório)', exact: true }).fill('Falha no teste visual');
+  await dialog.getByRole('textbox', { name: 'Descrição', exact: true }).fill('Descrição suficientemente longa para o chamado.');
+  await dialog.getByRole('button', { name: 'Tela (obrigatória): Selecione a tela', exact: true }).click();
+  await dialog.getByRole('menuitemradio', { name: 'Partidas', exact: true }).click();
+  await dialog.getByRole('radio', { name: 'Santos', exact: true }).check();
+  await dialog.screenshot({ path: path.join(output, `chamado-novo-${scenario.width}.png`) });
+  await dialog.getByRole('button', { name: 'Criar chamado', exact: true }).click();
+  await dialog.getByRole('alert').waitFor();
+  assert.equal(await dialog.getByRole('textbox', { name: 'Assunto (obrigatório)', exact: true }).inputValue(), 'Falha no teste visual');
+  await page.evaluate(() => { window.__failWrite = false; });
+  await dialog.getByRole('button', { name: 'Criar chamado', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  const escrito = await page.evaluate(() => window.__writes.filter(w => w.route === '/admin/equipe/chamados').at(-1));
+  assert.equal(escrito.body.clubeId, 2, 'Card de clube envia o identificador correto');
+  assert.equal(escrito.body.rota, '/partidas', 'Select da tela preserva o contrato da API');
+  await page.getByRole('heading', { level: 1, name: 'Falha no teste visual', exact: true }).waitFor();
+  await page.getByRole('button', {name:'Assumir chamado',exact:true}).click();
+  dialog = page.getByRole('dialog', {name:'Assumir chamado',exact:true});
+  await dialog.getByRole('textbox', {name:'Motivo da atribuição',exact:true}).fill('Conferido o relato no ambiente de teste.');
+  await dialog.getByRole('button', {name:'Confirmar decisão',exact:true}).click();
+  await page.getByRole('heading', {name:'Responsável atualizado',exact:true}).waitFor();
+  await page.getByRole('button', {name:'Mais ações',exact:true}).click();
+  await page.getByRole('button', {name:'Finalizar chamado',exact:true}).click();
+  dialog = page.getByRole('dialog', {name:'Finalizar chamado',exact:true});
+  await dialog.getByRole('textbox', {name:'Como o problema foi resolvido?',exact:true}).fill('Correção verificada e atendimento concluído.');
+  await dialog.getByRole('button', {name:'Confirmar decisão',exact:true}).click();
+  await dialog.waitFor({state:'detached'});
+  await page.locator('.ticket-detail-summary .ticket-status[data-state="RESOLVIDO"]').waitFor();
+  assert.equal(await page.getByRole('button', {name:'Finalizar chamado',exact:true}).count(), 0);
+  await page.getByRole('button', {name:'Alterar status ou tipo',exact:true}).click();
+  await page.getByRole('button', {name:'Novo status: Reaberto',exact:true}).waitFor();
+  await page.getByRole('textbox', {name:'Motivo da alteração',exact:true}).fill('O cliente confirmou a necessidade de nova análise.');
+  await page.getByRole('button', {name:'Registrar status',exact:true}).click();
+  await page.locator('.ticket-detail-summary .ticket-status[data-state="REABERTO"]').waitFor();
+  await page.getByRole('button', {name:'Finalizar chamado',exact:true}).waitFor();
+  await page.getByRole('button', { name: 'Voltar à fila', exact: true }).click();
+  const filterCalls = await page.evaluate(() => window.__calls.filter(c => c.route === '/admin/equipe/chamados/filtros').length);
+  await page.getByRole('searchbox', { name: 'Buscar chamados', exact: true }).fill('placar');
+  await page.waitForTimeout(400);
+  await page.getByRole('searchbox', { name: 'Buscar chamados', exact: true }).fill('gol');
+  await page.waitForTimeout(400);
+  assert.equal(await page.evaluate(() => window.__calls.filter(c => c.route === '/admin/equipe/chamados/filtros').length), filterCalls, 'Busca não recarrega as opções da fila');
+}
+
 async function main() {
   fs.mkdirSync(output, { recursive: true });
   const server = http.createServer((req, res) => {
@@ -139,6 +264,13 @@ async function main() {
       const errors = []; page.on('pageerror', e => errors.push(e.message));
       await page.addInitScript(fixture, scenario);
       const base = `http://127.0.0.1:${server.address().port}/#/`;
+      if (process.env.DESKTOP_TEST_SUPPORT_ONLY) {
+        await testarChamados(page, base, scenario);
+        assert.deepEqual(errors, []);
+        console.log(`PASS chamados ${scenario.width}px ${scenario.theme}`);
+        await context.close();
+        continue;
+      }
       for (const [route, title] of [['visao', 'Visão global'], ['clubes', 'Clubes'], ['usuarios', 'Usuários'], ['visao', 'Visão global'], ['chamados', 'Chamados'], ['manutencao', 'Manutenção'], ['paulista', 'Campeonato Paulista'], ['banco', 'Banco e integrações'], ['logs', 'Logs ao vivo'], ['ajustes', 'Ajustes']].filter(([route]) => !process.env.DESKTOP_TEST_OVERVIEW_ONLY || route === 'visao')) {
         await page.goto(base + route);
         await page.getByRole('heading', { level: 1, name: title, exact: true }).waitFor();
@@ -456,116 +588,7 @@ async function main() {
       assert.equal(await page.locator('.desktop-registration').getByRole('radio').count(), 0, 'Cadastro completo limpa a seleção e a lista');
       await page.screenshot({ path: path.join(output, `cadastro-vazio-${scenario.width}.png`), fullPage: true });
 
-      await page.goto(base + 'chamados');
-      await page.getByRole('button', { name: /Problema visual na partida/ }).waitFor();
-      const primeiroChamado = page.locator('.desktop-tickets-page .ticket-card').first();
-      assert.ok((await primeiroChamado.textContent()).includes('Revisão de prazo vencido'), 'Prioridade alta antiga aparece antes dos chamados normais recentes');
-      const geometria = await primeiroChamado.evaluate(el => {
-        const card = el.getBoundingClientRect();
-        const chip = el.querySelector('.ticket-status').getBoundingClientRect();
-        const hora = el.querySelector('.ticket-created-time').getBoundingClientRect();
-        return {centroCard:card.y + card.height/2, centroChip:chip.y + chip.height/2, direitaHora:hora.right, direitaChip:chip.right, horaTopo:hora.y-card.y};
-      });
-      assert.ok(Math.abs(geometria.centroCard - geometria.centroChip) < 2, 'Chip centralizado verticalmente');
-      assert.ok(Math.abs(geometria.direitaHora - geometria.direitaChip) < 2 && geometria.horaTopo < 20, 'Horário no canto superior direito');
-      assert.equal(await primeiroChamado.locator(':scope > .icon').count(), 0, 'Card sem chevron');
-      await page.mouse.move(5,5);
-      await page.waitForTimeout(200); // Aguarda o fim do hover antes de comparar as superfícies.
-      const superficie = await page.getByRole('button', {name:'Período: Todos os períodos',exact:true}).evaluate(el => getComputedStyle(el).backgroundColor);
-      assert.equal(superficie, await page.locator('.ticket-toolbar .collection-search').evaluate(el => getComputedStyle(el).backgroundColor), 'Período e busca usam o mesmo fundo');
-      assert.ok((await page.getByRole('heading', {level:1,name:'Chamados',exact:true}).boundingBox()).height >= 24, 'Título permanece legível na janela menor');
-      if (scenario.width === 640) {
-        const busca = await page.getByRole('searchbox', {name:'Buscar chamados',exact:true}).boundingBox();
-        const filtros = await page.getByRole('button', {name:'Mais filtros',exact:true}).boundingBox();
-        assert.ok(Math.abs(busca.y - filtros.y) < 5, 'Busca e filtros ficam na mesma linha');
-      }
-      for (const [label, assunto] of [['Novos', 'Problema visual na partida'], ['Revisão atrasada', 'Revisão de prazo vencido'], ['Recorrentes', 'Falha recorrente na busca'], ['Meus chamados', 'Atendimento sob minha responsabilidade']]) {
-        await page.getByRole('tab', { name: new RegExp('^' + label) }).click();
-        await page.getByRole('button', { name: new RegExp(assunto) }).waitFor();
-        assert.equal(await page.locator('.desktop-tickets-page .ticket-card').count(), 1, 'Categoria mostra o exemplo correspondente');
-      }
-      await page.getByRole('tab', { name: /^Todos/ }).click();
-      await page.getByRole('button', { name: /Problema visual na partida/ }).waitFor();
-      await page.screenshot({ path: path.join(output, `chamados-fila-${scenario.width}.png`), fullPage: true });
-      await page.getByRole('tab', {name:/^Finalizados/}).click();
-      const closed = page.getByRole('region', {name:'Chamados finalizados',exact:true});
-      await closed.getByRole('button', {name:/^Hoje/}).waitFor();
-      assert.equal(await page.getByRole('button', {name:/Atendimento finalizado hoje/}).count(), 0, 'Encerrados começam recolhidos');
-      const accordion = closed.getByRole('button', {name:/^Hoje/});
-      await accordion.focus(); await page.keyboard.press('Enter');
-      assert.equal(await accordion.getAttribute('aria-expanded'), 'true');
-      await page.getByRole('button', {name:/Atendimento finalizado hoje/}).click();
-      await page.getByRole('heading', {level:1,name:'Atendimento finalizado hoje'}).waitFor();
-      assert.equal(await page.getByRole('button', {name:'Finalizar chamado',exact:true}).count(), 0, 'Não oferece finalizar novamente');
-      await page.getByRole('heading', {name:'Histórico do atendimento',exact:true}).waitFor();
-      await page.screenshot({path:path.join(output,`chamado-detalhe-${scenario.width}.png`),fullPage:true});
-      await page.getByRole('button', {name:'Contexto e diagnóstico',exact:true}).click();
-      await page.getByRole('button', {name:'Voltar à fila',exact:true}).click();
-      await closed.getByRole('button', {name:/^Hoje/}).click();
-      await closed.getByRole('button', {name:/^Ontem/}).click();
-      await page.getByRole('button', {name:/Atendimento finalizado ontem/}).waitFor();
-      const closedRow = page.getByRole('button', {name:/Atendimento finalizado ontem/});
-      assert.ok(await closedRow.evaluate(el=>Math.abs(el.getBoundingClientRect().width - el.parentElement.clientWidth) < 2), 'Linha do chamado encerrado ocupa toda a seção');
-      await page.screenshot({path:path.join(output,`chamados-finalizados-${scenario.width}.png`),fullPage:true});
-      await page.getByRole('tab', {name:/^Todos/}).click();
-      await page.getByRole('button', {name:/Problema visual na partida/}).waitFor();
-      await page.getByRole('button', { name: 'Mais filtros', exact: true }).click();
-      dialog = page.getByRole('dialog', { name: 'Filtrar chamados', exact: true });
-      if (scenario.theme === 'dark') {
-        assert.equal(await dialog.evaluate(el=>getComputedStyle(el).backgroundColor), 'rgb(11, 13, 18)');
-        assert.equal(await dialog.getByRole('button', {name:'Situação: Todas as situações',exact:true}).evaluate(el=>getComputedStyle(el).backgroundColor), 'rgb(20, 23, 31)');
-      }
-      await dialog.getByRole('button', {name:'Limpar filtros',exact:true}).hover();
-      await page.waitForTimeout(200);
-      assert.equal(await dialog.getByRole('button', {name:'Limpar filtros',exact:true}).evaluate(el=>getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
-      await dialog.getByRole('button', { name: 'Situação: Todas as situações', exact: true }).click();
-      await dialog.getByRole('menuitemradio', { name: 'Em triagem', exact: true }).click();
-      await dialog.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
-      await page.getByRole('button', { name: /Revisão de prazo vencido/ }).waitFor();
-      assert.equal(await page.locator('.desktop-tickets-page .ticket-card').count(), 1);
-      await page.getByRole('button', { name: 'Limpar tudo', exact: true }).click();
-      await page.getByRole('button', { name: 'Novo chamado', exact: true }).click();
-      await page.evaluate(() => { window.__failWrite = true; });
-      dialog = page.getByRole('dialog', { name: 'Novo chamado manual', exact: true });
-      await dialog.getByRole('textbox', { name: 'Assunto (obrigatório)', exact: true }).fill('Falha no teste visual');
-      await dialog.getByRole('textbox', { name: 'Descrição', exact: true }).fill('Descrição suficientemente longa para o chamado.');
-      await dialog.getByRole('button', { name: 'Tela (obrigatória): Selecione a tela', exact: true }).click();
-      await dialog.getByRole('menuitemradio', { name: 'Partidas', exact: true }).click();
-      await dialog.getByRole('radio', { name: 'Santos', exact: true }).check();
-      await dialog.screenshot({ path: path.join(output, `chamado-novo-${scenario.width}.png`) });
-      await dialog.getByRole('button', { name: 'Criar chamado', exact: true }).click();
-      await dialog.getByRole('alert').waitFor();
-      assert.equal(await dialog.getByRole('textbox', { name: 'Assunto (obrigatório)', exact: true }).inputValue(), 'Falha no teste visual');
-      await page.evaluate(() => { window.__failWrite = false; });
-      await dialog.getByRole('button', { name: 'Criar chamado', exact: true }).click();
-      await dialog.waitFor({ state: 'detached' });
-      const escrito = await page.evaluate(() => window.__writes.filter(w => w.route === '/admin/equipe/chamados').at(-1));
-      assert.equal(escrito.body.clubeId, 2, 'Card de clube envia o identificador correto');
-      assert.equal(escrito.body.rota, '/partidas', 'Select da tela preserva o contrato da API');
-      await page.getByRole('heading', { level: 1, name: 'Falha no teste visual', exact: true }).waitFor();
-      await page.getByRole('textbox', {name:'Comentário',exact:true}).fill('Conferido o relato no ambiente de teste.');
-      await page.getByRole('button', {name:'Registrar comentário',exact:true}).click();
-      await page.getByRole('heading', {name:'comentar',exact:true}).waitFor();
-      await page.getByRole('button', {name:'Finalizar chamado',exact:true}).click();
-      dialog = page.getByRole('dialog', {name:'Finalizar chamado',exact:true});
-      await dialog.getByRole('textbox', {name:'Como o problema foi resolvido?',exact:true}).fill('Correção verificada e atendimento concluído.');
-      await dialog.getByRole('button', {name:'Confirmar decisão',exact:true}).click();
-      await dialog.waitFor({state:'detached'});
-      await page.locator('.ticket-detail-summary .ticket-status[data-state="RESOLVIDO"]').waitFor();
-      assert.equal(await page.getByRole('button', {name:'Finalizar chamado',exact:true}).count(), 0);
-      await page.getByRole('button', {name:'Alterar status ou tipo',exact:true}).click();
-      await page.getByRole('button', {name:'Novo status: Reaberto',exact:true}).waitFor();
-      await page.getByRole('textbox', {name:'Comentário',exact:true}).fill('O cliente confirmou a necessidade de nova análise.');
-      await page.getByRole('button', {name:'Registrar status',exact:true}).click();
-      await page.locator('.ticket-detail-summary .ticket-status[data-state="REABERTO"]').waitFor();
-      await page.getByRole('button', {name:'Finalizar chamado',exact:true}).waitFor();
-      await page.getByRole('button', { name: 'Voltar à fila', exact: true }).click();
-      const filterCalls = await page.evaluate(() => window.__calls.filter(c => c.route === '/admin/equipe/chamados/filtros').length);
-      await page.getByRole('searchbox', { name: 'Buscar chamados', exact: true }).fill('placar');
-      await page.waitForTimeout(400);
-      await page.getByRole('searchbox', { name: 'Buscar chamados', exact: true }).fill('gol');
-      await page.waitForTimeout(400);
-      assert.equal(await page.evaluate(() => window.__calls.filter(c => c.route === '/admin/equipe/chamados/filtros').length), filterCalls, 'Busca não recarrega as opções da fila');
+      await testarChamados(page, base, scenario);
 
       await page.goto(base + 'manutencao');
       await page.getByRole('heading', {name:'Nenhuma pausa ativa',exact:true}).waitFor();

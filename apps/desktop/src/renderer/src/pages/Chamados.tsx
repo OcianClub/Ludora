@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CollectionFilterButton, CollectionFilterDialog, CollectionSearch } from '@web/components/CollectionToolbar';
 import { DesktopSelect } from '../components/DesktopSelect';
@@ -37,25 +37,62 @@ const humanizar = (valor: string) => valor.replace(/_/g, ' ').toLowerCase();
 const zona = { timeZone: 'America/Sao_Paulo' };
 const dia = (valor: string) => new Date(valor).toLocaleDateString('sv-SE', zona);
 const hora = (valor: string) => new Date(valor).toLocaleTimeString('pt-BR', { ...zona, hour: '2-digit', minute: '2-digit' });
-const dataLonga = (valor: string) => new Date(`${valor}T12:00:00-03:00`).toLocaleDateString('pt-BR', { ...zona, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const dataCurta = (valor: string) => new Date(valor).toLocaleDateString('pt-BR', { ...zona, day: '2-digit', month: 'short' });
+const dataCompleta = (valor: string) => new Date(valor).toLocaleDateString('pt-BR', zona);
 const filtrosExtras = ['status', 'origem', 'prioridade', 'tipo', 'clube', 'responsavel'] as const;
 const endpoint = '/admin/equipe/chamados';
 const decisoes = {
+  ATRIBUIR: { titulo: 'Assumir chamado', campo: 'Motivo da atribuição', texto: 'Você ficará responsável pelo acompanhamento deste chamado.' },
   FINALIZAR: { titulo: 'Finalizar chamado', campo: 'Como o problema foi resolvido?', texto: 'O chamado será finalizado. Uma pausa vinculada continua sob controle da aba Manutenção.' },
   ENCAMINHAR: { titulo: 'Encaminhar aos desenvolvedores', campo: 'Passos para reproduzir o problema', texto: 'O relato e o diagnóstico técnico vão para a fila de desenvolvimento.' },
   DEVOLVER: { titulo: 'Devolver ao suporte', campo: 'O que foi corrigido ou precisa ser conferido?', texto: 'O suporte recebe o chamado para verificar o resultado com o cliente.' },
 };
 type Decisao = keyof typeof decisoes;
-const historicoRotulos: Record<string, string> = { MANUTENCAO_PAUSADA: 'Função pausada', MANUTENCAO_REATIVADA: 'Função reativada', FINALIZAR: 'Chamado finalizado' };
+const historicoRotulos: Record<string, string> = {
+  CRIADO: 'Chamado recebido', CRIADO_MANUAL: 'Chamado aberto pela equipe', OCORRENCIA: 'Ocorrência registrada',
+  ATRIBUIR: 'Responsável atualizado', STATUS: 'Situação alterada', CLASSIFICAR: 'Tipo alterado',
+  ENCAMINHAR: 'Encaminhado aos desenvolvedores', DEVOLVER: 'Devolvido ao suporte',
+  FINALIZAR: 'Chamado finalizado', RESPOSTA_CLIENTE: 'Resposta do cliente',
+  MANUTENCAO_PAUSADA: 'Função pausada', MANUTENCAO_REATIVADA: 'Função reativada',
+};
+const regrasTriagem: Record<string, string> = {
+  TRIAGEM_HUMANA: 'Enviado para triagem', SEGURANCA_OU_RECUPERACAO: 'Encaminhado para atendimento restrito',
+  FALHA_ABRANGENTE: 'Falha detectada em vários clubes ou várias vezes',
+  HTTP_500_RECORRENTE: 'Falha recorrente no servidor', OPERACAO_CONHECIDA: 'Encaminhado para suporte',
+  REVISAO_HUMANA: 'Reclassificado pela equipe',
+};
+const rotulosImpacto: Record<string, string> = {
+  DUVIDA: 'Dúvida ou observação', DIFICULDADE: 'Dificulta o uso', OPERACAO_BLOQUEADA: 'Impede concluir a ação',
+};
+const plataformas: Record<string, string> = { web: 'Web', mobile: 'Mobile', desktop: 'Desktop', api: 'API' };
+const modosComentario = [{ value: 'nota', label: 'Nota interna' }, { value: 'resposta', label: 'Responder ao cliente' }] as const;
+const modelosComentario = {
+  nota: [
+    { label: 'Triagem inicial', texto: 'Triagem iniciada. Conferir o contexto do relato e definir o próximo passo do atendimento.' },
+    { label: 'Tentativa de reproduzir', texto: 'Em análise. A equipe está tentando reproduzir o comportamento descrito no chamado.' },
+    { label: 'Aguardando informações', texto: 'A análise depende de informações adicionais do cliente. Retomar assim que houver retorno.' },
+    { label: 'Análise técnica em andamento', texto: 'A equipe técnica está investigando a causa. Registrar no histórico o resultado da análise e o próximo passo.' },
+    { label: 'Validar a solução', texto: 'Validar a solução repetindo o fluxo que originou o chamado e registrar o resultado antes de concluir o atendimento.' },
+  ],
+  resposta: [
+    { label: 'Confirmar recebimento', texto: 'Recebemos seu chamado. Vamos conferir o que você relatou e avisar por aqui assim que tivermos uma atualização.' },
+    { label: 'Análise em andamento', texto: 'Estamos analisando o que aconteceu e tentando reproduzir o problema. Avisaremos por aqui assim que tivermos novidades.' },
+    { label: 'Solicitar mais detalhes', texto: 'Para avançarmos na análise, você pode nos dizer em qual tela isso aconteceu, quais passos seguiu e se apareceu alguma mensagem? Pode responder por aqui.' },
+    { label: 'A equipe técnica está analisando', texto: 'Nossa equipe técnica está investigando o problema. Acompanharemos o caso e traremos a próxima atualização neste chamado.' },
+    { label: 'Testar após a correção', texto: 'Aplicamos uma correção. Pode tentar novamente e nos contar por aqui se funcionou? Se o problema continuar, seguiremos com a análise.' },
+  ],
+};
+type ModoComentario = typeof modosComentario[number]['value'];
+const historicoInicial = 6;
 
 type Chamado = {
   id: string; assunto: string; descricao: string; origem: string; tipo: string; status: string; prioridade: string;
-  regra: string; fila: string; restrito: boolean; clubeId: number | null; usuarioId?: number | null; clube?: { nome: string };
-  clubesAfetadosNomes?: string[]; ocorrencias: number; criadoEm: string; revisarEm: string; revisao: number; finalizadoEm?: string | null;
+  regra: string; impacto: string; fila: string; restrito: boolean; clubeId: number | null; usuarioId?: number | null; clube?: { nome: string };
+  responsavelId?: number | null; responsavelNome?: string | null; clubesAfetadosNomes?: string[]; ocorrencias: number; criadoEm: string; revisarEm: string; revisao: number; finalizadoEm?: string | null;
   rota: string; versao: string; servico: string;
   detalhesTecnicos?: { reproducao?: string; correlacao?: string; statusHttp?: number; comparacao?: { oficial?: number[]; local?: number[] }; pistas?: { arquivo: string; linha: number; coluna: number }[] };
   manutencoes?: { id: string; ativa: boolean }[];
-  historico?: { id: number; acao: string; motivo: string; criadoEm: string; operadorId: number | null; dados?: { correlacao?: string; status?: number; protocolo?: string; funcao?: string } }[];
+  historico?: { id: number; acao: string; motivo: string; criadoEm: string; operadorId: number | null; autorNome?: string | null; publico?: boolean; dados?: { correlacao?: string; status?: number; protocolo?: string; funcao?: string } }[];
 };
 type Opcoes = { clubes: { value: number; label: string }[]; responsaveis: { value: number; label: string }[]; contagens: Record<string, number> };
 
@@ -64,7 +101,9 @@ export default function ChamadosPage() {
   const dev = usuario?.papel_plataforma === 'DESENVOLVEDOR';
   const [params, setParams] = useSearchParams();
   const id = params.get('id');
-  const [lista, setLista] = useState<Chamado[]>([]);
+  const [fila, setFila] = useState<{ consulta: string; itens: Chamado[] }>();
+  const scrollFila = useRef(0);
+  const origemDetalhe = useRef<HTMLButtonElement | null>(null);
   const [opcoes, setOpcoes] = useState<Opcoes | null>(null);
   const [erroOpcoes, setErroOpcoes] = useState('');
   const [detalhe, setDetalhe] = useState<Chamado | null>(null);
@@ -76,7 +115,10 @@ export default function ChamadosPage() {
   const [motivo, setMotivo] = useState('');
   const [status, setStatus] = useState('EM_TRIAGEM');
   const [tipo, setTipo] = useState('OUTRO');
-  const [publico, setPublico] = useState(false);
+  const [modoComentario, setModoComentario] = useState<ModoComentario>('nota');
+  const [comentarios, setComentarios] = useState({ nota: '', resposta: '' });
+  const [historicoCompleto, setHistoricoCompleto] = useState(false);
+  const [carregarFerramentas, setCarregarFerramentas] = useState(false);
   const [decisao, setDecisao] = useState<Decisao | null>(null);
   const [notaDecisao, setNotaDecisao] = useState('');
   const [compartilharResumo, setCompartilharResumo] = useState(true);
@@ -84,7 +126,10 @@ export default function ChamadosPage() {
   const [rascunho, setRascunho] = useState<Record<string, string> | null>(null);
   const [periodoAberto, setPeriodoAberto] = useState(false);
   const [atualizacao, setAtualizacao] = useState(0);
-  const query = params.toString();
+  const filtrosFila = new URLSearchParams(params);
+  filtrosFila.delete('id');
+  const query = filtrosFila.toString();
+  const lista = fila?.consulta === query ? fila.itens : [];
   const ler = (chave: string) => params.get(chave) || '';
 
   function alterar(filtros: Record<string, string>, replace = false) {
@@ -119,7 +164,7 @@ export default function ChamadosPage() {
           filtros.set('ordem', 'prioridade');
           filtros.set('incluirEncerramento', '1');
           const itens = await requestJson<Chamado[]>(`${endpoint}?${filtros}`);
-          if (ativo) setLista(itens);
+          if (ativo) setFila({ consulta: query, itens });
         }
       } catch (e) { if (ativo) setErro((e as Error).message); }
       finally { if (ativo) setCarregando(false); }
@@ -127,10 +172,22 @@ export default function ChamadosPage() {
     return () => { ativo = false; window.clearTimeout(timer); };
   }, [id, query, atualizacao]);
 
-  useEffect(() => {
-    setMotivo(''); setPublico(false); setResultado(''); setDecisao(null);
-    document.getElementById('main-content')?.scrollTo({ top: 0 });
+  useLayoutEffect(() => {
+    const scroll = document.getElementById('main-content')?.closest('.admin-workspace');
+    scroll?.scrollTo({ top: id ? 0 : scrollFila.current, behavior: 'instant' });
+    if (!id) origemDetalhe.current?.focus({ preventScroll: true });
   }, [id]);
+
+  useEffect(() => {
+    setMotivo(''); setModoComentario('nota'); setComentarios({ nota: '', resposta: '' });
+    setHistoricoCompleto(false); setCarregarFerramentas(false); setResultado(''); setDecisao(null);
+  }, [id]);
+
+  function abrirChamado(idChamado: string, origem?: HTMLButtonElement) {
+    scrollFila.current = document.getElementById('main-content')?.closest('.admin-workspace')?.scrollTop ?? 0;
+    origemDetalhe.current = origem ?? null;
+    alterar({ id: idChamado });
+  }
 
   useEffect(() => {
     if (detalhe?.id === id) {
@@ -144,14 +201,18 @@ export default function ChamadosPage() {
   }
 
   async function agir(acao: string, entrada?: { motivo: string; publico: boolean }) {
-    if (!detalhe || busy) return;
+    if (!detalhe || detalhe.id !== id || busy) return;
     setBusy(true); setErro(''); setResultado('');
     try {
-      await requestJson(`${endpoint}/${detalhe.id}`, { method: 'PATCH', body: { acao, motivo, status, tipo, publico, ...entrada, revisao: detalhe.revisao } });
-      if (entrada) setDecisao(null); else setMotivo('');
+      await requestJson(`${endpoint}/${detalhe.id}`, {
+        method: 'PATCH', body: { acao, motivo, status, tipo, publico: false, ...entrada, revisao: detalhe.revisao },
+      });
+      if (acao === 'COMENTAR') setComentarios(anterior => ({ ...anterior, [entrada?.publico ? 'resposta' : 'nota']: '' }));
+      else if (entrada) setDecisao(null);
+      else setMotivo('');
       if (acao === 'DEVOLVER' && dev) alterar({ id: '' });
       else { setResultado('Alteração registrada no histórico.'); setAtualizacao(n => n + 1); }
-    } catch (e) { if (entrada) setErroDecisao((e as Error).message); else setErro((e as Error).message); }
+    } catch (e) { if (entrada && acao !== 'COMENTAR') setErroDecisao((e as Error).message); else setErro((e as Error).message); }
     finally { setBusy(false); }
   }
 
@@ -168,39 +229,90 @@ export default function ChamadosPage() {
     })[key] })).filter(item => ler(item.key)),
     ...(periodo ? [{ key: 'periodo', label: periodoLabel }] : []),
   ];
-  const grupos = new Map<string, Chamado[]>();
-  const ordenados = lista.filter(c => c.status !== 'RESOLVIDO').sort((a, b) => Number(b.prioridade === 'ALTA') - Number(a.prioridade === 'ALTA') || Date.parse(b.criadoEm) - Date.parse(a.criadoEm));
-  for (const chamado of ordenados) {
-    const chave = `${chamado.prioridade === 'ALTA' ? 'ALTA' : 'NORMAL'}:${dia(chamado.criadoEm)}`;
-    const grupo = grupos.get(chave) || [];
-    grupo.push(chamado);
-    grupos.set(chave, grupo);
-  }
-  const hoje = dia(new Date().toISOString());
+  const ordenados = lista.filter(c => c.status !== 'RESOLVIDO').sort((a, b) =>
+    Number(b.prioridade === 'ALTA') - Number(a.prioridade === 'ALTA') || Date.parse(b.criadoEm) - Date.parse(a.criadoEm));
+  const agora = Date.now();
+  const hoje = dia(new Date(agora).toISOString());
   const atual = detalhe?.id === id ? detalhe : null;
   const finalizados = agruparFinalizados(lista.filter(c => c.status === 'RESOLVIDO'));
   const atalhosPapel = [...atalhos, dev ? { value: 'ENCAMINHADOS', label: 'Encaminhados' } : { value: 'MEUS', label: 'Meus chamados' }, {value:'FINALIZADOS',label:'Finalizados'}];
-  const renderChamado = (c: Chamado) => <button className="ticket-card" key={c.id} type="button" onClick={() => alterar({ id: c.id })}>
-    <span className="ticket-card-icon"><Icon name={c.origem === 'AUTOMATICO' ? 'alert' : 'headset'} size={20}/></span>
-    <span className="ticket-card-copy"><strong>{c.assunto}</strong><small>{c.clube?.nome || c.clubesAfetadosNomes?.join(', ') || 'Plataforma'} · {rotulo(tipos, c.tipo)}{c.ocorrencias > 1 ? ` · ${c.ocorrencias} ocorrências` : ''}</small>
-      {(c.prioridade === 'ALTA' || c.status !== 'RESOLVIDO' && Date.parse(c.revisarEm) < Date.now()) && <span className="ticket-card-notes">
-        {c.prioridade === 'ALTA' && <span className="ticket-priority">Prioridade alta</span>}
-        {c.status !== 'RESOLVIDO' && Date.parse(c.revisarEm) < Date.now() && <span className="ticket-overdue"><Icon name="clock" size={12}/>Revisão atrasada</span>}
-      </span>}
-    </span>
-    <time className="ticket-created-time" dateTime={c.finalizadoEm || c.criadoEm}>{hora(c.finalizadoEm || c.criadoEm)}</time>
-    <span className="ticket-status" data-state={c.status}>{rotulo(estados, c.status)}</span>
-  </button>;
+
+  const nomeClube = (c: Chamado) => c.clube?.nome || c.clubesAfetadosNomes?.join(', ') || 'Plataforma';
+  const nomeResponsavel = (c: Chamado) => {
+    if (!c.responsavelId) return 'Sem responsável';
+    if (c.responsavelId === usuario?.id) return 'Você';
+    return c.responsavelNome || opcoes?.responsaveis.find(pessoa => pessoa.value === c.responsavelId)?.label || 'Equipe Ludora';
+  };
+  const revisarAte = (c: Chamado) => {
+    const prazo = Date.parse(c.revisarEm);
+    if (!Number.isFinite(prazo)) return 'Sem prazo';
+    if (dia(c.revisarEm) === hoje) return `Hoje, ${hora(c.revisarEm)}`;
+    return `${dataCurta(c.revisarEm)} · ${hora(c.revisarEm)}`;
+  };
+  const renderChamado = (c: Chamado) => {
+    const encerrado = c.status === 'RESOLVIDO';
+    const atrasado = !encerrado && Date.parse(c.revisarEm) < agora;
+    const contexto = [
+      plataformas[c.servico] || c.servico,
+      c.origem === 'AUTOMATICO' ? 'Detectado pelo sistema' : rotulo(tipos, c.tipo),
+      c.ocorrencias > 1 ? `${c.ocorrencias} ocorrências` : '',
+    ].filter(Boolean).join(' · ');
+    return <li key={c.id}>
+      <button className="ticket-card" type="button" onClick={event => abrirChamado(c.id, event.currentTarget)}>
+        <span className="ticket-row-subject">
+          <span className="ticket-card-icon"><Icon name={c.origem === 'AUTOMATICO' ? 'alert' : 'headset'} size={17}/></span>
+          <span className="ticket-card-copy"><strong>{c.assunto}</strong>
+            {c.prioridade === 'ALTA' && <small className="ticket-priority">Prioridade alta</small>}
+          </span>
+        </span>
+        <span className="ticket-row-context"><span title={nomeClube(c)}>{nomeClube(c)}</span><small title={contexto}>{contexto}</small></span>
+        <span className="ticket-row-owner" title={nomeResponsavel(c)}>{nomeResponsavel(c)}</span>
+        <span className="ticket-status" data-state={c.status}>{rotulo(estados, c.status)}</span>
+        <span className="ticket-row-date">{encerrado
+          ? <time dateTime={c.finalizadoEm || c.criadoEm}>{c.finalizadoEm ? hora(c.finalizadoEm) : 'Data não registrada'}</time>
+          : <><span className={atrasado ? 'ticket-overdue' : undefined}>{atrasado ? 'Revisão atrasada' : revisarAte(c)}</span>
+            {atrasado && <small>{revisarAte(c)}</small>}</>}
+        </span>
+      </button>
+    </li>;
+  };
+
+  const podeResponder = !dev && !!atual?.usuarioId;
+  const respostaPublica = podeResponder && modoComentario === 'resposta';
+  const modoAtivo = respostaPublica ? 'resposta' : 'nota';
+  const comentario = comentarios[modoAtivo];
+  const modelos = modelosComentario[modoAtivo];
+  const editorComentario = <div className="ticket-comment-editor">
+    <DesktopSelect label={respostaPublica ? 'Modelos de resposta' : 'Modelos de nota'} placeholder="Escolher um modelo"
+      fullWidth disabled={busy} value={modelos.find(modelo => modelo.texto === comentario)?.texto || ''}
+      options={modelos.map(modelo => ({ value: modelo.texto, label: modelo.label }))}
+      onChange={texto => setComentarios(atual => ({ ...atual, [modoAtivo]: texto }))}/>
+    <label className="field">{respostaPublica ? 'Resposta ao cliente' : 'Nota interna'}
+      <textarea className="field-input" rows={3} maxLength={4000} disabled={busy} value={comentario}
+        onChange={e => setComentarios(atual => ({ ...atual, [modoAtivo]: e.target.value }))}/>
+    </label>
+  </div>;
+  const podeAssumir = !!atual && atual.status !== 'RESOLVIDO' && atual.responsavelId !== usuario?.id;
+  const podeDevolver = !!atual && dev && atual.fila === 'DESENVOLVIMENTO' && atual.status !== 'RESOLVIDO';
+  const historico = atual?.historico ? [...atual.historico].reverse() : [];
+  const copiarProtocolo = async (protocolo: string) => {
+    try { await navigator.clipboard.writeText(protocolo); setResultado('Protocolo copiado.'); }
+    catch { setResultado('Não foi possível copiar o protocolo.'); }
+  };
 
   return <div className="ticket-page match-schedule desktop-tickets-page">
-    {id && <Btn className="ticket-back" variant="ghost" onClick={() => alterar({ id: '' })}><Icon name="chevronLeft" size={17}/> Voltar à fila</Btn>}
+    {id && <Btn className="ticket-back" variant="ghost" disabled={busy} onClick={() => alterar({ id: '' }, true)}><Icon name="chevronLeft" size={17}/> Voltar à fila</Btn>}
     <header className="page-header">
       <div><span className="ticket-kicker">Central de atendimento</span><h1 className="page-title">{id ? atual?.assunto || 'Detalhe do chamado' : dev ? 'Caixa de desenvolvimento' : 'Chamados'}</h1>
-        <p className="page-sub">{id ? `Protocolo ${id}` : 'Acompanhe o atendimento e as ocorrências do Ludora.'}</p></div>
+        {id ? atual && <p className="page-sub ticket-protocol">Protocolo {id}<button type="button" className="ticket-copy" aria-label="Copiar protocolo" onClick={() => void copiarProtocolo(id)}><Icon name="copy" size={15}/></button></p>
+          : <p className="page-sub">Acompanhe o atendimento e as ocorrências do Ludora.</p>}</div>
       <div className="actions"><Btn variant="ghost" className="ticket-refresh" disabled={carregando || busy} onClick={() => setAtualizacao(n => n + 1)}><Icon name="refresh" size={17}/> {id ? 'Atualizar chamado' : 'Atualizar fila'}</Btn>
-        {!id && !dev && <Btn onClick={() => setCriando(true)}><Icon name="plus" size={17}/> Novo chamado</Btn>}</div>
+        {!id && !dev && <Btn onClick={() => setCriando(true)}><Icon name="plus" size={17}/> Novo chamado</Btn>}
+        {podeAssumir && !atual?.responsavelId && <Btn disabled={busy || carregando} onClick={() => abrirDecisao('ATRIBUIR')}>Assumir chamado</Btn>}
+        {podeDevolver && <Btn variant="ghost" disabled={busy || carregando} onClick={() => abrirDecisao('DEVOLVER')}>Devolver ao suporte</Btn>}
+      </div>
     </header>
-    {!id && <>
+    <div hidden={!!id}>
       {erroOpcoes && <p role="alert" className="notice-error">{erroOpcoes} <Btn variant="ghost" size="sm" onClick={() => setAtualizacao(n => n + 1)}>Tentar novamente</Btn></p>}
       <DesktopTabs label="Atalhos da fila" value={ler('visao')} options={atalhosPapel.map(a => ({...a,count:opcoes?.contagens[a.value]}))}
         onChange={visao => alterar({ visao, status: '' })}>
@@ -226,79 +338,133 @@ export default function ChamadosPage() {
           <DesktopSelect label="Responsável" showLabel fullWidth expandInDialog options={[{value:'',label:'Qualquer responsável'},...opcoes?.responsaveis.map(c => ({...c,value:String(c.value)})) || []]} value={rascunho.responsavel || ''} onChange={responsavel => setRascunho({ ...rascunho, responsavel })}/>
         </div>
       </CollectionFilterDialog>}
-      {carregando ? <LoadingSkeleton kind="rows" label="Carregando chamados"/> : !erro && <>
+      {fila?.consulta !== query && carregando ? <LoadingSkeleton kind="rows" label="Carregando chamados"/> : (id || !erro) && <>
         <p className="ticket-count">{lista.length === 200 ? '200 chamados · refine a busca para encontrar outros' : `${lista.length} ${lista.length === 1 ? 'chamado' : 'chamados'}`}</p>
         {!lista.length && <div className="ticket-empty" role="status">
           <Icon name="headset" size={28}/>
           <h2>Nenhum chamado encontrado</h2>
           <p>{query ? 'Ajuste a busca ou limpe os filtros.' : 'Novos relatos e ocorrências aparecerão aqui.'}</p>
         </div>}
-        {[...grupos].map(([chave, itens]) => <section className="ticket-day" key={chave}>
-          <h2>{itens[0].prioridade === 'ALTA' && <strong>Prioridade alta · </strong>}{dia(itens[0].criadoEm) === hoje ? 'Hoje' : dataLonga(dia(itens[0].criadoEm))}</h2>
-          {itens.map(renderChamado)}
-        </section>)}
+        {!!ordenados.length && <section className="ticket-queue" aria-label="Fila ativa" aria-busy={!id && carregando}>
+          <div className="ticket-queue-head" aria-hidden="true"><span>Chamado</span><span>Contexto</span><span>Responsável</span><span>Situação</span><span>Revisão</span></div>
+          <ul className="ticket-list">{ordenados.map(renderChamado)}</ul>
+        </section>}
         {!!finalizados.length && <section className="ticket-closed-section" aria-label="Chamados finalizados">
           <h2 className="ticket-closed-title">Finalizados <small>{lista.filter(c => c.status === 'RESOLVIDO').length}</small></h2>
           {finalizados.map(group => <DesktopAccordion key={group.key} title={group.label} count={group.items.length}>
-            <div className="ticket-closed-list">{group.items.map(renderChamado)}</div>
+            <ul className="ticket-list ticket-closed-list">{group.items.map(renderChamado)}</ul>
           </DesktopAccordion>)}
         </section>}
 
       </>}
       </DesktopTabs>
-    </>}
+    </div>
     {erro && <DesktopState error title="Não foi possível concluir" description={erro} onRetry={() => setAtualizacao(n => n + 1)}/>}
     {id && carregando && !atual && <Spinner/>}
     {id && atual && <>
       <section className="ticket-detail-summary" aria-label="Resumo do chamado">
         <span className="ticket-status" data-state={atual.status}>{rotulo(estados, atual.status)}</span>
-        <span className={`ticket-detail-priority${atual.prioridade === 'ALTA' ? ' is-high' : ''}`}><Icon name="alert" size={15}/>Prioridade {rotulo(prioridades, atual.prioridade).toLowerCase()}</span>
-        <span><Icon name="shield" size={15}/>{atual.clube?.nome || atual.clubesAfetadosNomes?.join(', ') || 'Plataforma'}</span>
-        {atual.status !== 'RESOLVIDO' && Number.isFinite(Date.parse(atual.revisarEm)) && <span className={Date.parse(atual.revisarEm) < Date.now() ? 'ticket-overdue' : ''}><Icon name="clock" size={15}/>{Date.parse(atual.revisarEm) < Date.now() ? 'Revisão atrasada' : `Revisar até ${new Date(atual.revisarEm).toLocaleDateString('pt-BR', zona)} · ${hora(atual.revisarEm)}`}</span>}
+        <span><Icon name="shield" size={15}/>{nomeClube(atual)}</span>
+        <span><Icon name="user" size={15}/>{nomeResponsavel(atual)}</span>
+        {atual.prioridade === 'ALTA' && <span className="ticket-priority"><Icon name="alert" size={15}/>Prioridade alta</span>}
+        {atual.status !== 'RESOLVIDO' && Number.isFinite(Date.parse(atual.revisarEm)) && <span className={Date.parse(atual.revisarEm) < agora ? 'ticket-overdue' : undefined}>
+          <Icon name="clock" size={15}/>{Date.parse(atual.revisarEm) < agora ? 'Revisão atrasada' : 'Revisar até'} · {revisarAte(atual)}
+        </span>}
       </section>
       <div className="ticket-detail">
-      <div className="ticket-detail-main">
-        <Card className="ticket-section ticket-report"><header><h2>Relato do problema</h2><time dateTime={atual.criadoEm}>{new Date(atual.criadoEm).toLocaleDateString('pt-BR', zona)} · {hora(atual.criadoEm)}</time></header>
-          <p className="ticket-description">{atual.descricao || 'Nenhuma descrição informada.'}</p>
-          <dl className="ticket-context"><div><dt>Tipo</dt><dd>{rotulo(tipos, atual.tipo)}</dd></div><div><dt>Origem</dt><dd>{rotulo(origens, atual.origem)}</dd></div><div><dt>Fila</dt><dd>{humanizar(atual.fila)}</dd></div><div><dt>Ocorrências</dt><dd>{atual.ocorrencias}</dd></div></dl>
-          <DesktopAccordion title="Contexto e diagnóstico" headingLevel={3}>
-            <dl className="ticket-context"><div><dt>Página</dt><dd>{atual.rota || 'Não informada'}</dd></div><div><dt>Plataforma</dt><dd>{atual.servico || 'Não informada'}</dd></div><div><dt>Versão</dt><dd>{atual.versao || 'Não informada'}</dd></div><div><dt>Triagem</dt><dd>{humanizar(atual.regra)}</dd></div></dl>
-          {atual.detalhesTecnicos && <section className="ticket-technical"><h3>Relatório técnico vinculado</h3><p>{atual.detalhesTecnicos.reproducao || 'Ainda sem passos registrados para reproduzir.'}</p>{atual.detalhesTecnicos.correlacao && <p>Ocorrência {atual.detalhesTecnicos.correlacao}{atual.detalhesTecnicos.statusHttp ? ` · HTTP ${atual.detalhesTecnicos.statusHttp}` : ''}</p>}
-            {atual.detalhesTecnicos.comparacao?.oficial && atual.detalhesTecnicos.comparacao.local && <p>Federação {atual.detalhesTecnicos.comparacao.oficial.join(' × ')} · Ludora {atual.detalhesTecnicos.comparacao.local.join(' × ')}</p>}{atual.detalhesTecnicos.pistas?.map((p, i) => <p key={i}>Pista a verificar · {p.arquivo}, linha {p.linha}, coluna {p.coluna}</p>)}</section>}
-          </DesktopAccordion>
-        </Card>
-        {!dev && !!atual.usuarioId && <Card className="ticket-section"><SupportOperations key={atual.id} id={atual.id} admin={usuario?.papel_plataforma === 'SUPERADMIN'}/></Card>}
-        <Card className="ticket-section"><h2>Ações do chamado</h2>
-          <div className="actions">
-            {dev ? atual.fila === 'DESENVOLVIMENTO' && atual.status !== 'RESOLVIDO' && <Btn disabled={busy || carregando} onClick={() => abrirDecisao('DEVOLVER')}>Devolver ao suporte</Btn> : <>
-              {atual.status !== 'RESOLVIDO' && <Btn disabled={busy || carregando} onClick={() => abrirDecisao('FINALIZAR')}>Finalizar chamado</Btn>}
-              {!atual.restrito && !['RESOLVIDO', 'ENCAMINHADO_DEVS'].includes(atual.status) && <Btn variant="ghost" disabled={busy || carregando} onClick={() => abrirDecisao('ENCAMINHAR')}>Encaminhar aos desenvolvedores</Btn>}
-              {atual.clubeId && atual.status !== 'RESOLVIDO' && !atual.manutencoes?.some(p => p.ativa) && <Link className="btn btn-ghost" to={`/manutencao?chamado=${atual.id}`}>Pausar função do clube</Link>}
-            </>}
-          </div>
-          {!dev && atual.manutencoes?.some(p => p.ativa) && <p>Há uma função pausada neste chamado. <Link to={`/manutencao?chamado=${atual.id}`}>Ver pausa e reativação</Link></p>}
-          {!dev && atual.status === 'RESOLVIDO' && !!atual.manutencoes?.length && !atual.manutencoes.some(p => p.ativa) && <Link to={`/manutencao?chamado=${atual.id}`}>Ver manutenção vinculada</Link>}
-          <div className="ticket-comment-heading"><h3>Adicionar comentário</h3><p>Registre uma observação no histórico do atendimento.</p></div>
-          <label className="field">Comentário<textarea className="field-input" rows={3} maxLength={4000} value={motivo} onChange={e => setMotivo(e.target.value)}/></label>
-          {!dev && !!atual.usuarioId && <div className="ticket-toggle-row"><span>Mostrar comentário ao cliente</span><DesktopToggle label="Mostrar comentário ao cliente" checked={publico} onChange={setPublico}/></div>}
-          <div className="actions"><Btn disabled={!valido} onClick={() => void agir('COMENTAR')}>Registrar comentário</Btn><Btn variant="ghost" disabled={!valido} onClick={() => void agir('ATRIBUIR')}>Assumir chamado</Btn></div>
-          {!dev && <>
-            <DesktopAccordion title={atual.status === 'ENCAMINHADO_DEVS' ? 'Alterar tipo' : 'Alterar status ou tipo'}><div className="ticket-action-fields">
-              {atual.status !== 'ENCAMINHADO_DEVS' && <>
-                <DesktopSelect label="Novo status" showLabel fullWidth value={status} options={estados.filter(s => !['ENCAMINHADO_DEVS', 'RESOLVIDO'].includes(s.value))} onChange={setStatus}/>
-                <Btn disabled={!valido || !status} onClick={() => void agir('STATUS')}>Registrar status</Btn>
-              </>}
-              <DesktopSelect label="Reclassificar tipo" showLabel fullWidth value={tipo} options={tipos} onChange={setTipo}/>
-              <Btn variant="ghost" disabled={!valido || !tipo} onClick={() => void agir('CLASSIFICAR')}>Aplicar classificação</Btn>
-            </div></DesktopAccordion>
-          </>}
+        <div className="ticket-detail-main">
+          <Card className="ticket-section ticket-report">
+            <header><h2>Relato do problema</h2><time dateTime={atual.criadoEm}>{dataCompleta(atual.criadoEm)} · {hora(atual.criadoEm)}</time></header>
+            <p className="ticket-description">{atual.descricao || 'Nenhuma descrição informada.'}</p>
+            <dl className="ticket-context">
+              <div><dt>Tipo</dt><dd>{rotulo(tipos, atual.tipo)}</dd></div>
+              <div><dt>Impacto</dt><dd>{rotulosImpacto[atual.impacto] || 'Não informado'}</dd></div>
+              <div><dt>Origem</dt><dd>{rotulo(origens, atual.origem)}</dd></div>
+              {atual.ocorrencias > 1 && <div><dt>Ocorrências</dt><dd>{atual.ocorrencias}</dd></div>}
+            </dl>
+            <DesktopAccordion title="Contexto e diagnóstico">
+              <dl className="ticket-context">
+                <div><dt>Página</dt><dd>{atual.rota || 'Não informada'}</dd></div>
+                <div><dt>Plataforma</dt><dd>{plataformas[atual.servico] || atual.servico || 'Não informada'}</dd></div>
+                <div><dt>Versão</dt><dd>{atual.versao || 'Não informada'}</dd></div>
+                <div><dt>Triagem</dt><dd>{regrasTriagem[atual.regra] || humanizar(atual.regra)}</dd></div>
+              </dl>
+              {atual.detalhesTecnicos && <section className="ticket-technical">
+                <h3>Relatório técnico vinculado</h3>
+                {atual.detalhesTecnicos.reproducao && <p>{atual.detalhesTecnicos.reproducao}</p>}
+                {atual.detalhesTecnicos.correlacao && <p>Ocorrência {atual.detalhesTecnicos.correlacao}{atual.detalhesTecnicos.statusHttp ? ` · HTTP ${atual.detalhesTecnicos.statusHttp}` : ''}</p>}
+                {atual.detalhesTecnicos.comparacao?.oficial && atual.detalhesTecnicos.comparacao.local && <p>Federação {atual.detalhesTecnicos.comparacao.oficial.join(' × ')} · Ludora {atual.detalhesTecnicos.comparacao.local.join(' × ')}</p>}
+                {atual.detalhesTecnicos.pistas?.map((p, i) => <p key={i}>Pista a verificar · {p.arquivo}, linha {p.linha}, coluna {p.coluna}</p>)}
+              </section>}
+            </DesktopAccordion>
+          </Card>
+
+          <Card className="ticket-section">
+            <h2>Atendimento</h2>
+            {podeResponder && <DesktopTabs className="ticket-comment-tabs" label="Visibilidade da mensagem" value={modoComentario}
+              options={modosComentario} onChange={setModoComentario}>
+              <p>{respostaPublica ? 'O cliente recebe um aviso no Web ao enviar.' : 'Visível apenas para a equipe.'}</p>
+              {editorComentario}
+            </DesktopTabs>}
+            {!podeResponder && editorComentario}
+            <div className="actions"><Btn disabled={busy || carregando || comentario.trim().length < 5}
+              onClick={() => void agir('COMENTAR', { motivo: comentario.trim(), publico: respostaPublica })}>{respostaPublica ? 'Enviar resposta ao cliente' : 'Registrar nota interna'}</Btn></div>
+          </Card>
+
+          {!dev && !!atual.usuarioId && <Card className="ticket-section ticket-guided">
+            <details onToggle={event => { if (event.currentTarget.open) setCarregarFerramentas(true); }}>
+              <summary>Atendimento guiado</summary>
+              {carregarFerramentas && <SupportOperations key={atual.id} id={atual.id} tipo={atual.tipo}
+                temClube={!!atual.clubeId} admin={usuario?.papel_plataforma === 'SUPERADMIN'}/>}
+            </details>
+          </Card>}
+
+          {(!dev || podeAssumir && !!atual.responsavelId) && <Card className="ticket-section">
+            <DesktopAccordion title="Mais ações" headingLevel={2}>
+              <div className="ticket-more-actions">
+                <div className="actions">
+                  {podeAssumir && !!atual.responsavelId && <Btn variant="ghost" disabled={busy || carregando} onClick={() => abrirDecisao('ATRIBUIR')}>Assumir chamado</Btn>}
+                  {!dev && atual.status !== 'RESOLVIDO' && <>
+                    <Btn variant="ghost" disabled={busy || carregando} onClick={() => abrirDecisao('FINALIZAR')}>Finalizar chamado</Btn>
+                    {!atual.restrito && atual.status !== 'ENCAMINHADO_DEVS' && <Btn variant="ghost" disabled={busy || carregando} onClick={() => abrirDecisao('ENCAMINHAR')}>Encaminhar aos desenvolvedores</Btn>}
+                    {atual.clubeId && !atual.manutencoes?.some(p => p.ativa) && <Link className="btn btn-ghost" to={`/manutencao?chamado=${atual.id}`}>Pausar função do clube</Link>}
+                  </>}
+                </div>
+                {!dev && <>
+                  {!!atual.manutencoes?.length && <p><Link to={`/manutencao?chamado=${atual.id}`}>{atual.manutencoes.some(p => p.ativa) ? 'Ver pausa e reativação' : 'Ver manutenção vinculada'}</Link></p>}
+                  <DesktopAccordion title={atual.status === 'ENCAMINHADO_DEVS' ? 'Alterar tipo' : 'Alterar status ou tipo'} headingLevel={3}>
+                    <label className="field">Motivo da alteração
+                      <textarea className="field-input" rows={2} maxLength={4000} value={motivo} disabled={busy} onChange={e => setMotivo(e.target.value)}/>
+                    </label>
+                    <div className="ticket-action-fields">
+                      {atual.status !== 'ENCAMINHADO_DEVS' && <>
+                        <DesktopSelect label="Novo status" showLabel fullWidth value={status} options={estados.filter(s => !['ENCAMINHADO_DEVS', 'RESOLVIDO'].includes(s.value))} onChange={setStatus}/>
+                        <Btn variant="ghost" disabled={!valido || !status} onClick={() => void agir('STATUS')}>Registrar status</Btn>
+                      </>}
+                      <DesktopSelect label="Reclassificar tipo" showLabel fullWidth value={tipo} options={tipos} onChange={setTipo}/>
+                      <Btn variant="ghost" disabled={!valido || !tipo} onClick={() => void agir('CLASSIFICAR')}>Aplicar classificação</Btn>
+                    </div>
+                  </DesktopAccordion>
+                </>}
+              </div>
+            </DesktopAccordion>
+          </Card>}
+        </div>
+        <Card className="ticket-section ticket-history">
+          <header><h2>Histórico do atendimento</h2><small>{historico.length} {historico.length === 1 ? 'registro' : 'registros'}</small></header>
+          {!historico.length && <p>Ainda não há movimentações neste chamado.</p>}
+          {(historicoCompleto ? historico : historico.slice(0, historicoInicial)).map(h => <article key={h.id}>
+            <time dateTime={h.criadoEm}>{dia(h.criadoEm) === hoje ? 'Hoje' : dataCurta(h.criadoEm)} · {hora(h.criadoEm)}{h.autorNome ? ` · ${h.autorNome}` : ''}</time>
+            <h3>{h.acao === 'COMENTAR' ? h.publico ? 'Resposta ao cliente' : 'Nota interna' : historicoRotulos[h.acao] || humanizar(h.acao)}</h3>
+            <p>{regrasTriagem[h.motivo] || h.motivo}</p>
+            {h.dados?.funcao && <small>{h.dados.funcao}</small>}
+            {h.dados?.correlacao && <small>Ocorrência {h.dados.correlacao}{h.dados.status ? ` · HTTP ${h.dados.status}` : ''}</small>}
+          </article>)}
+          {historico.length > historicoInicial && <Btn variant="ghost" size="sm" aria-expanded={historicoCompleto}
+            onClick={() => setHistoricoCompleto(!historicoCompleto)}>{historicoCompleto ? 'Mostrar menos' : 'Ver histórico completo'}</Btn>}
         </Card>
       </div>
-      <Card className="ticket-section ticket-history"><header><h2>Histórico do atendimento</h2><small>{atual.historico?.length || 0} {atual.historico?.length === 1 ? 'registro' : 'registros'}</small></header>
-        {!atual.historico?.length && <p>Ainda não há movimentações neste chamado.</p>}
-        {atual.historico?.map(h => <article key={h.id}><time dateTime={h.criadoEm}>{dia(h.criadoEm) === hoje ? 'Hoje' : new Date(h.criadoEm).toLocaleDateString('pt-BR', zona)} · {hora(h.criadoEm)}</time><h3>{historicoRotulos[h.acao] || humanizar(h.acao)}</h3><p>{h.motivo}</p>{h.dados?.funcao && <small>{h.dados.funcao}</small>}{h.dados?.correlacao && <small>Ocorrência {h.dados.correlacao}{h.dados.status ? ` · HTTP ${h.dados.status}` : ''}</small>}</article>)}
-      </Card>
-    </div></>}
+    </>}
     {decisao && <Modal open title={decisoes[decisao].titulo} className="schedule-review-dialog" onClose={() => { if (!busy) setDecisao(null); }}
       footer={<div className="schedule-review-actions"><Btn variant="ghost" disabled={busy} onClick={() => setDecisao(null)}>Voltar</Btn><Btn disabled={busy || notaDecisao.trim().length < 5} onClick={() => void agir(decisao, { motivo: notaDecisao, publico: decisao === 'FINALIZAR' && compartilharResumo })}>{busy ? 'Registrando…' : 'Confirmar decisão'}</Btn></div>}>
       <p>{decisoes[decisao].texto}</p>
@@ -306,7 +472,7 @@ export default function ChamadosPage() {
       {decisao === 'FINALIZAR' && !!atual?.usuarioId && <div className="ticket-toggle-row"><span>Mostrar resumo ao cliente</span><DesktopToggle label="Mostrar resumo ao cliente" checked={compartilharResumo} onChange={setCompartilharResumo}/></div>}
       {erroDecisao && <p className="notice-error" role="alert">{erroDecisao}</p>}
     </Modal>}
-    {criando && <ChamadoManual onClose={() => setCriando(false)} onCreated={id => { setCriando(false); alterar({ id }); }}/>}
+    {criando && <ChamadoManual onClose={() => setCriando(false)} onCreated={id => { setCriando(false); abrirChamado(id); }}/>}
     <Toast message={resultado} onClose={() => setResultado('')}/>
   </div>;
 }

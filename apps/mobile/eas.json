@@ -30,7 +30,7 @@
       "extends": "preview",
       "env": {
         "LUDORA_APK_LOCAL": "1",
-        "EXPO_PUBLIC_API_URL": "http://IP_DO_NOTEBOOK:3000"
+        "EXPO_PUBLIC_API_URL": "http://10.32.240.152:3000"
       }
     },
     "production": {

@@ -76,6 +76,6 @@ export function dadosPublicos(chamado: any) {
   return {
     id: chamado.id, assunto: chamado.assunto, descricao: chamado.descricao,
     status: chamado.status, criadoEm: chamado.criadoEm, atualizadoEm: chamado.atualizadoEm,
-    historico: chamado.historico?.filter((h: any) => h.publico).map((h: any) => ({ acao: h.acao, motivo: h.motivo, criadoEm: h.criadoEm })),
+    historico: chamado.historico?.filter((h: any) => h.publico).map((h: any) => ({ id: h.id, acao: h.acao, motivo: h.motivo, criadoEm: h.criadoEm })),
   };
 }

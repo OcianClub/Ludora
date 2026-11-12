@@ -109,8 +109,11 @@
 .invite-role-options label > .icon, .invite-role-options label > svg {
   grid-column: 1;
   grid-row: 1;
-  color: var(--texto-sec);
+  color: var(--invite-role-icon, var(--texto-sec));
 }
+.invite-role-options [data-role="ADMIN"] { --invite-role-icon: var(--cargo-admin); }
+.invite-role-options [data-role="TECNICO"] { --invite-role-icon: var(--cargo-tecnico); }
+.invite-role-options [data-role="OLHEIRO"] { --invite-role-icon: var(--cargo-olheiro); }
 .invite-role-options label > span:not(.icon) {
   grid-column: 2;
   grid-row: 1;

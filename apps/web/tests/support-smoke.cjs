@@ -26,9 +26,10 @@ fs.mkdirSync(output, { recursive: true });
       page.on('pageerror', e => errors.push(e.message));
       await install(page);
       let gets = 0, sends = 0, replies = 0;
-      let ticket = { id: 'chamado-teste', assunto: 'Não consigo acessar uma partida', status: 'NOVO', criadoEm: '2026-11-09T18:00:00Z', historico: [] };
+      let ticket = { id: 'chamado-teste', assunto: 'Não consigo acessar uma partida', status: 'NOVO', criadoEm: '2026-11-09T18:00:00Z', historico: [], ultimaResposta: { motivo: 'A equipe está conferindo o acesso à partida.', criadoEm: '2026-11-09T19:00:00Z' } };
       await page.route('http://localhost:3000/suporte**', async route => {
         const req = route.request();
+        if (req.url().endsWith('/suporte/avisos')) return route.fulfill({ json: [] });
         if (req.method() === 'POST') {
           if (scenario.visitor) assert.equal(req.headers()['x-clube-id'], undefined, 'Visitante não deve alegar vínculo com o clube');
           else assert.equal(req.headers()['x-clube-id'], '2');
@@ -39,6 +40,8 @@ fs.mkdirSync(output, { recursive: true });
             return route.fulfill({ json: { ok: true } });
           }
           sends++; assert.equal(body.rota, scenario.visitor ? '/clubes/3' : '/dashboard');
+          assert.equal(body.tipo, 'ERRO');
+          assert.match(body.descricao, /Passos para reproduzir:[\s\S]*Abrir Partidas/);
           assert.ok(body.requestId); assert.ok(!JSON.stringify(body).includes('token='));
           return route.fulfill({ status: 201, json: ticket });
         }
@@ -76,10 +79,21 @@ fs.mkdirSync(output, { recursive: true });
       await dialog.getByLabel('Assunto', { exact: true }).fill(ticket.assunto);
       assert.equal(gets, 0, 'Novo chamado não aguarda consulta do histórico');
       await dialog.getByLabel('O que aconteceu?', { exact: true }).fill('Ao abrir a partida, o sistema não mostrou os detalhes esperados.');
-      const titlePosition = await dialog.locator('.support-intro').evaluate(el => el.getBoundingClientRect().top + el.closest('.modal-body').scrollTop);
+      const titlePosition = await dialog.locator('.support-intro').evaluate(el => el.getBoundingClientRect().top - el.closest('.modal-body').getBoundingClientRect().top + el.closest('.modal-body').scrollTop);
       await dialog.getByRole('combobox', { name: /Tipo de ajuda/ }).click();
-      await dialog.getByRole('option', { name: 'Erro no sistema', exact: true }).click();
-      assert.equal(await dialog.locator('.support-intro').evaluate(el => el.getBoundingClientRect().top + el.closest('.modal-body').scrollTop), titlePosition, 'Select não empurra o formulário; rolar para alcançar o campo é permitido');
+      assert.equal(await dialog.locator('.support-intro').evaluate(el => el.getBoundingClientRect().top - el.closest('.modal-body').getBoundingClientRect().top + el.closest('.modal-body').scrollTop), titlePosition, 'Select não empurra o formulário; rolar para alcançar o campo é permitido');
+      await dialog.getByRole('option', { name: 'Erro ou lentidão', exact: true }).click();
+      await dialog.getByText('Adicionar passos para reproduzir', { exact: true }).click();
+      await dialog.getByLabel('Passos (opcional)').fill('Abrir Partidas e escolher SUB-7.');
+      if (scenario.width === 390) {
+        await dialog.getByRole('combobox', { name: /Tipo de ajuda/ }).click();
+        await dialog.getByRole('option', { name: 'Convite', exact: true }).click();
+        await dialog.getByRole('combobox', { name: /Qual é a situação/ }).click();
+        await dialog.getByRole('option', { name: 'O código expirou' }).click();
+        await dialog.getByLabel('O que aconteceu com o convite?').waitFor();
+        await dialog.getByRole('combobox', { name: /Tipo de ajuda/ }).click();
+        await dialog.getByRole('option', { name: 'Erro ou lentidão', exact: true }).click();
+      }
       assert.ok(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1), 'Modal sem overflow horizontal');
       const modalBox = await dialog.boundingBox();
       const tabsBox = await dialog.locator('.support-tabs').boundingBox();
@@ -91,13 +105,16 @@ fs.mkdirSync(output, { recursive: true });
       assert.ok(labelBox.width > 65 && labelBox.height < 24, 'Rótulo das abas em uma linha legível');
       await page.screenshot({ path: path.join(output, `${scenario.visitor ? 'visitante' : scenario.expanded ? 'expandida' : 'compacta'}-${scenario.width}.png`) });
       await dialog.getByRole('button', { name: 'Enviar chamado', exact: true }).click();
-      await dialog.getByText('Chamado enviado. Acompanhe as respostas por aqui.').waitFor();
+      await dialog.getByRole('heading', { name: 'Chamado enviado', exact: true }).waitFor();
+      await dialog.getByText('Protocolo ' + ticket.id, { exact: true }).waitFor();
+      await dialog.getByRole('button', { name: 'Acompanhar chamado', exact: true }).click();
       assert.equal(sends, 1);
       await dialog.getByLabel('Responder ao atendimento').fill('Aqui estão os passos para reproduzir o problema.');
       await dialog.getByRole('button', { name: 'Enviar resposta', exact: true }).click();
       await dialog.getByText('Resposta enviada.', { exact: true }).waitFor();
       assert.equal(replies, 1);
       await dialog.getByRole('button', { name: 'Meus chamados', exact: true }).last().click();
+      await dialog.getByText(ticket.ultimaResposta.motivo, { exact: true }).waitFor();
       await dialog.locator('.support-tickets button').first().click();
       await dialog.locator('.support-detail').waitFor();
       await page.keyboard.press('Escape');

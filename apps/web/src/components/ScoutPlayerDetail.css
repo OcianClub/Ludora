@@ -2,12 +2,8 @@
   width: min(980px, calc(100vw - 48px));
   max-width: 980px;
   background: var(--fundo);
-  --athlete-assists: #9d82dc;
-  --athlete-saves: #31b9a2;
-}
-[data-theme='light'] .athlete-sheet {
-  --athlete-assists: #7450b8;
-  --athlete-saves: #167b69;
+  --athlete-assists: var(--scout-playmaker-texto);
+  --athlete-saves: var(--scout-keeper-texto);
 }
 .athlete-sheet .modal-body {
   padding: 22px;

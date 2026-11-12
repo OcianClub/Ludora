@@ -92,7 +92,7 @@
 }
 .club-picker-card:hover, .club-picker-card:focus-within {
   border-color: var(--borda);
-  background: color-mix(in srgb, var(--fundo-card) 85%, var(--borda));
+  background: var(--card-hover-claro, color-mix(in srgb, var(--fundo-card) 85%, var(--borda)));
 }
 .club-picker-main { position: absolute; inset: 0; width: 100%; border: 0; border-radius: inherit; background: transparent; }
 .club-picker-main:focus-visible { outline: 2px solid var(--primaria); outline-offset: 3px; }
@@ -107,15 +107,15 @@
 .club-picker-role { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 5px; background: var(--fundo-card-sec); color: var(--texto); font-size: 11px; line-height: 1.4; }
 .club-picker-role.role-admin { background: color-mix(in srgb, var(--primaria) 18%, var(--fundo-card)); }
 .club-picker-role .icon, .club-picker-role svg { color: var(--primaria); }
-.club-picker-role.role-tecnico svg { color: var(--titulo-atencao); }
-.club-picker-role.role-olheiro .icon { color: #9D82DC; }
-.club-picker-role.role-mesario .icon { color: #31B9A2; }
+.club-picker-role.role-tecnico svg { color: var(--cargo-tecnico); }
+.club-picker-role.role-olheiro .icon { color: var(--cargo-olheiro); }
+.club-picker-role.role-mesario .icon { color: var(--cargo-mesario); }
 .club-picker-live { display: inline-flex; align-items: center; gap: 5px; color: var(--texto); font-size: 11px; }
 .club-picker-live .icon { color: #EE4266; }
 .club-picker-chevron { display: flex; color: var(--texto-sec); flex-shrink: 0; }
 .club-picker-favorite, .club-picker-follow { position: relative; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 7px; }
 .club-picker-favorite { width: 40px; height: 40px; border: 0; background: transparent; color: var(--primaria); }
-.club-picker-favorite:hover { background: var(--fundo-card-sec); }
+.club-picker-favorite:hover { background: var(--controle-hover-claro, var(--fundo-card-sec)); }
 .club-picker-follow { gap: 5px; width: 112px; min-height: 40px; padding: 8px; border: 1px solid var(--primaria); background: transparent; color: var(--texto); font-size: 12px; font-weight: 600; }
 .club-picker-follow:not(.is-following) { min-height: 34px; padding-block: 5px; border-color: transparent; background: var(--primaria); color: #fff; }
 .club-picker-follow:not(.is-following):hover { background: var(--primaria-hover); }

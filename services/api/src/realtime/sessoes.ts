@@ -5,6 +5,7 @@ export function desconectarSessoes(io: Server, usuarioId: number) {
   const sala = `usuario:${usuarioId}`;
   io.in(sala).disconnectSockets(true);
   io.of('/admin').in(sala).disconnectSockets(true);
+  io.of('/suporte').in(sala).disconnectSockets(true);
 }
 
 export function agendarExpiracaoTokenVerificado(socket: Socket, token: string) {

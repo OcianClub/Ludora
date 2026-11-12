@@ -26,17 +26,16 @@ async function main() {
     await page.getByRole('button', { name: 'Entrar', exact: true }).click();
     await page.getByRole('link', { name: 'Chamados', exact: true }).click();
     await page.evaluate(id => { window.location.hash = `/chamados?id=${id}`; }, chamadoId);
+    await page.getByRole('button', { name: 'Mais ações', exact: true }).click();
     await page.getByRole('link', { name: 'Pausar função do clube', exact: true }).click();
-    await page.getByRole('heading', { name: 'Chamado vinculado', exact: true }).waitFor();
+    await page.getByRole('link', { name: 'Voltar ao chamado', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Nova pausa', exact: true }).click();
     const modal = page.getByRole('dialog', { name: 'Pausar uma função' });
-    async function selecionar(campo, opcao) {
-      await modal.getByRole('group', { name: new RegExp(campo) }).getByText(opcao, { exact: true }).click();
-    }
-    await modal.getByRole('combobox', { name: /Função/ }).click();
-    await modal.getByRole('option', { name: 'Criação de partidas', exact: true }).click();
-    await modal.getByText(`Alcance: ${clube.nome} · Clube deste chamado`, { exact: true }).waitFor();
-    await modal.getByText('Descrever motivo', { exact: true }).click();
+    await modal.getByRole('button', { name: 'Função: Selecione a função a pausar', exact: true }).click();
+    await modal.getByRole('menuitemradio', { name: 'Criação de partidas', exact: true }).click();
+    await modal.getByText(clube.nome, { exact: true }).waitFor();
+    await modal.getByRole('button', { name: /^Motivo público da pausa:/ }).click();
+    await modal.getByRole('menuitemradio', { name: 'Outro', exact: true }).click();
     await modal.getByLabel('Descreva o motivo').fill('Agenda em revisão pela equipe de operação.');
     await modal.getByRole('button', { name: 'Revisar impacto', exact: true }).click();
     await modal.getByText(/Consultas, histórico e scout/).waitFor();
@@ -44,7 +43,7 @@ async function main() {
     await modal.getByRole('button', { name: 'Confirmar pausa', exact: true }).click();
     await modal.waitFor({ state: 'hidden' });
     await page.getByRole('searchbox', { name: 'Buscar pausas' }).fill(clube.nome);
-    await page.getByText(`${clube.nome} · Em manutenção`, { exact: true }).waitFor();
+    await page.locator('.maintenance-card').filter({ hasText: clube.nome }).getByText('Em manutenção', { exact: true }).waitFor();
     await page.getByRole('radio', { name: 'Tema claro', exact: true }).click();
     await page.screenshot({ path: path.join(out, 'pausa-claro.png') });
 
@@ -80,18 +79,19 @@ async function main() {
 
     await page.getByRole('button', { name: 'Reativar função', exact: true }).click();
     const reativar = page.getByRole('dialog', { name: 'Reativar função' });
-    await reativar.getByText('Descrever motivo', { exact: true }).click();
+    await reativar.getByRole('button', { name: /^Motivo da reativação:/ }).click();
+    await reativar.getByRole('menuitemradio', { name: 'Outro', exact: true }).click();
     await reativar.getByLabel('Descreva o motivo').fill('Validação concluída pela equipe.');
     await reativar.getByRole('button', { name: 'Revisar impacto' }).click();
     await reativar.getByRole('button', { name: 'Confirmar reativação' }).click();
     await reativar.waitFor({ state: 'hidden' });
-    await page.getByRole('status').getByText('Função reativada. Histórico atualizado.').waitFor();
+    await page.getByText('Função reativada. Histórico atualizado.', { exact: true }).waitFor();
     const criada = web.waitForResponse(r => r.url().endsWith('/partidas') && r.request().method() === 'POST');
     await revisao.getByRole('button', { name: 'Confirmar e criar' }).click();
     assert.equal((await criada).status(), 201);
     await page.getByRole('link', { name: 'Voltar ao chamado', exact: true }).click();
-    await page.getByText(/Função pausada · Agenda em revisão/).waitFor();
-    await page.getByText(/Função reativada · Validação concluída/).waitFor();
+    await page.locator('.ticket-history article').filter({ has: page.getByRole('heading', { name: 'Função pausada', exact: true }) }).getByText(/Agenda em revisão/).waitFor();
+    await page.locator('.ticket-history article').filter({ has: page.getByRole('heading', { name: 'Função reativada', exact: true }) }).getByText(/Validação concluída/).waitFor();
     console.log('PASS Electron vincula e reativa pausa; web mostra protocolo e conclui a criação; histórico registra as duas decisões.');
   } finally { await browser?.close(); await app.close(); }
 }

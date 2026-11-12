@@ -40,6 +40,19 @@ async function main() {
   const devolvido = await req('SUPORTE', `/admin/equipe/chamados/${id}`);
   assert.equal(devolvido.body.status, 'EM_TRIAGEM');
   assert.equal((await req('SUPORTE', `/admin/equipe/chamados/${id}`, 'PATCH', { acao: 'FINALIZAR', motivo: 'Confirmed the fix with the customer.', publico: true, revisao: devolvido.body.revisao })).status, 200);
+  const resolvido = await req('SUPORTE', `/admin/equipe/chamados/${id}`);
+  assert.ok(resolvido.body.historico.some((h: { acao: string; autorNome: string | null }) => h.acao === 'FINALIZAR' && h.autorNome));
+  assert.equal((await req('SUPORTE', `/admin/equipe/chamados/${id}`, 'PATCH', {
+    acao: 'COMENTAR', motivo: 'Observação restrita à equipe.', publico: false, revisao: resolvido.body.revisao,
+  })).status, 200);
+  const resumo = (await req('USUARIO', '/suporte')).body.find((chamado: { id: string }) => chamado.id === id);
+  assert.equal(resumo.ultimaResposta.motivo, 'Confirmed the fix with the customer.');
+  assert.equal(resumo.historico, undefined);
+  const avisos = await req('USUARIO', '/suporte/avisos');
+  assert.deepEqual(avisos.body.filter((aviso: { chamadoId: string }) => aviso.chamadoId === id), [{ id: resumo.ultimaResposta.id, chamadoId: id }]);
+  assert.equal((await req('SUPERADMIN', '/suporte/avisos')).body.some((aviso: { chamadoId: string }) => aviso.chamadoId === id), false);
+  assert.equal((await req('SUPERADMIN', '/suporte/' + id)).status, 404);
+
   const restricted = await req('USUARIO', '/suporte', 'POST', { ...input, requestId: randomUUID(), tipo: 'RECUPERACAO' });
   assert.equal((await req('SUPORTE', `/admin/equipe/chamados/${restricted.body.id}`)).status, 200);
   assert.equal((await req('DESENVOLVEDOR', `/admin/equipe/chamados/${restricted.body.id}`)).status, 403);

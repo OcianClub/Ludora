@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Btn, Card, Input, PapelBadge } from '../components/UI';
 import { Icon } from '../components/Icon';
 import { ThemeOptions } from '../components/ThemeOptions';
-import '../components/ThemeToggle.css';
+import { Toggle } from '../components/Toggle';
 import { LogoutButton } from '../components/LogoutButton';
 import { DeleteAccount } from '../components/DeleteAccount';
 import { useAuth } from '../contexts/AuthContext';
@@ -254,17 +254,9 @@ export default function PerfilPage() {
               <strong>Notificações</strong>
               <span>Ative ou desative as notificações push. O histórico no sino permanece disponível.</span>
             </div>
-            <button
-              type="button"
-              className="perfil-switch settings-switch"
-              role="switch"
-              aria-label="Receber notificações"
-              aria-checked={perfil?.notificacoes_ativas ?? true}
+            <Toggle label="Receber notificações" checked={perfil?.notificacoes_ativas ?? true}
               disabled={!perfil || carregando || salvando || salvandoNotificacoes}
-              onClick={alternarNotificacoes}
-            >
-              <span className="settings-switch-thumb" aria-hidden="true"><Icon name="bell" size={13}/></span>
-            </button>
+              onChange={alternarNotificacoes} />
           </div>
           {clube && <div className="perfil-push-grupo">
             <strong>Notificações push · {clube.nome}</strong>
@@ -275,10 +267,8 @@ export default function PerfilPage() {
               ['push_agendamentos', 'Agenda', 'Avisos de novas partidas marcadas.'],
             ] as const).map(([campo, titulo, descricao]) => <div className="perfil-preferencia" key={campo}>
               <div><strong>{titulo}</strong><span>{descricao}</span></div>
-              <button type="button" className="perfil-switch settings-switch" role="switch" aria-label={titulo}
-                aria-checked={push[campo]} disabled={salvandoNotificacoes || !(perfil?.notificacoes_ativas ?? true)} onClick={() => void alternarPush(campo)}>
-                <span className="settings-switch-thumb" aria-hidden="true"><Icon name="bell" size={13}/></span>
-              </button>
+              <Toggle label={titulo} checked={push[campo]}
+                disabled={salvandoNotificacoes || !(perfil?.notificacoes_ativas ?? true)} onChange={() => void alternarPush(campo)} />
             </div>) : <p>As preferências estão disponíveis para clubes que você acompanha.</p>}
           </div>}
         </div>

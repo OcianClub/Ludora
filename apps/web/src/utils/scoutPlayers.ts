@@ -31,7 +31,13 @@ export function hasAssessment(player: PerfilJogador) {
   return !!player.perfil_ml && !/^sem\b/i.test(player.perfil_ml) && typeof player.nota_geral === 'number' && Number.isFinite(player.nota_geral);
 }
 export function profileClass(player: PerfilJogador) {
-  return hasAssessment(player) ? player.perfil_ml === 'Armador' ? 'playmaker' : player.perfil_ml === 'Paredão' ? 'keeper' : 'scorer' : 'pending';
+  if (!hasAssessment(player)) return 'pending';
+  switch (player.perfil_ml) {
+    case 'Armador': return 'playmaker';
+    case 'Paredão': return 'keeper';
+    case 'Misto': return 'mixed';
+    default: return 'scorer';
+  }
 }
 export function searchScout(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();

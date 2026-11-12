@@ -6,7 +6,7 @@ import { ThemeOptions } from './ThemeOptions';
 import { Icon } from './Icon';
 import { LogoutDialog } from './LogoutButton';
 import { rememberAccess } from '../services/publicAccess';
-import { SupportDialog } from './SupportButton';
+import { useSupport } from '../contexts/SupportContext';
 import './AccountMenu.css';
 
 export function AccountMenu({ header = false, avatar = false, menuItem = false }: { header?: boolean; avatar?: boolean; menuItem?: boolean }) {
@@ -17,7 +17,7 @@ export function AccountMenu({ header = false, avatar = false, menuItem = false }
   const panel = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const [supportOpen, setSupportOpen] = useState(false);
+  const { abrirSuporte, naoLidos } = useSupport();
 
   function close(restoreFocus = false) {
     setOpen(false);
@@ -110,6 +110,7 @@ export function AccountMenu({ header = false, avatar = false, menuItem = false }
         <span className="usuario-info"><strong>{usuario?.nome || 'Minha conta'}</strong><small>Minha conta</small></span>
         <Icon name="chevronRight" size={16} />
       </>}
+      {token && naoLidos > 0 && <span className="support-unread-dot" title="Novas respostas do suporte" />}
     </button>
     {open && createPortal(<div id={id} ref={panel} className={`account-popover${header ? ' account-popover-header' : ''}`}
       role="dialog" aria-label="Conta e aparência" data-account-popover
@@ -150,12 +151,11 @@ export function AccountMenu({ header = false, avatar = false, menuItem = false }
         <Link to="/perfil?secao=clubes" onClick={() => close()}><Icon name="shield" size={18} /><span>Meus clubes</span></Link>
         <Link to="/perfil?secao=conta" onClick={() => close()}><Icon name="defense" size={18} /><span>Conta e segurança</span></Link>
         {podeEntrarGestao && <Link to={modo === 'gestao' ? `/clubes/${clube!.id}` : '/dashboard'} onClick={() => { close(); mudarModo(modo === 'gestao' ? 'publico' : 'gestao'); }}><Icon name={modo === 'gestao' ? 'eye' : 'settings'} size={18} /><span>{modo === 'gestao' ? 'Ver como visitante' : 'Voltar à gestão'}</span></Link>}
-        <button type="button" onClick={() => { close(); setSupportOpen(true); }}><Icon name="headset" size={18} /><span>Suporte e ajuda</span></button>
+        <button type="button" onClick={() => { close(true); abrirSuporte(); }}><Icon name="headset" size={18} /><span>Suporte e ajuda</span>{naoLidos > 0 && <small className="support-unread" aria-hidden="true">{naoLidos}</small>}</button>
       </nav>
       <div className="account-popover-footer"><button type="button" onClick={() => { close(true); setLogoutOpen(true); }}><Icon name="logout" size={18} /><span>Sair da conta</span></button></div>
       </>}
     </div>, trigger.current?.closest('dialog') || document.body)}
     <LogoutDialog open={logoutOpen} onClose={() => { setLogoutOpen(false); trigger.current?.focus({ preventScroll: true }); }} />
-    <SupportDialog open={supportOpen} onClose={() => { setSupportOpen(false); trigger.current?.focus({ preventScroll: true }); }} />
   </>;
 }

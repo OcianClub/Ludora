@@ -248,7 +248,7 @@
   font-size: 13px;
   text-align: left;
 }
-.notification-menu-options button:hover:not(:disabled) { background: var(--fundo-card-sec); }
+.notification-menu-options button:hover:not(:disabled) { background: var(--controle-hover-claro, var(--fundo-card-sec)); }
 .notification-menu-options .notification-menu-danger:not(:disabled) { color: var(--titulo-erro); }
 .notification-menu-options button:disabled {
   opacity: .4;

@@ -2,6 +2,7 @@ import { memo, useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import { SinalAoVivo } from "./SinalAoVivo";
 import { Icon } from "@ludora/icons";
+import { lightColors } from "@ludora/design-tokens";
 import { useTheme } from "@/src/contexts/ThemeContext";
 import { createStyles } from "@/src/styles/jogosStyles";
 import { type PartidaAgendaBase } from "@/src/utils/agendaJogos";
@@ -70,7 +71,7 @@ export const CartaoJogo = memo(function CartaoJogo({
   styles: Estilos;
   onPress: (partida: PartidaJogo) => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, tema } = useTheme();
   const aoVivo = partida.status === "AO_VIVO";
   const finalizada = partida.status === "FINALIZADA";
   const resultado = finalizada ? resultadoDoClube(partida) : null;
@@ -81,6 +82,9 @@ export const CartaoJogo = memo(function CartaoJogo({
         PREPARADA: "Preparada",
         CANCELADA: "Cancelada",
       }[partida.status];
+  const statusClaro = partida.status === "AGENDADA" ? lightColors.statusPartida.agendada
+    : partida.status === "PREPARADA" ? lightColors.statusPartida.preparada
+    : null;
   const data = new Date(partida.data.slice(0, 10) + "T12:00:00");
   const dia = formatarData
     .format(data)
@@ -137,6 +141,8 @@ export const CartaoJogo = memo(function CartaoJogo({
                 resultado === "V" && styles.winBadge,
                 resultado === "D" && styles.lossBadge,
                 resultado === "E" && styles.drawBadge,
+                tema === "light" && statusClaro && { color: statusClaro.texto, backgroundColor: statusClaro.fundo },
+                tema === "light" && resultado === "D" && { backgroundColor: lightColors.statusPartida.derrota },
               ]}
             >
               {situacao}

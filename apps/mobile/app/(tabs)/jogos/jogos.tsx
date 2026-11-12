@@ -60,8 +60,8 @@ type Partida = PartidaJogo;
 
 
 export default function Jogos() {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, tema } = useTheme();
+  const styles = useMemo(() => createStyles(colors, tema), [colors, tema]);
   const router = useRouter();
   const destinoHome = useLocalSearchParams<{ status?: string; sub?: string; ano?: string }>();
   const { clubeAtivo, podeGerenciar } = useClubeAtivo();
@@ -423,7 +423,7 @@ export default function Jogos() {
                 >
                   {option.value === "TODOS" ? "Todos" : option.label}
                 </Text>
-                <Text style={styles.accordionCount}>
+                <Text style={[styles.accordionCount, selected && styles.selectedCount]}>
                   {contagem[option.value]}
                 </Text>
               </TouchableOpacity>

@@ -1,0 +1,72 @@
+
+
+====================================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        16.3.0                                                                         │
+  │ Browser:        Chrome 157 (headless)                                                          │
+  │ Node Version:   v22.13.0 (C:\nvm4w\nodejs\node.exe)                                            │
+  │ Specs:          1 found (ludora.cy.js)                                                         │
+  │ Searched:       cypress/e2e/**/*.cy.js                                                         │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  ludora.cy.js                                                                    (1 of 1)
+
+
+  Homologação Ludora
+    Autenticação
+      √ CT01 campos obrigatórios impedem o envio (1466ms)
+      √ CT02 e-mail inválido recebe orientação (578ms)
+      √ CT03 credenciais recusadas exibem erro (1132ms)
+    Preparação da partida
+      √ CT04 partida sem escalação começa nos dados (292ms)
+      √ CT05 escalação incompleta impede avançar para revisão (270ms)
+      √ CT06 camisas repetidas impedem avançar para revisão (252ms)
+      √ CT07 escalação válida permite acessar a revisão (222ms)
+    Eventos de partida
+      √ CT08 placar histórico segue a ordem dos gols (249ms)
+      √ CT09 gol contra pertence ao adversário para autoria (241ms)
+
+
+  9 passing (5s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        9                                                                                │
+  │ Passing:      9                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  2                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     4 seconds                                                                        │
+  │ Spec Ran:     ludora.cy.js                                                                     │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  E:\ESTUDO PROGRAMACAO\projetos\Ludora\homologacao-faculdade\evidencias\ludora.cy     (1264x806)
+     .js\CT01-campos-obrigatorios.png                                                               
+  -  E:\ESTUDO PROGRAMACAO\projetos\Ludora\homologacao-faculdade\evidencias\ludora.cy     (1264x806)
+     .js\CT03-acesso-recusado.png                                                                   
+
+
+====================================================================================================
+
+  (Run Finished)
+
+
+       Spec                                              Tests  Passing  Failing  Pending  Skipped  
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ √  ludora.cy.js                             00:04        9        9        -        -        - │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+    √  All specs passed!                        00:04        9        9        -        -        -  
+

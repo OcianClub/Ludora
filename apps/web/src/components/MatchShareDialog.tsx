@@ -4,7 +4,7 @@ import { matchShareModel } from '../utils/matchShare';
 import { matchResultText } from '../utils/matchResult';
 import { Btn, Modal } from './UI';
 import { Icon } from './Icon';
-import './ThemeToggle.css';
+import { Toggle } from './Toggle';
 import './MatchShareDialog.css';
 
 export default function MatchShareDialog({ data, onClose, onFeedback }: {
@@ -66,11 +66,11 @@ export default function MatchShareDialog({ data, onClose, onFeedback }: {
     </div>
     <div className="match-result-name-setting">
       <div><strong id="share-player-names">Incluir nomes dos jogadores</strong><p id="share-player-description">Mostra os nomes nos gols e destaques. Desligado, os destaques usam a camisa.</p></div>
-      <button className="settings-switch" type="button" role="switch" aria-checked={includeNames} aria-labelledby="share-player-names" aria-describedby="share-player-description" disabled={busy} onClick={() => setIncludeNames(value => !value)}><span className="settings-switch-thumb" aria-hidden="true"><Icon name="user" size={13} /></span></button>
+      <Toggle checked={includeNames} aria-labelledby="share-player-names" aria-describedby="share-player-description" disabled={busy} onChange={setIncludeNames} />
     </div>
     <div className="match-result-name-setting">
       <div><strong id="share-match-highlights">Incluir destaques</strong><p>Participação em gols e defesas registradas, com empates preservados.</p></div>
-      <button className="settings-switch" type="button" role="switch" aria-checked={includeHighlights} aria-labelledby="share-match-highlights" disabled={busy} onClick={() => setIncludeHighlights(value => !value)}><span className="settings-switch-thumb" aria-hidden="true"><Icon name="trophy" size={13} /></span></button>
+      <Toggle checked={includeHighlights} aria-labelledby="share-match-highlights" disabled={busy} onChange={setIncludeHighlights} />
     </div>
     <div className="match-image-links"><button type="button" disabled={busy} onClick={() => void copyLink()}>Copiar link da partida</button><span>PNG · resultado de todos os tempos</span></div>
     <details className="match-share-message"><summary><Icon name="list" size={16} />Versão em texto<Icon name="chevronRight" size={16} /></summary>

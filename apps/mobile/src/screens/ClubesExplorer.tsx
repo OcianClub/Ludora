@@ -1,4 +1,5 @@
 import { SearchField } from "../components/ui/Controls";
+import { interfaceColors } from "@ludora/design-tokens";
 import { Icon, type IconName } from "@ludora/icons";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -128,10 +129,11 @@ const CartaoClube = memo(function CartaoClube({
   onAcessar: (clube: ClubeListado) => void;
   onAcompanhar: (clube: ClubeListado, seguir: boolean) => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, tema } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const papel =
     clube.papel && clube.papel !== "TORCEDOR" ? papeis[clube.papel] : undefined;
+  const corCargo = interfaceColors[tema].cargos[clube.papel ?? 'TORCEDOR'];
   const seguindo = Boolean(clube.isSeguindo || clube.papel);
   const detalhes = papel
     ? contextoAcessoClube(clube)
@@ -166,7 +168,7 @@ const CartaoClube = memo(function CartaoClube({
             <View style={styles.tags}>
               {papel && (
                 <View style={[styles.papel, clube.papel === "ADMIN" && styles.papelAdmin]}>
-                  <Icon name={papel.icone} size={12} color={colors.primaria} />
+                  <Icon name={papel.icone} size={12} color={corCargo} />
                   <Text style={styles.papelText}>{papel.nome}</Text>
                 </View>
               )}

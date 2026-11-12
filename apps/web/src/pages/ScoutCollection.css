@@ -21,7 +21,7 @@
   background: transparent;
 }
 .scout-category-content .scout-leaders > button + button { border-left: 1px solid var(--borda); }
-.scout-category-content .scout-leaders > button:not(:disabled):hover { background: var(--fundo-card-sec); }
+.scout-category-content .scout-leaders > button:not(:disabled):hover { background: var(--card-hover-claro, var(--fundo-card-sec)); }
 .scout-category-content .scout-leader-icon {
   grid-column: 1;
   grid-row: 1 / span 2;
@@ -83,7 +83,7 @@
 .scout-sort-indicator.is-ascending, .scout-sort-indicator.is-descending { opacity: 1; }
 .scout-sort-indicator.is-ascending i:first-child, .scout-sort-indicator.is-descending i:last-child { border-bottom-color: var(--primaria); }
 .scout-table tbody tr { cursor: pointer; }
-.scout-table tbody tr:hover > *, .scout-table tbody tr:focus-within > * { background: var(--fundo-card-sec); }
+.scout-table tbody tr:hover > *, .scout-table tbody tr:focus-within > * { background: var(--linha-hover-claro, var(--fundo-card-sec)); }
 .scout-table tbody tr:last-child > * { border-bottom: 0; }
 .scout-table-name { display: flex; align-items: center; min-height: 48px; width: 100%; padding: 0; border: 0; background: transparent; color: var(--texto); text-align: left; font-size: 12px; font-weight: 600; cursor: pointer; }
 .scout-table-name > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -95,7 +95,7 @@
 .scout-table-number, .scout-table-shirt { font-variant-numeric: tabular-nums; font-weight: 600; }
 .scout-table-number { font-size: 14px; }
 .scout-table-shirt { font-size: 15px; }
-.scout-table-profile { display: inline-block; max-width: 100%; padding: 3px 6px; border-radius: 4px; background: color-mix(in srgb, var(--scout-accent) 12%, transparent); color: color-mix(in srgb, var(--scout-accent) 65%, var(--texto)); font-size: 10px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.scout-table-profile { display: inline-block; max-width: 100%; padding: 3px 6px; border-radius: 4px; background: var(--scout-profile-surface); color: var(--scout-accent); font-size: 11px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
 .scout-category-content .scout-empty { min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px 16px; color: var(--texto-sec); text-align: center; }
 .scout-category-content .scout-empty p { margin: 0; }
 .scout-players-compact { grid-template-columns: minmax(0, 1fr); gap: 8px; }
