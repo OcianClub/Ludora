@@ -24,15 +24,15 @@
 .desktop-tickets-page .ticket-row-owner { color:var(--texto-sec); font-size:12px; }
 .desktop-tickets-page :is(.ticket-row-context > *, .ticket-row-owner, .ticket-card-copy > strong) { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .desktop-tickets-page .ticket-row-date { text-align:right; justify-items:end; color:var(--texto-sec); font-variant-numeric:tabular-nums; }
-.desktop-tickets-page .ticket-status { justify-self:start; gap:6px; min-height:24px; padding:3px 8px; background:var(--fundo-card-sec); color:var(--texto); }
+.desktop-tickets-page .ticket-status { justify-self:start; gap:6px; min-height:24px; padding:3px 8px; background:var(--superficie-neutra); color:var(--texto); }
 .desktop-tickets-page .ticket-status::before { content:''; width:6px; height:6px; flex-shrink:0; border-radius:50%; background:var(--texto-sec); }
 .desktop-tickets-page .ticket-status[data-state="NOVO"]::before, .desktop-tickets-page .ticket-status[data-state="EM_ANDAMENTO"]::before { background:var(--primaria); }
-.desktop-tickets-page .ticket-status[data-state="EM_TRIAGEM"]::before, .desktop-tickets-page .ticket-status[data-state="AGUARDANDO_CLIENTE"]::before { background:var(--titulo-atencao); }
-.desktop-tickets-page .ticket-status[data-state="RESOLVIDO"]::before { background:#43c998; }
-.desktop-tickets-page .ticket-status[data-state="ENCAMINHADO_DEVS"]::before { background:#a58adb; }
-.desktop-tickets-page .ticket-status[data-state="REABERTO"]::before { background:var(--titulo-erro); }
-.desktop-tickets-page .ticket-card .ticket-priority, .desktop-tickets-page .ticket-detail-summary .ticket-priority { color:var(--titulo-erro); }
-.desktop-tickets-page .ticket-overdue { color:var(--titulo-atencao); }
+.desktop-tickets-page .ticket-status[data-state="EM_TRIAGEM"]::before, .desktop-tickets-page .ticket-status[data-state="AGUARDANDO_CLIENTE"]::before { background:var(--desktop-status-warning); }
+.desktop-tickets-page .ticket-status[data-state="RESOLVIDO"]::before { background:var(--desktop-status-success); }
+.desktop-tickets-page .ticket-status[data-state="ENCAMINHADO_DEVS"]::before { background:var(--desktop-status-escalated); }
+.desktop-tickets-page .ticket-status[data-state="REABERTO"]::before { background:var(--desktop-status-error); }
+.desktop-tickets-page .ticket-card .ticket-priority, .desktop-tickets-page .ticket-detail-summary .ticket-priority { color:var(--desktop-status-error); }
+.desktop-tickets-page .ticket-overdue { color:var(--desktop-status-warning); }
 .desktop-tickets-page .ticket-section { gap:14px; }
 .desktop-tickets-page .ticket-section h2 { font:600 15px/1.4 var(--font-corpo); }
 .desktop-tickets-page .ticket-section :is(p,small) { font-size:12px; line-height:1.65; }

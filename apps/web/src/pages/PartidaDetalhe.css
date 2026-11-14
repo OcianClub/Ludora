@@ -12,9 +12,11 @@
 .event-action:active:not(:disabled) { transform: translateY(0); }
 .event-action:disabled { opacity: .45; cursor: not-allowed; }
 .event-action small { font-size: 9px; color: var(--texto-sec); }
+[data-theme="light"] .event-action > span:not(.event-icon-box) { color: #15171b; }
 .event-icon-box { width: 38px; height: 38px; border-radius: 8px; background: var(--fundo-card-sec); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--texto); }
 .event-card-symbol { width: 14px; height: 22px; border-radius: 3px; display: block; background: var(--texto-sec); }
-.event-card-cartao_amarelo { background: var(--amarelo); }
+.event-card-cartao_amarelo { background: var(--resultado-empate); }
+[data-theme="light"] .event-card-cartao_amarelo { box-shadow: inset 0 0 0 1px #805800; }
 .event-card-cartao_vermelho { background: var(--vermelho); }
 .event-card-cartao_azul { background: var(--primaria); }
 .editor-description { color: var(--texto-sec); font-size: 12px; line-height: 1.7; }
@@ -193,15 +195,7 @@
 .partida-acoes { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
 
 /* ── Abas ── */
-.partida-abas { display: flex; gap: 0; border-bottom: 1px solid var(--borda); margin-bottom: 20px; }
-.aba {
-  background: none; border: none; color: var(--texto-sec);
-  padding: 10px 18px; font-size: 13px; font-weight: 500;
-  cursor: pointer; border-bottom: 2px solid transparent;
-  transition: color 0.12s, border-color 0.12s; margin-bottom: -1px;
-}
-.aba:hover { color: var(--texto); }
-.aba-ativa { color: var(--primaria); border-bottom-color: var(--primaria); }
+.partida-abas { margin-bottom: 20px; }
 .aba-content { }
 
 /* ── Resumo ── */

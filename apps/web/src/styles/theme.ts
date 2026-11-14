@@ -55,9 +55,10 @@ function interfaceTokens(theme: keyof typeof interfaceColors) {
   }
   for (const [name, color] of Object.entries(palette.posicoes)) tokens[`posicao-${name}`] = color;
   for (const [name, color] of Object.entries(palette.cargos)) tokens[`cargo-${name.toLowerCase()}`] = color;
-  for (const [name, { fundo, texto }] of Object.entries(palette.chaves)) {
+  for (const [name, { fundo, texto, destaque }] of Object.entries(palette.chaves)) {
     tokens[`paulista-${name.toLowerCase()}`] = texto;
     tokens[`paulista-${name.toLowerCase()}-fundo`] = fundo;
+    tokens[`paulista-${name.toLowerCase()}-destaque`] = destaque;
   }
   return tokens;
 }
@@ -71,7 +72,9 @@ export function applyTheme(preference = getThemePreference()) {
     ...interfaceTokens(light ? 'light' : 'dark'),
     primaria: colors.primaria, fundo: colors.fundo,
     'fundo-card': colors.card, 'fundo-card-sec': colors.cardSecundario,
-    'fundo-card-claro': colors.cardClaro, borda: colors.borda, linha: colors.linha,
+    'fundo-card-claro': colors.cardClaro,
+    'superficie-neutra': light ? lightColors.superficieNeutra : darkColors.cardSecundario,
+    borda: colors.borda, linha: colors.linha,
     texto: colors.texto, 'texto-sec': colors.textoSecundario,
     'texto-sobre-primaria': colors.textoSobrePrimaria,
     amarelo: colors.amarelo, vermelho: colors.vermelho,

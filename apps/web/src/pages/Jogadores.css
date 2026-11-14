@@ -277,16 +277,6 @@
   background: var(--alunos-row-hover);
 }
 
-.alunos-table tbody tr:hover td:first-child,
-.alunos-table tbody tr:focus-within td:first-child {
-  border-radius: 8px 0 0 8px;
-}
-
-.alunos-table tbody tr:hover td:last-child,
-.alunos-table tbody tr:focus-within td:last-child {
-  border-radius: 0 8px 8px 0;
-}
-
 .alunos-table tbody tr:last-child td {
   border-bottom: 0;
 }

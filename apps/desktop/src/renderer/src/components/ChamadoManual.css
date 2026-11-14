@@ -14,7 +14,7 @@
 .desktop-ticket-club-options .platform-club-option { background:var(--desktop-surface-raised); border-color:var(--borda); }
 .desktop-ticket-club-options .platform-club-option:has(input:checked) { border-color:var(--primaria); }
 .desktop-ticket-club-options .platform-club-option:not([data-disabled="true"]):hover { background:var(--desktop-surface-raised-hover); }
-.desktop-ticket-platform { display:grid; place-items:center; width:32px; height:32px; border-radius:8px; background:var(--fundo-card-sec); color:var(--texto); }
+.desktop-ticket-platform { display:grid; place-items:center; width:32px; height:32px; border-radius:8px; background:var(--superficie-neutra); color:var(--texto); }
 @media(max-width:740px) {
  .desktop-ticket-form { grid-template-columns:minmax(0,1fr); }
  .desktop-ticket-form-section + .desktop-ticket-form-section { padding-left:0; padding-top:20px; border-left:0; border-top:1px solid var(--linha); }

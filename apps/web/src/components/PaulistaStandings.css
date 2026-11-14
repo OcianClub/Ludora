@@ -16,20 +16,20 @@
 .paulista-standings .paulista-ranking-team { gap:8px; min-width:0; }
 .paulista-standings .paulista-ranking-team small { font-size:9px; }
 .paulista-ranking-band { --band-color:var(--texto-sec); }
-.paulista-ranking-band.band-ouro { --band-color:var(--paulista-ouro); --band-fundo:var(--paulista-ouro-fundo); }
-.paulista-ranking-band.band-prata { --band-color:var(--paulista-prata); --band-fundo:var(--paulista-prata-fundo); }
-.paulista-ranking-band.band-bronze { --band-color:var(--paulista-bronze); --band-fundo:var(--paulista-bronze-fundo); }
-.paulista-ranking-band.band-rubi { --band-color:var(--paulista-rubi); --band-fundo:var(--paulista-rubi-fundo); }
+.paulista-ranking-band.band-ouro { --band-color:var(--paulista-ouro); --band-destaque:var(--paulista-ouro-destaque); --band-fundo:var(--paulista-ouro-fundo); }
+.paulista-ranking-band.band-prata { --band-color:var(--paulista-prata); --band-destaque:var(--paulista-prata-destaque); --band-fundo:var(--paulista-prata-fundo); }
+.paulista-ranking-band.band-bronze { --band-color:var(--paulista-bronze); --band-destaque:var(--paulista-bronze-destaque); --band-fundo:var(--paulista-bronze-fundo); }
+.paulista-ranking-band.band-rubi { --band-color:var(--paulista-rubi); --band-destaque:var(--paulista-rubi-destaque); --band-fundo:var(--paulista-rubi-fundo); }
 .paulista-standings .paulista-table-scroll .paulista-ranking-band > th,
 .paulista-standings .paulista-table-scroll .paulista-ranking-band:hover > th { padding:9px 14px; background:var(--band-fundo,var(--fundo)); text-align:left; font-size:10px; }
 .paulista-ranking-band-label { display:inline-flex; align-items:center; gap:9px; white-space:nowrap; }
 .paulista-ranking-band-label > span { color:var(--band-color); font-weight:700; }
-.paulista-ranking-band-label > span::before { content:''; display:inline-block; vertical-align:middle; width:5px; height:5px; margin-right:7px; border-radius:50%; background:var(--band-color); }
+.paulista-ranking-band-label > span::before { content:''; display:inline-block; vertical-align:middle; width:5px; height:5px; margin-right:7px; border-radius:50%; background:var(--band-destaque,var(--band-color)); }
 .paulista-ranking-band small { color:var(--texto-sec); font-size:10px; font-weight:400; }
-.paulista-standings tr[data-key=ouro] > td:first-child { box-shadow:inset 2px 0 var(--paulista-ouro); }
-.paulista-standings tr[data-key=prata] > td:first-child { box-shadow:inset 2px 0 var(--paulista-prata); }
-.paulista-standings tr[data-key=bronze] > td:first-child { box-shadow:inset 2px 0 var(--paulista-bronze); }
-.paulista-standings tr[data-key=rubi] > td:first-child { box-shadow:inset 2px 0 var(--paulista-rubi); }
+.paulista-standings tr[data-key=ouro] > td:first-child { box-shadow:inset 2px 0 var(--paulista-ouro-destaque); }
+.paulista-standings tr[data-key=prata] > td:first-child { box-shadow:inset 2px 0 var(--paulista-prata-destaque); }
+.paulista-standings tr[data-key=bronze] > td:first-child { box-shadow:inset 2px 0 var(--paulista-bronze-destaque); }
+.paulista-standings tr[data-key=rubi] > td:first-child { box-shadow:inset 2px 0 var(--paulista-rubi-destaque); }
 .paulista-standings .paulista-table-scroll tr.is-own > td:first-child { box-shadow:inset 3px 0 var(--primaria); }
 .paulista-ranking-summary { display:grid; gap:18px; padding:20px; border:1px solid color-mix(in srgb,var(--primaria) 60%,var(--borda)); border-radius:9px; background:var(--fundo-card); min-width:0; }
 .paulista-standing-identity { display:flex; align-items:center; gap:10px; min-width:0; }

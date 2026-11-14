@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { useDropdownPlacement } from '@web/hooks/useDropdownPlacement';
+import { RadioIndicator } from '@web/components/RadioIndicator';
 import { DesktopToggleIndicator } from './DesktopToggle';
 import './DesktopMenu.css';
 
@@ -44,7 +45,7 @@ export function DesktopMenuRadioItem({ children, icon, checked, onSelect, disabl
   children: ReactNode; icon?: ReactNode; checked: boolean; onSelect: () => void; disabled?: boolean; indicator?: 'radio' | 'dot';
 }) {
   return <button type="button" role="menuitemradio" aria-checked={checked} disabled={disabled} onClick={onSelect}>
-    {icon}{children}{indicator === 'radio' ? <span className="desktop-menu-radio" aria-hidden="true"/> : checked && <span className="desktop-menu-selection-dot" aria-hidden="true"/>}
+    {icon}{children}{indicator === 'radio' ? <RadioIndicator checked={checked} className="desktop-menu-radio"/> : checked && <span className="desktop-menu-selection-dot" aria-hidden="true"/>}
   </button>;
 }
 

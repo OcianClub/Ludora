@@ -16,7 +16,7 @@ fs.mkdirSync(output, { recursive: true });
       { width: 1280, height: 720, expanded: false },
       { width: 900, height: 700, expanded: true },
       { width: 390, height: 844 },
-      { width: 320, height: 640 },
+      { width: 320, height: 640, longClubName: true },
       { width: 1366, height: 900, visitor: true },
       { width: 390, height: 844, visitor: true },
     ]) {
@@ -24,7 +24,9 @@ fs.mkdirSync(output, { recursive: true });
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', e => errors.push(e.message));
-      await install(page);
+      await install(page, { decorate: ({ clubes }) => {
+        if (scenario.longClubName) clubes[0].nome = 'Associação Esportiva da Comunidade de Praia Grande e Região';
+      } });
       let gets = 0, sends = 0, replies = 0;
       let ticket = { id: 'chamado-teste', assunto: 'Não consigo acessar uma partida', status: 'NOVO', criadoEm: '2026-11-09T18:00:00Z', historico: [], ultimaResposta: { motivo: 'A equipe está conferindo o acesso à partida.', criadoEm: '2026-11-09T19:00:00Z' } };
       await page.route('http://localhost:3000/suporte**', async route => {
@@ -51,7 +53,8 @@ fs.mkdirSync(output, { recursive: true });
       });
       await page.goto(base + '/login');
       await page.evaluate(scenario => {
-        const club = scenario.visitor ? { id: 3, nome: 'Santos', meuPapel: null } : { id: 2, nome: 'Ocian', meuPapel: 'ADMIN' };
+        const nome = scenario.longClubName ? 'Associação Esportiva da Comunidade de Praia Grande e Região' : 'Ocian';
+        const club = scenario.visitor ? { id: 3, nome: 'Santos', meuPapel: null } : { id: 2, nome, meuPapel: 'ADMIN' };
         localStorage.setItem('ludora_token', 'fixture-only-token');
         localStorage.setItem('ludora_usuario', JSON.stringify({ id: 1, nome: 'Alex Morgan', email: 'visual@example.test' }));
         localStorage.setItem('ludora_clube_id', String(club.id));
@@ -95,6 +98,25 @@ fs.mkdirSync(output, { recursive: true });
         await dialog.getByRole('option', { name: 'Erro ou lentidão', exact: true }).click();
       }
       assert.ok(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1), 'Modal sem overflow horizontal');
+      await dialog.locator('.support-form-notes').scrollIntoViewIfNeeded();
+      if (scenario.longClubName) await dialog.locator('.support-context-copy strong').getByText(/Comunidade de Praia Grande e Região/).waitFor();
+      const notes = await dialog.locator('.support-form-notes').evaluate(el => {
+        const box = selector => el.querySelector(selector).getBoundingClientRect();
+        const pin = box('.support-context > .icon');
+        const copy = box('.support-context-copy');
+        const copyButton = box('.support-context button');
+        const privacyIcon = box('.support-privacy > .icon');
+        const privacyText = box('.support-privacy > span:not(.icon)');
+        return {
+          pinWidth: pin.width, contextGap: copy.left - pin.right, labelEnd: copy.right,
+          buttonWidth: copyButton.width, buttonStart: copyButton.left,
+          privacyAligned: Math.abs(pin.left - privacyIcon.left) < 1 && Math.abs(copy.left - privacyText.left) < 2,
+          wraps: el.querySelector('.support-context-copy').scrollWidth <= copy.width + 1,
+        };
+      });
+      assert.equal(notes.pinWidth, 17, 'O ícone mantém seu tamanho no contexto');
+      assert.ok(notes.contextGap >= 8 && notes.contextGap <= 12 && notes.labelEnd < notes.buttonStart, 'Ícone e texto agrupados, copiar à direita');
+      assert.ok(notes.buttonWidth >= 36 && notes.privacyAligned && notes.wraps, 'Rodapé legível e sem cortes');
       const modalBox = await dialog.boundingBox();
       const tabsBox = await dialog.locator('.support-tabs').boundingBox();
       const sendBox = await dialog.getByRole('button', { name: 'Enviar chamado', exact: true }).boundingBox();

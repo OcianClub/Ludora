@@ -197,6 +197,8 @@
   color: var(--primaria);
 }
 @media (hover: hover) {
+  .match-schedule .match-card:hover { background: var(--schedule-item-hover, var(--acordeao-hover)); }
+  .match-schedule .match-card-live { --schedule-item-hover: var(--acordeao-ao-vivo-hover); }
   .match-card-static:hover {
     background: var(--card-hover-claro, color-mix(in srgb, var(--fundo-card) 85%, var(--fundo-card-sec)));
     border-color: var(--borda-botao);

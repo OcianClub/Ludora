@@ -6,7 +6,8 @@ import { novoRequestId } from '../services/requestId';
 import { requestJson } from '../services/api';
 import { CollectionViewToggle } from './CollectionToolbar';
 import { FilterSelect } from './FilterSelect';
-import { Btn, Input, Modal, Spinner } from './UI';
+import { Btn, Input, Modal } from './UI';
+import { LoadingSkeleton } from './LoadingSkeleton';
 import { Icon } from './Icon';
 import './SupportButton.css';
 
@@ -197,7 +198,7 @@ export function SupportDialog({ open, chamadoInicial, iniciarNoHistorico, onClos
   }
 
   return <Modal open={open} title="Suporte e ajuda" className="support-dialog" onClose={fechar}
-    footer={aba === 'novo' ? <div className="support-actions"><Btn variant="ghost" disabled={busy} onClick={fechar}>Cancelar</Btn><Btn type="submit" form={`${id}-novo`} disabled={busy}>{busy ? 'Enviando…' : 'Enviar chamado'}<Icon name="arrow" size={16} /></Btn></div> : undefined}>
+    footer={aba === 'novo' ? <div className="support-actions"><Btn variant="ghost" disabled={busy} onClick={fechar}>Cancelar</Btn><Btn type="submit" form={`${id}-novo`} loading={busy}><span>{busy ? 'Enviando…' : 'Enviar chamado'}</span>{!busy && <Icon name="arrow" size={16} />}</Btn></div> : undefined}>
     <CollectionViewToggle label="Atendimento" value={aba} onChange={trocarAba} className="support-tabs"
       options={[{ value: 'novo', label: 'Novo chamado', icon: 'plus' }, { value: 'historico', label: 'Meus chamados', icon: 'clock' }]} />
     {error && <p className="support-feedback support-error" role="alert"><Icon name="alert" size={18} />{error}</p>}
@@ -239,8 +240,21 @@ export function SupportDialog({ open, chamadoInicial, iniciarNoHistorico, onClos
           </details>}
         </fieldset>
       </form>
-      <div className="support-context"><Icon name="location" size={17} /><span title={pagina}>Página incluída · {paginaNome}{!semClube && clubeSelecionado?.nome ? ` · ${clubeSelecionado.nome}` : ''}</span><button type="button" aria-label="Copiar endereço da página" data-tooltip="Copiar endereço" onClick={() => void copiarPagina()}><Icon name="copy" size={17} /></button></div>
-      <p id={`${id}-privacidade`} className="support-privacy"><Icon name="defense" size={16} />Não envie senhas, documentos ou códigos de acesso.</p>
+      <div className="support-form-notes">
+        <div className="support-context">
+          <Icon name="location" size={17} />
+          <div className="support-context-copy" title={pagina}>
+            <span>Página incluída</span>
+            <strong>{paginaNome}{!semClube && clubeSelecionado?.nome ? ` · ${clubeSelecionado.nome}` : ''}</strong>
+          </div>
+          <button type="button" aria-label="Copiar endereço da página" data-tooltip="Copiar endereço" onClick={() => void copiarPagina()}>
+            <Icon name="copy" size={17} />
+          </button>
+        </div>
+        <p id={`${id}-privacidade`} className="support-privacy">
+          <Icon name="defense" size={16} /><span>Não envie senhas, documentos ou códigos de acesso.</span>
+        </p>
+      </div>
     </> : enviado && detalhe ? <section className="support-confirmation">
       <Icon name="checkAll" size={28} />
       <h3>Chamado enviado</h3>
@@ -248,8 +262,8 @@ export function SupportDialog({ open, chamadoInicial, iniciarNoHistorico, onClos
       <small>Protocolo {detalhe.id}</small>
       <Btn onClick={() => setEnviado(false)}>Acompanhar chamado<Icon name="arrow" size={16} /></Btn>
     </section> : <>
-      <div className="support-history-heading">{detalheId ? <button type="button" className="support-back" disabled={busy} onClick={voltarALista}><Icon name="chevronLeft" size={16} />Meus chamados</button> : <><strong>Seus chamados</strong><button type="button" className="support-back" disabled={loading} onClick={() => { setLoading(true); setReload(value => value + 1); }}><Icon name="refresh" size={16} />Atualizar</button></>}</div>
-      {loading && <div className="support-loading" role="status"><Spinner /><span>Carregando atendimento…</span></div>}
+      <div className="support-history-heading">{detalheId ? <button type="button" className="support-back" disabled={busy} onClick={voltarALista}><Icon name="chevronLeft" size={16} />Meus chamados</button> : <><strong>Seus chamados</strong><Btn variant="ghost" size="sm" className="support-back" loading={loading && !!lista.length} disabled={loading} onClick={() => { setLoading(true); setReload(value => value + 1); }}>{!(loading && lista.length) && <Icon name="refresh" size={16} />}Atualizar</Btn></>}</div>
+      {loading && (detalheId ? !chamadoAtual : !lista.length) && <LoadingSkeleton count={3} label="Carregando atendimento" />}
       {!loading && !detalheId && !lista.length && !erroConsulta && <div className="support-empty"><Icon name="headset" size={32} /><strong>Nenhum chamado por aqui</strong><p>Quando precisar de ajuda, abra um chamado.</p><Btn variant="ghost" onClick={() => trocarAba('novo')}>Criar chamado</Btn></div>}
       {!detalheId && lista.length > 0 && <div className="support-tickets" aria-label="Seus chamados">{lista.map(chamado => <button type="button" key={chamado.id} disabled={loading} onClick={() => consultar(chamado)}>
         <Icon name="headset" size={20} /><span>

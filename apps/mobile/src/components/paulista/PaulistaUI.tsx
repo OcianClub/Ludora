@@ -33,13 +33,13 @@ export function EscudoOficial({ equipe, size = 26, destaque = false }: {
 export function usePaletaChave() {
   const { colors, tema } = useTheme();
   const chaves = interfaceColors[tema].chaves;
-  return (chave?: string | null) => chaves[chave as keyof typeof chaves] ?? { texto: colors.textoSecundario, fundo: colors.fundo };
+  return (chave?: string | null) => chaves[chave as keyof typeof chaves] ?? { texto: colors.textoSecundario, destaque: colors.textoSecundario, fundo: colors.fundo };
 }
 export function Medalha({ chave, filled = false }: { chave?: string | null; filled?: boolean }) {
   const s = usePaulistaStyles();
   const { tema } = useTheme();
-  const { texto: color, fundo } = usePaletaChave()(chave);
-  return <View style={[s.row, { gap: 7, alignSelf: 'flex-start' }, !filled && { paddingVertical: 5, paddingHorizontal: 8, borderWidth: 1, borderRadius: 4, borderColor: color, backgroundColor: tema === 'light' ? fundo : 'transparent' }]}>{filled ? <Svg width={27} height={27} viewBox="0 0 24 24" fill={color}><Path d="M7 3h10v5a5 5 0 0 1-4 4.9V17h2a2 2 0 0 1 2 2v2H7v-2a2 2 0 0 1 2-2h2v-4.1A5 5 0 0 1 7 8V3Z" /><Path d="M7 4H2v4a6 6 0 0 0 6 6v-2a4 4 0 0 1-4-4V6h3V4Zm10 0h5v4a6 6 0 0 1-6 6v-2a4 4 0 0 0 4-4V6h-3V4Z" /></Svg> : <Icon name="trophy" size={14} color={color} />}<Text style={[s.tiny, { color, fontFamily: 'Inter_600SemiBold' }]}>{chave ? `Chave ${nomeOficial(chave)}` : 'Chave a confirmar'}</Text></View>;
+  const { texto: color, destaque, fundo } = usePaletaChave()(chave);
+  return <View style={[s.row, { gap: 7, alignSelf: 'flex-start' }, !filled && { paddingVertical: 5, paddingHorizontal: 8, borderWidth: 1, borderRadius: 4, borderColor: destaque, backgroundColor: tema === 'light' ? fundo : 'transparent' }]}>{filled ? <Svg width={27} height={27} viewBox="0 0 24 24" fill={destaque}><Path d="M7 3h10v5a5 5 0 0 1-4 4.9V17h2a2 2 0 0 1 2 2v2H7v-2a2 2 0 0 1 2-2h2v-4.1A5 5 0 0 1 7 8V3Z" /><Path d="M7 4H2v4a6 6 0 0 0 6 6v-2a4 4 0 0 1-4-4V6h3V4Zm10 0h5v4a6 6 0 0 1-6 6v-2a4 4 0 0 0 4-4V6h-3V4Z" /></Svg> : <Icon name="trophy" size={14} color={destaque} />}<Text style={[s.tiny, { color, fontFamily: 'Inter_600SemiBold' }]}>{chave ? `Chave ${nomeOficial(chave)}` : 'Chave a confirmar'}</Text></View>;
 }
 export function Marcador({ estado }: { estado: EstadoEtapa }) {
   const { colors } = useTheme();

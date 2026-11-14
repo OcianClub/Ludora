@@ -1,0 +1,4 @@
+.page-to-top { position: fixed; z-index: 12; inset-inline-end: 24px; bottom: 28px; width: 42px; height: 42px; display: grid; place-items: center; background: var(--fundo-card); color: var(--texto); border: 1px solid var(--borda); border-radius: 10px; cursor: pointer; }
+.page-to-top > .icon { transform: rotate(-90deg); }
+.page-to-top:hover { background: var(--fundo-card-sec); }
+@media (max-width: 760px) { .page-to-top:not(.page-to-top-desktop) { inset-inline-end: 12px; bottom: calc(var(--mobile-navigation-height, 73px) + env(safe-area-inset-bottom) + 68px); } }

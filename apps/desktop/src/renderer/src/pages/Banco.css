@@ -1,8 +1,6 @@
 .desktop-app .desktop-bank-page {
-  --bank-success: #43c998;
   gap: 24px;
 }
-:root[data-theme="light"] .desktop-bank-page { --bank-success: #16734f; }
 .desktop-bank-page .desktop-section-heading h2 { font-size: 15px; }
 .desktop-bank-page .desktop-section-heading p { font-size: 12px; line-height: 1.6; }
 .desktop-bank-page .desktop-bank-health { border-color: var(--borda); }
@@ -16,9 +14,9 @@
 .desktop-bank-page .desktop-bank-migrations small { font-size: 11px; }
 .desktop-bank-page .bank-status { display: inline-flex; align-items: center; gap: 8px; color: var(--texto); font-size: 13px; font-weight: 600; line-height: 1.5; }
 .bank-status > span { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: var(--texto-sec); }
-.bank-status[data-state="ok"] > span { background: var(--bank-success); }
-.bank-status[data-state="atencao"] > span { background: var(--amarelo); }
-.bank-status[data-state="falha"] > span { background: var(--titulo-erro); }
+.bank-status[data-state="ok"] > span { background: var(--desktop-status-success); }
+.bank-status[data-state="atencao"] > span { background: var(--desktop-status-warning); }
+.bank-status[data-state="falha"] > span { background: var(--desktop-status-error); }
 .desktop-bank-page .desktop-bank-migration-alert ul { padding-left: 20px; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
 
 /* Integrações são cartões independentes: uma superfície por serviço. */

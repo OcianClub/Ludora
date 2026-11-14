@@ -6,7 +6,7 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5189';
 const output = path.resolve(__dirname, '../../../test-results/web-collection-toolbar');
 const pages = [
   { route: '/jogadores', title: 'Filtrar jogadores', filter: '.alunos-filter-toggle', search: '.alunos-search', ready: '.alunos-directory' },
-  { route: '/elenco', title: 'Filtrar elenco', filter: '.scout-controls .collection-filter-button', search: '.scout-search', ready: '.scout-player' },
+  { route: '/elenco', title: 'Filtrar elenco', filter: '.scout-controls .collection-filter-button', search: '.scout-search', ready: '.scout-player:visible, .scout-table tbody tr:visible' },
   { route: '/partidas', title: 'Filtrar partidas', filter: '.schedule-mobile-filter-button', search: '.schedule-search', ready: '.match-card' },
 ];
 
@@ -24,10 +24,12 @@ const pages = [
         localStorage.setItem('ludora_tema', theme);
       }, theme);
       const page = await context.newPage();
+      page.setDefaultTimeout(8000);
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/*', route => new URL(route.request().url()).origin === new URL(base).origin ? route.continue() : route.abort());
       await require('./visual-fixture.cjs').install(page);
+      await page.route('http://localhost:3000/suporte/avisos', route => route.fulfill({ json: [] }));
       const unordered = [10, 7, 8, 9, 18, 12, 16, 14].map(number => ({
         id: [7, 8, 9, 10, 12, 14, 16, 18].indexOf(number) + 1,
         nome: `sub-${number}`, tipo: number <= 10 ? 'INICIACAO' : 'BASE', faixaIdade: number,
@@ -48,9 +50,9 @@ const pages = [
         if (!(screen.route === '/jogadores' && width <= 760)) {
           const phase = page.getByRole('tablist', { name: 'Fase', exact: true });
           await phase.getByRole('tab', { name: 'Iniciação', exact: true }).click();
-          assert.deepEqual(await page.locator('.home-sub-strip button').allTextContents(), ['SUB-7', 'SUB-8', 'SUB-9', 'SUB-10']);
+          assert.deepEqual((await page.locator('.home-sub-strip button').allTextContents()).filter(label => label.startsWith('SUB-')), ['SUB-7', 'SUB-8', 'SUB-9', 'SUB-10']);
           await phase.getByRole('tab', { name: 'Base', exact: true }).click();
-          assert.deepEqual(await page.locator('.home-sub-strip button').allTextContents(), ['SUB-12', 'SUB-14', 'SUB-16', 'SUB-18']);
+          assert.deepEqual((await page.locator('.home-sub-strip button').allTextContents()).filter(label => label.startsWith('SUB-')), ['SUB-12', 'SUB-14', 'SUB-16', 'SUB-18']);
           await page.waitForFunction(() => document.querySelector('.home-sub-strip button[aria-selected="true"]')?.textContent === 'SUB-12');
           await page.getByRole('tab', { name: 'SUB-12', exact: true }).press('ArrowRight');
           await page.waitForFunction(() => document.querySelector('.home-sub-strip button[aria-selected="true"]')?.textContent === 'SUB-14');
@@ -63,12 +65,24 @@ const pages = [
           await filter.click();
           const dialog = page.getByRole('dialog', { name: screen.route === '/partidas' && width > 760 ? 'Mais filtros' : screen.title, exact: true });
           await dialog.waitFor();
-          await page.waitForFunction(() => !!document.querySelector('dialog[open]'));
+          const radios = dialog.getByRole('radio');
+          if (await radios.count()) {
+            const radio = radios.nth(1);
+            await radio.check();
+            assert.ok(await radio.isChecked(), 'A seleção de rádio muda no painel');
+            assert.ok(await radio.locator('..').locator('.radio-indicator[data-checked=true]').count());
+          }
+          const selector = width <= 760 ? 'dialog[open].responsive-sheet' : '.responsive-popover';
+          assert.equal(await dialog.evaluate((element, expectedSelector) => element.matches(expectedSelector), selector), true);
+          const bounds = await dialog.boundingBox();
+          assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width && bounds.y >= 0 && bounds.y + bounds.height <= 844);
+          if (width <= 760) assert.equal(Math.round(bounds.y + bounds.height), 844, 'Painel rente ao rodapé');
+          else assert.ok(Math.abs(bounds.y - box.y - box.height) <= 7 || Math.abs(bounds.y + bounds.height - box.y) <= 7, 'Painel ancorado ao botão');
           const style = await dialog.evaluate(element => {
             const css = getComputedStyle(element);
             return { background: css.backgroundColor, header: getComputedStyle(element.querySelector('.modal-header')).padding, body: getComputedStyle(element.querySelector('.modal-body')).padding, footer: getComputedStyle(element.querySelector('.modal-footer')).padding, radius: css.borderRadius };
           });
-          if (dialogStyle) assert.deepEqual(style, dialogStyle, 'Modais devem compartilhar aparência e espaçamento');
+          if (dialogStyle) assert.deepEqual(style, dialogStyle, 'Painéis devem compartilhar aparência e espaçamento');
           dialogStyle = style;
           for (const button of await dialog.locator('.modal-footer button').all()) {
             const bounds = await button.boundingBox();
@@ -77,7 +91,7 @@ const pages = [
           if (width === 320 || width === 1366) await page.screenshot({ path: path.join(output, `${screen.route.slice(1)}-${width}-${theme}.png`) });
           await dialog.getByRole('button', { name: 'Fechar janela', exact: true }).press('Escape');
           await dialog.waitFor({ state: 'hidden' });
-          assert.ok(await filter.evaluate(element => element === document.activeElement), 'Foco retorna ao botão que abriu o modal');
+          assert.ok(await filter.evaluate(element => element === document.activeElement), 'Foco retorna ao botão que abriu o painel');
         }
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${screen.route}: sem overflow horizontal`);
       }

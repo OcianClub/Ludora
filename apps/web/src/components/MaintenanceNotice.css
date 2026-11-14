@@ -1,0 +1,35 @@
+.maintenance-notice { position: relative; flex: none; }
+.maintenance-notice-trigger {
+  display: grid; place-items: center; width: 36px; height: 36px;
+  color: var(--titulo-atencao, #a66b0a); border: 0; background: transparent; border-radius: 8px; cursor: pointer;
+}
+.maintenance-notice-trigger:hover, .maintenance-notice-trigger[aria-expanded="true"] { background: var(--fundo-atencao, var(--fundo-card-sec)); }
+.maintenance-notice-panel {
+  position: absolute; z-index: 40; inset-block-start: 100%; inset-inline-end: 0;
+  width: min(290px, calc(100vw - 86px)); padding: 14px; background: var(--fundo-card);
+  color: var(--texto); border: 1px solid var(--borda); border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / .15); font-size: .84rem;
+}
+.maintenance-notice-panel ul { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.maintenance-notice-panel li { display: grid; gap: 3px; padding-top: 8px; border-top: 1px solid var(--linha); }
+.maintenance-notice-panel small { color: var(--texto-sec); overflow-wrap: anywhere; }
+
+.maintenance-notice-sidebar { padding-inline: 12px; }
+.maintenance-notice-sidebar .maintenance-notice-trigger { display: flex; justify-content: center; gap: 8px; width: 100%; font-size: 12px; }
+.maintenance-notice-sidebar .maintenance-notice-panel {
+  position: fixed;
+  inset-inline: var(--sidebar-width) auto;
+  inset-block: auto 129px;
+  max-height: 55dvh;
+  overflow-y: auto;
+}
+.layout[data-sidebar-expanded="true"] .maintenance-notice-sidebar .maintenance-notice-panel { inset-block-end: 85px; }
+.maintenance-notice-sidebar::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 12px;
+}
+.maintenance-inline { display: flex; align-items: flex-start; gap: 8px; color: var(--titulo-atencao, #a66b0a); font-size: .85rem; margin-block: 10px; }
+.maintenance-inline svg { flex: none; }

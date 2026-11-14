@@ -1,3 +1,4 @@
+import { MaintenanceNotice } from './MaintenanceNotice';
 import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -32,6 +33,7 @@ export function PublicHeader() {
       </div>
       {insideClub && <nav className="public-top-nav" aria-label="Navegação pública">{links.map(link => <NavLink key={link.to} to={link.to} end={link.end} className={({ isActive }) => active(link, isActive)}>{link.label}</NavLink>)}</nav>}
       <div className="public-header-actions">
+              <MaintenanceNotice />
         {insideClub && podeEntrarGestao && <button type="button" className="btn btn-ghost btn-sm public-manage" aria-label="Gerenciar clube" onClick={() => { mudarModo('gestao'); navigate('/dashboard'); }}><Icon name="settings" size={16} /><span>Gerenciar clube</span></button>}
         {insideClub && token && clubeSelecionado?.meuPapel && <Notifications />}
         <AccountMenu header />

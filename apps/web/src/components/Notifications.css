@@ -203,7 +203,6 @@
 .notification-type .schedule-select-options [data-highlighted="true"] {
   background: var(--fundo-card-sec);
 }
-.notification-type .schedule-select-check { color: var(--primaria); }
 .notification-menu {
   position: relative;
 }

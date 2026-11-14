@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Btn, Input } from './UI';
 import { Icon, type IconName } from './Icon';
-import { requestJson, type Categoria } from '../services/api';
+import { useMaintenance } from '../contexts/MaintenanceContext';
+import { ApiResponseError, requestJson, type Categoria } from '../services/api';
 import './InviteComposer.css';
 
 type InviteRole = 'ADMIN' | 'TECNICO' | 'OLHEIRO';
@@ -25,6 +26,8 @@ export function InviteComposer({ open, onClose, onCreated, onViewInvites, catego
   categories: Categoria[];
   clubName: string;
 }) {
+  const { pauseFor, refresh } = useMaintenance();
+  const pause = pauseFor('ENVIAR_CONVITES');
   const [delivery, setDelivery] = useState<'email' | 'codigo'>('email');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<InviteRole>('TECNICO');
@@ -53,7 +56,7 @@ export function InviteComposer({ open, onClose, onCreated, onViewInvites, catego
   }, [open, result]);
   async function create(event: React.FormEvent) {
     event.preventDefault();
-    if (pending.current) return;
+    if (pending.current || pause) return;
     const address = email.trim().toLowerCase();
     if ((delivery === 'email' || address) && !/^\S+@\S+\.\S+$/.test(address)) {
       setError('Informe um e-mail válido. No modo código, você também pode deixá-lo em branco.'); return;
@@ -66,7 +69,10 @@ export function InviteComposer({ open, onClose, onCreated, onViewInvites, catego
         body: JSON.stringify({ entrega: delivery, email: address, papel: role, acesso_todas_categorias: role === 'ADMIN', categoria_ids: role === 'TECNICO' ? ids : [] }),
       });
       setResult(created); onCreated();
-    } catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível criar o convite. Tente novamente.'); }
+    } catch (err) {
+      if (err instanceof ApiResponseError && err.status === 423) refresh();
+      setError(err instanceof Error ? err.message : 'Não foi possível criar o convite. Tente novamente.');
+    }
     finally { pending.current = false; setBusy(false); }
   }
   async function copy(value: string, label: string) {
@@ -75,7 +81,7 @@ export function InviteComposer({ open, onClose, onCreated, onViewInvites, catego
   }
   const scope = role === 'ADMIN' ? 'Acesso a todas as categorias' : role === 'OLHEIRO' ? 'Conteúdo público' : selected.map(category => category.nome.toUpperCase()).join(', ');
   return <Modal open={open} title={result ? 'Convite criado' : 'Convidar pessoa'} className="members-modal invite-composer" onClose={() => { if (!busy) onClose(); }}
-    footer={result ? <><Btn className="invite-create-another" variant="ghost" onClick={reset}>Gerar outro</Btn><Btn onClick={onClose}>Concluir</Btn></> : <><Btn variant="ghost" disabled={busy} onClick={onClose}>Cancelar</Btn><Btn type="submit" form="invite-composer-form" disabled={busy}>{busy ? 'Criando…' : delivery === 'email' ? 'Enviar convite' : 'Gerar código'}</Btn></>}>
+    footer={result ? <><Btn className="invite-create-another" variant="ghost" onClick={reset}>Gerar outro</Btn><Btn onClick={onClose}>Concluir</Btn></> : <><Btn variant="ghost" disabled={busy} onClick={onClose}>Cancelar</Btn><Btn type="submit" form="invite-composer-form" loading={busy} disabled={!!pause}>{busy ? 'Criando…' : delivery === 'email' ? 'Enviar convite' : 'Gerar código'}</Btn></>}>
     {result ? <div className="invite-success">
       <p className="invite-intro">{delivery === 'email' && result.email_enviado ? `Convite enviado para ${result.convite.email}. Você também pode compartilhar o código ou o link abaixo.` : delivery === 'email' ? result.aviso || 'O convite foi criado, mas o e-mail não pôde ser enviado. Compartilhe o código ou o link abaixo.' : 'Compartilhe o código ou o link. A pessoa pode informar o código na opção de entrar com convite.'}</p>
       {result.codigo ? <section className="invite-share" aria-label="Compartilhar convite">
@@ -95,6 +101,7 @@ export function InviteComposer({ open, onClose, onCreated, onViewInvites, catego
       </dl>
       <button type="button" className="invite-view-pending" onClick={onViewInvites}>Acompanhe e cancele em <strong>Convites pendentes</strong><Icon name="chevronRight" size={16}/></button>
     </div> : <form id="invite-composer-form" onSubmit={event => void create(event)} noValidate>
+      {pause && <p className="maintenance-inline" role="status">Envio de convites em manutenção. {pause.motivo}</p>}
       <fieldset className="invite-form-fields" disabled={busy}>
         <fieldset className="invite-method"><legend>Como deseja convidar?</legend><div className="invite-method-options">
           {([{ value: 'email', title: 'Enviar por e-mail' }, { value: 'codigo', title: 'Gerar código' }] as const).map(item => <label key={item.value}>

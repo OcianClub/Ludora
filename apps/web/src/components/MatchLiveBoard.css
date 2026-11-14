@@ -236,6 +236,15 @@
   border-color: var(--borda);
   background: var(--fundo-card-sec);
 }
+[data-theme="light"] .live-event-actions > button {
+  background: #FAFAF8;
+}
+[data-theme="light"] .live-event-actions > button:hover:not(:disabled) {
+  background: var(--card-hover-claro);
+}
+[data-theme="light"] .live-event-actions > button > span {
+  color: #15171b;
+}
 .live-controls-footer {
   justify-content: space-between;
   margin-top: 16px;

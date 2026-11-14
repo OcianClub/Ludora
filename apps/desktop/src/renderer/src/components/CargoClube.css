@@ -1,11 +1,13 @@
-.desktop-role-badge { display:inline-flex; align-items:center; justify-content:center; gap:6px; width:160px; max-width:100%; height:26px; padding:0 7px; border-radius:5px; background:var(--fundo-card-sec); color:var(--texto); font-size:11px; font-weight:600; line-height:1.2; white-space:nowrap; box-sizing:border-box; }
+.desktop-role-badge { display:inline-flex; align-items:center; justify-content:center; gap:6px; width:160px; max-width:100%; height:26px; padding:0 7px; border-radius:5px; background:var(--superficie-neutra); color:var(--texto); font-size:11px; font-weight:600; line-height:1.2; white-space:nowrap; box-sizing:border-box; }
 .desktop-role-badge > :first-child { flex-shrink:0; }
 .desktop-role-badge > span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis; }
 .desktop-role-badge[data-role="ADMIN"], .desktop-role-badge[data-role="SUPERADMIN"] { background:color-mix(in srgb,var(--primaria) 78%,#000); color:#fff; }
 .desktop-role-icon { display:inline-flex; align-items:center; flex-shrink:0; }
 .desktop-role-icon:is([data-role="ADMIN"],[data-role="SUPERADMIN"]) { --role-icon:var(--cargo-admin); }
-:is(.desktop-role-icon,.desktop-role-badge):is([data-role="TECNICO"],[data-role="SUPORTE"]) { --role-icon:var(--cargo-tecnico); }
-:is(.desktop-role-icon,.desktop-role-badge)[data-role="OLHEIRO"] { --role-icon:var(--cargo-olheiro); }
+:is(.desktop-role-icon,.desktop-role-badge)[data-role="TECNICO"] { --role-icon:#a6750e; }
+:is(.desktop-role-icon,.desktop-role-badge)[data-role="OLHEIRO"] { --role-icon:#9669cb; }
+:is(.desktop-role-icon,.desktop-role-badge)[data-role="SUPORTE"] { --role-icon:#218c94; }
+:is(.desktop-role-icon,.desktop-role-badge):is([data-role="TECNICO"],[data-role="OLHEIRO"],[data-role="SUPORTE"]) > :is(.icon,svg) { min-width:15px; min-height:15px; }
 :is(.desktop-role-icon,.desktop-role-badge)[data-role="MESARIO"] { --role-icon:var(--cargo-mesario); }
 :is(.desktop-role-icon,.desktop-role-badge)[data-role="TORCEDOR"] { --role-icon:var(--cargo-torcedor); }
 .desktop-role-icon, .desktop-role-badge > :first-child { color:var(--role-icon,inherit); }

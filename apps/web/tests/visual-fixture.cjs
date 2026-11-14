@@ -71,7 +71,7 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ativa})});
     }
     const responses={
-      '/partidas/solicitacoes':[],
+      '/partidas/solicitacoes':[], '/manutencao/estado':[], '/suporte/avisos':[],
       '/auth/login':{token:'visual-test-only',usuario},'/usuarios/me':{...usuario,notificacoes_ativas:true,clubes},'/clubes':clubes,'/categorias':categorias,'/times':times,
       '/jogadores':jogadores,'/jogadores/perfis':jogadores,'/partidas':partidas,'/partidas/home':partidas,'/competicoes':competicoes,
       '/membros':[{id:1,usuario,papel:'ADMIN',acesso_todas_categorias:true,categorias:[]},{id:2,usuario:{id:2,nome:'James Walker',email:'james@example.test'},papel:'TORCEDOR',acesso_todas_categorias:false,categorias:[]}],

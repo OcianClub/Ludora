@@ -1,3 +1,4 @@
+import { FilterTabs } from '../components/FilterTabs';
 import { Toast } from '../components/Toast';
 import { PageSkeleton } from '../components/PageSkeleton';
 import { PaulistaMatchNotice } from '../components/PaulistaMatchNotice';
@@ -46,6 +47,10 @@ export default function PartidaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const detailLocation = useLocation();
+  const fromSchedule = detailLocation.state?.fromSchedule;
+  const officialReturn = new URLSearchParams(detailLocation.search).get('retorno');
+  const returnsToCompetition = !!officialReturn && /^\/(?:clubes\/\d+\/competicoes|competicoes(?:\/paulista)?)(?:\?|$)/.test(officialReturn);
+  const scheduleReturn = returnsToCompetition ? officialReturn : typeof fromSchedule === 'string' && /^\/(?:clubes\/\d+\/)?partidas(?:\?|$)/.test(fromSchedule) ? fromSchedule : '/partidas';
   const { podeGerenciar: gestorDoClube, token, clube, usuario } = useAuth();
   const preparationKey = preparationStorageKey(usuario?.id, clube?.id, id);
 
@@ -498,7 +503,11 @@ export default function PartidaDetalhePage() {
     <div className="partida-detalhe" data-preparation={preparando ? 'true' : undefined} data-live={partida.status === 'AO_VIVO' ? 'true' : undefined}>
       <PaulistaMatchNotice oficial={gestao?.paulista} partida={partida}/>
       <header className="match-detail-header">
-        <button type="button" className="match-detail-close" aria-label={detailLocation.state?.fromPaulista ? 'Voltar ao campeonato' : 'Voltar para partidas'} onClick={() => { if (!lineupDirty || confirm('Sair sem salvar as alterações da escalação?')) { if (detailLocation.state?.fromPaulista) { navigate(-1); return; } navigate(new URLSearchParams(location.search).get('retorno')?.startsWith('/competicoes/paulista') ? new URLSearchParams(location.search).get('retorno')! : '/partidas'); } }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
+        <button type="button" className="match-detail-close" aria-label={returnsToCompetition || detailLocation.state?.fromPaulista ? 'Voltar ao campeonato' : 'Voltar para partidas'} onClick={() => {
+          if (lineupDirty && !confirm('Sair sem salvar as alterações da escalação?')) return;
+          if (detailLocation.state?.fromPaulista) { navigate(-1); return; }
+          navigate(scheduleReturn);
+        }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
         <h1>{partidaEmAndamento ? <><span className="match-detail-desktop-title">{partida.status === 'FINALIZADA' ? 'Resumo da partida' : 'Detalhes da partida'}</span><span className="match-detail-mobile-title">{partida.mandante?.nome} × {partida.visitante?.nome}</span></> : preparando ? 'Preparação da partida' : 'Detalhes da partida'}</h1>
         {podeEditarDados && <div className="match-detail-header-actions">
           <Btn variant="ghost" size="sm" className="match-detail-edit" aria-label="Editar partida" data-tooltip="Editar partida" data-tooltip-icon-only disabled={busy || deleteBusy} onClick={() => setEditor('match')}><Icon name="edit" size={17}/><span>Editar partida</span></Btn>
@@ -561,13 +570,11 @@ export default function PartidaDetalhePage() {
       )}
 
       {/* Abas */}
-      {!gestao && !preparando && partidaEmAndamento && <div className="partida-abas">
-        {(partidaEmAndamento ? (['resumo', 'eventos', 'escalacao'] as const) : (['escalacao'] as const)).map(a => (
-          <button key={a} className={`aba${abaVisivel === a ? ' aba-ativa' : ''}`} onClick={() => setAba(a)}>
-            {a === 'resumo' ? 'Resumo' : a === 'eventos' ? `Eventos (${eventos.length})` : `Escalação (${escalacao.length})`}
-          </button>
-        ))}
-      </div>}
+      {!gestao && !preparando && partidaEmAndamento && <FilterTabs className="partida-abas" mode="filter"
+        label="Seções da partida" value={abaVisivel} onChange={setAba} options={[
+          { value: 'resumo', label: 'Resumo' }, { value: 'eventos', label: 'Eventos', count: eventos.length },
+          { value: 'escalacao', label: 'Escalação', count: escalacao.length },
+        ]} />}
 
       {!gestao && abaVisivel === 'resumo' && (
         <div className="aba-content">
@@ -660,7 +667,7 @@ export default function PartidaDetalhePage() {
             </div>
           </div>
           {podeGerenciar && !preparando && <div className="lineup-actions">
-            <Btn onClick={salvarEscalacaoAtual} disabled={savingLineup || savingStatus}>{savingLineup ? 'Salvando...' : 'Salvar escalação'}</Btn>
+            <Btn onClick={salvarEscalacaoAtual} loading={savingLineup} disabled={savingStatus}>{savingLineup ? 'Salvando…' : 'Salvar escalação'}</Btn>
             {partida.status === 'PREPARADA' && !lineupDirty && titulares.length === 5 && <Btn variant="ghost" onClick={mudarStatus} disabled={savingStatus || savingLineup}>{savingStatus ? 'Salvando...' : STATUS_BTN[partida.status]}</Btn>}
           </div>}
         </div>
@@ -676,7 +683,7 @@ export default function PartidaDetalhePage() {
           </div>
           <div className="preparation-footer-buttons">
             {etapa === 2 && <Btn variant="ghost" disabled={busy} onClick={() => void irParaEtapa(1)}><Icon name="chevronLeft" size={16}/>Voltar à escalação</Btn>}
-            {etapa === 1 && <Btn variant="ghost" disabled={busy} onClick={async () => { if (await salvarEscalacaoAtual()) { rememberPreparationStep(preparationKey, 1); navigate('/partidas'); } }}>{savingLineup ? 'Salvando…' : 'Salvar e sair'}</Btn>}
+            {etapa === 1 && <Btn variant="ghost" disabled={busy} onClick={async () => { if (await salvarEscalacaoAtual()) { rememberPreparationStep(preparationKey, 1); navigate(scheduleReturn); } }}>{savingLineup ? 'Salvando…' : 'Salvar e sair'}</Btn>}
             {etapa < 2 ? <Btn disabled={busy || (etapa === 1 && !escalaValida)} aria-describedby={etapa === 1 ? 'lineup-requirements' : undefined} onClick={() => void irParaEtapa(etapa + 1)}>{savingLineup ? 'Salvando…' : etapa === 0 ? 'Montar escalação' : 'Salvar e revisar'}<Icon name="chevronRight" size={16}/></Btn>
               : !equipeConfirmada ? <Btn disabled={busy} onClick={() => void confirmarPreparacao()}>{savingStatus ? 'Confirmando…' : 'Confirmar minha equipe'}<Icon name="checkAll" size={17}/></Btn>
               : podeIniciar && <Btn disabled={busy} onClick={() => void mudarStatus()}>{savingStatus ? 'Iniciando…' : 'Iniciar partida'}<Icon name="chevronRight" size={17}/></Btn>}
@@ -730,7 +737,7 @@ export default function PartidaDetalhePage() {
           {formEvento.tipo === 'GOL' && <p className="editor-description full">Este registro identifica o gol nas estatísticas. Atualize também o resultado em Editar placar.</p>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', gridColumn: '1/-1' }}>
             <Btn variant="ghost" type="button" disabled={salvandoEvento} onClick={() => setModalEvento(false)}>Cancelar</Btn>
-            <Btn type="submit" disabled={salvandoEvento}>{salvandoEvento ? 'Registrando...' : 'Registrar'}</Btn>
+            <Btn type="submit" loading={salvandoEvento}>{salvandoEvento ? 'Registrando…' : 'Registrar'}</Btn>
           </div>
         </form>
       </Modal>

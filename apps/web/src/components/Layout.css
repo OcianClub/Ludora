@@ -201,7 +201,8 @@
   flex-shrink: 0;
   transition: height var(--sidebar-motion) var(--sidebar-ease);
 }
-.sidebar-help { margin-top: auto; padding: 12px; flex-shrink: 0; }
+.sidebar-utility { margin-top: auto; flex-shrink: 0; }
+.sidebar-help { padding: 12px; }
 .sidebar-help > .support-trigger { width: 100%; text-align: left; }
 .sidebar-help .nav-icon { width: 36px; height: 36px; }
 .sidebar-help .nav-label { min-width: 0; }

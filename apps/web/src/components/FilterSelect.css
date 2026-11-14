@@ -23,8 +23,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.schedule-select-trigger:hover {
-  background: var(--fundo-card-claro);
+.schedule-select-trigger:is(:hover, [aria-expanded="true"]) {
+  background: var(--superficie-neutra);
 }
 .schedule-select-trigger[aria-expanded="true"] {
   border-color: var(--texto-sec);
@@ -36,7 +36,7 @@
   flex-shrink: 0;
   place-items: center;
   border-radius: 6px;
-  background: var(--fundo-card-sec);
+  background: var(--superficie-neutra);
   color: var(--texto-sec);
 }
 .schedule-select-chevron .icon {
@@ -55,7 +55,9 @@
   max-height: 264px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 5px;
+  display: grid;
+  gap: 3px;
+  padding: 6px;
   border: 1px solid var(--borda);
   border-radius: 10px;
   background: var(--fundo-card);
@@ -80,16 +82,12 @@
   box-shadow: none;
 }
 .schedule-select-options [data-highlighted="true"] {
-  background: var(--fundo-card-sec);
+  background: var(--superficie-neutra);
 }
 .schedule-select-options [aria-selected="true"] {
-  background: var(--fundo-card-sec);
+  background: var(--superficie-neutra);
   color: var(--texto);
   font-weight: 600;
-}
-.schedule-select-check {
-  flex-shrink: 0;
-  color: var(--primaria);
 }
 .schedule-select-options [role="option"] > span:first-child {
   min-width: 0;

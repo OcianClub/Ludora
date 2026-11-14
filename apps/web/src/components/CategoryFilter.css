@@ -59,7 +59,7 @@
   flex: 0 0 auto;
   min-height: var(--category-control-height);
   padding: 8px 20px;
-  border: 1px solid var(--categoria-sub-borda);
+  border: 0;
   border-radius: 8px;
   background: var(--categoria-sub-fundo);
   color: var(--texto-sec);
@@ -68,11 +68,9 @@
   white-space: nowrap;
 }
 .home-controls .home-sub-strip button[aria-selected="false"]:hover {
-  border-color: var(--categoria-sub-borda-hover);
   background: var(--categoria-sub-hover);
 }
 .home-controls .home-sub-strip button[aria-selected="true"] {
-  border-color: transparent;
   background: var(--primaria);
   color: #fff;
 }

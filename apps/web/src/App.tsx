@@ -4,6 +4,8 @@ import { Fragment, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
+import { PageScroll } from './components/PageScroll';
+import { MaintenanceProvider } from './contexts/MaintenanceContext';
 import { SupportCenter } from './components/SupportCenter';
 import { TooltipLayer } from './components/Tooltip';
 import { WorkspaceAccess, ManagementAccess, AccessRequired, PublicClubEntry, PublicMatchEntry } from './components/PublicAccess';
@@ -16,27 +18,30 @@ function Protegida({ children }: { children: React.ReactNode }) {
 
 function RouteNavigation() {
   const { pathname } = useLocation();
+  const { usuario, clube, modo } = useAuth();
   useEffect(() => {
     const preload = (event: Event) => {
       const link = (event.target as Element)?.closest<HTMLAnchorElement>('a[href]');
       if (link?.origin === window.location.origin) preloadPage(link.pathname);
     };
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
     document.addEventListener('pointerover', preload);
     document.addEventListener('focusin', preload);
     return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
       document.removeEventListener('pointerover', preload);
       document.removeEventListener('focusin', preload);
     };
   }, []);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       const content = document.querySelector<HTMLElement>('#main-content');
       content?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
   }, [pathname]);
-  return null;
+  return <PageScroll scope={`${usuario?.id ?? 'visitante'}:${clube?.id ?? ''}:${modo}:`} />;
 }
 
 function SoToken({ children }: { children: React.ReactNode }) {
@@ -49,7 +54,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <SupportCenter>
+        <MaintenanceProvider><SupportCenter>
         <RouteNavigation />
         <TooltipLayer />
         <Routes>
@@ -86,7 +91,7 @@ export default function App() {
           </Route>
           <Route path="*" element={<Navigate to="/selecionar-clube" replace />} />
         </Routes>
-        </SupportCenter>
+        </SupportCenter></MaintenanceProvider>
       </BrowserRouter>
     </AuthProvider>
   );

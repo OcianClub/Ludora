@@ -1,7 +1,8 @@
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
 import { Suspense, useEffect, useState } from 'react';
 import { DesktopErrorBoundary } from './DesktopErrorBoundary';
-import { Spinner } from './AdminUI';
+import { LoadingSkeleton } from './AdminUI';
+import { PageScroll } from '@web/components/PageScroll';
 import { Brand } from '@web/components/Brand';
 import { ThemeOptions } from '@web/components/ThemeOptions';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
@@ -30,6 +31,7 @@ export default function AdminLayout() {
   const { usuario, sair } = useAdminAuth();
   const location = useLocation();
   const estado = useEstadoTempoReal();
+  const ticketReturn = location.state?.ticketReturn;
   const [recolhida, setRecolhida] = useState(() => {
     try { return localStorage.getItem('ludora_desktop_sidebar') === 'recolhida'; }
     catch { return false; }
@@ -62,9 +64,9 @@ export default function AdminLayout() {
     }).catch(() => undefined);
     return () => { ativo = false; };
   }, []);
-  const ambiente = ['localhost', '127.0.0.1', '[::1]'].includes(apiHost)
-    ? 'API local'
-    : apiHost === 'ludora-pgho.onrender.com' ? 'Produção' : apiHost;
+  const apiLocal = ['localhost', '127.0.0.1', '[::1]'].includes(apiHost);
+  const apiProduction = apiHost === 'ludora-pgho.onrender.com';
+  const ambiente = apiLocal ? 'API local' : apiProduction ? 'Produção' : apiHost;
 
   return (
     <div className={`admin-layout${soIcones ? ' admin-layout-collapsed' : ''}`}>
@@ -112,18 +114,24 @@ export default function AdminLayout() {
         <header className="admin-workspace-header">
           <div className="admin-header-inner">
             <div className="admin-workspace-actions">
-              {ambiente && <Link to="/ajustes" aria-label={`Servidor da API: ${ambiente}. Configurar conexão`} data-tooltip={apiHost}
-                className={`admin-environment${ambiente === 'Produção' ? ' admin-environment-production' : ''}`}>{ambiente}</Link>}
-              {podeVerLogs && <span className={`rt-pill rt-${estado}`} role="status" aria-label={`Conexão em tempo real: ${ROTULO_ESTADO[estado]}`} data-tooltip="Conexão em tempo real com a API">
-                <span className="rt-dot" aria-hidden="true"/>{ROTULO_ESTADO[estado]}
-              </span>}
+              {(ambiente || podeVerLogs) && <div className="admin-api-status">
+                {ambiente && <Link to="/ajustes" aria-label={`Servidor da API: ${ambiente}. Configurar conexão`} data-tooltip={apiHost}
+                  className={`admin-environment${apiProduction ? ' admin-environment-production' : ''}`}>
+                  <AdminIcon name={apiLocal ? 'terminal' : 'database'} size={15}/><span>{ambiente}</span>
+                </Link>}
+                {podeVerLogs && <span className={`rt-pill rt-${estado}`} role="status" aria-label={`Conexão em tempo real: ${ROTULO_ESTADO[estado]}`} data-tooltip="Conexão em tempo real com a API">
+                  <span className="rt-dot" aria-hidden="true"/>{ROTULO_ESTADO[estado]}
+                </span>}
+              </div>}
               <ThemeOptions />
             </div>
           </div>
         </header>
         <main className="admin-content" id="main-content" tabIndex={-1}>
-          <DesktopErrorBoundary key={location.pathname}><Suspense fallback={<Spinner label="Abrindo tela…"/>}><Outlet /></Suspense></DesktopErrorBoundary>
+          {typeof ticketReturn === 'string' && /^\/chamados\?/.test(ticketReturn) && <Link className="btn btn-ghost btn-sm admin-ticket-return" to={ticketReturn}>← Voltar ao chamado</Link>}
+          <DesktopErrorBoundary key={location.pathname}><Suspense fallback={<LoadingSkeleton label="Abrindo tela"/>}><Outlet /></Suspense></DesktopErrorBoundary>
         </main>
+        <PageScroll scope={`desktop:${usuario?.id}:`} desktop />
       </div>
     </div>
   );

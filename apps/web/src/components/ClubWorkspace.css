@@ -43,39 +43,7 @@
   color: #fff;
 }
 
-.match-schedule .schedule-status-summary {
-  display: flex;
-  gap: 22px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding: 0;
-  margin-bottom: 20px;
-  border: 0;
-  border-bottom: 1px solid var(--linha);
-  border-radius: 0;
-  background: transparent;
-  scrollbar-width: none;
-}
-.match-schedule .schedule-status-summary button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  flex-shrink: 0;
-  min-height: 44px;
-  padding: 8px 3px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  background: transparent;
-  color: var(--texto-sec);
-  font-size: 13px;
-}
-.match-schedule .schedule-status-summary button:is([aria-selected="true"], [aria-pressed="true"]) {
-  background: transparent;
-  border-bottom-color: var(--primaria);
-  color: var(--texto);
-  font-weight: 600;
-}
+.match-schedule .schedule-status-summary { margin-bottom: 20px; }
 .schedule-live-dot {
   width: 7px;
   height: 7px;
@@ -421,17 +389,6 @@
   font-size: 12px;
 }
 
-@media (min-width: 1151px) {
-  .layout:has(.match-schedule) {
-    --workspace-max-width: 1504px;
-    --workspace-gutter: 40px;
-  }
-}
-@media (min-width: 381px) and (max-width: 760px) {
-  .layout:has(.match-schedule) {
-    --workspace-gutter: 14px;
-  }
-}
 @media (min-width: 761px) and (max-width: 1150px) {
   .schedule-match-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -455,13 +412,8 @@
     border: 0;
   }
   .match-schedule .schedule-status-summary {
-    display: flex;
-    gap: 18px;
+    --filter-tabs-gap: 18px;
     margin-bottom: 12px;
-  }
-  .match-schedule .schedule-status-summary button {
-    min-height: 40px;
-    font-size: 12px;
   }
   .match-schedule .schedule-filter-primary {
     display: none;

@@ -32,7 +32,7 @@
 .match-insights-card-summary dt { display:flex; align-items:center; justify-content:center; gap:5px; color:var(--live-muted,var(--texto-sec)); font-size:11px; white-space:nowrap; }
 .match-insights-card-summary dd { display:flex; align-items:center; justify-content:center; gap:10px; margin:8px 0 0; font-size:15px; font-variant-numeric:tabular-nums; }
 .match-insights-card-summary dd>span { color:var(--texto-sec); }
-.match-insights-card-icon { width:8px; height:11px; flex:0 0 8px; border-radius:2px; background:var(--amarelo); }
+.match-insights-card-icon { width:8px; height:11px; flex:0 0 8px; border-radius:2px; background:var(--resultado-empate); }
 .match-insights-card-icon.cartao_vermelho { background:var(--vermelho); }
 .match-insights-card-icon.cartao_azul { background:var(--primaria); }
 .match-insights-highlights { align-self: start; }

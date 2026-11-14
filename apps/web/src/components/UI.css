@@ -268,3 +268,7 @@ tr:hover td { background: var(--linha-hover-claro, var(--fundo-card-sec)); }
 .modal-footer {
   flex-shrink: 0;
 }
+
+.btn-spinner { width: 1em; height: 1em; flex: none; border: 2px solid currentColor; border-inline-end-color: transparent; border-radius: 50%; animation: btn-spin .7s linear infinite; }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn-spinner { animation: none; } }

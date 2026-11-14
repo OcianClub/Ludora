@@ -57,13 +57,13 @@ async function main() {
         };
       }, scenario);
       await page.goto(base + '/#/');
-      const admin = scenario.role === 'SUPERADMIN';
+      const canAccessOperations = scenario.role !== 'SUPORTE';
       await page.getByRole('heading', { level: 1, name: 'Visão global', exact: true }).waitFor();
       const nav = page.getByRole('navigation', { name: 'Navegação principal' });
-      const expected = admin ? ['Visão global', 'Clubes', 'Usuários', 'Campeonato Paulista', 'Chamados', 'Manutenção', 'Banco e integrações', 'Logs ao vivo', 'Ajustes']
-        : scenario.role === 'SUPORTE' ? ['Visão global', 'Chamados', 'Manutenção', 'Ajustes'] : ['Visão global', 'Chamados', 'Ajustes'];
+      const expected = canAccessOperations ? ['Visão global', 'Clubes', 'Usuários', 'Campeonato Paulista', 'Chamados', 'Manutenção', 'Banco e integrações', 'Logs ao vivo', 'Ajustes']
+        : ['Visão global', 'Chamados', 'Manutenção', 'Ajustes'];
       assert.deepEqual(await nav.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('aria-label'))), expected);
-      assert.equal(await nav.locator('section').count(), admin ? 3 : 2, 'Sem seções vazias ou acesso indevido');
+      assert.equal(await nav.locator('section').count(), canAccessOperations ? 3 : 2, 'Sem seções vazias ou acesso indevido');
       assert.equal(await page.locator('.admin-layout-collapsed').count(), scenario.width <= 960 ? 1 : 0);
       assert.equal(await page.locator('.admin-sidebar .admin-sidebar-toggle').count(), 1);
       assert.equal(await page.locator('.admin-workspace-header .admin-sidebar-toggle').count(), 0);
@@ -75,7 +75,7 @@ async function main() {
         return Math.abs(header.getBoundingClientRect().right - parseFloat(getComputedStyle(header).paddingRight) - main.getBoundingClientRect().right + parseFloat(getComputedStyle(main).paddingRight)) < 1;
       });
       assert.equal(paddingAligned, true, 'Header usa o mesmo container do conteúdo');
-      if (admin) {
+      if (canAccessOperations) {
         await page.getByRole('status', { name: 'Conexão em tempo real: Conectado' }).waitFor();
         await page.evaluate(() => window.dispatchEvent(new CustomEvent('fixture:connection', { detail: 'erro' })));
         await page.getByRole('status', { name: 'Conexão em tempo real: Sem conexão' }).waitFor();
@@ -99,7 +99,7 @@ async function main() {
       await page.getByRole('link', { name: 'Ludora — visão global', exact: true }).click();
       if (scenario.width <= 960) await page.getByRole('button', { name: 'Recolher navegação', exact: true }).click();
       await page.getByRole('heading', { level: 1, name: 'Visão global', exact: true }).waitFor();
-      if (!admin) {
+      if (!canAccessOperations) {
         await page.goto(base + '/#/visao');
         await page.getByRole('heading', { level: 1, name: 'Visão global', exact: true }).waitFor();
         assert.equal(new URL(page.url()).hash, '#/visao');

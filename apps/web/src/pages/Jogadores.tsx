@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { requestJson, cachedJson, criarJogador, fetchCategorias, preverCategoria, ErroJogador, invalidateApiReads,
   type Jogador, type Categoria, type ConflitoCamisa, type DadosJogador } from '../services/api';
 import { Btn, Modal, Input, LoadingSkeleton } from '../components/UI';
+import { readListState, rememberListState } from '../hooks/listMemory';
 import { useAuth } from '../contexts/AuthContext';
 import './Jogadores.css';
 import { PositionBadge, POSITIONS, normalizePosition } from '../components/CollectionControls';
@@ -15,7 +16,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { playerAge } from '../utils/playerAge';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { useClubCategory } from '../hooks/useClubCategory';
-import { CollectionSearch, CollectionFilterButton, CollectionViewToggle, CollectionFilterDialog } from '../components/CollectionToolbar';
+import { CollectionSearch, CollectionFilterButton, CollectionViewToggle, CollectionFilterDialog, FilterRadioGroup } from '../components/CollectionToolbar';
 import './Dashboard.css';
 import '../components/ResponsiveControls.css';
 import { subscribeToRoster, type RosterChange } from '../services/rosterRealtime';
@@ -35,13 +36,13 @@ type SortField = typeof SORT_FIELDS[number]['value'];
 type CategoryRows = { items: Jogador[]; loading: boolean; error: string };
 
 export default function JogadoresPage() {
-  const { podeGerenciar, clube, token } = useAuth();
+  const { podeGerenciar, clube, token, usuario } = useAuth();
   const [params, setParams] = useSearchParams();
   const debouncedSearch = useRef('');
   const [categorias, setCategorias] = useState<Categoria[]>(() => cachedJson<Categoria[]>('/categorias') || []);
   const [categoryError, setCategoryError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterAnchor, setFilterAnchor] = useState<HTMLButtonElement | null>(null);
   const [draftFilters, setDraftFilters] = useState({ position: '', shirt: '', sort: 'default', direction: 'asc' });
   const [smallScreen, setSmallScreen] = useState(() => window.matchMedia('(max-width: 760px)').matches);
   const [expandedSubs, setExpandedSubs] = useState<number[]>([]);
@@ -89,7 +90,7 @@ export default function JogadoresPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const savingRef = useRef(false);
   useEffect(() => {
-    if ((!modal && !filtersOpen) || !window.visualViewport) return;
+    if ((!modal && !filterAnchor) || !window.visualViewport) return;
     const viewport = window.visualViewport;
     const root = document.documentElement;
     const update = () => {
@@ -105,7 +106,7 @@ export default function JogadoresPage() {
       viewport.removeEventListener('scroll', update);
       ['height', 'top', 'bottom'].forEach(part => root.style.removeProperty(`--players-viewport-${part}`));
     };
-  }, [modal, filtersOpen]);
+  }, [modal, filterAnchor]);
   const [form, setForm] = useState(FORM_VAZIO);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
@@ -133,9 +134,10 @@ export default function JogadoresPage() {
   const setShirtFilter = (value: string) => changeFilter('camisa', value);
   const sortField: SortField = SORT_FIELDS.some(field => field.value === params.get('ordenar_por')) ? params.get('ordenar_por') as SortField : 'nome';
   const manualSort = params.has('ordenar_por') || params.has('ordem');
-  function openFilters() {
+  function openFilters(event: React.MouseEvent<HTMLButtonElement>) {
+    if (filterAnchor) { setFilterAnchor(null); return; }
     setDraftFilters({ position, shirt: shirtFilter, sort: manualSort ? sortField : 'default', direction: order });
-    setFiltersOpen(true);
+    setFilterAnchor(event.currentTarget);
   }
   function applyFilters() {
     setParams(current => {
@@ -150,7 +152,7 @@ export default function JogadoresPage() {
       next.delete('pagina');
       return next;
     }, { replace: true, preventScrollReset: true });
-    setFiltersOpen(false);
+    setFilterAnchor(null);
   }
   function resetSort() {
     setParams(current => {
@@ -186,13 +188,15 @@ export default function JogadoresPage() {
     }));
   };
   const categoryFilter = !allSubs && sharedCategory ? String(sharedCategory.id) : '';
-  const baseQuery = new URLSearchParams({ busca, posicao: position, camisa: shirtFilter, ordem: order, ordenar_por: sortField, fase: tipo }).toString();
+  const baseFilters = new URLSearchParams({ busca, posicao: position, camisa: shirtFilter, ordem: order, ordenar_por: sortField });
+  const baseQuery = new URLSearchParams({ ...Object.fromEntries(baseFilters), ...(busca.trim() ? {} : { fase: tipo }) }).toString();
   const tableScope = `${clube?.id}:${baseQuery}:${versao}`;
   const loadedScope = useRef('');
   const query = new URLSearchParams({
     busca, posicao: position, camisa: shirtFilter, ordem: order, ordenar_por: sortField, fase: tipo,
   }).toString();
   const categoryScope = `${clube?.id}:${query}:${versao}`;
+  const listMemoryKey = `jogadores:${usuario?.id}:${clube?.id}:${query}:${allSubs ? 'todos' : categoryFilter}`;
   const currentCategoryScope = useRef(categoryScope);
   currentCategoryScope.current = categoryScope;
   const previousClub = useRef(clube?.id);
@@ -260,11 +264,18 @@ export default function JogadoresPage() {
     setCategoryRows(current => ({ ...current, [id]: { items: previous, loading: true, error: '' } }));
     const search = new URLSearchParams(query);
     search.set('categoria_id', String(id));
-    search.set('limite', String(PAGE_SIZE));
+    const remembered = more ? PAGE_SIZE : readListState(`${listMemoryKey}:${id}`, PAGE_SIZE);
+    search.set('limite', String(Math.min(remembered, 100)));
     search.set('offset', String(previous.length));
     try {
       const items = await requestJson<Jogador[]>(`/jogadores?${search}`, { signal: controller.signal });
+      while (!more && items.length < remembered && items.length >= Number(search.get('offset')) + Number(search.get('limite'))) {
+        search.set('offset', String(items.length));
+        search.set('limite', String(Math.min(100, remembered - items.length)));
+        items.push(...await requestJson<Jogador[]>(`/jogadores?${search}`, { signal: controller.signal }));
+      }
       if (scope !== currentCategoryScope.current || controller.signal.aborted) return;
+      if (more) rememberListState(`${listMemoryKey}:${id}`, previous.length + items.length);
       items.forEach(row => knownShirts.current.set(row.id, { numCamisa: row.numCamisa ?? null, categoria_id: row.categoria_id }));
       setCategoryRows(current => ({ ...current, [id]: { items: [...previous, ...items], loading: false, error: '' } }));
     } catch (error) {
@@ -276,7 +287,9 @@ export default function JogadoresPage() {
   }
 
   function toggleSub(id: number) {
-    setExpandedSubs(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]);
+    const next = expandedSubs.includes(id) ? expandedSubs.filter(value => value !== id) : [...expandedSubs, id];
+    rememberListState(`${listMemoryKey}:expanded`, next);
+    setExpandedSubs(next);
     if (!expandedSubs.includes(id) && !categoryRows[id]) void loadSub(id);
   }
 
@@ -361,7 +374,7 @@ export default function JogadoresPage() {
     if (!categorias.length || categoryError) return;
     const changedScope = loadedScope.current !== categoryScope;
     loadedScope.current = categoryScope;
-    const ids = allSubs ? refreshExpanded.current ?? [] : selectedCategory ? [selectedCategory.id] : [];
+    const ids = allSubs ? refreshExpanded.current ?? readListState<number[]>(`${listMemoryKey}:expanded`, []) : selectedCategory ? [selectedCategory.id] : [];
     refreshExpanded.current = null;
     setExpandedSubs(ids);
     const timer = setTimeout(() => ids.forEach(id => { if (changedScope || !categoryRows[id]) void loadSub(id); }), busca ? 200 : 0);
@@ -422,11 +435,24 @@ export default function JogadoresPage() {
     const jogadores = selectedRows?.items || [];
     const loading = currentLoading || (!allSubs && (!selectedRows || selectedRows.loading && !selectedRows.items.length));
     const expandedSubs = offset === 0 ? openedSubs : [selectedCategory.id];
-    const total = counts.filter(count => count.categoria_id === selectedCategory.id).reduce((sum, count) => sum + count.total, 0);
+    const total = counts.find(count => count.categoria_id === selectedCategory.id)?.total ?? 0;
+    const otherSubs = offset === 0 && !allSubs && busca.trim() && total === 0
+      ? categorias.filter(other => other.id !== selectedCategory.id && counts.some(count => count.categoria_id === other.id && count.total > 0))
+      : [];
+    const suggestions = otherSubs.length > 0 && <div className="collection-suggestions" aria-label="Resultados em outros SUBs">
+      {otherSubs.map(other => <Btn key={other.id} variant="ghost" size="sm" onClick={() => setParams(current => {
+        const next = new URLSearchParams(current);
+        next.set('fase', other.tipo);
+        next.set('categoria', String(other.id));
+        next.delete('subs');
+        next.delete('pagina');
+        return next;
+      }, { replace: true, preventScrollReset: true })}>{other.nome.toUpperCase()} ({counts.find(count => count.categoria_id === other.id)?.total})</Btn>)}
+    </div>;
       return (
     <section className={`alunos-directory${listView || allSubs ? ' alunos-directory--list' : ''}${smallScreen && !allSubs ? ' alunos-directory--simple' : ''}`} aria-labelledby={`alunos-list-heading-${selectedCategory.id}`} aria-busy={loading}>
       <h2 id={`alunos-list-heading-${selectedCategory.id}`} className="sr-only" tabIndex={-1} ref={offset === 0 ? listHeading : undefined}>Lista de jogadores</h2>
-      {erroLista || (!allSubs && selectedRows?.error && !selectedRows.items.length) ? <div role="alert" className="alunos-error">{erroLista || selectedRows?.error}<Btn variant="ghost" onClick={() => setVersao(v => v + 1)}>Tentar novamente</Btn></div> : loading && !jogadores.length ? <LoadingSkeleton kind="table" /> : listView || allSubs ? <div className="alunos-sub-list">
+      {erroLista || (!allSubs && selectedRows?.error && !selectedRows.items.length) ? <div role="alert" className="alunos-error">{erroLista || selectedRows?.error}<Btn variant="ghost" onClick={() => setVersao(v => v + 1)}>Tentar novamente</Btn></div> : loading && !jogadores.length ? <LoadingSkeleton kind="table" /> : (listView || allSubs) && (allSubs || total > 0) ? <div className="alunos-sub-list">
         {displayed.filter(category => !allSubs || !shirtFilter || (counts.find(value => value.categoria_id === category.id)?.total || 0) > 0).map(category => {
           const rows = categoryRows[category.id];
           const count = counts.find(value => value.categoria_id === category.id)?.total || 0;
@@ -446,10 +472,10 @@ export default function JogadoresPage() {
                   </li>;
                 })}
               </ul>}
-              {rows?.loading && <p className="alunos-sub-message" role="status">Carregando jogadores…</p>}
+              {rows?.loading && !rows.items.length && <LoadingSkeleton kind="table" label="Carregando jogadores" />}
               {rows?.error && <div className="alunos-error" role="alert">{rows.error}<Btn variant="ghost" onClick={() => void loadSub(category.id, !!rows.items.length)}>Tentar novamente</Btn></div>}
               {rows && !rows.loading && !rows.error && !rows.items.length && <p className="alunos-sub-message">Nenhum jogador encontrado neste sub.</p>}
-              {rows && !rows.error && rows.items.length < count && <button type="button" className="alunos-sub-more" disabled={rows.loading} onClick={() => void loadSub(category.id, true)}>Carregar mais jogadores<Icon name="chevronRight" size={16}/></button>}
+              {rows && !rows.error && rows.items.length < count && <Btn variant="ghost" className="alunos-sub-more" loading={rows.loading} onClick={() => void loadSub(category.id, true)}>Carregar mais jogadores{!rows.loading && <Icon name="chevronRight" size={16}/>}</Btn>}
             </div>
           </section>;
         })}
@@ -473,11 +499,12 @@ export default function JogadoresPage() {
         </table>
         </div>
         {selectedRows?.error && <p role="alert" className="alunos-error">{selectedRows.error}</p>}
-        {jogadores.length < total && <div className="alunos-load-more"><Btn variant="ghost" disabled={selectedRows?.loading} onClick={() => void loadSub(selectedCategory.id, true)}>{selectedRows?.loading ? 'Carregando…' : `Carregar mais jogadores (${total - jogadores.length})`}</Btn></div>}
+        {jogadores.length < total && <div className="alunos-load-more"><Btn variant="ghost" loading={selectedRows?.loading} onClick={() => void loadSub(selectedCategory.id, true)}>{selectedRows?.loading ? 'Carregando…' : `Carregar mais jogadores (${total - jogadores.length})`}</Btn></div>}
       </> : <div className="alunos-directory-empty">
         <Icon name="team" size={28}/>
         <h3>{filtered ? 'Nenhum jogador encontrado' : 'Nenhum jogador neste grupo'}</h3>
         <p>{filtered ? 'Tente outro nome ou ajuste os filtros para ampliar a busca.' : 'Os jogadores cadastrados nesta faixa aparecerão aqui.'}</p>
+        {suggestions}
         {filtered && <Btn variant="ghost" onClick={clearFilters}>Limpar filtros</Btn>}
       </div>}
     </section>
@@ -500,7 +527,7 @@ export default function JogadoresPage() {
     />
     <div className="alunos-filters" data-swipe-ignore>
       <CollectionSearch className="alunos-search" label="Buscar aluno" placeholder="Buscar jogador pelo nome" value={busca} onChange={setBusca} />
-      <CollectionFilterButton className="alunos-filter-toggle" count={extraFilterCount} onClick={openFilters} />
+      <CollectionFilterButton className="alunos-filter-toggle" count={extraFilterCount} expanded={!!filterAnchor} onClick={openFilters} />
 
     </div>
     <div className="alunos-results-bar">
@@ -518,14 +545,14 @@ export default function JogadoresPage() {
     {renderCategory(0)}
     {!blocos.length && (loading ? <LoadingSkeleton kind="table" /> : categoryError ? <div role="alert" className="alunos-error">{categoryError}<Btn variant="ghost" onClick={() => setVersao(value => value + 1)}>Tentar novamente</Btn></div> : <p className="alunos-sub-message">{erroLista || 'Nenhuma categoria disponível neste grupo.'}</p>)}
 
-    <CollectionFilterDialog open={filtersOpen} className="alunos-filter-dialog" title="Filtrar jogadores" onClose={() => setFiltersOpen(false)}
+    <CollectionFilterDialog open={!!filterAnchor} anchor={filterAnchor} className="alunos-filter-dialog" title="Filtrar jogadores" onClose={() => setFilterAnchor(null)}
       onClear={() => setDraftFilters({ position: '', shirt: '', sort: 'default', direction: 'asc' })} onApply={applyFilters} applyLabel="Aplicar filtros">
       {[
         { label: 'Posição', value: draftFilters.position, change: (value: string) => setDraftFilters(current => ({ ...current, position: value })), options: [{ value: '', label: 'Todas' }, ...POSITIONS.map(value => ({ value, label: value }))] },
         { label: 'Camisa', value: draftFilters.shirt, change: (value: string) => setDraftFilters(current => ({ ...current, shirt: value })), options: [{ value: '', label: 'Todas' }, { value: 'missing', label: 'Sem número' }, { value: 'assigned', label: 'Com número' }] },
         { label: 'Ordenar por', value: draftFilters.sort, change: (value: string) => setDraftFilters(current => ({ ...current, sort: value })), options: [{ value: 'default', label: 'Padrão' }, ...SORT_FIELDS.map(field => ({ value: field.value, label: field.label }))] },
         ...(draftFilters.sort === 'default' ? [] : [{ label: 'Direção', value: draftFilters.direction, change: (value: string) => setDraftFilters(current => ({ ...current, direction: value })), options: [{ value: 'asc', label: 'Crescente' }, { value: 'desc', label: 'Decrescente' }] }]),
-      ].map(group => <fieldset className="alunos-filter-group" key={group.label}><legend>{group.label}</legend><div>{group.options.map(option => <button key={option.value} type="button" aria-pressed={group.value === option.value} onClick={() => group.change(option.value)}>{option.label}{group.value === option.value && <Icon name="checkAll" size={16}/>}</button>)}</div></fieldset>)}
+      ].map(group => <FilterRadioGroup key={group.label} label={group.label} value={group.value} options={group.options} onChange={group.change} />)}
     </CollectionFilterDialog>
 
     <Modal open={modal && !reviewOpen} className="alunos-create-dialog" onClose={() => { if (!salvando) setModal(false); }} title="Adicionar aluno" footer={<div className="alunos-footer"><Btn variant="ghost" type="button" disabled={salvando} onClick={() => setModal(false)}>Cancelar</Btn>

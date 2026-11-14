@@ -36,8 +36,8 @@
 .paulista-header-menu-options > .paulista-reload:disabled { color:var(--texto-sec); cursor:wait; }
 .paulista-header-menu-options .paulista-source-link > svg:first-child { color:var(--primaria); }
 .paulista-header-menu-options .paulista-source-link > .icon:last-child { margin-left:auto; color:var(--texto-sec); }
-.paulista-tabs { display:flex; flex-wrap:nowrap; gap:22px; padding:0; overflow-x:auto; overscroll-behavior-x:contain; border-bottom:1px solid var(--linha); scrollbar-width:none; }
-.paulista-tabs::-webkit-scrollbar, .paulista-round-tabs::-webkit-scrollbar { display:none; }
+.paulista-tabs { overscroll-behavior-x:contain; }
+.paulista-round-tabs::-webkit-scrollbar { display:none; }
 .paulista-tabs-row { display:flex; align-items:center; gap:20px; min-width:0; border-bottom:1px solid var(--linha); }
 .paulista-tabs-row > .paulista-tabs { flex:1; min-width:0; border-bottom:0; }
 .paulista-tabs-filters:empty { display:none; }
@@ -45,17 +45,16 @@
 .paulista-tabs-filters .field { margin:0; width:210px; min-width:0; }
 .paulista-tabs-filters .field-label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 .paulista-tabs-filters .schedule-select-trigger { min-height:36px; height:36px; font-size:12px; }
-.paulista-tabs button { display:inline-flex; align-items:center; flex:0 0 auto; min-height:44px; padding:8px 3px; border:0; border-radius:0; border-bottom:2px solid transparent; background:transparent; color:var(--texto-sec); font-size:13px; font-weight:400; white-space:nowrap; }
-.paulista-tabs button[aria-current=page] { color:var(--texto); border-bottom-color:var(--primaria); font-weight:600; }
 .paulista-page button:focus-visible, .paulista-page a:focus-visible, .paulista-page [tabindex='0']:focus-visible { outline:2px solid var(--primaria); outline-offset:3px; }
 .paulista-page h2 { font:600 16px/1.4 var(--font-corpo); margin:0; }
 .paulista-section-heading, .paulista-results-toolbar { display:flex; align-items:center; justify-content:space-between; gap:14px; }
 .paulista-section-heading > div { min-width:0; }
 .paulista-medal { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-weight:600; font-size:13px; }
-.medal-ouro { --medal-fundo:var(--paulista-ouro-fundo); color:var(--paulista-ouro); }
-.medal-prata { --medal-fundo:var(--paulista-prata-fundo); color:var(--paulista-prata); }
-.medal-bronze { --medal-fundo:var(--paulista-bronze-fundo); color:var(--paulista-bronze); }
-.medal-rubi { --medal-fundo:var(--paulista-rubi-fundo); color:var(--paulista-rubi); }
+.paulista-medal svg { color:var(--medal-destaque); }
+.medal-ouro { --medal-fundo:var(--paulista-ouro-fundo); --medal-destaque:var(--paulista-ouro-destaque); color:var(--paulista-ouro); }
+.medal-prata { --medal-fundo:var(--paulista-prata-fundo); --medal-destaque:var(--paulista-prata-destaque); color:var(--paulista-prata); }
+.medal-bronze { --medal-fundo:var(--paulista-bronze-fundo); --medal-destaque:var(--paulista-bronze-destaque); color:var(--paulista-bronze); }
+.medal-rubi { --medal-fundo:var(--paulista-rubi-fundo); --medal-destaque:var(--paulista-rubi-destaque); color:var(--paulista-rubi); }
 .paulista-empty { display:grid; gap:12px; justify-items:center; text-align:center; padding:35px 20px; border:1px dashed var(--borda); border-radius:8px; }
 .paulista-empty p { max-width:520px; color:var(--texto-sec); line-height:1.6; font-size:14px; }
 .paulista-game-toolbar { display:flex; align-items:center; gap:10px; }
@@ -236,8 +235,8 @@
  .paulista-header .page-title { font-size:23px; }
  .paulista-division { font-size:11px; }
  .paulista-back { margin-bottom:8px; font-size:12px; }
- .paulista-tabs { gap:0; width:100%; }
- .paulista-tabs button { flex:1 0 auto; justify-content:center; min-height:40px; padding-inline:2px; font-size:12px; }
+ .paulista-tabs { --filter-tabs-gap:0px; --filter-tabs-padding:8px 2px; width:100%; }
+ .paulista-tabs > button { flex:1 0 auto; justify-content:center; }
  .paulista-game-toolbar { display:grid; grid-template-columns:minmax(0,1fr) var(--collection-control-height); }
  .paulista-game-toolbar .collection-mode-toggle { display:none; }
 }

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Btn, Input, Modal } from './UI';
 import { Icon } from './Icon';
+import { ResponsivePanel } from './ResponsivePanel';
 
-export function SchedulePeriodDialog({ inicio, fim, onClose, onApply }: {
+export function SchedulePeriodDialog({ anchor, inicio, fim, onClose, onApply }: {
+  anchor?: HTMLButtonElement;
   inicio: string;
   fim: string;
   onClose: () => void;
@@ -21,7 +23,7 @@ export function SchedulePeriodDialog({ inicio, fim, onClose, onApply }: {
     setError('');
   }
 
-  return <Modal open title="Escolher período" className="schedule-period-dialog" onClose={onClose}>
+  const content = <>
     <div className="schedule-year-picker">
       <button type="button" aria-label="Ano anterior" disabled={year <= 1900} onClick={() => setYear(value => value - 1)}><Icon name="chevronLeft" /></button>
       <strong><Icon name="calendar" />{year}</strong>
@@ -51,5 +53,8 @@ export function SchedulePeriodDialog({ inicio, fim, onClose, onApply }: {
         onApply(start, end);
       }}>Aplicar período</Btn>
     </div>
-  </Modal>;
+  </>;
+  return anchor
+    ? <ResponsivePanel anchor={anchor} title="Escolher período" className="schedule-period-dialog" onClose={onClose}>{content}</ResponsivePanel>
+    : <Modal open title="Escolher período" className="schedule-period-dialog" onClose={onClose}>{content}</Modal>;
 }

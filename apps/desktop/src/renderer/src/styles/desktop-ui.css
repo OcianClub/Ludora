@@ -1,5 +1,9 @@
 /* Base visual exclusiva do Electron, inclusive para componentes compartilhados. */
 .desktop-app {
+  --desktop-status-warning: var(--amarelo);
+  --desktop-status-success: #43c998;
+  --desktop-status-error: var(--titulo-erro);
+  --desktop-status-escalated: #a58adb;
   --desktop-control-height: 44px;
   --collection-control-height: var(--desktop-control-height);
   --collection-control-font-size: 13px;
@@ -11,11 +15,20 @@
   --desktop-modal-control: #14171F;
 }
 :root[data-theme="light"] .desktop-app {
+  --desktop-status-warning: #805400;
+  --desktop-status-warning-accent: #9c7000;
+  --desktop-status-success: #006b37;
+  --desktop-status-success-accent: #008744;
+  --desktop-status-error: #9f2340;
+  --desktop-status-escalated: #7145a1;
   --desktop-surface-hover: var(--card-hover-claro);
   --desktop-surface-raised: color-mix(in srgb, var(--fundo-card) 97%, var(--texto) 3%);
   --desktop-surface-raised-hover: var(--controle-hover-claro);
   --desktop-modal-surface: var(--fundo);
   --desktop-modal-control: var(--fundo-card);
+}
+:root[data-theme="light"] .desktop-app :is(.club-badge, .overview-plan, .collection-control.collection-mode-toggle button[aria-pressed="true"]) {
+  background-color: var(--superficie-neutra);
 }
 
 .desktop-app .admin-layout :is(.btn, .field-input, .schedule-select-trigger, .collection-control) { border-radius: 8px; }
@@ -24,6 +37,7 @@
 .desktop-app .admin-layout .btn-sm { min-height: 34px; padding: 7px 11px; font-size: 12px; }
 .desktop-app .admin-layout .btn-ghost:hover:not(:disabled) { border-color: var(--borda); color: var(--texto); background: var(--desktop-surface-hover); }
 .desktop-app .admin-layout .btn:disabled { pointer-events: none; }
+.desktop-app :is(.notice-error, .field-error, .btn-danger:not(.btn-danger-solid)) { color: var(--desktop-status-error); }
 .desktop-app .admin-layout .btn :is(svg, .icon) { flex-shrink: 0; }
 .desktop-app .field { min-width: 0; }
 .desktop-app .admin-layout .field-label { font-size: 12px; line-height: 1.4; font-weight: 500; }
@@ -38,7 +52,7 @@
 .desktop-app .admin-layout .collection-filter-button { padding: 0; background: var(--fundo-card); }
 .desktop-app .admin-layout .collection-filter-button:hover { background: var(--desktop-surface-hover); color: var(--texto); }
 .desktop-app .admin-layout .schedule-select-trigger { background: var(--fundo-card); }
-.desktop-app .admin-layout .schedule-select-trigger:hover { background: var(--desktop-surface-hover); }
+.desktop-app .admin-layout .schedule-select-trigger:is(:hover, [aria-expanded=true]) { background: var(--superficie-neutra); }
 .desktop-app .schedule-select-options [role="option"] { min-height: 36px; padding: 8px 10px; font-size: 13px; }
 .desktop-app .admin-layout .collection-control.collection-mode-toggle { height: var(--desktop-control-height); }
 .desktop-app .admin-layout .collection-mode-toggle button { height: 30px; min-height: 30px; width: auto; flex: 0 0 auto; gap: 7px; padding: 5px 10px; }
@@ -53,11 +67,7 @@
 .desktop-app .admin-layout .desktop-log-filters { display: grid; grid-template-columns: minmax(130px, 180px) minmax(0, 1fr) auto auto; gap: 10px; align-items: end; }
 .desktop-app .admin-layout .desktop-log-filters .field { max-width: none; }
 
-.desktop-app .admin-layout :is(.schedule-status-summary, .admin-club-tabs) { gap: 8px; margin-bottom: 18px; overflow-x: auto; scrollbar-width: none; }
-.desktop-app .admin-layout :is(.schedule-status-summary, .admin-club-tabs)::-webkit-scrollbar { display: none; }
-.desktop-app .admin-layout :is(.schedule-status-summary, .admin-club-tabs) > button { flex: 0 0 auto; min-height: 42px; padding: 10px 12px; font-size: 13px; white-space: nowrap; }
-.desktop-app .admin-layout :is(.schedule-status-summary, .admin-club-tabs) > button:hover { color: var(--texto); background: var(--fundo-card); }
-.desktop-app .admin-layout :is(.schedule-status-summary > button[aria-pressed="true"], .admin-club-tabs > button[aria-current]) { color: var(--texto); }
+
 .desktop-app .admin-layout :is(.ticket-status, .user-role, .plano-tag, .papel-badge, .status-badge, .chip) { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 24px; padding: 3px 8px; border-radius: 5px; font-size: 11px; line-height: 1.35; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
 .desktop-app .admin-layout :is(.ticket-status, .user-role, .papel-badge, .status-badge, .chip) :is(svg, .icon) { width: 14px; height: 14px; flex-shrink: 0; }
 .desktop-app .admin-layout .schedule-active-filters > button { min-height: 28px; font-size: 12px; border-radius: 6px; }
@@ -102,12 +112,12 @@
 .desktop-app .admin-layout .modal .collection-filter-actions > .btn-ghost:hover:not(:disabled) { background:transparent; border-color:transparent; color:var(--texto); }
 
 .desktop-state { display: flex; align-items: center; gap: 14px; min-width: 0; min-height: 112px; padding: 22px; margin-block: 14px; border: 1px solid var(--linha); border-radius: 10px; background: var(--fundo-card); }
-.desktop-state-icon { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border-radius: 10px; background: var(--fundo-card-sec); color: var(--texto-sec); }
+.desktop-state-icon { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border-radius: 10px; background: var(--superficie-neutra); color: var(--texto-sec); }
 .desktop-state-copy { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .desktop-app .desktop-state-copy h2 { font: 600 14px/1.5 var(--font-corpo); color: var(--texto); border: 0; padding: 0; margin: 0; text-transform: none; letter-spacing: normal; }
 .desktop-state-copy p { font-size: 12px; color: var(--texto-sec); line-height: 1.6; margin-top: 4px; }
 .desktop-state-error { border-color: var(--borda-erro); }
-.desktop-state-error .desktop-state-icon { color: var(--titulo-erro); background: var(--fundo-erro); }
+.desktop-state-error .desktop-state-icon { color: var(--desktop-status-error); background: var(--fundo-erro); }
 .desktop-app .desktop-state-plain { flex-direction:column; justify-content:center; min-height:clamp(180px,calc(100dvh - 380px),520px); margin:0; border:0; background:none; text-align:center; }
 .desktop-state-plain .desktop-state-icon { width:auto; height:auto; flex:0 0 auto; background:none; }
 .desktop-state-plain .desktop-state-copy { flex:0 0 auto; max-width:360px; }
@@ -147,3 +157,11 @@
   .desktop-skeleton :is(i, b), .desktop-app .rt-conectando .rt-dot { animation: none; }
   .desktop-app :is(.btn, .field-input, .option-tile) { transition: none; }
 }
+
+.saved-filters { display: grid; gap: 8px; padding-block-end: 14px; margin-block-end: 14px; border-bottom: 1px solid var(--linha); }
+.saved-filters-line { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px; }
+.saved-filters-line > :first-child { flex: 1 1 175px; min-width: 0; }
+.saved-filters small { color: var(--texto-secundario); }
+.admin-ticket-return { margin-block-end: 12px; }
+.desktop-log-context { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; overflow-wrap: anywhere; }
+.ticket-detail-summary > a { display: inline-flex; align-items: center; gap: 6px; color: var(--primaria); }

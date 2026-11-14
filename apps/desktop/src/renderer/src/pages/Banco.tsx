@@ -59,7 +59,7 @@ export default function BancoPage() {
         <span role="status">{carregando ? 'Verificando serviços…' : erro ? 'Consulta incompleta' : 'Consulta concluída'}
           {consultadoEm && <time dateTime={consultadoEm.toISOString()}>Última verificação · {consultadoEm.toLocaleTimeString('pt-BR', { timeZone:'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time>}
         </span>
-        <Btn variant="ghost" onClick={() => void carregar()} disabled={carregando}><Icon name="refresh" size={16}/>{carregando ? 'Verificando…' : 'Verificar agora'}</Btn>
+        <Btn variant="ghost" onClick={() => void carregar()} loading={carregando}>{!carregando && <Icon name="refresh" size={16}/>} {carregando ? 'Verificando…' : 'Verificar agora'}</Btn>
       </div>
     </div>
     {erro && <DesktopState error title="Não foi possível consultar todos os serviços" description={`${erro}${banco || sistema ? ' · Os últimos dados disponíveis continuam visíveis.' : ''}`} onRetry={() => void carregar()}/>}

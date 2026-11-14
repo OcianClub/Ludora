@@ -22,7 +22,7 @@
 .registration-missing > li > span { display:grid; gap:3px; }
 .registration-missing strong { font-size:12px; }
 .registration-missing small { display:flex; align-items:center; gap:5px; color:var(--texto-sec); font-size:11px; }
-.registration-missing small::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--titulo-atencao); }
+.registration-missing small::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--desktop-status-warning); }
 .registration-recipients { padding:0; margin:0; border:0; min-width:0; }
 .registration-recipients legend { padding:0; margin-bottom:12px; font-size:12px; font-weight:600; }
 .registration-recipients > div { display:grid; gap:8px; max-height:240px; overflow:auto; padding:3px; }
@@ -50,9 +50,8 @@
 .registration-task-heading > span:first-child > .icon { color:var(--texto-sec); }
 .registration-task-status { display:inline-flex; align-items:center; gap:6px; color:var(--texto-sec); font-size:11px; }
 .registration-task-status::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; }
-.registration-task-status[data-state="PENDENTE"] { color:var(--titulo-atencao); }
-.registration-task-status[data-state="CONCLUIDA"] { color:#43c998; }
-:root[data-theme="light"] .registration-task-status[data-state="CONCLUIDA"] { color:#16734f; }
+.registration-task-status[data-state="PENDENTE"] { color:var(--desktop-status-warning); }
+.registration-task-status[data-state="CONCLUIDA"] { color:var(--desktop-status-success); }
 .registration-history p { margin:0; font-size:12px; color:var(--texto-sec); line-height:1.65; overflow-wrap:anywhere; }
 .registration-history small { color:var(--texto-sec); font-size:11px; }
 .registration-history .btn { justify-self:start; }

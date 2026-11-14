@@ -15,7 +15,7 @@ export function formatMatchDate(value: string) {
   return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : 'Data a definir';
 }
 
-export function MatchCard({ partida: p, featured = false, actions, onOpen, competitionContext, compact = false, officialLayout = false }: { partida: Partida; featured?: boolean; actions?: ReactNode; onOpen?: () => void; competitionContext?: ReactNode; compact?: boolean; officialLayout?: boolean }) {
+export function MatchCard({ partida: p, featured = false, actions, onOpen, competitionContext, compact = false, officialLayout = false, returnTo }: { partida: Partida; featured?: boolean; actions?: ReactNode; onOpen?: () => void; competitionContext?: ReactNode; compact?: boolean; officialLayout?: boolean; returnTo?: string }) {
   const navigate = useNavigate();
   const { clube } = useAuth();
   const live = p.status === 'AO_VIVO';
@@ -30,7 +30,7 @@ export function MatchCard({ partida: p, featured = false, actions, onOpen, compe
   const occurrence = p.oficialPaulista?.ocorrencia;
   const hasScore = !occurrence && (p.oficialPaulista ? p.oficialPaulista.golsMandante !== null && p.oficialPaulista.golsVisitante !== null : p.status === 'AO_VIVO' || p.status === 'FINALIZADA');
   const result = p.emCasa ? p.gols_mandante - p.gols_visitante : p.gols_visitante - p.gols_mandante;
-  const openMatch = () => onOpen ? onOpen() : navigate(`/partidas/${p.id}`);
+  const openMatch = () => onOpen ? onOpen() : navigate(`/partidas/${p.id}`, { state: { fromSchedule: returnTo } });
   const ignoreNestedAction = (target: EventTarget | null) => target instanceof Element && !!target.closest('a, button, input, select, textarea');
   const badges = <div className="match-card-badges">
         {occurrence ? <span className="status-badge">{occurrence === 'WO' ? 'W.O.' : 'Adiada'}</span> : live
@@ -63,6 +63,6 @@ export function MatchCard({ partida: p, featured = false, actions, onOpen, compe
     <div className="match-info">
       <span className="match-location"><Icon name="location" size={17} />{p.local || 'Local a definir'}</span>
     </div>
-    <div className="match-card-actions">{officialLayout && onOpen ? <span className="paulista-card-detail" aria-hidden="true">Ver detalhes<Icon name="chevronRight" size={16}/></span> : onOpen ? <button type="button" className="btn btn-ghost btn-md" onClick={onOpen}>Ver detalhes<Icon name="chevronRight" size={18}/></button> : (<Link className={`btn btn-${featured ? 'primary' : 'ghost'} btn-md`} to={`/partidas/${p.id}`} aria-label={`${live ? 'Acompanhar ao vivo' : p.status === 'FINALIZADA' ? 'Ver súmula' : 'Ver detalhes'}: ${teamName(p.mandante?.nome || 'Mandante')} contra ${teamName(p.visitante?.nome || 'Visitante')}`}><span className="match-action-label">{p.status === 'AO_VIVO' ? 'Acompanhar ao vivo' : p.status === 'FINALIZADA' ? 'Ver súmula' : 'Ver detalhes'}</span><Icon name={p.status === 'AO_VIVO' ? 'live' : 'chevronRight'} size={18} /></Link>)}{actions}</div>
+    <div className="match-card-actions">{officialLayout && onOpen ? <span className="paulista-card-detail" aria-hidden="true">Ver detalhes<Icon name="chevronRight" size={16}/></span> : onOpen ? <button type="button" className="btn btn-ghost btn-md" onClick={onOpen}>Ver detalhes<Icon name="chevronRight" size={18}/></button> : (<Link className={`btn btn-${featured ? 'primary' : 'ghost'} btn-md`} to={`/partidas/${p.id}`} state={{ fromSchedule: returnTo }} aria-label={`${live ? 'Acompanhar ao vivo' : p.status === 'FINALIZADA' ? 'Ver súmula' : 'Ver detalhes'}: ${teamName(p.mandante?.nome || 'Mandante')} contra ${teamName(p.visitante?.nome || 'Visitante')}`}><span className="match-action-label">{p.status === 'AO_VIVO' ? 'Acompanhar ao vivo' : p.status === 'FINALIZADA' ? 'Ver súmula' : 'Ver detalhes'}</span><Icon name={p.status === 'AO_VIVO' ? 'live' : 'chevronRight'} size={18} /></Link>)}{actions}</div>
   </article>;
 }

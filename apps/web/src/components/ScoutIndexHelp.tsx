@@ -1,24 +1,27 @@
 import { useState } from 'react';
 import { Icon } from './Icon';
-import { Btn, Modal } from './UI';
+import { Btn } from './UI';
+import { ResponsivePanel } from './ResponsivePanel';
 
 export function ScoutIndexHelp({ label = 'Como interpretar o Scout' }: { label?: string }) {
-  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   return (
     <div className="scout-index-help">
       <button
         type="button"
         aria-haspopup="dialog"
-        onClick={() => setOpen(true)}
+        aria-expanded={!!anchor}
+        onClick={event => setAnchor(anchor ? null : event.currentTarget)}
       >
         <Icon name="info" size={16} /> {label}
       </button>
-      <Modal
-        open={open}
+      {anchor && <ResponsivePanel
+        anchor={anchor}
+        wide
         title="Como interpretar o Scout"
         className="scout-index-dialog"
-        onClose={() => setOpen(false)}
-        footer={<Btn onClick={() => setOpen(false)}>Entendi</Btn>}
+        onClose={() => setAnchor(null)}
+        footer={<Btn size="sm" onClick={() => setAnchor(null)}>Entendi</Btn>}
       >
         <p>
           O Scout descreve os eventos registrados e as convocações em partidas
@@ -49,7 +52,7 @@ export function ScoutIndexHelp({ label = 'Como interpretar o Scout' }: { label?:
           cada barra. As médias usam as últimas cinco partidas com registro, ou
           as disponíveis quando houver menos.
         </p>
-      </Modal>
+      </ResponsivePanel>}
     </div>
   );
 }

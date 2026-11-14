@@ -302,11 +302,9 @@
   transition: background .15s ease;
 }
 .schedule-section-toggle:is(:hover, :focus-visible) {
-  background: var(--acordeao-hover);
+  background: var(--schedule-item-hover, var(--acordeao-hover));
 }
-.schedule-section-toggle[data-live]:is(:hover, :focus-visible) {
-  background: var(--acordeao-ao-vivo-hover);
-}
+.schedule-section-toggle[data-live] { --schedule-item-hover: var(--acordeao-ao-vivo-hover); }
 .schedule-section-toggle:not([data-live]):is(:hover, :focus-visible) .schedule-section-chevron {
   background: var(--acordeao-controle-hover);
 }
@@ -396,29 +394,6 @@
   color: var(--texto-sec);
   font-size: 13px;
 }
-.schedule-status-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 6px;
-  margin-bottom: 12px;
-  border: 1px solid var(--linha);
-  border-radius: 10px;
-  background: var(--fundo-card);
-}
-.schedule-status-summary button {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--texto-sec);
-  font-size: 13px;
-}
-.schedule-status-summary button > span:not(.icon),
 .schedule-live-heading h2 > span:not(.icon) {
   padding: 1px 7px;
   border-radius: 4px;
@@ -426,15 +401,6 @@
   color: var(--contador-texto);
   font-size: 12px;
   font-weight: 600;
-}
-.schedule-status-summary button:is([aria-selected="true"], [aria-pressed="true"]) > span:not(.icon) {
-  background: var(--contador-fundo-ativo);
-  color: var(--contador-texto-ativo);
-}
-.schedule-status-summary button[aria-pressed="true"] {
-  border-color: transparent;
-  background: var(--fundo-card-sec);
-  color: var(--texto);
 }
 .schedule-results-toolbar {
   display: flex;
@@ -770,9 +736,6 @@
   .match-schedule .page-header .eyebrow,
   .match-schedule .page-header .page-sub,
   .match-schedule .schedule-desktop-new {
-    display: none;
-  }
-  .schedule-status-summary {
     display: none;
   }
   .schedule-results-toolbar .schedule-result-count {
@@ -1175,3 +1138,6 @@
 }
 .schedule-mobile-requests { position: relative; }
 .schedule-mobile-requests .schedule-request-badge { position: absolute; top: -5px; right: -5px; }
+
+.schedule-draft { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: var(--texto-secundario); font-size: .8rem; }
+.schedule-draft button { padding: 4px 0; background: transparent; color: var(--primaria); border: 0; cursor: pointer; font: inherit; }

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { Prisma, type Manutencao } from '@prisma/client';
+import { getUsuarioId } from '../../auth/jwt';
+import { idPositivo } from '../../utils/id';
 import { prisma } from '../../lib/prisma';
 import { exigirEquipe } from '../admin/equipe';
 import { sanitizar } from '../suporte/rules';
@@ -21,6 +23,27 @@ async function registrarNoChamado(tx: Prisma.TransactionClient, pausa: Manutenca
 }
 export function criarManutencaoRoutes() {
   const r = Router();
+  r.get('/manutencao/estado', async (req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    const clubeId = idPositivo(req.headers['x-clube-id']);
+    const usuarioId = clubeId && req.headers.authorization ? await getUsuarioId(req, true) : null;
+    const vinculo = clubeId && usuarioId ? await prisma.usuarioClube.findUnique({
+      where: { usuario_id_clube_id: { usuario_id: usuarioId, clube_id: clubeId } },
+      select: { papel: true },
+    }) : null;
+    const escopos: Prisma.ManutencaoWhereInput[] = [{ escopo: 'GLOBAL' }];
+    if (clubeId && vinculo && ['ADMIN', 'TECNICO', 'MESARIO'].includes(vinculo.papel)) {
+      escopos.push({ escopo: 'CLUBE', alvoId: clubeId });
+    }
+    const pausas = await prisma.manutencao.findMany({
+      where: { ativa: true, OR: escopos },
+      select: { operacao: true, motivo: true, escopo: true },
+      orderBy: [{ escopo: 'desc' }, { inicio: 'asc' }],
+    });
+    res.json(pausas.filter(p => Object.hasOwn(OPERACOES, p.operacao)).map(({ operacao, motivo, escopo }) => ({
+      operacao, motivo, escopo, label: OPERACOES[operacao as Operacao],
+    })));
+  });
   const base = '/admin/equipe/manutencao';
   r.use(base, exigirEquipe, (req, res, next) => {
     if (!['GET', 'HEAD'].includes(req.method) && res.locals.funcionario.papel_plataforma === 'DESENVOLVEDOR') { res.status(403).json({ error: 'Controles de manutenção exigem suporte ou administração.' }); return; }

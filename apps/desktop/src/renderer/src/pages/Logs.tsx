@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { EntradaLog, NivelLog } from '@ludora/shared-types';
-import { Btn, Modal, Input } from '../components/AdminUI';
+import { useLocation } from 'react-router-dom';
+import { SavedFilters } from '../components/SavedFilters';
+import { Btn, Modal, Input, LoadingSkeleton } from '../components/AdminUI';
 import { FilterSelect } from '@web/components/FilterSelect';
 import { CollectionSearch } from '@web/components/CollectionToolbar';
 import { Icon } from '@web/components/Icon';
@@ -23,7 +25,12 @@ const NIVEIS = [
 const ordem: Record<NivelLog, number> = { info: 0, audit: 0, warn: 1, error: 2 };
 
 export default function LogsPage() {
-  const dev = useAdminAuth().usuario?.papel_plataforma === 'DESENVOLVEDOR';
+  const { usuario } = useAdminAuth();
+  const dev = usuario?.papel_plataforma === 'DESENVOLVEDOR';
+  const location = useLocation();
+  const [useContextFilter, setUseContextFilter] = useState(true);
+  const context = useContextFilter ? location.state?.logFilters as { correlacao?: string; rota?: string; horario?: string } | undefined : undefined;
+  const [loading, setLoading] = useState(true);
   const estado = useEstadoTempoReal();
   const [entradas, setEntradas] = useState<EntradaLog[]>([]);
   const [pausado, setPausado] = useState(false);
@@ -75,8 +82,10 @@ export default function LogsPage() {
   useEffect(() => {
     let ativo = true;
     setErro('');
+    setLoading(true);
     window.ludora.logs.historico().then(h => { if (ativo) setEntradas(a => mesclarLogs(a, h.entradas)); })
-      .catch(() => { if (ativo) setErro('Não foi possível recuperar o histórico dos logs.'); });
+      .catch(() => { if (ativo) setErro('Não foi possível recuperar o histórico dos logs.'); })
+      .finally(() => { if (ativo) setLoading(false); });
     const parar = window.ludora.logs.aoReceber(e => {
       fila.current.push(e);
       if (fila.current.length > LIMITE_LOGS) fila.current.splice(0, fila.current.length - LIMITE_LOGS);
@@ -96,6 +105,8 @@ export default function LogsPage() {
   const visiveis = useMemo(() => {
     const busca = texto.trim().toLowerCase();
     return entradas.filter(e => {
+      if (context?.correlacao && e.correlacao !== context.correlacao) return false;
+      if (context?.rota && (e.caminho !== context.rota || !(Math.abs(Date.parse(e.ts) - Date.parse(context.horario ?? '')) <= 5 * 60_000))) return false;
       if (nivel === 'audit') { if (e.tipo !== 'audit') return false; }
       else if (nivel && ordem[e.nivel] < ordem[nivel as NivelLog]) return false;
       if (!dentroDoPeriodo(e.ts, periodo, agora)) return false;
@@ -105,7 +116,7 @@ export default function LogsPage() {
       if (lentas && classeDuracao(e.ms, limites.lenta, limites.critica) === 'normal') return false;
       return !busca || e.mensagem.toLowerCase().includes(busca);
     }).sort((a, b) => ((new Date(a.ts).getTime() - new Date(b.ts).getTime()) || a.id - b.id) * (descendente ? -1 : 1));
-  }, [entradas, nivel, texto, periodo, agora, descendente, http, metodo, statusHttp, lentas, limites]);
+  }, [entradas, nivel, texto, periodo, agora, descendente, http, metodo, statusHttp, lentas, limites, context]);
 
   useEffect(() => { seguir.current = true; setNovos(0); }, [nivel, texto, periodo, descendente, metodo, statusHttp, lentas]);
 
@@ -168,14 +179,16 @@ export default function LogsPage() {
           <DesktopMenuItem icon={<Icon name="trash" size={16}/>} onSelect={() => { setEntradas([]); fila.current = []; setNovos(0); }}>Limpar tela</DesktopMenuItem>
         </DesktopMenu>
       </div>
-      {erro && <div className="notice-error" role="alert">{erro} <Btn size="sm" variant="ghost" onClick={() => setRevisao(n => n + 1)}>Tentar novamente</Btn></div>}
+      {context && <div className="desktop-log-context"><span>{context.correlacao ? `Ocorrência ${context.correlacao}` : `Registros de ${context.rota} próximos ao horário do chamado`}</span><Btn size="sm" variant="ghost" onClick={() => setUseContextFilter(false)}>Ver todos os logs</Btn></div>}
+      {erro && <div className="notice-error" role="alert">{erro} <Btn size="sm" variant="ghost" loading={loading} onClick={() => setRevisao(n => n + 1)}>Tentar novamente</Btn></div>}
       <div ref={consoleRef} className={`log-console${quebrar ? ' log-wrap' : ''}`} role="log" aria-label="Registros da API" aria-live="off" tabIndex={0} onScroll={e => {
         const el = e.currentTarget;
         seguir.current = descendente ? el.scrollTop < 24 : el.scrollHeight - el.clientHeight - el.scrollTop < 24;
         if (seguir.current) setNovos(0);
       }}>
         <div className="desktop-log-columns" aria-hidden="true"><span>Horário</span><span>Nível</span><span>Método</span><span>Rota / mensagem</span><span>Status</span><span>Duração</span></div>
-        {visiveis.length === 0 && <p className="log-vazio">{temFiltros ? 'Nenhum registro corresponde aos filtros.' : estado === 'conectado' ? 'Aguardando registros…' : 'Sem conexão em tempo real com a API.'}</p>}
+        {!entradas.length && loading && <LoadingSkeleton kind="table" label="Carregando histórico de logs" count={6} />}
+        {!loading && visiveis.length === 0 && <p className="log-vazio">{context ? 'Nenhum registro correspondente no histórico disponível. Logs antigos podem já ter saído do histórico.' : temFiltros ? 'Nenhum registro corresponde aos filtros.' : estado === 'conectado' ? 'Aguardando registros…' : 'Sem conexão em tempo real com a API.'}</p>}
         {visiveis.map((e, index) => <div key={e.id}>
           {(index === 0 || data(visiveis[index - 1].ts) !== data(e.ts)) && <div className="desktop-log-day">{data(e.ts)}</div>}
           <button type="button" className={`log-linha nivel-${e.nivel}`} onClick={() => setSelecionado(e)} aria-label={`Detalhes: ${e.mensagem}`}>
@@ -200,6 +213,21 @@ export default function LogsPage() {
         if (!Number.isFinite(lenta) || !Number.isFinite(critica) || lenta <= 0 || critica <= lenta) return;
         setMetodo(rascunho.metodo); setStatusHttp(rascunho.status); setLentas(rascunho.lentas); setLimites({ lenta, critica }); setFiltros(false);
       }} disabled={!Number(rascunho.lenta) || !Number(rascunho.critica) || Number(rascunho.lenta) <= 0 || Number(rascunho.critica) <= Number(rascunho.lenta)}>Aplicar filtros</Btn>}>
+        <SavedFilters storageKey={`ludora:logs:filtros:${usuario?.id}`}
+          value={{ ...rascunho, nivel, periodo, descendente }}
+          onApply={preset => {
+            const lenta = Number(preset.lenta);
+            const critica = Number(preset.critica);
+            if (!Number.isFinite(lenta) || !Number.isFinite(critica) || lenta <= 0 || critica <= lenta) return;
+            setNivel(preset.nivel);
+            setPeriodo(preset.periodo);
+            setDescendente(preset.descendente);
+            setMetodo(preset.metodo);
+            setStatusHttp(preset.status);
+            setLentas(preset.lentas);
+            setLimites({ lenta, critica });
+            setFiltros(false);
+          }} />
         <div className="desktop-log-filter-form">
           <FilterSelect label="Método HTTP" value={rascunho.metodo} emptyLabel="Todos os métodos" options={['GET','POST','PUT','PATCH','DELETE','HEAD','OPTIONS'].map(value => ({ value, label: value }))} onChange={metodo => setRascunho(r => ({ ...r, metodo }))} overlayInDialog/>
           <FilterSelect label="Status HTTP" value={rascunho.status} emptyLabel="Todos os status" options={[{value:'2', label:'2xx · Sucesso'}, {value:'3', label:'3xx · Redirecionamento / cache'}, {value:'4', label:'4xx · Erro na requisição'}, {value:'5', label:'5xx · Erro no servidor'}]} onChange={status => setRascunho(r => ({ ...r, status }))} overlayInDialog/>

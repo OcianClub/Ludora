@@ -75,6 +75,7 @@ export function registrarRequisicoes(req: Request, res: Response, next: NextFunc
       metodo: req.method,
       caminho,
       rotaTecnica: typeof req.route?.path === 'string' ? req.route.path : undefined,
+      correlacao: typeof res.locals.correlacao === 'string' ? res.locals.correlacao : undefined,
       status: res.statusCode,
       ms,
       usuarioId: (req as any).usuarioId ?? null,

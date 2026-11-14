@@ -8,7 +8,7 @@ import { Btn, Input, Modal, LoadingSkeleton } from '../components/UI';
 import { Icon } from '../components/Icon';
 import { InfoNotice } from '../components/InfoNotice';
 import { ClubBadge } from '../components/Brand';
-import { CollectionFilterDialog } from '../components/CollectionToolbar';
+import { CollectionFilterDialog, FilterRadioGroup } from '../components/CollectionToolbar';
 import { MatchDateField, MatchTimeField } from '../components/MatchDateTime';
 import { formatMatchDate } from '../components/MatchCard';
 import { Toast } from '../components/Toast';
@@ -24,7 +24,7 @@ export default function SolicitacoesPartidas() {
   const [form, setForm] = useState({ data: '', horario: '', local: '', motivo: '' });
   const [filtro, setFiltro] = useState('PENDENTE');
   const [direcao, setDirecao] = useState('TODAS');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterAnchor, setFilterAnchor] = useState<HTMLButtonElement | null>(null);
   const [draftFilters, setDraftFilters] = useState({ situacao: 'PENDENTE', direcao: 'TODAS' });
   const highlighted = useRef<string | null>(null);
   useEffect(() => {
@@ -76,7 +76,7 @@ export default function SolicitacoesPartidas() {
     <header className="shared-mobile-header">
       <Link to="/partidas" className="btn btn-ghost shared-mobile-back" aria-label="Voltar às partidas"><Icon name="arrow" size={20}/></Link>
       <h1>Solicitações</h1>
-      <button type="button" className="shared-mobile-filter" aria-label="Filtrar solicitações" aria-haspopup="dialog" aria-expanded={filtersOpen} onClick={() => { setDraftFilters({ situacao: filtro, direcao }); setFiltersOpen(true); }}><Icon name="filters" size={20}/>{activeFilterCount > 0 && <span className="shared-filter-dot" aria-hidden="true"/>}</button>
+      <button type="button" className="shared-mobile-filter" aria-label="Filtrar solicitações" aria-haspopup="dialog" aria-expanded={!!filterAnchor} onClick={event => { if (filterAnchor) { setFilterAnchor(null); return; } setDraftFilters({ situacao: filtro, direcao }); setFilterAnchor(event.currentTarget); }}><Icon name="filters" size={20}/>{activeFilterCount > 0 && <span className="shared-filter-dot" aria-hidden="true"/>}</button>
     </header>
     <div className="shared-desktop-filters">
       <div className="shared-status-tabs" role="group" aria-label="Situação das solicitações">{situationOptions.map(([v, l]) => <button type="button" key={l} aria-pressed={filtro === v} onClick={() => setFiltro(v)}>{l}</button>)}</div>
@@ -113,9 +113,11 @@ export default function SolicitacoesPartidas() {
       </article>;
     })}</div>}
     {!loading && !error && !refreshError && visibleItems.length === 0 && <div className="shared-requests-empty" role="status"><Icon name="email" size={36}/><h2>{items.length ? 'Nenhuma solicitação com esses filtros' : 'Nenhuma solicitação por aqui'}</h2><p>{items.length ? 'Tente outra situação ou veja todas as solicitações.' : 'Propostas de partida e pedidos entre clubes aparecerão aqui.'}</p>{items.length > 0 && <Btn variant="ghost" onClick={clearFilters}>Limpar filtros</Btn>}</div>}
-    <CollectionFilterDialog open={filtersOpen} title="Filtrar solicitações" onClose={() => setFiltersOpen(false)} onClear={() => setDraftFilters({ situacao: '', direcao: 'TODAS' })} onApply={() => { setFiltro(draftFilters.situacao); setDirecao(draftFilters.direcao); setFiltersOpen(false); }} className="shared-request-filter-dialog">
-      <fieldset className="shared-request-filter-group"><legend>Situação</legend><div>{situationOptions.map(([value, label]) => <button type="button" key={label} aria-pressed={draftFilters.situacao === value} onClick={() => setDraftFilters(current => ({ ...current, situacao: value }))}>{label}</button>)}</div></fieldset>
-      <fieldset className="shared-request-filter-group"><legend>Solicitações</legend><div>{directionOptions.map(([value, label]) => <button type="button" key={label} aria-pressed={draftFilters.direcao === value} onClick={() => setDraftFilters(current => ({ ...current, direcao: value }))}>{label}</button>)}</div></fieldset>
+    <CollectionFilterDialog open={!!filterAnchor} anchor={filterAnchor} title="Filtrar solicitações" onClose={() => setFilterAnchor(null)} onClear={() => setDraftFilters({ situacao: '', direcao: 'TODAS' })} onApply={() => { setFiltro(draftFilters.situacao); setDirecao(draftFilters.direcao); setFilterAnchor(null); }} className="shared-request-filter-dialog">
+      <FilterRadioGroup label="Situação" value={draftFilters.situacao} options={situationOptions.map(([value, label]) => ({ value, label }))}
+        onChange={situacao => setDraftFilters(current => ({ ...current, situacao }))} />
+      <FilterRadioGroup label="Solicitações" value={draftFilters.direcao} options={directionOptions.map(([value, label]) => ({ value, label }))}
+        onChange={direcao => setDraftFilters(current => ({ ...current, direcao }))} />
     </CollectionFilterDialog>
     <Modal open={!!selected} title={responseTitle} className="proposal-response-dialog" onClose={closeResponse} footer={<div className="proposal-response-actions"><Btn disabled={busy} variant="ghost" onClick={closeResponse}>Voltar</Btn><Btn disabled={busy} variant={['RECUSAR', 'CANCELAR'].includes(acao) ? 'danger' : 'primary'} onClick={() => void respond()}>{busy ? 'Salvando…' : responseLabel}</Btn></div>}>
       {selected && <><div className="proposal-response-match"><strong>{selected.origem?.nome} <span>×</span> {selected.destino?.nome}</strong>{selected.categoria_nome && <small>{selected.categoria_nome.toUpperCase()}</small>}</div>

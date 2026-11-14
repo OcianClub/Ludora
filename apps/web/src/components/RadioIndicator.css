@@ -1,0 +1,22 @@
+.radio-indicator {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  margin-inline-start: auto;
+  border: 1px solid var(--texto-sec);
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.radio-indicator[data-checked="true"] {
+  border-color: var(--primaria);
+  background: var(--primaria);
+}
+.radio-indicator[data-checked="true"]::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+}

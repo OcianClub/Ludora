@@ -43,7 +43,7 @@ test('rotas protegem expiração, tentativas, consumo concorrente e sessões ant
   let versao = 0;
   let senhaSalva = '';
   const codigos: string[] = [];
-  let desconexoes = 0;
+  const desconexoes: string[] = [];
 
   t.mock.method(banco.usuario, 'findUnique', async (args: any) => {
     if (args.where.email === 'ausente@exemplo.com') return null;
@@ -94,13 +94,11 @@ test('rotas protegem expiração, tentativas, consumo concorrente e sessões ant
   );
 
   const io = {
-    of: () => ({
-      in: () => ({ disconnectSockets: () => { desconexoes += 1; } }),
+    of: (canal: string) => ({
+      in: (sala: string) => ({ disconnectSockets: () => desconexoes.push(`${canal} ${sala}`) }),
     }),
-    in: () => ({
-      disconnectSockets: () => {
-        desconexoes += 1;
-      },
+    in: (sala: string) => ({
+      disconnectSockets: () => desconexoes.push(`/ ${sala}`),
     }),
   } as unknown as Server;
   const app = express();
@@ -162,7 +160,7 @@ test('rotas protegem expiração, tentativas, consumo concorrente e sessões ant
   ]);
   assert.deepEqual(resultados.map((r) => r.status).sort(), [200, 400]);
   assert.equal(versao, 1);
-  assert.equal(desconexoes, 2);
+  assert.deepEqual(desconexoes, ['/ usuario:1', '/admin usuario:1', '/suporte usuario:1']);
   assert.equal(await bcrypt.compare(dados.senha, senhaSalva), true);
   assert.equal((await post('/auth/redefinir-senha', dados)).status, 400);
   assert.equal(await getUsuarioIdPeloToken(tokenAntigo, banco), null);

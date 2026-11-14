@@ -6,6 +6,7 @@ import { PositionIcon } from './PositionIcon';
 import { Icon, type IconName } from './Icon';
 import { CollectionViewToggle } from './CollectionToolbar';
 import { useDropdownPlacement } from '../hooks/useDropdownPlacement';
+import { RadioIndicator } from './RadioIndicator';
 
 export type ViewMode = 'grid' | 'list';
 export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (value: ViewMode) => void }) {
@@ -40,7 +41,7 @@ export function Choice({ label, value, options, onChange, disabled = false, plac
         e.preventDefault(); const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button')]; const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
         buttons[e.key === 'Home' ? 0 : e.key === 'End' ? buttons.length - 1 : (index + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
       }
-    }}>{options.map(option => <button data-choice-option key={option.value} type="button" aria-pressed={option.value === value} onClick={() => { onChange(option.value); setOpen(false); trigger.current?.focus(); }}>{option.icon && <span className={`choice-option-icon choice-icon-${option.value.toLowerCase()}`}><Icon name={option.icon} size={16}/></span>}<span>{option.label}</span></button>)}</div>}
+    }}>{options.map(option => <button data-choice-option key={option.value} type="button" aria-pressed={option.value === value} onClick={() => { onChange(option.value); setOpen(false); trigger.current?.focus(); }}>{option.icon && <span className={`choice-option-icon choice-icon-${option.value.toLowerCase()}`}><Icon name={option.icon} size={16}/></span>}<span>{option.label}</span><RadioIndicator checked={option.value === value}/></button>)}</div>}
   </div>;
 }
 export function ConfirmDelete({ name, busy, error, onClose, onConfirm }: { name: string | null; busy: boolean; error: string; onClose: () => void; onConfirm: () => void }) {

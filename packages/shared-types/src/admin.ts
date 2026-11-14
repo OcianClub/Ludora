@@ -126,6 +126,7 @@ export interface StatusSistema {
 }
 
 export interface EntradaLog {
+  correlacao?: string;
   id: number;
   clubeId?: number;
   ts: string;

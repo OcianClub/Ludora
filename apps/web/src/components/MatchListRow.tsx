@@ -7,7 +7,7 @@ import { Icon } from './Icon';
 import { StatusBadge } from './UI';
 import './MatchListRow.css';
 
-export function MatchListRow({ partida: p, onOpen }: { partida: Partida; onOpen?: () => void }) {
+export function MatchListRow({ partida: p, onOpen, returnTo }: { partida: Partida; onOpen?: () => void; returnTo?: string }) {
   const { clube } = useAuth();
   const date = new Date(`${p.data.slice(0, 10)}T12:00:00Z`);
   const validDate = !Number.isNaN(date.getTime());
@@ -24,7 +24,7 @@ export function MatchListRow({ partida: p, onOpen }: { partida: Partida; onOpen?
   const finished = !occurrence && p.status === 'FINALIZADA';
 
   return (
-    <Link className="match-list-row" to={onOpen ? '#' : `/partidas/${p.id}`} role={onOpen ? 'button' : undefined} onClick={event => { if (onOpen) { event.preventDefault(); onOpen(); } }} onKeyDown={event => { if (onOpen && event.key === ' ') { event.preventDefault(); onOpen(); } }} aria-label={`${home} contra ${away}, ${dateLabel}, ${p.horario || 'horário a definir'}. Ver partida.`}>
+    <Link className="match-list-row" to={onOpen ? '#' : `/partidas/${p.id}`} state={{ fromSchedule: returnTo }} role={onOpen ? 'button' : undefined} onClick={event => { if (onOpen) { event.preventDefault(); onOpen(); } }} onKeyDown={event => { if (onOpen && event.key === ' ') { event.preventDefault(); onOpen(); } }} aria-label={`${home} contra ${away}, ${dateLabel}, ${p.horario || 'horário a definir'}. Ver partida.`}>
       <div className="match-list-date">
         <time dateTime={validDate ? p.data.slice(0, 10) : undefined}>{dateLabel}</time>
         <span><span>{weekday}</span><span className="match-list-time"><Icon name="clock" size={13} />{p.horario || 'A definir'}</span></span>

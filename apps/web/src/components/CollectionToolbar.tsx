@@ -1,6 +1,8 @@
-import { useEffect, useId, type ReactNode } from 'react';
+import { useEffect, useId, type MouseEventHandler, type ReactNode } from 'react';
 import { Btn, Modal } from './UI';
 import { Icon, type IconName } from './Icon';
+import { ResponsivePanel } from './ResponsivePanel';
+import { RadioIndicator } from './RadioIndicator';
 import './CollectionToolbar.css';
 
 export function CollectionSearch({ value, onChange, label, placeholder, id, className = '' }: {
@@ -15,11 +17,11 @@ export function CollectionSearch({ value, onChange, label, placeholder, id, clas
   </div>;
 }
 
-export function CollectionFilterButton({ onClick, label = 'Filtros', text, count = 0, className = '' }: {
-  onClick: () => void; label?: string; text?: string; count?: number; className?: string;
+export function CollectionFilterButton({ onClick, label = 'Filtros', text, count = 0, className = '', expanded }: {
+  onClick: MouseEventHandler<HTMLButtonElement>; label?: string; text?: string; count?: number; className?: string; expanded?: boolean;
 }) {
   return <Btn variant="ghost" className={`collection-control collection-filter-button compact-filter-button ${className}`}
-    onClick={onClick} aria-label={label} data-tooltip={label} aria-haspopup="dialog">
+    type="button" onClick={onClick} aria-label={label} data-tooltip={label} aria-haspopup="dialog" aria-expanded={expanded}>
     <Icon name="filters" size={18}/>
     {text && <span className="collection-filter-label">{text}</span>}
     {count > 0 && <span className="compact-filter-count">{count}</span>}
@@ -39,9 +41,28 @@ export function CollectionViewToggle({ value, onChange, options, label = 'Modo d
   </div>;
 }
 
-export function CollectionFilterDialog({ open, title, onClose, onClear, onApply, applyLabel = 'Aplicar filtros', showCancel = false, children, className = '' }: {
+export function FilterRadioGroup({ label, value, options, onChange }: {
+  label: string;
+  value: string;
+  options: { value: string; label: string; icon?: IconName }[];
+  onChange: (value: string) => void;
+}) {
+  const name = useId();
+  return <fieldset className="filter-radio-group">
+    <legend>{label}</legend>
+    {options.map(option => <label className="filter-radio-option" key={option.value}>
+      <input type="radio" name={name} value={option.value} checked={option.value === value}
+        onChange={() => onChange(option.value)} />
+      {option.icon && <Icon name={option.icon} size={16}/>}
+      <span>{option.label}</span>
+      <RadioIndicator checked={option.value === value}/>
+    </label>)}
+  </fieldset>;
+}
+
+export function CollectionFilterDialog({ open, anchor, title, onClose, onClear, onApply, applyLabel = 'Aplicar filtros', showCancel = false, children, className = '' }: {
   open: boolean; title: string; onClose: () => void; onClear: () => void; onApply: () => void;
-  applyLabel?: string; showCancel?: boolean; children: ReactNode; className?: string;
+  applyLabel?: string; showCancel?: boolean; children: ReactNode; className?: string; anchor?: HTMLElement | null;
 }) {
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -61,11 +82,13 @@ export function CollectionFilterDialog({ open, title, onClose, onClear, onApply,
       root.style.removeProperty('--collection-filter-bottom');
     };
   }, [open]);
-  return <Modal open={open} title={title} onClose={onClose} className={`collection-filter-dialog ${className}`}
-    footer={<div className="collection-filter-actions">
-      <Btn variant="ghost" onClick={onClear}>Limpar filtros</Btn>
-      <div>{showCancel && <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>}<Btn onClick={onApply}>{applyLabel}</Btn></div>
-    </div>}>
-    {children}
-  </Modal>;
+  if (!open) return null;
+  const footer = <div className="collection-filter-actions">
+    <Btn variant="ghost" onClick={onClear}>Limpar filtros</Btn>
+    <div>{showCancel && <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>}<Btn onClick={onApply}>{applyLabel}</Btn></div>
+  </div>;
+  const classes = `collection-filter-dialog ${className}`;
+  return anchor
+    ? <ResponsivePanel anchor={anchor} title={title} onClose={onClose} className={classes} footer={footer}>{children}</ResponsivePanel>
+    : <Modal open title={title} onClose={onClose} className={classes} footer={footer}>{children}</Modal>;
 }

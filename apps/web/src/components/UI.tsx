@@ -32,11 +32,12 @@ export function Card({ children, className = '' }: { children: React.ReactNode; 
 interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'ghost' | 'danger';
   size?: 'sm' | 'md';
+  loading?: boolean;
 }
-export function Btn({ variant = 'primary', size = 'md', className = '', children, ...rest }: BtnProps) {
+export function Btn({ variant = 'primary', size = 'md', className = '', children, loading = false, disabled, ...rest }: BtnProps) {
   return (
-    <button className={`btn btn-${variant} btn-${size} ${className}`} {...rest}>
-      {children}
+    <button className={`btn btn-${variant} btn-${size} ${className}`} {...rest} disabled={disabled || loading} aria-busy={loading || rest['aria-busy']}>
+      {loading && <span className="btn-spinner" aria-hidden="true" />}{children}
     </button>
   );
 }

@@ -10,7 +10,7 @@
 .club-draft-notice strong { font-size:13px; }
 .club-draft-notice p, .club-draft-hint { font-size:12px; color:var(--texto-sec); line-height:1.6; margin:5px 0 0; }
 .club-draft-hint { margin:0 0 22px; }
-.desktop-app :is(.desktop-club-settings,.club-create-dialog) .club-badge { background:var(--fundo-card-sec); border:0; color:var(--texto); border-radius:8px; }
+.desktop-app :is(.desktop-club-settings,.club-create-dialog) .club-badge { background:var(--superficie-neutra); border:0; color:var(--texto); border-radius:8px; }
 .desktop-app .club-create-dialog .admin-club-steps { margin-bottom:12px; }
 .admin-club-steps li button { display:flex; align-items:center; gap:8px; padding:4px 0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; width:100%; }
 .admin-club-steps li button:disabled { opacity:.55; cursor:default; }
@@ -19,7 +19,7 @@
 .desktop-club-page .club-back { justify-self:start; }
 .desktop-club-page .club-back { min-height:38px; gap:9px; padding-inline:12px; }
 .desktop-club-page .club-heading-actions { align-items:center; min-height:38px; }
-.desktop-app .desktop-club-page .club-plan-tag { box-sizing:border-box; height:24px; min-height:24px; flex:none; align-self:center; padding:0 8px; font-size:11px; line-height:24px; letter-spacing:.2px; color:var(--texto); background:var(--fundo-card-sec); }
+.desktop-app .desktop-club-page .club-plan-tag { box-sizing:border-box; height:24px; min-height:24px; flex:none; align-self:center; padding:0 8px; font-size:11px; line-height:24px; letter-spacing:.2px; color:var(--texto); background:var(--superficie-neutra); }
 .club-back > .icon { transform:rotate(180deg); }
 .desktop-club-page > .desktop-tabs > .desktop-tabs-panel { display:grid; gap:24px; min-width:0; }
 .club-access-section { display:grid; gap:16px; min-width:0; }
@@ -38,14 +38,14 @@
 .club-access-table .user-identity p { font-size:11px; margin:4px 0 0; }
 .club-access-table .user-identity-avatar { width:32px; height:32px; flex:0 0 32px; }
 .club-access-categories { display:flex; flex-wrap:wrap; gap:5px; }
-.club-access-categories > span { padding:3px 6px; border-radius:4px; background:var(--fundo-card-sec); color:var(--texto); font-size:10px; white-space:nowrap; }
+.club-access-categories > span { padding:3px 6px; border-radius:4px; background:var(--superficie-neutra); color:var(--texto); font-size:10px; white-space:nowrap; }
 .club-access-table .actions { justify-content:flex-end; flex-wrap:nowrap; gap:8px; }
 .desktop-club-page .club-invites-table th:first-child { width:30%; }
 .desktop-club-page .club-invites-table th:nth-child(2) { width:180px; }
 .club-invites-table td:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .club-invite-status { display:inline-flex; align-items:center; gap:6px; height:26px; color:var(--texto); font-size:11px; white-space:nowrap; }
-.club-invite-status[data-status="PENDENTE"] > .icon { color:var(--amarelo); }
-.club-invite-status[data-status="ACEITO"] > .icon { color:#43c998; }
+.club-invite-status[data-status="PENDENTE"] > .icon { color:var(--desktop-status-warning); }
+.club-invite-status[data-status="ACEITO"] > .icon { color:var(--desktop-status-success); }
 .club-invite-status:is([data-status="REVOGADO"],[data-status="EXPIRADO"]) { color:var(--texto-sec); }
 .club-invite-form { display:grid; gap:16px; }
 .club-invite-form :is(h2,p) { margin:0; }
@@ -68,8 +68,8 @@
 .club-operation-data dd { margin:0; font-size:13px; font-weight:600; }
 .club-operation-data small { display:block; color:var(--texto-sec); font-size:12px; font-weight:400; margin-top:4px; }
 .club-operation-status { display:flex; align-items:center; gap:7px; }
-.club-operation-status > .icon { color:var(--amarelo); }
-.club-operation-status[data-active="true"] > .icon { color:#43c998; }
+.club-operation-status > .icon { color:var(--desktop-status-warning); }
+.club-operation-status[data-active="true"] > .icon { color:var(--desktop-status-success); }
 .club-operation-responsibles h3 { font:600 13px/1.5 var(--font-corpo); margin:0; }
 .club-responsibles-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); column-gap:26px; }
 .club-responsibles-list .user-identity { background:transparent; border:0; padding:12px 0; margin:0; }
@@ -82,7 +82,7 @@
 .club-confirmation { display:flex; align-items:flex-start; gap:10px; padding-block:16px; line-height:1.6; }
 .club-confirmation input { flex:none; width:17px; height:17px; accent-color:var(--primaria); margin-top:3px; }
 .club-invite-heading { display:flex; align-items:center; gap:12px; }
-.club-invite-heading > span { display:grid; place-items:center; width:40px; height:40px; border-radius:8px; background:var(--fundo-card-sec); color:var(--primaria); }
+.club-invite-heading > span { display:grid; place-items:center; width:40px; height:40px; border-radius:8px; background:var(--superficie-neutra); color:var(--primaria); }
 .club-invite-heading h2 { font:600 16px/1.5 var(--font-corpo); margin:0; }
 .club-invite-heading p { margin-top:4px; color:var(--texto-sec); font-size:12px; }
 .club-invite-fields { display:grid; gap:18px; }
@@ -120,7 +120,6 @@
 .desktop-club-roster-table .alunos-identity { min-width:0; }
 .desktop-club-roster-table .desktop-link-button { color:var(--texto); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .desktop-club-roster-table .student-open { background:transparent; color:var(--texto-sec); }
-:root[data-theme="light"] .club-invite-status[data-status="ACEITO"] > .icon { color:#16734f; }
 @container desktop-content (max-width:720px) {
  .desktop-clubs-page .club-toolbar { grid-template-columns:minmax(0,1fr) 165px; }
  .club-draft-notice { flex-wrap:wrap; }

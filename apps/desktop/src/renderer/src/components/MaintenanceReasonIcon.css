@@ -1,7 +1,6 @@
 .maintenance-reason-icon { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--texto-sec); }
-.maintenance-reason-icon[data-tone="review"] { color:var(--titulo-atencao); }
+.maintenance-reason-icon[data-tone="review"] { color:var(--desktop-status-warning); }
 .maintenance-reason-icon[data-tone="fix"] { color:var(--primaria); }
-.maintenance-reason-icon[data-tone="failure"] { color:var(--titulo-erro); }
+.maintenance-reason-icon[data-tone="failure"] { color:var(--desktop-status-error); }
 .maintenance-reason-icon[data-tone="checked"] { color:var(--ciano); }
-.maintenance-reason-icon[data-tone="success"] { color:#43c998; }
-:root[data-theme="light"] .maintenance-reason-icon[data-tone="success"] { color:#147955; }
+.maintenance-reason-icon[data-tone="success"] { color:var(--desktop-status-success); }

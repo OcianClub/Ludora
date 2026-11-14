@@ -12,8 +12,19 @@
 .support-form fieldset { margin: 0; padding: 0; border: 0; }
 .support-form textarea { min-height: 86px; resize: vertical; line-height: 1.6; }
 .support-selects { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); gap: 14px; }
-.support-context { display:flex; align-items:center; gap:8px; min-width:0; padding:4px 8px; color:var(--texto-sec); }
-.support-context > span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.support-form-notes { display: grid; gap: 12px; min-width: 0; }
+.support-context {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 8px;
+  background: var(--superficie-neutra, var(--fundo));
+  color: var(--texto-sec);
+}
+.support-context-copy { display: grid; gap: 2px; min-width: 0; font-size: 12px; line-height: 1.45; }
+.support-context-copy strong { color: var(--texto); font-weight: 600; }
 .support-extra { min-width:0; border-top:1px solid var(--linha); }
 .support-extra summary { padding-block:10px 4px; cursor:pointer; color:var(--primaria); font-size:13px; }
 .support-extra .field { margin-top:10px; }
@@ -25,16 +36,18 @@
 .support-confirmation > .btn { margin-top:4px; }
 .support-context button { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--texto-sec); }
 .support-context button:hover { background: var(--fundo-card-sec); color: var(--texto); }
-.support-privacy { display: flex; align-items: flex-start; gap: 8px; margin: -6px 0 0; font-size: 12px; line-height: 1.5; color: var(--texto-sec); }
-.support-actions { display: flex; justify-content: flex-end; gap: 10px; width: 100%; }
+.support-privacy { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 10px; margin: 0; padding-inline: 12px; font-size: 12px; line-height: 1.5; color: var(--texto-sec); }
+.support-privacy > .icon { margin-top: 1px; }
+.support-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; width: 100%; }
+.support-actions > .btn { min-width: 0; text-align: center; }
+.support-actions > .btn > :is(.icon, svg) { flex: none; }
 .support-feedback { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.5; background: var(--fundo); border: 1px solid var(--linha); }
 .support-error { color: var(--titulo-erro); }
 .support-success { color: var(--texto); }
 .support-success > svg, .support-success > .icon { color: var(--primaria); }
 .support-history-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; }
 .support-back { display: inline-flex; gap: 6px; align-items: center; min-height: 36px; border: 0; padding: 4px 0; background: transparent; color: var(--primaria); font-size: 12px; }
-.support-loading, .support-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 180px; text-align: center; color: var(--texto-sec); font-size: 13px; }
-.support-loading .spinner { margin: 0; }
+.support-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 180px; text-align: center; color: var(--texto-sec); font-size: 13px; }
 .support-empty p { margin: 0; line-height: 1.5; }
 .support-tickets { display: grid; gap: 10px; }
 .support-tickets > button { display: flex; gap: 12px; align-items: center; text-align: left; padding: 14px; width: 100%; border: 1px solid var(--linha); border-radius: 8px; background: var(--fundo); color: var(--texto); }
@@ -59,9 +72,9 @@
 @media (max-width: 480px) {
   .support-dialog .modal-body { gap: 18px; }
   .support-dialog .modal-footer { padding: 14px 16px; }
-  .support-actions > .btn { justify-content: center; }
+  .support-actions > .btn { flex: 1 1 104px; justify-content: center; padding-inline: 10px; }
+  .support-actions > .btn-primary { flex-basis: 126px; }
   .support-selects { grid-template-columns: minmax(0, 1fr); gap: 18px; }
-  .support-actions > .btn { flex: 1; min-width: 0; }
   .support-tabs > button { gap: 6px; padding-inline: 6px; font-size: 12px; }
   .support-form, .support-form fieldset { gap: 18px; }
 }

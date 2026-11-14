@@ -1,3 +1,4 @@
+import { MaintenanceNotice } from './MaintenanceNotice';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Notifications } from './Notifications';
@@ -158,7 +159,10 @@ function LayoutContent() {
           ))}
         </nav>
 
-        {!mobile && <div className="sidebar-help"><SupportButton variant="sidebar" /></div>}
+        {!mobile && <div className="sidebar-utility">
+          <MaintenanceNotice sidebar expanded={expanded} />
+          <div className="sidebar-help"><SupportButton variant="sidebar" /></div>
+        </div>}
         <div className="sidebar-footer">
           <AccountMenu />
           {!mobile && <Notifications />}
@@ -178,7 +182,7 @@ function LayoutContent() {
 
             <Link to="/selecionar-clube" className="mobile-club-switch" aria-label="Trocar clube" data-tooltip="Trocar clube"><Icon name="switchClub" size={18} /></Link>
             <div className="workspace-actions">
-              {mobile && <Notifications />}
+              {mobile && <><MaintenanceNotice /><Notifications /></>}
             </div>
           </div>
         </header>

@@ -106,7 +106,7 @@ function ManutencaoContexto({ chamadoId, eventoInicial }: { chamadoId: string | 
   const filtrosAtivos = Object.values(filtros).filter(Boolean).length;
   return <div className="ticket-page desktop-maintenance-page">
     <header className="page-header"><div><span className="ticket-kicker">Operação da plataforma</span><h1 className="page-title">Manutenção</h1><p className="page-sub">{dev ? 'Consulte as pausas temporárias e o histórico de intervenções.' : 'Gerencie pausas temporárias e acompanhe as revisões.'}</p></div>
-      <div className="actions"><Btn variant="ghost" disabled={carregando || salvando} onClick={() => void carregar()}><Icon name="refresh" size={17}/>Atualizar</Btn>{!dev && <Btn disabled={!dados || carregando || chamado?.status === 'RESOLVIDO'} onClick={() => abrir('pausar')}><Icon name="plus" size={17}/>Nova pausa</Btn>}</div>
+      <div className="actions"><Btn variant="ghost" loading={carregando} disabled={salvando} onClick={() => void carregar()}>{!carregando && <Icon name="refresh" size={17}/>}Atualizar</Btn>{!dev && <Btn disabled={!dados || carregando || chamado?.status === 'RESOLVIDO'} onClick={() => abrir('pausar')}><Icon name="plus" size={17}/>Nova pausa</Btn>}</div>
     </header>
     {chamado && <Card className="maintenance-linked"><div><span>Chamado vinculado · {nomeAlvo('CLUBE', chamado.clubeId)}</span><strong>{chamado.assunto}</strong></div><Link to={`/chamados?id=${chamado.id}`}>Voltar ao chamado<Icon name="chevronRight" size={15}/></Link></Card>}
     <DesktopTabs label="Situação das pausas" value={verHistorico ? 'encerradas' : 'ativas'} options={[
@@ -125,7 +125,7 @@ function ManutencaoContexto({ chamadoId, eventoInicial }: { chamadoId: string | 
           const atrasada = p.ativa && Date.parse(p.revisarEm) <= Date.now();
           const clube = p.escopo === 'CLUBE' ? dados.clubes.find(c=>c.id === p.alvoId) : null;
           return <Card className="maintenance-card" key={p.id}>
-            <header className="maintenance-card-header"><div className="maintenance-identity"><span className="maintenance-icon"><MaintenanceReasonIcon reason={p.motivo} size={20}/></span><div><h2>{tipos.find(t => t.value === p.operacao)?.label || p.operacao}</h2><span className="maintenance-target">{clube && <ClubBadge src={clube.escudo} name={clube.nome} size={22}/>}<span>{nomeAlvo(p.escopo, p.alvoId)}</span></span></div></div>
+            <header className="maintenance-card-header"><div className="maintenance-identity"><span className="maintenance-icon"><MaintenanceReasonIcon reason={p.motivo} size={20}/></span><div><h2>{tipos.find(t => t.value === p.operacao)?.label || p.operacao}</h2><span className="maintenance-target">{clube && <ClubBadge src={clube.escudo} name={clube.nome} size={32}/>}<span>{nomeAlvo(p.escopo, p.alvoId)}</span></span></div></div>
               <span className="maintenance-state" data-state={!p.ativa ? 'ended' : atrasada ? 'overdue' : 'active'}>{!p.ativa ? 'Reativada' : atrasada ? 'Revisão atrasada' : 'Em manutenção'}</span>
             </header>
             <p className="maintenance-reason">{p.motivo}</p>

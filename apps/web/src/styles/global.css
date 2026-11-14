@@ -102,3 +102,33 @@ button:disabled { cursor: not-allowed; }
   .api-connection-notice > button { margin-left: auto; }
 }
 .route-load-error { display: grid; gap: 16px; justify-items: start; padding: 24px; color: var(--texto-sec); }
+
+/* Superfícies neutras compartilhadas entre o web e o desktop no tema claro. */
+:root[data-theme="light"] :is(.club-badge, .match-venue, .home-match-venue, .status-finalizada, .lineup-shirt:not(.is-starter), .review-player-shirt, .lineup-shirt-edit, .available-shirt:not(.is-missing), .live-time-stepper > button, .match-insights-periods button, .paulista-journey-match, .collection-control.collection-mode-toggle button[aria-pressed="true"], .schedule-view-toggle button[aria-pressed="true"], .alunos-view-toggle button[aria-pressed="true"]) {
+  background-color: var(--superficie-neutra);
+}
+:root[data-theme="light"] :is(.paulista-journey-match, .live-time-stepper > button, .match-insights-periods button):hover:not(:disabled) {
+  background-color: var(--card-hover-claro);
+}
+
+:root[data-theme="light"] :is(
+  .shared-lineup-tabs button[aria-pressed="true"],
+  .teams-card-actions .teams-open,
+  .teams-management,
+  .teams-category-row,
+  .members-table .members-role:not(.role-admin),
+  .members-table .members-status:not(.status-aceito),
+  .members-access-subs > span,
+  .members-person strong > small,
+  .support-dialog .support-tabs > button[aria-pressed="true"],
+  .support-dialog .schedule-select-chevron,
+  .support-tickets > button,
+  .support-status
+) {
+  background-color: var(--superficie-neutra);
+}
+:root[data-theme="light"] :is(.teams-card-actions .teams-open, .teams-category-row, .support-tickets > button):hover {
+  background-color: var(--controle-hover-claro);
+}
+
+.collection-suggestions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-width: 0; }

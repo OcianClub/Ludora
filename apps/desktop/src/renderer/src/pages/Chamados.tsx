@@ -1,5 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { readLocal, writeLocal } from '@web/services/localState';
+import { SavedFilters } from '../components/SavedFilters';
+import { podeAbrirAba } from '../permissions';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { CollectionFilterButton, CollectionFilterDialog, CollectionSearch } from '@web/components/CollectionToolbar';
 import { DesktopSelect } from '../components/DesktopSelect';
 import { DesktopTabs } from '../components/DesktopTabs';
@@ -8,7 +11,7 @@ import { DesktopAccordion } from '../components/DesktopAccordion';
 import { agruparFinalizados } from '../../../shared/ticket-periods';
 import { SchedulePeriodDialog } from '@web/components/SchedulePeriodDialog';
 import { Icon } from '@web/components/Icon';
-import { Btn, Card, DesktopState, LoadingSkeleton, Modal, Spinner } from '../components/AdminUI';
+import { Btn, Card, DesktopState, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { Toast } from '@web/components/Toast';
 import '@web/pages/Partidas.css';
 import SupportOperations from '../components/SupportOperations';
@@ -101,6 +104,10 @@ export default function ChamadosPage() {
   const dev = usuario?.papel_plataforma === 'DESENVOLVEDOR';
   const [params, setParams] = useSearchParams();
   const id = params.get('id');
+  const location = useLocation();
+  const ticketReturn = location.pathname + location.search;
+  const canViewLogs = podeAbrirAba(usuario?.papel_plataforma, '/logs');
+  const canViewClubs = podeAbrirAba(usuario?.papel_plataforma, '/clubes');
   const [fila, setFila] = useState<{ consulta: string; itens: Chamado[] }>();
   const scrollFila = useRef(0);
   const origemDetalhe = useRef<HTMLButtonElement | null>(null);
@@ -116,7 +123,15 @@ export default function ChamadosPage() {
   const [status, setStatus] = useState('EM_TRIAGEM');
   const [tipo, setTipo] = useState('OUTRO');
   const [modoComentario, setModoComentario] = useState<ModoComentario>('nota');
-  const [comentarios, setComentarios] = useState({ nota: '', resposta: '' });
+  const draftKey = id && usuario ? `ludora:chamado:${usuario.id}:${id}` : '';
+  const [commentDraft, setCommentDraft] = useState<{ key: string; nota: string; resposta: string }>();
+  const comments = commentDraft?.key === draftKey ? commentDraft : readLocal<{ nota: string; resposta: string }>(draftKey, 'sessionStorage');
+  function setComment(mode: ModoComentario, text: string) {
+    const stored = readLocal<{ nota: string; resposta: string }>(draftKey, 'sessionStorage');
+    const next = { nota: '', resposta: '', ...(stored ?? comments), [mode]: text };
+    writeLocal(draftKey, next.nota || next.resposta ? next : undefined, 'sessionStorage');
+    setCommentDraft({ ...next, key: draftKey });
+  }
   const [historicoCompleto, setHistoricoCompleto] = useState(false);
   const [carregarFerramentas, setCarregarFerramentas] = useState(false);
   const [decisao, setDecisao] = useState<Decisao | null>(null);
@@ -179,7 +194,7 @@ export default function ChamadosPage() {
   }, [id]);
 
   useEffect(() => {
-    setMotivo(''); setModoComentario('nota'); setComentarios({ nota: '', resposta: '' });
+    setMotivo(''); setModoComentario('nota');
     setHistoricoCompleto(false); setCarregarFerramentas(false); setResultado(''); setDecisao(null);
   }, [id]);
 
@@ -207,7 +222,7 @@ export default function ChamadosPage() {
       await requestJson(`${endpoint}/${detalhe.id}`, {
         method: 'PATCH', body: { acao, motivo, status, tipo, publico: false, ...entrada, revisao: detalhe.revisao },
       });
-      if (acao === 'COMENTAR') setComentarios(anterior => ({ ...anterior, [entrada?.publico ? 'resposta' : 'nota']: '' }));
+      if (acao === 'COMENTAR') setComment(entrada?.publico ? 'resposta' : 'nota', '');
       else if (entrada) setDecisao(null);
       else setMotivo('');
       if (acao === 'DEVOLVER' && dev) alterar({ id: '' });
@@ -280,33 +295,37 @@ export default function ChamadosPage() {
   const podeResponder = !dev && !!atual?.usuarioId;
   const respostaPublica = podeResponder && modoComentario === 'resposta';
   const modoAtivo = respostaPublica ? 'resposta' : 'nota';
-  const comentario = comentarios[modoAtivo];
+  const comentario = comments?.[modoAtivo] ?? '';
   const modelos = modelosComentario[modoAtivo];
   const editorComentario = <div className="ticket-comment-editor">
     <DesktopSelect label={respostaPublica ? 'Modelos de resposta' : 'Modelos de nota'} placeholder="Escolher um modelo"
       fullWidth disabled={busy} value={modelos.find(modelo => modelo.texto === comentario)?.texto || ''}
       options={modelos.map(modelo => ({ value: modelo.texto, label: modelo.label }))}
-      onChange={texto => setComentarios(atual => ({ ...atual, [modoAtivo]: texto }))}/>
+      onChange={texto => setComment(modoAtivo, texto)}/>
     <label className="field">{respostaPublica ? 'Resposta ao cliente' : 'Nota interna'}
       <textarea className="field-input" rows={3} maxLength={4000} disabled={busy} value={comentario}
-        onChange={e => setComentarios(atual => ({ ...atual, [modoAtivo]: e.target.value }))}/>
+        onChange={e => setComment(modoAtivo, e.target.value)}/>
     </label>
   </div>;
   const podeAssumir = !!atual && atual.status !== 'RESOLVIDO' && atual.responsavelId !== usuario?.id;
   const podeDevolver = !!atual && dev && atual.fila === 'DESENVOLVIMENTO' && atual.status !== 'RESOLVIDO';
   const historico = atual?.historico ? [...atual.historico].reverse() : [];
-  const copiarProtocolo = async (protocolo: string) => {
-    try { await navigator.clipboard.writeText(protocolo); setResultado('Protocolo copiado.'); }
-    catch { setResultado('Não foi possível copiar o protocolo.'); }
+  const copy = async (value: string, label: string) => {
+    try { await navigator.clipboard.writeText(value); setResultado(`${label} copiado.`); }
+    catch { setResultado(`Não foi possível copiar. ${label}.`); }
   };
+  const correlation = atual?.detalhesTecnicos?.correlacao ?? [...historico].find(entry => entry.dados?.correlacao)?.dados?.correlacao;
+  const logFilters = correlation ? { correlacao: correlation } :
+    atual?.origem === 'AUTOMATICO' && atual.rota ? { rota: atual.rota, horario: atual.criadoEm } : null;
+  const presetFields = [...filtrosExtras, 'visao', 'periodo', 'desde', 'ate'];
 
   return <div className="ticket-page match-schedule desktop-tickets-page">
     {id && <Btn className="ticket-back" variant="ghost" disabled={busy} onClick={() => alterar({ id: '' }, true)}><Icon name="chevronLeft" size={17}/> Voltar à fila</Btn>}
     <header className="page-header">
       <div><span className="ticket-kicker">Central de atendimento</span><h1 className="page-title">{id ? atual?.assunto || 'Detalhe do chamado' : dev ? 'Caixa de desenvolvimento' : 'Chamados'}</h1>
-        {id ? atual && <p className="page-sub ticket-protocol">Protocolo {id}<button type="button" className="ticket-copy" aria-label="Copiar protocolo" onClick={() => void copiarProtocolo(id)}><Icon name="copy" size={15}/></button></p>
+        {id ? atual && <p className="page-sub ticket-protocol">Protocolo {id}<button type="button" className="ticket-copy" aria-label="Copiar protocolo" onClick={() => void copy(id, 'Protocolo')}><Icon name="copy" size={15}/></button></p>
           : <p className="page-sub">Acompanhe o atendimento e as ocorrências do Ludora.</p>}</div>
-      <div className="actions"><Btn variant="ghost" className="ticket-refresh" disabled={carregando || busy} onClick={() => setAtualizacao(n => n + 1)}><Icon name="refresh" size={17}/> {id ? 'Atualizar chamado' : 'Atualizar fila'}</Btn>
+      <div className="actions"><Btn variant="ghost" className="ticket-refresh" loading={carregando} disabled={busy} onClick={() => setAtualizacao(n => n + 1)}>{!carregando && <Icon name="refresh" size={17}/>} {id ? 'Atualizar chamado' : 'Atualizar fila'}</Btn>
         {!id && !dev && <Btn onClick={() => setCriando(true)}><Icon name="plus" size={17}/> Novo chamado</Btn>}
         {podeAssumir && !atual?.responsavelId && <Btn disabled={busy || carregando} onClick={() => abrirDecisao('ATRIBUIR')}>Assumir chamado</Btn>}
         {podeDevolver && <Btn variant="ghost" disabled={busy || carregando} onClick={() => abrirDecisao('DEVOLVER')}>Devolver ao suporte</Btn>}
@@ -329,6 +348,9 @@ export default function ChamadosPage() {
       {periodoAberto && <SchedulePeriodDialog inicio={ler('desde')} fim={ler('ate')} onClose={() => setPeriodoAberto(false)} onApply={(desde, ate) => { alterar({ periodo: 'intervalo', desde, ate }); setPeriodoAberto(false); }}/>}
       {rascunho && <CollectionFilterDialog open title="Filtrar chamados" onClose={() => setRascunho(null)} onClear={() => setRascunho({})}
         onApply={() => { alterar({ ...Object.fromEntries(filtrosExtras.map(key => [key, rascunho[key] || ''])), ...(rascunho.status ? { visao: '' } : {}) }); setRascunho(null); }}>
+        <SavedFilters storageKey={`ludora:chamados:filtros:${usuario?.id}`}
+          value={Object.fromEntries(presetFields.map(field => [field, filtrosExtras.some(extra => extra === field) ? rascunho[field] || '' : field === 'visao' && rascunho.status ? '' : ler(field)]))}
+          onApply={preset => { alterar(Object.fromEntries(presetFields.map(field => [field, preset[field] || '']))); setRascunho(null); }} />
         <div className="schedule-filter-fields">
           <DesktopSelect label="Origem" showLabel fullWidth expandInDialog value={rascunho.origem || ''} options={[{ value: '', label: 'Todas as origens' }, ...origens]} onChange={origem => setRascunho({ ...rascunho, origem })}/>
           <DesktopSelect label="Prioridade" showLabel fullWidth expandInDialog value={rascunho.prioridade || ''} options={[{ value: '', label: 'Todas as prioridades' }, ...prioridades]} onChange={prioridade => setRascunho({ ...rascunho, prioridade })}/>
@@ -360,11 +382,12 @@ export default function ChamadosPage() {
       </DesktopTabs>
     </div>
     {erro && <DesktopState error title="Não foi possível concluir" description={erro} onRetry={() => setAtualizacao(n => n + 1)}/>}
-    {id && carregando && !atual && <Spinner/>}
+    {id && carregando && !atual && <LoadingSkeleton kind="form" label="Carregando detalhes do chamado" count={4} />}
     {id && atual && <>
       <section className="ticket-detail-summary" aria-label="Resumo do chamado">
         <span className="ticket-status" data-state={atual.status}>{rotulo(estados, atual.status)}</span>
-        <span><Icon name="shield" size={15}/>{nomeClube(atual)}</span>
+        {canViewClubs && atual.clubeId ? <Link to={`/clubes/${atual.clubeId}`} state={{ ticketReturn }}><Icon name="shield" size={15}/>{nomeClube(atual)}<Icon name="chevronRight" size={13}/></Link> : <span><Icon name="shield" size={15}/>{nomeClube(atual)}</span>}
+        {canViewLogs && logFilters && <Link to="/logs" state={{ ticketReturn, logFilters }}><Icon name="search" size={15}/>Ver logs relacionados<Icon name="chevronRight" size={13}/></Link>}
         <span><Icon name="user" size={15}/>{nomeResponsavel(atual)}</span>
         {atual.prioridade === 'ALTA' && <span className="ticket-priority"><Icon name="alert" size={15}/>Prioridade alta</span>}
         {atual.status !== 'RESOLVIDO' && Number.isFinite(Date.parse(atual.revisarEm)) && <span className={Date.parse(atual.revisarEm) < agora ? 'ticket-overdue' : undefined}>
@@ -392,7 +415,7 @@ export default function ChamadosPage() {
               {atual.detalhesTecnicos && <section className="ticket-technical">
                 <h3>Relatório técnico vinculado</h3>
                 {atual.detalhesTecnicos.reproducao && <p>{atual.detalhesTecnicos.reproducao}</p>}
-                {atual.detalhesTecnicos.correlacao && <p>Ocorrência {atual.detalhesTecnicos.correlacao}{atual.detalhesTecnicos.statusHttp ? ` · HTTP ${atual.detalhesTecnicos.statusHttp}` : ''}</p>}
+                {atual.detalhesTecnicos.correlacao && <p>Ocorrência {atual.detalhesTecnicos.correlacao}{atual.detalhesTecnicos.statusHttp ? ` · HTTP ${atual.detalhesTecnicos.statusHttp}` : ''} <button type="button" className="ticket-copy" aria-label="Copiar identificador da ocorrência" onClick={() => void copy(atual.detalhesTecnicos!.correlacao!, 'Identificador')}><Icon name="copy" size={15}/></button></p>}
                 {atual.detalhesTecnicos.comparacao?.oficial && atual.detalhesTecnicos.comparacao.local && <p>Federação {atual.detalhesTecnicos.comparacao.oficial.join(' × ')} · Ludora {atual.detalhesTecnicos.comparacao.local.join(' × ')}</p>}
                 {atual.detalhesTecnicos.pistas?.map((p, i) => <p key={i}>Pista a verificar · {p.arquivo}, linha {p.linha}, coluna {p.coluna}</p>)}
               </section>}

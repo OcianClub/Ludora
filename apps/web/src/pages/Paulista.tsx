@@ -12,11 +12,13 @@ import { FilterSelect } from '../components/FilterSelect';
 import { CollectionSearch, CollectionViewToggle, CollectionFilterButton, CollectionFilterDialog } from '../components/CollectionToolbar';
 import { MatchCard, formatMatchDate } from '../components/MatchCard';
 import { MatchListRow } from '../components/MatchListRow';
+import { FilterTabs } from '../components/FilterTabs';
 import { PaulistaHeader } from '../components/PaulistaHeader';
 import { PaulistaStandings } from '../components/PaulistaStandings';
 import { PaulistaOverview } from '../components/PaulistaOverview';
 import { PaulistaBracket } from '../components/PaulistaBracket';
 import { usePaulistaUpdates } from '../hooks/usePaulistaUpdates';
+import { useListState } from '../hooks/listMemory';
 import { chavePublicada, estadoJogo, nomeOficial, ordemData, painelDaSelecao, partidaOficial, resumoClube, temResultado, situacaoPublicacao } from '../utils/paulistaView';
 import { intervaloAgenda, type PeriodoAgenda } from '../utils/scheduleFilters';
 import './Paulista.css';
@@ -34,7 +36,7 @@ const monthFormatter = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: '
 const hojeSP = () => dayFormatter.format(new Date());
 const nomeMes = (mes: string) => monthFormatter.format(new Date(`${mes}-01T12:00:00`));
 export default function PaulistaPage({ competitionHome = false }: { competitionHome?: boolean }) {
-  const { clube, token, modo } = useAuth();
+  const { clube, token, modo, usuario } = useAuth();
   const publico = modo === 'publico';
   const [params, setParams] = useSearchParams(), navigate = useNavigate(), location = useLocation();
   const [ready, setReady] = useState<boolean | null>(null), [eventos, setEventos] = useState<Evento[]>([]);
@@ -43,9 +45,9 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
   const painel = consulta?.escopo === escopo ? consulta.painel : null;
   const setPainel = useCallback((value: PainelPaulista | null) => setConsulta(value ? { painel: value, escopo } : null), [escopo]);
   const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState(''), [refresh, setRefresh] = useState(0), [limite, setLimite] = useState(25);
+  const [erro, setErro] = useState(''), [refresh, setRefresh] = useState(0);
   const modalPeloClique = useRef(false);
-  const navegacaoAbas = useRef<HTMLElement>(null);
+  const navegacaoAbas = useRef<HTMLDivElement>(null);
   const [standingsFiltersTarget, setStandingsFiltersTarget] = useState<HTMLDivElement | null>(null);
   const page = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(() => window.innerWidth <= 760);
@@ -56,7 +58,7 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
     observer.observe(page.current);
     return () => observer.disconnect();
   }, []);
-  const [filtroAberto, setFiltroAberto] = useState(false);
+  const [filterAnchor, setFilterAnchor] = useState<HTMLButtonElement | null>(null);
   const [rascunho, setRascunho] = useState({ etapa: 'todas', situacao: 'todas', periodo: 'all', ordem: 'asc' });
   const evento = params.get('evento') || '';
   const meta = eventos.find(e => String(e.id) === evento);
@@ -77,8 +79,6 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
     const next = new URLSearchParams(params);
     for (const [key, value] of Object.entries(values)) { if (value) next.set(key, value); else next.delete(key); }
     if (next.toString() === params.toString()) return;
-    // A detail dialog or view toggle must not collapse rows already loaded.
-    if (Object.keys(values).some(key => ['evento', 'ano', 'faixa', 'etapa', 'busca', 'situacao', 'periodo', 'ordem'].includes(key) && next.get(key) !== params.get(key))) setLimite(25);
     setParams(next, { replace });
   }, [params, setParams]);
   useEffect(() => {
@@ -149,6 +149,8 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
   const period = params.get('periodo') || 'all';
   const range = useMemo(() => intervaloAgenda(['all', 'today', 'week', 'month'].includes(period) ? period as PeriodoAgenda : 'all'), [period, hoje]);
   const ordem = params.get('ordem') === 'desc' ? 'desc' : 'asc';
+  const jogosKey = JSON.stringify([usuario?.id, clube?.id, modo, evento, etapa, search, status, period, ordem]);
+  const [limite, setLimite] = useListState(`paulista:${jogosKey}`, 25);
   const mesesPublicados = useMemo(() => [...new Set(summary?.jogos.map(j => j.data?.slice(0, 7)).filter((m): m is string => !!m && /^\d{4}-\d{2}$/.test(m)))].sort().reverse(), [summary]);
   const jogos = useMemo(() => {
     const busca = search.toLocaleLowerCase('pt-BR');
@@ -224,20 +226,20 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
       {loading && <PaulistaSkeleton tab={tab}/>}
       {!loading && !erro && !active && <section className="paulista-empty"><Icon name="calendar" size={28}/><h2>Nenhuma participação confirmada</h2><p>A participação do clube na {phase === 'BASE' ? 'Base' : 'Iniciação'} em {ano} ainda não está confirmada no Ludora. Consulte outro grupo de categorias ou aguarde a conferência do calendário.</p></section>}
       {active && summary && !loading && <>
-        <div className="paulista-tabs-row"><nav ref={navegacaoAbas} className="paulista-tabs" aria-label="Informações do campeonato" onKeyDown={event => {
-          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-          const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button')];
-          const index = buttons.indexOf(event.target as HTMLButtonElement);
-          if (index < 0) return;
-          event.preventDefault();
-          const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowLeft' ? buttons.length - 1 : 1)) % buttons.length;
-          buttons[next].focus({ preventScroll: true });
-          buttons[next].click();
-        }}>{[['visao', 'Visão geral'], ['jogos', 'Jogos'], ['classificacao', 'Classificação'], ['chaveamento', 'Chaveamento'], ...(pendencias.length ? [['avisos', `Avisos (${pendencias.length})`]] : [])].map(([v, label]) => <button type="button" key={v} aria-current={tab === v ? 'page' : undefined} onClick={() => filtros({ aba: v })}>{label}</button>)}</nav><div className="paulista-tabs-filters" ref={setStandingsFiltersTarget}/></div>
+        <div className="paulista-tabs-row">
+          <FilterTabs className="paulista-tabs" mode="navigation" listRef={navegacaoAbas}
+            label="Informações do campeonato" value={tab} onChange={aba => filtros({ aba })}
+            options={[
+              { value: 'visao', label: 'Visão geral' }, { value: 'jogos', label: 'Jogos' },
+              { value: 'classificacao', label: 'Classificação' }, { value: 'chaveamento', label: 'Chaveamento' },
+              ...(pendencias.length ? [{ value: 'avisos', label: 'Avisos', count: pendencias.length }] : []),
+            ]} />
+          <div className="paulista-tabs-filters" ref={setStandingsFiltersTarget}/>
+        </div>
         {tab === 'visao' && <PaulistaOverview snapshot={active.snapshot} summary={summary} minhas={minhas} clubeNome={clube?.nome} chave={chave} pendentes={summary.pendentes.length} situacoes={situacoes} onTab={aba => filtros({ aba })} onOpen={abrirJogo}/>}
         {tab === 'jogos' && <section aria-label="Jogos oficiais">
           <div className="paulista-game-toolbar"><CollectionSearch label="Buscar adversário ou local" value={search} onChange={v => filtros({ busca: v }, true)} placeholder="Adversário ou local"/>
-            <CollectionFilterButton label="Filtrar jogos oficiais" text={compact ? undefined : 'Mais filtros'} count={quantidadeFiltros} onClick={() => { setRascunho({ etapa, situacao: status, periodo: period, ordem }); setFiltroAberto(true); }}/>
+            <CollectionFilterButton label="Filtrar jogos oficiais" text={compact ? undefined : 'Mais filtros'} count={quantidadeFiltros} expanded={!!filterAnchor} onClick={event => { if (filterAnchor) { setFilterAnchor(null); return; } setRascunho({ etapa, situacao: status, periodo: period, ordem }); setFilterAnchor(event.currentTarget); }}/>
             {!compact && <CollectionViewToggle value={params.get('visualizacao') || 'grid'} onChange={v => filtros({ visualizacao: v })} options={[{ value: 'grid', label: 'Cards', icon: 'grid' }, { value: 'list', label: 'Lista', icon: 'list' }]}/>}
           </div>
           <div className="paulista-results-toolbar"><p role="status"><strong>{jogos.length} jogos</strong> do {clube?.nome} no campeonato · {ordem === 'desc' ? 'mais recentes primeiro' : 'por data'}</p>{quantidadeFiltros > 0 && <button type="button" onClick={() => filtros({ etapa: '', situacao: '', periodo: '' })}>Limpar filtros ({quantidadeFiltros})</button>}</div>
@@ -259,7 +261,7 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
         </article>; })}{!pendencias.length && <p>Nenhuma pendência para este clube.</p>}</section>}
       </>}
     </>}
-    <CollectionFilterDialog open={filtroAberto} title="Filtrar jogos oficiais" onClose={() => setFiltroAberto(false)} onClear={() => setRascunho({ etapa: 'todas', situacao: 'todas', periodo: 'all', ordem: 'asc' })} onApply={() => { filtros(rascunho); setFiltroAberto(false); }}>
+    <CollectionFilterDialog open={!!filterAnchor} anchor={filterAnchor} title="Filtrar jogos oficiais" onClose={() => setFilterAnchor(null)} onClear={() => setRascunho({ etapa: 'todas', situacao: 'todas', periodo: 'all', ordem: 'asc' })} onApply={() => { filtros(rascunho); setFilterAnchor(null); }}>
       <div className="paulista-filter-fields"><FilterSelect overlayInDialog label="Etapa" value={rascunho.etapa} emptyLabel="Todas" onChange={v => setRascunho(r => ({ ...r, etapa: v }))} options={[{ value: 'todas', label: 'Todas as etapas' }, { value: 'classificacao', label: 'Classificação' }, { value: 'eliminatorias', label: 'Eliminatórias' }]}/>
       <FilterSelect overlayInDialog label="Situação" value={rascunho.situacao} emptyLabel="Todas" onChange={v => setRascunho(r => ({ ...r, situacao: v }))} options={[{ value: 'todas', label: 'Todas' }, { value: 'AO_VIVO', label: 'Ao vivo' }, { value: 'PREPARADA', label: 'Preparadas' }, { value: 'AGENDADA', label: 'Agendadas' }, { value: 'finalizadas', label: 'Finalizadas' }, { value: 'CANCELADA', label: 'Canceladas' }, { value: 'pendentes', label: 'Sem resultado publicado' }, { value: 'adiadas', label: 'Adiadas' }, { value: 'wo', label: 'W.O.' }]}/>
       <FilterSelect overlayInDialog label="Período" value={rascunho.periodo} emptyLabel="Todo o período" onChange={v => setRascunho(r => ({ ...r, periodo: v }))} options={[{ value: 'all', label: 'Todo o período' }, { value: 'today', label: 'Hoje' }, { value: 'week', label: 'Esta semana' }, { value: 'month', label: 'Este mês' }, ...mesesPublicados.map(m => ({ value: `mes:${m}`, label: nomeMes(m) }))]}/>

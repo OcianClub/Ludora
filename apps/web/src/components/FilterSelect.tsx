@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from './Icon';
+import { RadioIndicator } from './RadioIndicator';
 import './FilterSelect.css';
 import { useDropdownPlacement } from '../hooks/useDropdownPlacement';
 
@@ -8,19 +9,21 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
   value: string;
   emptyLabel: string;
   options: { value: string | number; label: string }[];
-  onChange: (value: string) => void;
+  onChange: (value: string, trigger: HTMLButtonElement | null) => void;
   inlineOptions?: boolean;
   compactLabel?: string;
   overlayInDialog?: boolean;
 }) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const search = useRef({ text: '', time: 0 });
   const items = [{ value: '', label: emptyLabel }, ...options];
   const selected = Math.max(0, items.findIndex(item => String(item.value) === value));
-  const inline = inlineOptions || (!overlayInDialog && !!root.current?.closest('dialog[open]'));
+  const inline = inlineOptions || !!root.current?.closest('.responsive-popover, .responsive-sheet')
+    || (!overlayInDialog && !!root.current?.closest('dialog[open]'));
   const placement = useDropdownPlacement(root, open, inline, 264, overlayInDialog);
   const activeIndex = Math.min(active, items.length - 1);
 
@@ -45,7 +48,7 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
   }, [activeIndex, open, id]);
 
   function choose(index: number) {
-    onChange(String(items[Math.min(index, items.length - 1)].value));
+    onChange(String(items[Math.min(index, items.length - 1)].value), trigger.current);
     setOpen(false);
   }
 
@@ -54,7 +57,7 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
       if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
     }}>
       <span className="field-label" id={`${id}-label`}>{label}</span>
-      <button type="button" className="schedule-select-trigger" role="combobox"
+      <button ref={trigger} type="button" className="schedule-select-trigger" role="combobox"
         aria-labelledby={`${id}-label ${id}-value`} aria-expanded={open} aria-haspopup="listbox"
         aria-controls={open ? `${id}-options` : undefined} data-value={value}
         aria-activedescendant={open ? `${id}-option-${activeIndex}` : undefined}
@@ -86,7 +89,7 @@ export function FilterSelect({ label, value, emptyLabel, options, onChange, inli
           <div key={item.value} id={`${id}-option-${index}`} role="option" aria-selected={index === selected}
             data-highlighted={index === activeIndex} onPointerMove={() => setActive(index)}
             onMouseDown={event => event.preventDefault()} onClick={() => choose(index)}>
-            <span>{item.label}</span>{index === selected && <span aria-hidden="true" className="schedule-select-check">✓</span>}
+            <span>{item.label}</span><RadioIndicator checked={index === selected}/>
           </div>
         ))}
       </div>}

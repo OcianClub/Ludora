@@ -5,11 +5,13 @@ import { ClubBadge } from '../components/Brand';
 import { CollectionSearch, CollectionViewToggle } from '../components/CollectionToolbar';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { useClubCategory } from '../hooks/useClubCategory';
+import { FilterTabs } from '../components/FilterTabs';
 import { FilterSelect } from '../components/FilterSelect';
 import { Icon } from '../components/Icon';
 import { TeamInsights } from '../components/TeamInsights';
 import { Btn, Modal } from '../components/UI';
 import { PageSkeleton } from '../components/PageSkeleton';
+import { useMaintenance } from '../contexts/MaintenanceContext';
 import { useAuth } from '../contexts/AuthContext';
 import { teamKey, teamName } from '../utils/teamIdentity';
 import './Times.css';
@@ -20,6 +22,7 @@ const numberOf = (category?: Categoria) => Number(category?.nome.replace(/\D/g, 
 
 export default function TimesPage() {
   const { podeGerenciar, clube } = useAuth();
+  const matchPause = useMaintenance().pauseFor('CRIAR_PARTIDAS');
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [times, setTimes] = useState<Time[]>(() => cachedJson<Time[]>('/times') || []);
@@ -116,7 +119,7 @@ export default function TimesPage() {
           onClick={() => setExpanded(current => open ? current.filter(key => key !== group.key) : [...current, group.key])}>{open ? 'Menos' : '+' + (cats.length - 3)}</button>}
       </div>
       <div className="teams-card-actions">
-        {podeGerenciar && match && <Link className="btn btn-ghost btn-sm teams-quick-match" to={match}><Icon name="plus" size={15}/>Nova partida</Link>}
+        {podeGerenciar && match && (matchPause ? <Btn className="teams-quick-match" size="sm" variant="ghost" disabled title={matchPause.motivo}><Icon name="plus" size={15}/>Nova partida</Btn> : <Link className="btn btn-ghost btn-sm teams-quick-match" to={match}><Icon name="plus" size={15}/>Nova partida</Link>)}
         <Btn className="teams-open" variant="ghost" size="sm" onClick={() => setSelected(group.key)}>Ver time<Icon name="chevronRight" size={15}/></Btn>
       </div>
     </article>;
@@ -125,10 +128,9 @@ export default function TimesPage() {
   return <div className="teams-page teams-page--directory">
     <header className="teams-page-header"><div><h1 className="page-title">Times</h1><p className="page-sub">Seu clube e os times que fazem parte dos seus confrontos.</p></div></header>
     <CategoryFilter categories={categorias} phase={phase} selected={category} onPhase={selectPhase} onSelect={selectCategory}/>
-    <div className="teams-tabs" role="tablist" aria-label="Origem dos times">
-      {([['all', 'Todos'], ['linked', 'No Ludora'], ['external', 'Fora do Ludora']] as const).map(([value, label]) =>
-        <button key={value} type="button" role="tab" aria-selected={scope === value} aria-pressed={scope === value} onClick={() => setScope(value)}>{label}<span>{counts[value]}</span></button>)}
-    </div>
+    <FilterTabs className="teams-tabs" label="Origem dos times" value={scope} onChange={setScope}
+      options={([['all', 'Todos'], ['linked', 'No Ludora'], ['external', 'Fora do Ludora']] as const)
+        .map(([value, label]) => ({ value, label, count: counts[value] }))} />
     <div className="teams-toolbar"><CollectionSearch id="teams-search" label="Buscar time" placeholder="Buscar time pelo nome…" value={search} onChange={setSearch}/>
       <div className="teams-sort"><FilterSelect label="Ordenar times" value={order} onChange={setOrder} emptyLabel="Nome A–Z" compactLabel={order === 'desc' ? 'Z–A' : order === 'categories' ? 'Qtd.' : 'A–Z'} options={[{ value: 'desc', label: 'Nome Z–A' }, { value: 'categories', label: 'Mais categorias' }]}/></div>
     </div>
@@ -155,7 +157,7 @@ export default function TimesPage() {
         <summary aria-label={'Opções de ' + selectedGroup.name}>···</summary><div><button className="teams-visit-club" type="button" onClick={() => navigate('/clubes/' + selectedGroup.clubId)}><Icon name="switchClub" size={16}/>Visitar clube</button></div>
       </details> : undefined}>
       {selectedGroup && <>
-        {podeGerenciar && newMatchUrl(selectedGroup) && <Link className="btn btn-primary teams-panel-create" to={newMatchUrl(selectedGroup)!}><Icon name="plus" size={17}/>{selectedGroup.clubId === clube?.id ? 'Organizar partida' : 'Nova partida contra ' + selectedGroup.name}</Link>}
+        {podeGerenciar && newMatchUrl(selectedGroup) && (matchPause ? <p className="maintenance-inline" role="status">Criação de partidas em manutenção. {matchPause.motivo}</p> : <Link className="btn btn-primary teams-panel-create" to={newMatchUrl(selectedGroup)!}><Icon name="plus" size={17}/>{selectedGroup.clubId === clube?.id ? 'Organizar partida' : 'Nova partida contra ' + selectedGroup.name}</Link>)}
         {selectedGroup.clubId !== clube?.id && clube && <TeamInsights key={selectedGroup.key} teamId={selectedGroup.items[0].id} clubeId={clube.id} clubeName={clube.nome} categoria={category} opponentName={selectedGroup.name}/>}
         {selectedGroup.clubId === clube?.id && <p className="teams-notice">Este é o clube que você está acessando. Consulte os resultados e a agenda na Visão geral.</p>}
         <details className="teams-management" open={selectedGroup.clubId === clube?.id}>

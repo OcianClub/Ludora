@@ -15,10 +15,12 @@
 .choice-trigger[aria-expanded="true"] .choice-chevron {
   transform: rotate(180deg);
 }
-.choice-options { position:absolute; top:100%; left:0; right:0; margin-top:5px; z-index:20; max-height:225px; overflow:auto; background:var(--fundo-card); border:1px solid var(--borda); box-shadow:0 10px 30px #0003; border-radius:10px; padding:5px; min-width:100px; }
-.choice-options button { display:block; width:100%; text-align:left; padding:10px; border:0; border-radius:6px; background:transparent; color:var(--texto); }
+.choice-options { position:absolute; top:100%; left:0; right:0; margin-top:5px; z-index:20; max-height:225px; overflow:auto; background:var(--fundo-card); border:1px solid var(--borda); box-shadow:0 10px 30px #0003; border-radius:10px; display:grid; gap:3px; padding:6px; min-width:100px; }
+.choice-options button { display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:10px; border:0; border-radius:6px; background:transparent; color:var(--texto); }
 .choice-options button { overflow-wrap:anywhere; }
-.choice-options button:hover,.choice-options button[aria-pressed=true] { background:var(--fundo-botao); color:var(--primaria); }
+.choice-options button:is(:hover, :focus-visible, [aria-pressed=true]),
+.choice .choice-trigger:is(:hover, [aria-expanded=true]):not(:disabled) { background:var(--superficie-neutra); }
+.choice-options button[aria-pressed=true] { font-weight:600; }
 .choice-inline .choice-options {
   position: static;
   width: 100%;

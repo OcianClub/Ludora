@@ -7,47 +7,7 @@
 .teams-page--directory .is-list .teams-card-actions { grid-column: 2; grid-row: 1 / span 2; }
 .teams-page--directory .teams-menu .teams-visit-club { color: var(--texto); }
 
-.teams-tabs {
-  display: flex;
-  gap: 12px;
-  border-bottom: 1px solid var(--linha);
-  margin-bottom: 16px;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.teams-tabs > button {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 42px;
-  padding: 8px 12px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--texto-sec);
-  font-size: 13px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.teams-tabs > button[aria-pressed="true"] {
-  border-bottom-color: var(--primaria);
-  color: var(--texto);
-}
-
-.teams-tabs > button > span {
-  padding: 2px 5px;
-  border-radius: 4px;
-  background: var(--contador-fundo);
-  color: var(--contador-texto);
-  font-size: 11px;
-  font-weight: 600;
-}
-.teams-tabs > button[aria-pressed="true"] > span {
-  background: var(--contador-fundo-ativo);
-  color: var(--contador-texto-ativo);
-}
+.teams-tabs { --filter-tabs-gap: 12px; margin-bottom: 16px; }
 
 .teams-toolbar {
   display: grid;
@@ -790,15 +750,10 @@
 
 @media (max-width: 600px) {
   .teams-tabs {
-    gap: 2px;
+    --filter-tabs-gap: 12px;
     margin-bottom: 12px;
   }
 
-  .teams-tabs > button {
-    gap: 5px;
-    padding: 8px;
-    font-size: 12px;
-  }
 
   .teams-toolbar {
     grid-template-columns: minmax(0, 1fr);

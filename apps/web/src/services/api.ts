@@ -468,7 +468,7 @@ export async function criarPartida(dados: Partial<Partida> & { mandante_id: numb
       : res.status === 409 ? 'Já existe uma partida com estes dados. Confira a agenda do clube.'
       : res.status === 400 || res.status === 422 ? 'Confira os dados da partida antes de confirmar novamente.'
       : 'Não foi possível criar a partida agora. Seus dados foram mantidos para você tentar novamente.';
-    throw new Error(res.status < 500 && typeof body?.error === 'string' ? body.error : fallback);
+    throw new ApiResponseError(res.status < 500 && typeof body?.error === 'string' ? body.error : fallback, res.status);
   }
   return res.json();
 }

@@ -55,7 +55,8 @@ export const lightColors = {
   cardSecundario: '#EAEAE6',
   borda: '#DEDFD9',
   linha: '#E6E6E1',
-  cardClaro: '#F6F6F3',
+  cardClaro: '#FCFCFA',
+  superficieNeutra: '#F3F3F0',
 
   // Cores semânticas
   amarelo: '#C98A0B',
@@ -85,7 +86,7 @@ export const lightColors = {
   hover: {
     primaria: '#0755BA',
     card: '#F7F7F4',
-    linhaTabela: '#ECEDE7',
+    linhaTabela: '#E3EAF3',
     controle: '#E6E7E0',
   },
 
@@ -94,6 +95,13 @@ export const lightColors = {
     preparada: { fundo: '#E0F1E9', texto: '#17614B' },
     derrota: '#C9344D',
   },
+} as const;
+
+const positionColors = {
+  amarelo: '#8B5CF6',
+  primaria: '#0863D8',
+  ciano: '#16856B',
+  laranja: '#E5484D',
 } as const;
 
 export const interfaceColors = {
@@ -113,12 +121,12 @@ export const interfaceColors = {
       Misto: { fundo: '#F4E3BC', texto: '#604309' },
       'Sem dados': { fundo: '#E1E5EC', texto: '#384455' },
     },
-    posicoes: { amarelo: '#724706', primaria: lightColors.primaria, ciano: '#00566B', laranja: '#8A3309' },
+    posicoes: positionColors,
     chaves: {
-      OURO: { fundo: '#F6EACB', texto: '#6F4500' },
-      PRATA: { fundo: '#E1E7F0', texto: '#3B4C65' },
-      BRONZE: { fundo: '#F3E2D6', texto: '#783E20' },
-      RUBI: { fundo: '#F7E2EB', texto: '#862547' },
+      OURO: { fundo: '#F8EDC8', texto: '#775700', destaque: '#C39200' },
+      PRATA: { fundo: '#E1E7F0', texto: '#4D5560', destaque: '#79838F' },
+      BRONZE: { fundo: '#F3E2D6', texto: '#874714', destaque: '#A86A31' },
+      RUBI: { fundo: '#F7E2EB', texto: '#862547', destaque: '#862547' },
     },
     cargos: { ADMIN: lightColors.primaria, TECNICO: '#744A07', MESARIO: '#085C4D', OLHEIRO: '#57358C', TORCEDOR: lightColors.textoSecundario },
   },
@@ -138,12 +146,12 @@ export const interfaceColors = {
       Misto: { fundo: '#40341F', texto: '#F7D488' },
       'Sem dados': { fundo: '#2B3241', texto: '#CFD5DF' },
     },
-    posicoes: { amarelo: darkColors.amarelo, primaria: darkColors.primaria, ciano: darkColors.ciano, laranja: darkColors.laranja },
+    posicoes: positionColors,
     chaves: {
-      OURO: { fundo: darkColors.fundo, texto: darkColors.amarelo },
-      PRATA: { fundo: darkColors.fundo, texto: '#BDC8D8' },
-      BRONZE: { fundo: darkColors.fundo, texto: '#C08B60' },
-      RUBI: { fundo: darkColors.fundo, texto: '#D87991' },
+      OURO: { fundo: darkColors.fundo, texto: darkColors.amarelo, destaque: darkColors.amarelo },
+      PRATA: { fundo: darkColors.fundo, texto: '#BDC8D8', destaque: '#BDC8D8' },
+      BRONZE: { fundo: darkColors.fundo, texto: '#C08B60', destaque: '#C08B60' },
+      RUBI: { fundo: darkColors.fundo, texto: '#D87991', destaque: '#D87991' },
     },
     cargos: { ADMIN: darkColors.primaria, TECNICO: darkColors.amarelo, MESARIO: '#43C9AC', OLHEIRO: '#B4A0E4', TORCEDOR: darkColors.textoSecundario },
   },

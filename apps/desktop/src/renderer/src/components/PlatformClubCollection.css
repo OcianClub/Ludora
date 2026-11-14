@@ -8,7 +8,7 @@
 .overview-club-name { display:flex; align-items:center; gap:9px; min-width:0; color:var(--texto); }
 .overview-club-name > :first-child { flex-shrink:0; }
 .overview-club-name strong { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:12px; }
-.overview-plan { padding:3px 5px; border-radius:4px; background:var(--fundo-card-sec); color:var(--texto); font-size:9px; font-weight:600; line-height:1; flex-shrink:0; }
+.overview-plan { padding:3px 5px; border-radius:4px; background:var(--superficie-neutra); color:var(--texto); font-size:9px; font-weight:600; line-height:1; flex-shrink:0; }
 .overview-club-status { display:inline-flex; align-items:center; gap:6px; font-size:11px; white-space:nowrap; }
 .overview-open-club { display:inline-flex; align-items:center; justify-content:center; min-height:32px; color:var(--texto-sec); }
 .overview-club-cards { grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); }
@@ -36,9 +36,8 @@
 .platform-club-card .club-directory-meta dd { margin:5px 0 0; color:var(--texto); font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; }
 .platform-club-card .ticket-card-copy strong > span:first-child { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .overview-club-status::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--texto-sec); flex-shrink:0; }
-.overview-club-status[data-health=good]::before { background:var(--overview-good,#43c998); }
-:root[data-theme="light"] .overview-club-status[data-health=good]::before { background:var(--overview-good,#16734f); }
-.overview-club-table .club-badge, .platform-club-surface .club-badge { background:var(--fundo-card-sec); color:var(--texto); border:0; border-radius:8px; flex-shrink:0; }
+.overview-club-status[data-health=good]::before { background:var(--desktop-status-success); }
+.overview-club-table .club-badge, .platform-club-surface .club-badge { background:var(--superficie-neutra); color:var(--texto); border:0; border-radius:8px; flex-shrink:0; }
 @container desktop-content (max-width:1050px) {
  .overview-club-table th:nth-child(2), .overview-club-table td:nth-child(2) { display:none; }
  .overview-club-table th:nth-child(1) { width:37%; }

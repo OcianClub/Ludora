@@ -4,7 +4,7 @@
 .desktop-account-dialog .desktop-menu-select > .desktop-menu-trigger { background:var(--fundo-card); color:var(--texto); }
 .desktop-account-form { display:grid; gap:20px; min-width:0; }
 .desktop-app .desktop-account-dialog .user-identity { grid-template-columns:34px minmax(0,1fr) auto; padding:14px; gap:12px; background:var(--fundo-card); border:1px solid var(--linha); }
-.desktop-app .desktop-account-dialog .user-identity-avatar { width:34px; height:34px; background:var(--fundo-card-sec); border-radius:50%; font-size:10px; }
+.desktop-app .desktop-account-dialog .user-identity-avatar { width:34px; height:34px; background:var(--superficie-neutra); border-radius:50%; font-size:10px; }
 .desktop-account-dialog .desktop-form-section { gap:16px; }
 .desktop-account-dialog .desktop-form-section .desktop-select-field { margin-top:2px; }
 .desktop-account-dialog .user-add-club { justify-content:flex-start; }
