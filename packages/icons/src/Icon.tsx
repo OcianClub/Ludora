@@ -91,6 +91,7 @@ import { ReturnArrowIcon } from './icons/ReturnArrowIcon';
 import { GripVerticalIcon } from './icons/GripVerticalIcon';
 import { ShareIcon } from './icons/ShareIcon';
 import { SlidersHorizontalIcon } from './icons/SlidersHorizontalIcon';
+import { EmailFillIcon } from './icons/EmailFillIcon';
 import type { LudoraIconProps } from './types';
 
 const iconMap = {
@@ -211,6 +212,7 @@ const iconMap = {
   "grip-vertical": GripVerticalIcon,
   "share": ShareIcon,
   "sliders-horizontal": SlidersHorizontalIcon,
+  "email-fill": EmailFillIcon,
 } as const;
 
 export type IconName = keyof typeof iconMap;

@@ -37,6 +37,8 @@
 .maintenance-card dd, .maintenance-review dd { margin:0; font-size:12px; line-height:1.6; }
 .maintenance-card .maintenance-overdue { color:var(--desktop-status-warning); }
 .maintenance-review-note { display:flex; align-items:center; gap:7px; margin:0; color:var(--desktop-status-warning); font-size:12px; line-height:1.6; }
+:root[data-theme="light"] .maintenance-review-note { font-weight:500; }
+.maintenance-review-note > .icon { color:var(--desktop-status-warning-accent, var(--desktop-status-warning)); }
 .maintenance-ticket-link { display:inline-flex; align-items:center; gap:7px; justify-self:start; font-size:12px; }
 .maintenance-protocol { margin:0 0 16px; color:var(--texto-sec); font-size:11px; }
 .maintenance-history { display:grid; gap:16px; margin:0; padding:0; list-style:none; }

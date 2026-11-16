@@ -6,7 +6,8 @@ import type { MetodoHttp } from '../../../shared/rules';
 import { ConsultasEmAndamento } from '../../../shared/inflight';
 
 const consultas = new ConsultasEmAndamento();
-export const limparConsultas = () => consultas.limpar();
+let sessaoAtual = 0;
+export const limparConsultas = () => { sessaoAtual++; consultas.limpar(); };
 
 // Mesma ideia do requestJson de apps/web/src/services/api.ts, mas a requisição
 // sai pelo processo principal (IPC). Aqui não há BASE_URL, token nem CORS.
@@ -14,12 +15,14 @@ export async function requestJson<T>(
   endpoint: string,
   options: { method?: MetodoHttp; body?: unknown } = {}
 ): Promise<T> {
+  const sessaoPedido = sessaoAtual;
   const metodo = options.method ?? 'GET';
   if (metodo !== 'GET') consultas.limpar();
   const consultar = () => window.ludora.api.requisicao<T & { error?: string }>(metodo, endpoint, options.body);
   const resposta = await (metodo === 'GET' && options.body === undefined
     ? consultas.executar(endpoint, consultar) : consultar());
   if (metodo !== 'GET') consultas.limpar();
+  if (sessaoPedido !== sessaoAtual) throw new Error('A sessão mudou. Consulte os dados novamente.');
   if (!resposta.ok) throw new Error(resposta.data?.error || 'Não foi possível concluir a solicitação');
   return resposta.data;
 }

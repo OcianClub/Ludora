@@ -29,8 +29,8 @@ export function MaintenanceNotice({ sidebar = false, expanded = false }: { sideb
     <button type="button" className="maintenance-notice-trigger" aria-label="Funções em manutenção"
       aria-expanded={open} aria-controls={id} onFocus={event => { if (event.currentTarget.matches(':focus-visible')) setFocused(true); }}
       onClick={() => { setFocused(false); setPinned(value => !value); }}>
-      <Icon name="alert" size={19} />
-      {expanded && <span>Funções em manutenção</span>}
+      {sidebar ? <span className="nav-icon"><Icon name="maintenanceAlert" size={20} /></span> : <Icon name="maintenanceAlert" size={20} />}
+      {sidebar && expanded && <span>Funções em manutenção</span>}
     </button>
     {open && <section id={id} className="maintenance-notice-panel" aria-label="Funções em manutenção">
       <strong>Funções em manutenção</strong>

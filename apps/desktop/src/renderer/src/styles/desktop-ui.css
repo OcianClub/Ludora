@@ -15,8 +15,8 @@
   --desktop-modal-control: #14171F;
 }
 :root[data-theme="light"] .desktop-app {
-  --desktop-status-warning: #805400;
-  --desktop-status-warning-accent: #9c7000;
+  --desktop-status-warning: #A65313;
+  --desktop-status-warning-accent: #DA8337;
   --desktop-status-success: #006b37;
   --desktop-status-success-accent: #008744;
   --desktop-status-error: #9f2340;

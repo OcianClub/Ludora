@@ -1,254 +1,78 @@
-.matches-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr)); gap: 18px; }
-.match-card { background: var(--fundo-card); border: 1px solid var(--linha); border-radius: 10px; padding: 20px; min-width: 0; }
-.match-card-featured { border-color: var(--borda-botao); padding: 24px; }
-.match-card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--texto-sec); }
-.match-card-header > span:first-child { text-transform: uppercase; letter-spacing: .7px; }
-.match-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 14px; padding: 26px 0; }
-.match-team { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
-.match-team strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; max-width: 100%; }
-.match-score { display: flex; gap: 10px; align-items: center; font-family: var(--font-titulo); font-size: 34px; font-weight: 600; }
-.match-score small { font-family: var(--font-corpo); font-size: 13px; color: var(--texto-sec); }
-.match-info { display: flex; flex-direction: column; gap: 8px; padding: 16px 0; border-top: 1px solid var(--linha); color: var(--texto-sec); font-size: 11px; }
-.match-info > span { display: flex; align-items: center; gap: 7px; }
-.match-card-actions { display: flex; gap: 8px; margin-top: 8px; }
-.match-card-actions > a { flex: 1; white-space: normal; font-size: 13px; }
-.match-card-featured .match-team strong { font-family: var(--font-titulo); font-size: 18px; }
-.match-card-featured .match-score { font-size: 44px; }
-.match-card-live { border-color: var(--primaria); background: var(--fundo-card); }
-.match-card-interactive { cursor: pointer; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
-.match-card-interactive:hover { border-color: var(--borda-botao); background: var(--card-hover-claro, var(--fundo-card-claro)); }
-.match-card-interactive:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
-@media (max-width: 600px) { .match-card-featured { padding: 18px; }.match-teams { gap: 10px; } }
-.match-card-badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
+.matches-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,310px),1fr)); gap:18px; }
+.match-card {
+  display:flex; flex-direction:column; min-width:0; box-sizing:border-box;
+  padding:16px; border:1px solid var(--linha); border-radius:10px;
+  background:var(--fundo-card); color:var(--texto);
 }
-.match-venue {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 7px;
-  border-radius: 6px;
-  background: var(--fundo-card-sec);
-  color: var(--texto-sec);
-  font-size: 11px;
+.match-card-featured { border-color:var(--borda-botao); }
+.match-card-live { border-color:var(--primaria); }
+.match-card-interactive { cursor:pointer; transition:border-color .16s ease,background .16s ease,transform .16s ease,box-shadow .16s ease; }
+.match-card-interactive:focus-visible { outline:2px solid var(--primaria); outline-offset:2px; }
+.match-card-header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:8px 12px; }
+.match-calendar-highlight { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; min-width:0; }
+.match-calendar-heading { display:flex; align-items:center; flex-wrap:wrap; gap:5px 10px; }
+.match-calendar-heading > time { font:600 22px/1.2 var(--font-titulo); white-space:nowrap; }
+.match-calendar-heading .match-category { font-size:11px; color:var(--texto-sec); }
+.match-calendar-highlight > span { display:flex; align-items:center; flex-wrap:wrap; gap:7px; font-size:12px; color:var(--texto-sec); }
+.match-calendar-highlight > span > span { display:inline-flex; align-items:center; gap:5px; }
+.match-calendar-highlight > span > span:last-child { color:var(--texto); }
+.match-weekday { text-transform:capitalize; }
+.match-competition-context { display:grid; gap:4px; margin-top:5px; min-width:0; font-size:12px; color:var(--texto-sec); }
+.match-competition-context:empty { display:none; }
+.match-competition-context > * { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:inherit; }
+.match-teams { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:10px; padding:16px 0 10px; }
+.match-team { display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; text-align:center; }
+.match-team strong { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:40px; max-height:40px; max-width:100%; overflow-wrap:anywhere; font:600 13px/20px var(--font-corpo); }
+.match-team .club-badge { flex-shrink:0; border:0; background:var(--fundo-card-sec); color:var(--texto); }
+.match-card .match-team-current .club-badge { box-sizing:border-box; border:2px solid var(--primaria); border-radius:10px; }
+.match-card .match-team-current strong { color:var(--texto); }
+.match-score { display:flex; align-items:center; gap:10px; white-space:nowrap; font:600 34px/1.2 var(--font-titulo); }
+.match-score small { font:400 13px var(--font-corpo); color:var(--texto-sec); }
+.match-card-badges { display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:6px; }
+.match-card > .match-card-badges { justify-content:center; padding-bottom:12px; gap:8px; }
+.match-card .match-card-badges > span { display:inline-flex; align-items:center; gap:5px; min-height:23px; padding:3px 6px; border-radius:6px; box-sizing:border-box; font-size:10px; line-height:1.3; font-weight:600; }
+.match-card .match-venue { color:var(--texto); background:var(--fundo-card-sec); }
+.match-card .status-agendada { color:var(--agendada-texto-claro,#C3A9FF); background:var(--agendada-fundo-claro,color-mix(in srgb,#C3A9FF 13%,var(--fundo-card))); }
+.match-card .status-preparada { color:var(--preparada-texto-claro,#70DFC7); background:var(--preparada-fundo-claro,color-mix(in srgb,#70DFC7 13%,var(--fundo-card))); }
+.match-card .status-cancelada { color:var(--texto); background:var(--fundo-card-sec); }
+.match-card .result-V { color:#fff; background:var(--primaria); }
+.match-card .result-D { color:#fff; background:var(--derrota-claro,#E5485D); }
+.match-card .result-E { color:#30220B; background:var(--resultado-empate); }
+.match-card-footer { display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; margin-top:auto; padding-top:10px; border-top:1px solid var(--linha); }
+.match-info { flex:1 1 140px; min-width:0; color:var(--texto-sec); }
+.match-location { display:flex; align-items:center; gap:7px; font-size:12px; line-height:1.5; }
+.match-location > .icon { flex:none; }
+.match-location-text { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.match-card-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-left:auto; }
+.match-detail-action { display:inline-flex; align-items:center; justify-content:center; gap:4px; min-height:36px; padding:4px 0; border:0; border-radius:0; background:transparent; color:var(--primaria); font:500 12px var(--font-corpo); white-space:nowrap; cursor:pointer; }
+.match-detail-action:focus-visible { outline:2px solid var(--primaria); outline-offset:3px; }
+.match-date-time { display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; }
+.match-date-time > span { display:flex; align-items:center; gap:7px; font-size:12px; }
+.match-official-label { color:var(--primaria); font-size:10px; font-weight:600; white-space:nowrap; }
+.match-official-context {
+  display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px;
+  margin-top:7px; color:var(--texto-sec); font-size:11px;
 }
-.match-team .club-badge {
-  border: 0;
-  background: var(--fundo-card-sec);
-  color: var(--texto);
+.match-card-live .match-card-footer { gap:12px; }
+.match-card-live .match-info { flex-basis:100%; }
+.match-card-live .match-card-actions { width:100%; margin-left:0; }
+.match-live-action { flex:1; justify-content:center; min-width:0; white-space:normal; text-align:center; }
+.match-card-compact { padding:14px; }
+.match-card-compact .match-teams { padding:12px 0 8px; }
+@media (hover:hover) {
+  .match-card-interactive:hover { border-color:var(--borda-botao); background:color-mix(in srgb,var(--texto) 2%,var(--fundo-card)); box-shadow:0 5px 18px #00000018; transform:translateY(-2px); }
+  .match-card-interactive:hover .match-detail-action { text-decoration:underline; text-underline-offset:3px; }
 }
-.match-date-time {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 20px;
+@media (max-width:760px) {
+  .match-card { padding:14px; }
+  .match-card .match-team .club-badge { width:48px !important; height:48px !important; }
+  .match-score { font-size:30px; gap:7px; }
+  .match-detail-action { min-height:44px; }
 }
-.match-date-time > span,
-.match-location {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
+@media (prefers-reduced-motion:reduce) {
+  .match-card-interactive { transition:none; }
+  .match-card-interactive:hover { transform:none; }
 }
-.match-location {
-  overflow-wrap: anywhere;
-}
-.match-info .icon {
-  flex-shrink: 0;
-}
-
-.match-schedule .match-card .match-card-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 14px;
-}
-.match-calendar-highlight {
-  min-width: 0;
-  grid-column: 1;
-  grid-row: 1;
-  text-align: left;
-  color: var(--texto);
-}
-.match-calendar-heading {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px 10px;
-}
-.match-calendar-heading .match-category {
-  color: var(--texto-sec);
-  font-family: var(--font-corpo);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: .3px;
-}
-.match-calendar-heading > time {
-  display: block;
-  font-family: var(--font-titulo);
-  font-size: 27px;
-  font-weight: 600;
-  line-height: 1.15;
-  white-space: nowrap;
-}
-.match-calendar-highlight > span {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 7px;
-  color: color-mix(in srgb, var(--texto) 75%, var(--texto-sec));
-  font-size: 13px;
-}
-.match-calendar-highlight > span > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.match-calendar-highlight > span > span:last-child {
-  color: var(--texto);
-  font-weight: 500;
-}
-.match-weekday {
-  text-transform: capitalize;
-}
-.match-schedule .match-card .match-card-badges {
-  grid-column: 2;
-  grid-row: 1;
-  justify-content: flex-end;
-  gap: 6px;
-}
-.match-card .match-card-badges > span {
-  display: inline-flex;
-  align-items: center;
-  box-sizing: border-box;
-  min-height: 26px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  line-height: 1.3;
-  font-weight: 600;
-}
-.match-schedule .match-card-static .status-badge.status-agendada {
-  color: var(--agendada-texto-claro, #C3A9FF);
-  background: var(--agendada-fundo-claro, color-mix(in srgb, #C3A9FF 13%, var(--fundo-card)));
-}
-.match-schedule .match-card-static .status-badge.status-preparada {
-  color: var(--preparada-texto-claro, #70DFC7);
-  background: var(--preparada-fundo-claro, color-mix(in srgb, #70DFC7 13%, var(--fundo-card)));
-}
-.match-schedule .match-card-static .status-cancelada {
-  gap: 5px;
-  background: var(--fundo-card-sec);
-  color: color-mix(in srgb, var(--texto) 85%, var(--texto-sec));
-}
-.match-card .match-venue {
-  color: var(--texto);
-  background: var(--fundo-card-sec);
-}
-.match-card-static .match-result.result-V {
-  background: var(--primaria);
-  color: #fff;
-}
-.match-card-static .match-result.result-D {
-  background: var(--derrota-claro, #E5485D);
-  color: #fff;
-}
-.match-card-static .match-result.result-E {
-  background: var(--resultado-empate);
-  color: #30220B;
-}
-.match-card .match-team-current .club-badge {
-  box-sizing: border-box;
-  border: 2px solid var(--primaria);
-  border-radius: 10px;
-}
-.match-card .match-team-current strong {
-  color: var(--texto);
-}
-.match-schedule .match-card .match-teams {
-  padding: 18px 0;
-}
-.match-schedule .match-card .match-team {
-  gap: 7px;
-}
-.match-schedule .match-card .match-team .club-badge {
-  width: 60px !important;
-  height: 60px !important;
-  flex-shrink: 0;
-}
-.match-schedule .match-card .match-info {
-  padding-block: 12px;
-}
-.match-schedule .match-card .match-location {
-  color: color-mix(in srgb, var(--texto) 80%, var(--texto-sec));
-  font-size: 13px;
-  line-height: 1.5;
-}
-.match-schedule .match-card .match-location > .icon {
-  color: var(--texto-sec);
-}
-.match-card-static .match-card-actions > a {
-  color: var(--primaria);
-}
-@media (hover: hover) {
-  .match-schedule .match-card:hover { background: var(--schedule-item-hover, var(--acordeao-hover)); }
-  .match-schedule .match-card-live { --schedule-item-hover: var(--acordeao-ao-vivo-hover); }
-  .match-card-static:hover {
-    background: var(--card-hover-claro, color-mix(in srgb, var(--fundo-card) 85%, var(--fundo-card-sec)));
-    border-color: var(--borda-botao);
-    box-shadow: 0 5px 18px #00000018;
-    transform: translateY(-2px);
-  }
-  .match-card-static:hover .match-card-actions > a {
-    border-color: var(--borda-botao);
-    color: var(--primaria);
-  }
-}
-@media (max-width: 760px) {
-  .match-calendar-heading > time {
-    font-size: 24px;
-  }
-  .match-calendar-highlight > span {
-    font-size: 12px;
-    gap: 6px;
-  }
-  .match-schedule .match-card .match-card-header {
-    gap: 10px;
-  }
-  .match-calendar-heading .match-category {
-    font-size: 11px;
-  }
-  .match-schedule .match-card .match-team .club-badge {
-    width: 48px !important;
-    height: 48px !important;
-  }
-  .match-schedule .match-card .match-teams {
-    padding-block: 16px;
-  }
-  .match-schedule .match-card .match-location {
-    font-size: 12px;
-  }
-  .match-card .match-card-badges > span {
-    min-height: 24px;
-    padding: 4px 6px;
-    font-size: 10px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .match-card-static {
-    transition: none;
-  }
-  .match-card-static:hover {
-    transform: none;
-  }
-}
-
 .match-card .match-card-badges > .match-live-radar {
   position: relative;
   display: inline-grid;
@@ -288,9 +112,5 @@
   .match-live-radar::after {
     animation: none;
   }
-}
-.match-schedule .match-card-live .match-team strong {
-  font-family: var(--font-corpo);
-  font-size: 14px;
 }
 .match-official-label { color: var(--primaria); font-size: 10px; font-weight: 600; white-space: nowrap; }

@@ -1,3 +1,4 @@
+import { AssistanceStatus } from "./AssistanceStatus";
 import { AccountMenu } from "./AccountMenu";
 import { IconButton } from "./ui/Controls";
 import type { ReactNode } from "react";
@@ -115,6 +116,7 @@ export function Header({
 
       <View style={styles.rightContent}>
         {rightAccessory}
+        <AssistanceStatus />
         {btnNotificacao && (
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: "transparent" }]}

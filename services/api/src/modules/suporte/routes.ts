@@ -5,7 +5,7 @@ import { prisma } from '../../lib/prisma';
 import { exigirAutenticacao } from '../../middlewares/auth.middleware';
 import { exigirEquipe } from '../admin/equipe';
 import { limitarRequisicoes } from '../../middlewares/rate-limit.middleware';
-import { classificar, rotaSegura, sanitizar, STATUS_CHAMADO, TIPOS_CHAMADO } from './rules';
+import { classificar, plataformaChamado, rotaSegura, sanitizar, STATUS_CHAMADO, TIPOS_CHAMADO } from './rules';
 import { dadosPublicos, registrarFalha } from './service';
 
 const limite = limitarRequisicoes({ janelaMs: 60000, limite: 10, prefixo: 'suporte' });
@@ -71,7 +71,7 @@ export function criarSuporteRoutes(io: Server) {
     const classificacao = classificar(sensivel ? 'SEGURANCA' : tipo, 1, clubeId ? 1 : 0);
     const chamado = await prisma.suporteChamado.create({ data: {
       requestId, origem: 'CLIENTE', assunto: sanitizar(assunto, 120), descricao: sanitizar(descricao), impacto, tipo, ...classificacao,
-      usuarioId, clubeId, rota: rotaSegura(req.body.rota), servico: 'web', versao: sanitizar(req.body.versao || 'web', 60),
+      usuarioId, clubeId, rota: rotaSegura(req.body.rota), servico: plataformaChamado(req.body.servico), versao: sanitizar(req.body.versao || (req.body.servico === 'mobile' ? 'mobile' : 'web'), 60),
       revisarEm: new Date(Date.now() + (classificacao.prioridade === 'ALTA' ? 4 : 24) * 3600000),
       historico: { create: { operadorId: usuarioId, acao: 'CRIADO', motivo: classificacao.regra } },
     } }).catch(async error => {
@@ -206,7 +206,7 @@ export function criarSuporteRoutes(io: Server) {
       filtros.push({ OR: [{ assunto: contains }, { id: contains }, { clube: { nome: contains } }, ...clubes.map(c => ({ clubesAfetados: { array_contains: [c.id] } }))] });
     }
     const lista = await prisma.suporteChamado.findMany({ where: { AND: filtros },
-      include: { clube: { select: { nome: true } },
+      include: { usuario: { select: { id: true, nome: true, email: true } }, clube: { select: { nome: true } },
         historico: req.query.incluirEncerramento === '1' ? {
           where: { OR: [{ acao: 'FINALIZAR' }, { acao: 'STATUS', dados: { path: ['depois', 'status'], equals: 'RESOLVIDO' } }] },
           orderBy: { criadoEm: 'desc' }, take: 1, select: { criadoEm: true },
@@ -225,7 +225,7 @@ export function criarSuporteRoutes(io: Server) {
   });
   router.get('/admin/equipe/chamados/:id', async (req, res) => {
     const c = await prisma.suporteChamado.findUnique({ where: { id: String(req.params.id) }, include: {
-      historico: { orderBy: { criadoEm: 'asc' } }, clube: { select: { nome: true } },
+      historico: { orderBy: { criadoEm: 'asc' } }, usuario: { select: { id: true, nome: true, email: true } }, clube: { select: { nome: true } },
       manutencoes: { select: { id: true, operacao: true, ativa: true, revisarEm: true }, orderBy: { inicio: 'desc' } },
     } });
     if (!c || !permitido(res.locals.funcionario.papel_plataforma, c)) { res.status(403).json({ error: 'Chamado indisponível para seu cargo.' }); return; }
@@ -244,7 +244,7 @@ export function criarSuporteRoutes(io: Server) {
       responsavelNome: c.responsavelId !== null ? nomesOperadores.get(c.responsavelId) ?? null : null,
       historico: c.historico.map(h => ({
         ...h,
-        autorNome: h.operadorId === null ? null : h.operadorId === c.usuarioId ? 'Cliente' : nomesOperadores.get(h.operadorId) ?? null,
+        autorNome: h.operadorId === null ? null : h.operadorId === c.usuarioId ? c.usuario?.nome || 'Cliente' : nomesOperadores.get(h.operadorId) ?? null,
         dados: tecnico || ['MANUTENCAO_PAUSADA', 'MANUTENCAO_REATIVADA'].includes(h.acao) ? h.dados : undefined,
       })),
     });

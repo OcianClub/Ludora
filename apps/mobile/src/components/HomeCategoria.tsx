@@ -1,7 +1,8 @@
-import { Fragment, memo, useMemo, useState } from 'react';
+import { ScrollToTop } from './ui/ScrollToTop';
+import { Fragment, memo, useMemo, useRef, useState } from 'react';
 import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Icon } from '@ludora/icons';
+import { Icon, type IconName } from '@ludora/icons';
 import { darkColors } from '@ludora/design-tokens';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
@@ -10,6 +11,24 @@ import { createStyles } from '@/src/styles/homeCategoriaStyles';
 import { HomeSkeleton } from './Skeleton';
 
 type Time = { id: number; nome: string; escudo: string | null };
+
+function PendenciaHome({ icon, title, description, count, onPress, styles }: {
+  icon: IconName; title: string; description: string; count?: number | null;
+  onPress?: () => void; styles: ReturnType<typeof createStyles>;
+}) {
+  const { colors } = useTheme();
+  const content = <>
+    <View style={styles.pendingIcon}><Icon name={icon} size={21} color={colors.texto} /></View>
+    <View style={styles.pendingCopy}><Text style={styles.cardTitle}>{title}</Text><Text style={styles.secondaryText}>{description}</Text></View>
+    <View style={styles.pendingEnd}>
+      <View style={styles.pendingCountSlot}>{count != null && <Text style={styles.pendingCount}>{count}</Text>}</View>
+      <View style={styles.pendingChevron}>{onPress && <Icon name="chevron-right" size={16} color={colors.textoSecundario} />}</View>
+    </View>
+  </>;
+  return onPress
+    ? <TouchableOpacity style={[styles.pendingRow, styles.pendingItem]} onPress={onPress} accessibilityRole="button" activeOpacity={0.8}>{content}</TouchableOpacity>
+    : <View style={[styles.pendingRow, styles.pendingItem]}>{content}</View>;
+}
 
 // Vermelho mais equilibrado para derrota: vivo no tema escuro e legível no claro.
 const VERMELHO_DERROTA = '#E5485D';
@@ -98,6 +117,8 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
   const { clubeAtivo } = useClubeAtivo();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
+  const scroll = useRef<ScrollView>(null);
+  const [showTop, setShowTop] = useState(false);
   const aoVivo = jogo?.status === 'AO_VIVO';
   const operaSumula = podeGerenciar && (jogo?.sumula_clube_id ?? jogo?.clube_origem_id) === clubeAtivo?.id;
   const prepararDestaque = acoesDaPartidaNaHome(jogo, podeGerenciar).preparar;
@@ -120,7 +141,7 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
   const amareloEmpate = tema === 'light' ? '#F4B942' : colors.amarelo;
 
   return (
-    <ScrollView
+    <View style={{ flex: 1 }}><ScrollView ref={scroll} onScroll={e => setShowTop(e.nativeEvent.contentOffset.y > 700)} scrollEventThrottle={64}
       style={styles.pageContainer}
       contentContainerStyle={styles.homeContent}
       showsVerticalScrollIndicator={false}
@@ -224,41 +245,28 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
             <Text style={styles.formLegend}>{sub}</Text>
           </View>
           <View style={styles.preparationCard}>
-            <View style={styles.preparationHeading}>
-              <View style={styles.preparationIcon}><Icon name="info" size={22} color={colors.texto} /></View>
-              <View style={styles.flex}>
+            <View style={[styles.preparationHeading, styles.pendingHeading]}>
+              <View style={styles.pendingIcon}><Icon name="info" size={22} color={colors.texto} /></View>
+              <View style={styles.pendingCopy}>
                 <Text style={styles.cardTitle}>O que precisa da sua atenção</Text>
                 <Text style={styles.secondaryText}>Resolva os próximos passos da sua equipe.</Text>
               </View>
             </View>
-            {preparar && <TouchableOpacity style={styles.pendingRow} onPress={() => onVerDetalhes(preparar)} accessibilityRole="button">
-              <Icon name="account-group-outline" size={21} color={colors.texto} />
-              <View style={styles.flex}>
-                <Text style={styles.cardTitle}>{titulares === necessarios ? 'Confirmar sua equipe' : 'Preparar próximo jogo'}</Text>
-                <Text style={styles.secondaryText}>{titulares == null ? 'Confira a escalação' : `${titulares}/${necessarios} titulares · ${titulares === necessarios ? 'Revise a escalação' : 'Complete a escalação'}`}</Text>
-              </View>
-              <Icon name="chevron-right" size={16} color={colors.textoSecundario} />
-            </TouchableOpacity>}
-            {!!pendencias?.semCamisa && <View style={styles.pendingRow}>
-              <Icon name="tshirt-crew-outline" size={21} color={colors.texto} />
-              <View style={styles.flex}><Text style={styles.cardTitle}>Numeração do elenco</Text><Text style={styles.secondaryText}>Jogadores com camisa ainda não definida</Text></View>
-              <Text style={styles.pendingCount}>{pendencias.semCamisa}</Text>
-            </View>}
-            {!!pendencias?.solicitacoes && <TouchableOpacity style={styles.pendingRow} onPress={() => router.push('/solicitacoes-partidas')} accessibilityRole="button">
-              <Icon name="email-outline" size={21} color={colors.texto} />
-              <View style={styles.flex}><Text style={styles.cardTitle}>Solicitações de partida</Text><Text style={styles.secondaryText}>Aguardando sua resposta</Text></View>
-              <Text style={styles.pendingCount}>{pendencias.solicitacoes}</Text>
-              <Icon name="chevron-right" size={16} color={colors.textoSecundario} />
-            </TouchableOpacity>}
-            {golsPendentes && <TouchableOpacity style={styles.pendingRow} onPress={() => onVerDetalhes(golsPendentes)} accessibilityRole="button">
-              <Icon name="soccer" size={21} color={colors.texto} />
-              <View style={styles.flex}><Text style={styles.cardTitle}>Gols sem autor identificado</Text><Text style={styles.secondaryText}>Revise os registros da partida</Text></View>
-              <Text style={styles.pendingCount}>{golsPendentes.gols_sem_autor}</Text>
-              <Icon name="chevron-right" size={16} color={colors.textoSecundario} />
-            </TouchableOpacity>}
+            {preparar && <PendenciaHome styles={styles} icon="account-group-outline"
+              title={titulares === necessarios ? 'Confirmar sua equipe' : 'Preparar próximo jogo'}
+              description={titulares == null ? 'Confira a escalação' : `${titulares}/${necessarios} titulares · ${titulares === necessarios ? 'Revise a escalação' : 'Complete a escalação'}`}
+              onPress={() => onVerDetalhes(preparar)} />}
+            {!!pendencias?.semCamisa && <PendenciaHome styles={styles} icon="tshirt-crew-outline"
+              title="Numeração do elenco" description="Jogadores com camisa ainda não definida" count={pendencias.semCamisa} />}
+            {!!pendencias?.solicitacoes && <PendenciaHome styles={styles} icon="email-outline"
+              title="Solicitações de partida" description="Aguardando sua resposta" count={pendencias.solicitacoes}
+              onPress={() => router.push('/solicitacoes-partidas')} />}
+            {golsPendentes && <PendenciaHome styles={styles} icon="soccer"
+              title="Gols sem autor identificado" description="Revise os registros da partida" count={golsPendentes.gols_sem_autor}
+              onPress={() => onVerDetalhes(golsPendentes)} />}
             {!!semPerfil && (
               <View style={styles.pendingNote}>
-                <Icon name="radar" size={15} color={colors.textoSecundario} />
+                <View style={styles.pendingIcon}><Icon name="radar" size={18} color={colors.textoSecundario} /></View>
                 <Text style={[styles.secondaryText, styles.flex]}>
                   {semPerfil} {semPerfil === 1 ? 'atleta ainda sem perfil' : 'atletas ainda sem perfil'} de contribuição.
                   {' '}<Text accessibilityRole="link" style={styles.linkText} onPress={() => router.push('/estatisticas/estatisticas')}>Consultar Scout</Text>
@@ -266,7 +274,7 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
               </View>
             )}
             {!semPerfil && !preparar && !golsPendentes && !pendencias?.semCamisa && !pendencias?.solicitacoes && (
-              <Text style={styles.secondaryText}>{pendencias?.semCamisa == null || pendencias.solicitacoes == null ? 'Não foi possível conferir todas as pendências.' : 'Nenhuma ação pendente nesta categoria.'}</Text>
+              <Text style={[styles.secondaryText, styles.pendingEmpty]}>{pendencias?.semCamisa == null || pendencias.solicitacoes == null ? 'Não foi possível conferir todas as pendências.' : 'Nenhuma ação pendente nesta categoria.'}</Text>
             )}
           </View>
         </View>}
@@ -374,7 +382,7 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
           </View>
         </> : <Text style={styles.secondaryText}>Nenhuma partida finalizada neste sub.</Text>}
       </>}
-    </ScrollView>
+    </ScrollView><ScrollToTop visible={showTop} onPress={() => scroll.current?.scrollTo({ y: 0, animated: true })} /></View>
   );
 });
 

@@ -81,6 +81,7 @@ export default function PartidaDetalhePage() {
   const [syncingShirt, setSyncingShirt] = useState(false);
   const [lineupDirty, setLineupDirty] = useState(false);
   const dirtyRef = useRef(false);
+  const lineupBaseVersion = useRef<number | undefined>(undefined);
   dirtyRef.current = lineupDirty;
   const rosterChanged = useRef<(change: RosterChange) => void>(() => {});
   rosterChanged.current = change => {
@@ -102,6 +103,10 @@ export default function PartidaDetalhePage() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const refreshVersion = useRef(0);
+  const matchScope = `${id}:${clube?.id}:${usuario?.id}`;
+  const matchScopeRef = useRef(matchScope);
+  matchScopeRef.current = matchScope;
+  const appliedSnapshot = useRef({ scope: '', version: -1 });
   const drag = useRef<{ id: number; pointerId: number; x: number; y: number; moved: boolean } | null>(null);
   const skipSwapClick = useRef(false);
   const [draggedId, setDraggedId] = useState<number | null>(null);
@@ -118,6 +123,10 @@ export default function PartidaDetalhePage() {
   const [eventError, setEventError] = useState('');
 
   function aplicarGestao(data: GestaoPartida, manterRascunho = false, players?: typeof jogadores) {
+    if (matchScopeRef.current !== matchScope || data.partida.id !== Number(id)) return;
+    if (appliedSnapshot.current.scope === matchScope && data.partida.versao < appliedSnapshot.current.version) return;
+    appliedSnapshot.current = { scope: matchScope, version: data.partida.versao };
+    if (!['AGENDADA', 'PREPARADA'].includes(data.partida.status)) { manterRascunho = false; dirtyRef.current = false; setLineupDirty(false); }
     if (data.paulista) data = { ...data, partida: { ...data.partida,
       mandante: data.partida.mandante && { ...data.partida.mandante, nome: nomeOficial(data.partida.mandante.nome) },
       visitante: data.partida.visitante && { ...data.partida.visitante, nome: nomeOficial(data.partida.visitante.nome) },
@@ -264,13 +273,13 @@ export default function PartidaDetalhePage() {
     if (new Set(escalacao.map(item => item.numCamisa)).size !== escalacao.length) { setActionError('Dois convocados estão com a mesma camisa. Atualize os números antes de salvar.'); return false; }
     setSavingLineup(true); setActionError(''); setNotice('');
     try {
-      await comandoPartida(Number(id), 'escalacao', { jogadores: escalacao.map(e => ({ jogador_id: e.jogador_id, numCamisa: e.numCamisa, titular: e.titular })), versao: gestao?.partida.versao }, 'PUT');
+      await comandoPartida(Number(id), 'escalacao', { jogadores: escalacao.map(e => ({ jogador_id: e.jogador_id, numCamisa: e.numCamisa, titular: e.titular })), versao: gestao?.partida.versao, versao_equipe: lineupBaseVersion.current }, 'PUT');
       setLineupDirty(false);
       dirtyRef.current = false;
       await atualizarDados(true);
       setNotice('');
       return true;
-    } catch (err) { setActionError(err instanceof Error ? err.message : 'Não foi possível salvar a escalação.'); return false; }
+    } catch (err) { await atualizarDados(true).catch(() => {}); setActionError(err instanceof Error ? err.message : 'Não foi possível salvar a escalação.'); return false; }
     finally { setSavingLineup(false); }
   }
 
@@ -286,6 +295,7 @@ export default function PartidaDetalhePage() {
       return;
     }
     setActionError('');
+    if (!dirtyRef.current) lineupBaseVersion.current = gestao?.equipes.find(e => e.id === gestao.minhaEquipeId)?.versao;
     dirtyRef.current = true;
     setLineupDirty(true);
     setEscalacao(previous => {
@@ -386,6 +396,7 @@ export default function PartidaDetalhePage() {
     const primeiro = escalacao.find(item => item.jogador_id === origem);
     const segundo = escalacao.find(item => item.jogador_id === destino);
     if (!primeiro || !segundo) return;
+    if (!dirtyRef.current) lineupBaseVersion.current = gestao?.equipes.find(e => e.id === gestao.minhaEquipeId)?.versao;
     dirtyRef.current = true;
     setEscalacao(previous => previous.map(item => item.jogador_id === origem
       ? { ...segundo, titular: primeiro.titular }
@@ -464,7 +475,8 @@ export default function PartidaDetalhePage() {
     setJogadores(previous => previous.map(player => changes.has(player.id) ? { ...player, numCamisa: changes.get(player.id) } : player));
     const result = reconcileLineupShirts(escalacao, changes);
     if (result.changed) {
-      dirtyRef.current = true;
+      if (!dirtyRef.current) lineupBaseVersion.current = gestao?.equipes.find(e => e.id === gestao.minhaEquipeId)?.versao;
+    dirtyRef.current = true;
       setEscalacao(result.lineup);
       setLineupDirty(true);
     }
@@ -675,6 +687,7 @@ export default function PartidaDetalhePage() {
 
       {preparando && <div className="preparation-footer">
 
+        {lineupDirty && gestao?.equipes.find(e => e.id === gestao.minhaEquipeId)?.versao !== lineupBaseVersion.current && <div role="alert" className="notice-error">A escalação mudou em outro dispositivo. Seu rascunho foi preservado. <Btn variant="ghost" onClick={() => { if (confirm('Descartar alterações locais e usar a escalação atualizada?')) { dirtyRef.current = false; setLineupDirty(false); setEscalacao(gestao?.equipes.find(e => e.id === gestao.minhaEquipeId)?.escalacao || []); setActionError(''); } }}>Usar escalação atualizada</Btn></div>}
         {actionError && <p role="alert" className="notice-error">{actionError}</p>}
         <div className="preparation-footer-content">
           <div className="preparation-save-state" role="status">

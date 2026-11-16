@@ -179,7 +179,7 @@ export default function PaulistaPage({ competitionHome = false }: { competitionH
     const p = partidaOficial(active.snapshot, j, minhas, locais.get(j.id), situacoes.get(j.id));
     return <div className="paulista-fixture" key={j.id} data-game-id={j.id}>{list
       ? <MatchListRow partida={p} onOpen={() => abrirJogo(j)}/>
-      : <MatchCard partida={p} compact={compact} officialLayout={!compact} featured={summary?.proxima?.id === j.id || p.status === 'AO_VIVO'} onOpen={() => abrirJogo(j)} competitionContext={<>
+      : <MatchCard partida={p} compact={compact} featured={summary?.proxima?.id === j.id || p.status === 'AO_VIVO'} onOpen={() => abrirJogo(j)} competitionContext={<>
           {!/CLASSIFICA/i.test(j.fase) && <small title={nomeOficial(j.fase)}>{nomeOficial(j.fase)}</small>}
         </>}/>}
       {(j.ocorrencia || !temResultado(j)) && <small className="paulista-fixture-state">{estadoJogo(j)}</small>}

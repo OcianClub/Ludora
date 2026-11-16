@@ -97,9 +97,13 @@ if (width <= 390) {
   await final.click();
   assert.equal(await final.getAttribute('aria-selected'),'true');
   assert.equal(await page.getByRole('button',{name:/^Ver detalhes:/}).count(),1);
-  assert.equal(await page.getByText('Finalizada',{exact:true}).count(),1);
-  for(const text of ['Derrota','Vitória','Casa','Fora']) assert.equal(await page.getByText(text,{exact:true}).count(),0);
-  await semifinal.click();
+  assert.equal(await page.getByText('Resultado oficial',{exact:true}).count(),1);
+  for(const text of ['Derrota','Vitória','Casa','Fora']) assert.equal(await page.getByText(text,{exact:true}).filter({visible:true}).count(),0);
+  await page.getByRole('button',{name:'Localizar meu clube',exact:true}).click();
+  assert.equal(await semifinal.getAttribute('aria-selected'),'true','locate restores the latest published club stage');
+  const compactCard = page.getByRole('button',{name:/^Ver detalhes:.*Ocian/}).first();
+  assert.ok((await compactCard.boundingBox()).height < 230,'bracket uses compact team rows');
+  await page.getByText(/avançou$/).first().waitFor();
   await page.screenshot({path:path.join(output,`bracket-${role}-${width}.png`),fullPage:true});
 }
 await page.getByRole('tab',{name:'Classificação',exact:true}).click();await page.getByRole('button',{name:'Localizar meu clube',exact:true}).waitFor();

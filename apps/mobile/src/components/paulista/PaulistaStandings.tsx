@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Icon } from '@ludora/icons';
@@ -10,7 +10,7 @@ import { AppButton } from '../ui/Controls';
 import { CategoryFilterScroll } from '../CategoryPager';
 
 export const INFORMACAO_CLASSIFICACAO = 'Posições e pontos conforme a federação, sem recálculo pelo Ludora. As faixas mostram as chaves identificadas nas fases publicadas; não são uma projeção de classificação.';
-export function PaulistaStandings({ snapshot, minhas, onLocate }: { snapshot: SnapshotPaulista; minhas: Set<number>; onLocate: (view: View) => void }) {
+export const PaulistaStandings = memo(function PaulistaStandings({ snapshot, minhas, onLocate }: { snapshot: SnapshotPaulista; minhas: Set<number>; onLocate: (view: View) => void }) {
   const { colors } = useTheme(), s = usePaulistaStyles(), { width } = useWindowDimensions();
   const destaqueClube = useDestaqueClube();
   const paletaChave = usePaletaChave();
@@ -53,10 +53,28 @@ export function PaulistaStandings({ snapshot, minhas, onLocate }: { snapshot: Sn
       <MenuSelecao label="Selecionar etapa" value={model.inicial ? 'inicial' : model.selecionada || ''} options={model.options} onChange={value => { setFase(value === 'inicial' ? model.faseDoClube || '' : value); setGrupo(''); }} />
       {model.opcoesGrupo.length > 1 && <MenuSelecao label="Selecionar grupo" value={`${model.selecionada}|${model.grupoAtual}`} options={model.opcoesGrupo.map(([value, label]) => ({ value, label: nomeGrupo(nomeOficial(label)) }))} onChange={value => { const index = value.indexOf('|'); setFase(value.slice(0, index)); setGrupo(value.slice(index + 1)); }} />}
     </View>
-    {destaque && <Panel style={{ borderColor: colors.primaria }}><View style={s.body}>
-      <View style={[s.between, { alignItems: 'flex-start' }]}><View style={[s.row, { gap: 10, flex: 1, paddingTop: 4 }]}><EscudoOficial equipe={equipes.get(destaque.equipeId)} size={36} /><View style={{ flex: 1, gap: 7 }}><Text style={[s.tiny, { letterSpacing: 2, fontSize: 8 }]}>SEU CLUBE</Text><Text style={s.heading} numberOfLines={1}>{nomeOficial(equipes.get(destaque.equipeId)?.nome || '')}</Text></View></View><View style={{ alignItems: 'flex-end' }}><Text style={[s.number, { fontSize: 48, lineHeight: 60 }]}>{destaque.posicao}º</Text><Text style={s.tiny}>{model.completa ? `de ${model.rows.length} equipes` : 'posição publicada'}</Text><Text style={[s.tiny, { fontSize: 10 }]}>{nomeGrupo(model.grupoAtual || '')}</Text></View></View>
-      {!!model.chavesPublicadas.get(destaque.equipeId) && <View style={{ alignItems: 'flex-start', gap: 5 }}><Medalha chave={model.chavesPublicadas.get(destaque.equipeId)} />{faixa?.chave && <Text style={[s.tiny, { fontSize: 10 }]}>{faixa.inicio}º ao {faixa.fim}º</Text>}</View>}
-      <View style={[s.row, { borderTopWidth: 1, borderTopColor: colors.linha, paddingTop: 15 }]}>{[['Pontos', destaque.pontosNota || destaque.pontos], ['Jogos', destaque.jogos], ['Saldo de gols', saldoOficial(destaque.saldo)]].map(([label, n], index) => <View key={label} style={[s.metric, { borderLeftWidth: index ? 1 : 0, borderLeftColor: colors.linha }]}><Text style={s.tiny}>{label}</Text><Text style={[s.heading, { fontSize: 20 }]}>{n}</Text></View>)}</View>
+    {destaque && <Panel style={{ borderColor: colors.primaria }}><View style={[s.body, { gap: 10 }]}>
+      <View style={[s.between, { alignItems: 'flex-start', gap: 12 }]}>
+        <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
+          <View style={[s.row, { gap: 9 }]}>
+            <EscudoOficial equipe={equipes.get(destaque.equipeId)} size={36} />
+            <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+              <Text style={[s.tiny, { letterSpacing: 2, fontSize: 8 }]}>SEU CLUBE</Text>
+              <Text style={s.heading} numberOfLines={1}>{nomeOficial(equipes.get(destaque.equipeId)?.nome || '')}</Text>
+            </View>
+          </View>
+          {!!model.chavesPublicadas.get(destaque.equipeId) && <View style={{ alignItems: 'flex-start', gap: 3 }}>
+            <Medalha chave={model.chavesPublicadas.get(destaque.equipeId)} />
+            {faixa?.chave && <Text style={[s.tiny, { fontSize: 10 }]}>{faixa.inicio}º ao {faixa.fim}º</Text>}
+          </View>}
+        </View>
+        <View style={{ alignItems: 'flex-end', flexShrink: 1, maxWidth: '40%' }}>
+          <Text style={[s.number, { fontSize: 44, lineHeight: 54 }]}>{destaque.posicao}º</Text>
+          <Text style={[s.tiny, { fontSize: 10, textAlign: 'right' }]}>{model.completa ? `de ${model.rows.length} equipes` : 'posição publicada'}</Text>
+          <Text style={[s.tiny, { fontSize: 10, textAlign: 'right' }]}>{nomeGrupo(model.grupoAtual || '')}</Text>
+        </View>
+      </View>
+      <View style={[s.row, { borderTopWidth: 1, borderTopColor: colors.linha, paddingTop: 12, paddingBottom: 2 }]}>{[['Pontos', destaque.pontosNota || destaque.pontos], ['Jogos', destaque.jogos], ['Saldo de gols', saldoOficial(destaque.saldo)]].map(([label, n], index) => <View key={label} style={[s.metric, { borderLeftWidth: index ? 1 : 0, borderLeftColor: colors.linha }]}><Text style={s.tiny}>{label}</Text><Text style={[s.heading, { fontSize: 20 }]}>{n}</Text></View>)}</View>
       <View style={s.between}><Text style={s.tiny}>V · E · D</Text><Text style={[s.text, { color: colors.primaria, fontFamily: 'Inter_600SemiBold' }]}>{destaque.vitorias} · <Text style={{ color: colors.amarelo }}>{destaque.empates}</Text> · <Text style={{ color: '#F43F5E' }}>{destaque.derrotas}</Text></Text></View><BarraCampanha linha={destaque} />
       <AppButton label="Localizar meu clube" onPress={localizar} />
     </View></Panel>}
@@ -75,4 +93,4 @@ export function PaulistaStandings({ snapshot, minhas, onLocate }: { snapshot: Sn
     </View>{!model.rows.length && <Text style={[s.muted, { padding: 16 }]}>A fonte ainda não publicou a tabela desta etapa.</Text>}</Panel>
     <View style={{ gap: 8 }}><TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: info }} onPress={() => setInfo(v => !v)} style={[s.row, { minHeight: 40, gap: 6 }]}><Icon name={info ? 'chevron-down' : 'chevron-right'} size={13} color={colors.textoSecundario} /><Text style={s.tiny}>Sobre a classificação oficial</Text></TouchableOpacity>{info && <Text style={s.muted}>{INFORMACAO_CLASSIFICACAO}{model.rows.some(r => r.pontosNota) ? '\n* Pontuação com nota na fonte oficial. Consulte a federação para o motivo.' : ''}</Text>}</View>
   </View>;
-}
+});

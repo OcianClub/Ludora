@@ -1,3 +1,4 @@
+import { sincronizarNotificacoes } from './notificacao-sync';
 import { Router } from 'express';
 
 import { exigirAutenticacao } from '../../middlewares/auth.middleware';
@@ -11,6 +12,7 @@ const LIMITE_MAXIMO = 100;
 
 export default function criarNotificacaoRoutes() {
   const router = Router();
+  router.use('/notificacoes', sincronizarNotificacoes);
   router.use(criarPreferenciasNotificacoesRoutes());
 
   router.get('/notificacoes', exigirMembroDoClube, async (req, res) => {

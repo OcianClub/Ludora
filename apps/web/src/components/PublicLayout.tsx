@@ -18,7 +18,7 @@ export function PublicHeader() {
   const links: { to: string; label: string; icon: IconName; end?: boolean }[] = [
     ...(clube ? [{ to: base, label: 'Visão geral', icon: 'home' as IconName, end: true },
       { to: `${base}/partidas`, label: 'Partidas', icon: 'ball' as IconName },
-      { to: `${base}/competicoes`, label: 'Campeonatos', icon: 'trophy' as IconName }] : []),
+      { to: `${base}/competicoes`, label: 'Torneios', icon: 'trophy' as IconName }] : []),
     { to: '/selecionar-clube', label: 'Clubes', icon: 'shield' },
   ];
   const active = (link: typeof links[number], isActive: boolean) => isActive || (link.icon === 'home' && pathname === '/dashboard') || (link.icon === 'ball' && pathname.startsWith('/partidas')) || (link.icon === 'trophy' && pathname.startsWith('/competicoes')) ? 'active' : '';

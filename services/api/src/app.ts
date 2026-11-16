@@ -1,3 +1,4 @@
+import { criarEscudosPaulistaRoutes } from './modules/paulista/escudos.routes';
 import { criarTarefasCadastroRoutes } from './modules/admin/tarefas-cadastro';
 import { criarManutencaoRoutes } from './modules/manutencao/routes';
 import { criarOperacoesSuporte } from './modules/suporte/operational.routes';
@@ -74,6 +75,7 @@ export function criarApp(io: Server) {
   app.use(criarOperacoesSuporte(io));
   app.use(criarSuporteRoutes(io));
   app.use(criarTarefasCadastroRoutes(io));
+  app.use(criarEscudosPaulistaRoutes());
   app.use(criarPaulistaRoutes(io));
   app.use(criarAdminRoutes(io));
   app.use(protegerPaulista);

@@ -1,3 +1,4 @@
+import { ScrollToTop } from '../components/ui/ScrollToTop';
 import { memo, useCallback, useDeferredValue, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -95,7 +96,7 @@ export default function PaulistaScreen() {
             keyboardDismissMode="on-drag"
           >
             {subs.map(({ title }) => (
-              <PaulistaSubPage
+              <View key={title} collapsable={false} style={{ flex: 1 }}>{title === sub && <PaulistaSubPage
                 key={title}
                 clubeAtivo={clubeAtivo}
                 sub={title}
@@ -110,7 +111,7 @@ export default function PaulistaScreen() {
                 atualizando={publicacao.atualizando}
                 erro={publicacao.erro}
                 atualizar={publicacao.atualizar}
-              />
+              />}</View>
             ))}
           </CategoryPager>
         </>
@@ -150,7 +151,10 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
   const [jogoSelecionado, setJogoSelecionado] = useState<{ id: string; scope: string } | null>(null);
   const [linkErro, setLinkErro] = useState('');
   const scroll = useRef<ScrollView>(null);
+  const visited = useRef(new Set<Aba>());
+  visited.current.add(aba);
   const scrollY = useRef(0);
+  const [showTop, setShowTop] = useState(false);
   const snapshot = useMemo(() => evento ? snapshotDoClube(evento, clubeAtivo) : null, [evento, clubeAtivo.id, clubeAtivo.nome, clubeAtivo.escudo]);
   const minhas = useMemo(() => new Set(evento?.equipesClube || []), [evento]);
   const resumo = useMemo(() => snapshot ? resumoClube(snapshot, minhas, hojePaulista()) : null, [snapshot, minhas]);
@@ -186,9 +190,9 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
     if (!fonteOficialValida(evento?.fonte)) { setLinkErro('A fonte oficial ainda não está disponível para esta seleção.'); return; }
     try { await Linking.openURL(evento.fonte); setLinkErro(''); } catch { setLinkErro('Não foi possível abrir a fonte oficial. Tente novamente.'); }
   }
-  function localizar(view: View) { view.measureInWindow((_x, y) => scroll.current?.scrollTo({ y: Math.max(0, scrollY.current + y - insets.top - 170), animated: true })); }
+  const localizar = useCallback((view: View) => { view.measureInWindow((_x, y) => scroll.current?.scrollTo({ y: Math.max(0, scrollY.current + y - insets.top - 170), animated: true })); }, [insets.top]);
   return <>
-    <ScrollView ref={scroll} onScroll={e => { scrollY.current = e.nativeEvent.contentOffset.y; }} scrollEventThrottle={32} refreshControl={<RefreshControl refreshing={atualizando && !carregando} onRefresh={atualizar} tintColor={colors.primaria} />} contentContainerStyle={{ padding: 12, paddingBottom: Math.max(insets.bottom, 16) + 24, gap: 18 }}>
+    <ScrollView ref={scroll} onScroll={e => { scrollY.current = e.nativeEvent.contentOffset.y; const visible = scrollY.current > 700; setShowTop(old => old === visible ? old : visible); }} scrollEventThrottle={32} refreshControl={<RefreshControl refreshing={atualizando && !carregando} onRefresh={atualizar} tintColor={colors.primaria} />} contentContainerStyle={{ padding: 12, paddingBottom: Math.max(insets.bottom, 16) + 24, gap: 18 }}>
       <View style={[s.between, { alignItems: 'flex-start', gap: 5 }]}>
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.8} style={[s.title, { fontSize: width < 350 ? 20 : 23, lineHeight: 32 }]}>Campeonato Paulista</Text>{!!evento?.divisao && <Text style={s.tiny}>Divisão {evento.divisao}</Text>}</View>
         <View style={[s.row, { alignItems: 'flex-start', gap: 2 }]}>
@@ -205,8 +209,8 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
       {carregando ? <PaulistaSkeleton aba={aba} /> : erro && !recebida ? <ErroCarregamento titulo="Não foi possível carregar o campeonato" descricao={erro} onTentarNovamente={atualizar} /> : <>
         {!!erro && <ErroCarregamento compacto titulo="Última atualização não concluída" descricao="Os últimos dados continuam visíveis. Confira sua conexão e tente novamente." onTentarNovamente={atualizar} />}
         {!snapshot ? <View style={s.empty}><Icon name="trophy" size={32} color={colors.textoSecundario} /><Text style={[s.muted, { textAlign: 'center' }]}>Nenhuma participação publicada para {sub} na temporada {ano}.</Text></View> : <>
-          {aba === 'visao' && <PaulistaOverview key={scope} snapshot={snapshot} minhas={minhas} clubeNome={clubeAtivo.nome} resumo={resumo!} chave={chave} onTab={trocarAba} onOpen={setDetalhe} />}
-          {aba === 'classificacao' && <PaulistaStandings key={scope} snapshot={snapshot} minhas={minhas} onLocate={localizar} />}
+          {visited.current.has('visao') && <View style={{ display: aba === 'visao' ? 'flex' : 'none' }}><PaulistaOverview key={scope} snapshot={snapshot} minhas={minhas} clubeNome={clubeAtivo.nome} resumo={resumo!} chave={chave} onTab={trocarAba} onOpen={setDetalhe} /></View>}
+          {visited.current.has('classificacao') && <View style={{ display: aba === 'classificacao' ? 'flex' : 'none' }}><PaulistaStandings key={scope} snapshot={snapshot} minhas={minhas} onLocate={localizar} /></View>}
           {aba === 'jogos' && (
             <View style={{ gap: 16 }}>
               <View style={[s.row, { gap: 8 }]}>
@@ -230,10 +234,11 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
               )}
             </View>
           )}
-          {aba === 'chaveamento' && <PaulistaBracket key={scope} snapshot={snapshot} chave={chave} equipes={equipes} minhas={minhas} onOpen={setDetalhe} />}
+          {visited.current.has('chaveamento') && <View style={{ display: aba === 'chaveamento' ? 'flex' : 'none' }}><PaulistaBracket key={scope} snapshot={snapshot} chave={chave} equipes={equipes} minhas={minhas} onOpen={setDetalhe} onLocate={localizar} /></View>}
         </>}
       </>}
     </ScrollView>
+    <ScrollToTop visible={showTop} onPress={() => scroll.current?.scrollTo({ y: 0, animated: true })} />
     {filtros && <AppSheet title="Filtrar jogos" onClose={() => setFiltros(false)}><MenuSelecao label="Selecionar etapa" value={faseJogo} options={[{ value: '', label: 'Todas as etapas' }, ...[...new Map((resumo?.jogos || []).map(j => [j.faseId, j.fase]))].map(([value, label]) => ({ value, label: nomeOficial(label) }))]} onChange={value => { setFaseJogo(value); setLimite(20); setFiltros(false); }} /></AppSheet>}
     {detalhe && snapshot && <AppSheet title="Partida oficial" onClose={() => setDetalhe(null)}><ConfrontoOficial jogo={detalhe} equipes={equipes} minhas={minhas} /><Text style={s.text}>{nomeOficial(detalhe.fase)} · {snapshot.categoria.toUpperCase()}</Text><Text style={s.muted}>{agendaProvisoria(detalhe) ? 'Data e horário a confirmar' : `${dataOficial(detalhe.data)} · ${detalhe.horario?.slice(0, 5) || 'Horário a confirmar'}`}</Text>{!!detalhe.local && <Text style={s.muted}>{detalhe.local}</Text>}<ResultadoOficial jogo={detalhe} minhas={minhas} /><Text style={s.muted}>{estadoJogo(detalhe)}</Text><AppButton label="Consultar fonte oficial" onPress={() => void fonte()} /></AppSheet>}
   </>;

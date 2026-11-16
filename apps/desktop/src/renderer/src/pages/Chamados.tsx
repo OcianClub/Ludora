@@ -90,7 +90,7 @@ const historicoInicial = 6;
 
 type Chamado = {
   id: string; assunto: string; descricao: string; origem: string; tipo: string; status: string; prioridade: string;
-  regra: string; impacto: string; fila: string; restrito: boolean; clubeId: number | null; usuarioId?: number | null; clube?: { nome: string };
+  regra: string; impacto: string; fila: string; restrito: boolean; clubeId: number | null; usuarioId?: number | null; usuario?: { id: number; nome: string; email: string } | null; clube?: { nome: string };
   responsavelId?: number | null; responsavelNome?: string | null; clubesAfetadosNomes?: string[]; ocorrencias: number; criadoEm: string; revisarEm: string; revisao: number; finalizadoEm?: string | null;
   rota: string; versao: string; servico: string;
   detalhesTecnicos?: { reproducao?: string; correlacao?: string; statusHttp?: number; comparacao?: { oficial?: number[]; local?: number[] }; pistas?: { arquivo: string; linha: number; coluna: number }[] };
@@ -277,6 +277,7 @@ export default function ChamadosPage() {
         <span className="ticket-row-subject">
           <span className="ticket-card-icon"><Icon name={c.origem === 'AUTOMATICO' ? 'alert' : 'headset'} size={17}/></span>
           <span className="ticket-card-copy"><strong>{c.assunto}</strong>
+            {c.usuario && <small title={c.usuario.email}>{c.usuario.nome} · {c.usuario.email}</small>}
             {c.prioridade === 'ALTA' && <small className="ticket-priority">Prioridade alta</small>}
           </span>
         </span>
@@ -403,6 +404,7 @@ export default function ChamadosPage() {
               <div><dt>Tipo</dt><dd>{rotulo(tipos, atual.tipo)}</dd></div>
               <div><dt>Impacto</dt><dd>{rotulosImpacto[atual.impacto] || 'Não informado'}</dd></div>
               <div><dt>Origem</dt><dd>{rotulo(origens, atual.origem)}</dd></div>
+              {atual.usuario && <div><dt>Solicitante</dt><dd>{atual.usuario.nome}<br /><span>{atual.usuario.email}</span></dd></div>}
               {atual.ocorrencias > 1 && <div><dt>Ocorrências</dt><dd>{atual.ocorrencias}</dd></div>}
             </dl>
             <DesktopAccordion title="Contexto e diagnóstico">
@@ -426,7 +428,7 @@ export default function ChamadosPage() {
             <h2>Atendimento</h2>
             {podeResponder && <DesktopTabs className="ticket-comment-tabs" label="Visibilidade da mensagem" value={modoComentario}
               options={modosComentario} onChange={setModoComentario}>
-              <p>{respostaPublica ? 'O cliente recebe um aviso no Web ao enviar.' : 'Visível apenas para a equipe.'}</p>
+              <p>{respostaPublica ? 'Somente o solicitante recebe a resposta no Web e no app.' : 'Visível apenas para a equipe.'}</p>
               {editorComentario}
             </DesktopTabs>}
             {!podeResponder && editorComentario}

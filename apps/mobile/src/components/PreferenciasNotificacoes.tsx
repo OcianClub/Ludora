@@ -1,3 +1,4 @@
+import { AppToggle } from './ui/Toggle';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -242,7 +243,7 @@ export function PreferenciasNotificacoes({
                             accessibilityLabel="Salvando preferência"
                           />
                         ) : null}
-                        <Switch
+                        <AppToggle
                           value={clube[campo]}
                           onValueChange={(ativa) =>
                             salvar(clube.clube_id, campo, ativa)

@@ -199,6 +199,7 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
       });
 
       socket.on('notificacao_criada', atualizar);
+      socket.on('notificacoes_atualizadas', atualizar);
       socket.on('partida_atualizada', invalidarConsultasRecentes);
       socket.on('placar_atualizado', invalidarConsultasRecentes);
       socket.on('connect', () => {
@@ -207,10 +208,16 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
       });
     };
 
+    const fallback = setInterval(() => {
+      if (!ativo || AppState.currentState !== 'active') return;
+      setVersaoNotificacoes(v => v + 1);
+      void atualizarNaoLidas().catch(() => undefined);
+    }, 30000);
     void conectar().catch(() => undefined);
     return () => {
       ativo = false;
       clearTimeout(timer);
+      clearInterval(fallback);
       appState.remove();
       socket?.disconnect();
     };

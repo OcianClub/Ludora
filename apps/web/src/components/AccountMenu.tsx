@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeOptions } from './ThemeOptions';
 import { Icon } from './Icon';
@@ -12,12 +12,13 @@ import './AccountMenu.css';
 export function AccountMenu({ header = false, avatar = false, menuItem = false }: { header?: boolean; avatar?: boolean; menuItem?: boolean }) {
   const { usuario, clube, token, modo, podeEntrarGestao, mudarModo } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const { abrirSuporte, naoLidos } = useSupport();
+  const { naoLidos } = useSupport();
 
   function close(restoreFocus = false) {
     setOpen(false);
@@ -104,7 +105,7 @@ export function AccountMenu({ header = false, avatar = false, menuItem = false }
   return <>
     <button ref={trigger} type="button" className={menuItem ? 'mobile-more-item account-trigger' : header ? 'profile-link header-profile-link account-trigger' : 'sidebar-usuario account-trigger'}
       aria-label="Menu da conta" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined} data-tooltip="Minha conta" data-tooltip-icon-only
-      onClick={() => setOpen(value => !value)}>
+      onClick={() => { if (menuItem && token) navigate('/perfil'); else setOpen(value => !value); }}>
       {menuItem ? <><span className="mobile-more-item-icon"><Icon name="user" /></span><span>Conta e preferências</span><Icon name="chevronRight" size={18} /></> : header ? (avatar ? <span className="usuario-avatar">{usuario?.nome?.trim().charAt(0).toUpperCase() || '?'}</span> : <Icon name="user" size={24} />) : <>
         <span className="usuario-avatar"><Icon name="user" size={20} /></span>
         <span className="usuario-info"><strong>{usuario?.nome || 'Minha conta'}</strong><small>Minha conta</small></span>
@@ -148,10 +149,9 @@ export function AccountMenu({ header = false, avatar = false, menuItem = false }
           <span><strong>Meu perfil</strong><small>Dados pessoais</small></span><Icon name="chevronRight" size={16} />
         </Link>
         <Link to="/perfil?secao=preferencias" onClick={() => close()}><Icon name="settings" size={18} /><span>Preferências</span></Link>
-        <Link to="/perfil?secao=clubes" onClick={() => close()}><Icon name="shield" size={18} /><span>Meus clubes</span></Link>
         <Link to="/perfil?secao=conta" onClick={() => close()}><Icon name="defense" size={18} /><span>Conta e segurança</span></Link>
+        {modo === 'gestao' && clube?.meuPapel === 'ADMIN' && <Link to="/clube" onClick={() => close()}><Icon name="settings" size={18} /><span>Configurações do clube</span></Link>}
         {podeEntrarGestao && <Link to={modo === 'gestao' ? `/clubes/${clube!.id}` : '/dashboard'} onClick={() => { close(); mudarModo(modo === 'gestao' ? 'publico' : 'gestao'); }}><Icon name={modo === 'gestao' ? 'eye' : 'settings'} size={18} /><span>{modo === 'gestao' ? 'Ver como visitante' : 'Voltar à gestão'}</span></Link>}
-        <button type="button" onClick={() => { close(true); abrirSuporte(); }}><Icon name="headset" size={18} /><span>Suporte e ajuda</span>{naoLidos > 0 && <small className="support-unread" aria-hidden="true">{naoLidos}</small>}</button>
       </nav>
       <div className="account-popover-footer"><button type="button" onClick={() => { close(true); setLogoutOpen(true); }}><Icon name="logout" size={18} /><span>Sair da conta</span></button></div>
       </>}

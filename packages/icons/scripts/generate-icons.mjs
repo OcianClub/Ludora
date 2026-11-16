@@ -66,7 +66,9 @@ ${indent(paths.join('\n'), 6)}
 
 const svgFiles = (await readdir(svgDir)).filter((file) => file.endsWith('.svg')).sort();
 const declaredFiles = manifest.map((icon) => icon.source).sort();
-const missingFromManifest = svgFiles.filter((file) => !declaredFiles.includes(file));
+// These assets are consumed as raw SVG only by the Web/Desktop icon renderer.
+const webOnly = new Set(['broadcast.svg', 'clock.svg', 'google-warning.svg', 'people.svg', 'settings.svg']);
+const missingFromManifest = svgFiles.filter((file) => !declaredFiles.includes(file) && !webOnly.has(file));
 const missingFromDisk = declaredFiles.filter((file) => !svgFiles.includes(file));
 
 if (missingFromManifest.length || missingFromDisk.length) {

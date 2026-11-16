@@ -67,7 +67,7 @@ export function usePartidaTempoReal<T>(
       if (!ativo || pedido !== versaoConexao) return;
       socket?.disconnect();
       socket = io(token ? BASE_URL : `${BASE_URL}/publico`, {
-        auth: token ? { token, clubeId: origem } : { clubeId: origem },
+        auth: token ? { token, clubeId } : { clubeId: origem },
         transports: ['websocket', 'polling'],
       });
       socket.on('connect', () => {

@@ -33,3 +33,6 @@ export function classificar(tipo: string, repeticoes: number, clubes: number, st
 export function fingerprint(servico: string, rota: string, categoria: string) {
   return createHash('sha256').update([servico, rota.replace(/\/\d+(?=\/|$)/g, '/:id'), categoria].join('|')).digest('hex');
 }
+
+/** Metadata only: never grants authorization or changes ticket visibility. */
+export const plataformaChamado = (value: unknown): 'web' | 'mobile' => value === 'mobile' ? 'mobile' : 'web';

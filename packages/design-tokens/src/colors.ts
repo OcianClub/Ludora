@@ -14,6 +14,7 @@ export const darkColors  = {
   borda: '#2A3040',
   linha: '#191E2A',
   cardClaro: '#1B1E27',
+  superficieNeutra: '#212531',
 
   // Cores sólidas puras
   amarelo: '#F0B84E',
@@ -78,9 +79,9 @@ export const lightColors = {
   // Feedback de atenção
   fundoAtencao: '#FAEFD0',
   bordaAtencao: '#E8D08A',
-  tituloAtencao: '#8A5A00',
+  tituloAtencao: '#FF7700',
   corpoAtencao: '#7A5C1E',
-  iconeAtencao: '#C98A0B',
+  iconeAtencao: '#FF7700',
 
   // Interação em superfícies claras
   hover: {

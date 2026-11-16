@@ -90,5 +90,6 @@
   { "source": "return-arrow.svg", "component": "ReturnArrowIcon", "name": "undo" },
   { "source": "grip-vertical.svg", "component": "GripVerticalIcon", "name": "grip-vertical" },
   { "source": "share.svg", "component": "ShareIcon", "name": "share" },
-  { "source": "sliders-horizontal.svg", "component": "SlidersHorizontalIcon", "name": "sliders-horizontal" }
+  { "source": "sliders-horizontal.svg", "component": "SlidersHorizontalIcon", "name": "sliders-horizontal" },
+  { "source": "email-fill.svg", "component": "EmailFillIcon", "name": "email-fill" }
 ]

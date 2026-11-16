@@ -67,6 +67,7 @@ export default function PartidaCompartilhada({
       return snapshot.current;
     snapshot.current = next;
     setData(next);
+    setError("");
     return next;
   }
   async function atualizarSolicitacoes() {
@@ -109,12 +110,15 @@ export default function PartidaCompartilhada({
               void refresh(true).catch((e) => {
                 if (active) setError(e.message);
               });
-          }, 150);
+          }, 60);
         };
         socket.on("partida_atualizada", (p: { id: number }) => {
           if (p.id === id) sync();
         });
         socket.on('partidas_alteradas', (p: { partida_id: number }) => { if (p.partida_id === id) sync(); });
+        socket.on('placar_atualizado', (p: { id: number }) => { if (p.id === id) sync(); });
+        socket.on('evento_partida', (p: { partida_id: number }) => { if (p.partida_id === id) sync(); });
+        socket.on('elenco_atualizado', () => sync());
         socket.on('palpite_atualizado', receberPalpite);
         socket.on('solicitacao_partida', () => {
           void atualizarSolicitacoes();
@@ -123,7 +127,8 @@ export default function PartidaCompartilhada({
         let primeiraConexao = true;
         socket.on("connect", () => {
           if (active) setConnected(true);
-          if (!primeiraConexao) { sync(); void atualizarSolicitacoes(); }
+          sync();
+          if (!primeiraConexao) void atualizarSolicitacoes();
           primeiraConexao = false;
         });
         socket.on("disconnect", () => {
@@ -145,7 +150,7 @@ export default function PartidaCompartilhada({
       });
     void load();
     const interval = setInterval(() => {
-      if (active && AppState.currentState === "active" && !socket?.connected) {
+      if (active && AppState.currentState === "active") {
         void refresh().catch(() => undefined);
         void atualizarSolicitacoes();
       }
@@ -215,7 +220,7 @@ export default function PartidaCompartilhada({
   const headerAccessory = autenticado && podeGerenciar &&
     ["AGENDADA", "PREPARADA", "AO_VIVO"].includes(data.partida.status) ? (
       <IconButton
-        icon="email-outline"
+        icon="email-fill"
         variant="ghost"
         label={`Solicitações: ${solicitacoesPendentes} aguardando sua resposta`}
         badge={solicitacoesPendentes}

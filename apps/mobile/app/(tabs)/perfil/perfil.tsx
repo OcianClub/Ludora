@@ -1,3 +1,4 @@
+import { AppToggle } from '@/src/components/ui/Toggle';
 import Svg, { Path } from 'react-native-svg';
 import { Icon, type IconName } from '@ludora/icons';
 import {
@@ -279,7 +280,7 @@ function PerfilAutenticado() {
                 </Text>
               </View>
 
-              <Switch
+              <AppToggle
                 value={notificacoesAtivas}
                 onValueChange={alternarNotificacoes}
                 disabled={carregandoPreferencia}
@@ -300,6 +301,8 @@ function PerfilAutenticado() {
               action={() => setModalNotificacoes(true)}
               ultimo
             />
+            <View style={styles.menuDivider} />
+            <CardMenu titulo="Suporte e ajuda" subtitulo="Abra e acompanhe seus chamados" icone="info" action={() => router.push('/suporte')} />
             <View style={styles.menuDivider} />
             <CardMenu
               titulo="Histórico de notificações"

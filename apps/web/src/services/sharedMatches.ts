@@ -1,6 +1,6 @@
 import { requestJson, type Partida, type Categoria, type Clube, type EscalacaoItem, type Evento } from './api';
 export interface EquipePartida {
-  id: number; clube_id: number; categoria_id: number; time_id: number; pronta: boolean; publicada_em: string | null;
+  id: number; clube_id: number; categoria_id: number; time_id: number; pronta: boolean; versao?: number; publicada_em: string | null;
   categoria: Categoria; clube: Pick<Clube, 'id' | 'nome'>; escalacao: (EscalacaoItem & { titular_inicial?: boolean; time_id: number; ordem: number })[];
 }
 export interface GestaoPartida {

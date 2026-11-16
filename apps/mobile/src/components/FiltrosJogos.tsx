@@ -1,3 +1,4 @@
+import { RadioOption } from './ui/RadioOption';
 import { AppSheet } from "./ui/AppSheet";
 import { AppButton } from "./ui/Controls";
 import { CalendarioPartida } from "./CalendarioPartida";
@@ -120,15 +121,11 @@ export function FiltrosJogos({ filtros, onAplicar, onFechar }: Props) {
     >
       <View style={{ gap: 8 }}>
         <Text style={styles.label}>Período</Text>
-        <View style={styles.chipRow}>
+        <View style={{ gap: 4 }}>
           {PERIODOS_JOGOS.map((opcao) => {
             const selecionado = (rascunho.periodo ?? "todos") === opcao.id;
             return (
-              <TouchableOpacity
-                key={opcao.id}
-                style={[styles.chip, selecionado && styles.chipActive]}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selecionado }}
+              <RadioOption key={opcao.id} label={opcao.label} selected={selecionado}
                 onPress={() => {
                   setRascunho((atual) => ({
                     ...atual,
@@ -139,24 +136,14 @@ export function FiltrosJogos({ filtros, onAplicar, onFechar }: Props) {
                   }));
                   if (opcao.id === "personalizado" && !rascunho.de)
                     setCampoData("de");
-                }}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    selecionado && styles.chipTextActive,
-                  ]}
-                >
-                  {opcao.label}
-                </Text>
-              </TouchableOpacity>
+                }} />
             );
           })}
         </View>
       </View>
       {rascunho.periodo === "personalizado" && (
         <View style={styles.chipSection}>
-          <View style={styles.chipRow}>
+          <View style={{ gap: 4 }}>
             {(["de", "ate"] as const).map((campo) => (
               <TouchableOpacity
                 key={campo}
@@ -191,17 +178,13 @@ export function FiltrosJogos({ filtros, onAplicar, onFechar }: Props) {
       {grupos.map(({ chave, titulo, opcoes }) => (
         <View key={chave} style={styles.chipSection}>
           <Text style={styles.label}>{titulo}</Text>
-          <View style={styles.chipRow}>
+          <View style={{ gap: 4 }}>
             {opcoes.map((opcao) => {
               const selecionado =
                 (rascunho[chave] ??
                   (chave === "ordem" ? "horario" : undefined)) === opcao.valor;
               return (
-                <TouchableOpacity
-                  key={opcao.label}
-                  style={[styles.chip, selecionado && styles.chipActive]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selecionado }}
+                <RadioOption key={opcao.label} label={opcao.label} selected={selecionado}
                   onPress={() =>
                     setRascunho((atual) => ({
                       ...atual,
@@ -210,28 +193,7 @@ export function FiltrosJogos({ filtros, onAplicar, onFechar }: Props) {
                         : {}),
                       [chave]: opcao.valor,
                     }))
-                  }
-                >
-                  {"icone" in opcao && (
-                    <Icon
-                      name={opcao.icone as IconName}
-                      size={15}
-                      color={
-                        selecionado
-                          ? colors.textoSobrePrimaria
-                          : colors.textoSecundario
-                      }
-                    />
-                  )}
-                  <Text
-                    style={[
-                      styles.optionText,
-                      selecionado && styles.chipTextActive,
-                    ]}
-                  >
-                    {opcao.label}
-                  </Text>
-                </TouchableOpacity>
+                  } />
               );
             })}
           </View>

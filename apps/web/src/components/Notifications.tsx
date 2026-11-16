@@ -112,6 +112,7 @@ export function Notifications() {
     void refresh();
     const socket = token && clube?.meuPapel ? io(BASE_URL, { auth: { token, clubeId: clube.id } }) : null;
     socket?.on('notificacao_criada', () => { void refresh(); });
+    socket?.on('notificacoes_atualizadas', () => { void refresh(); });
     socket?.on('connect', () => { void refresh(); });
     const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 30_000);
     return () => {

@@ -317,6 +317,7 @@ export default function PreparacaoPartida({
   const [horarioEdicao, setHorarioEdicao] = useState("");
   const [localEdicao, setLocalEdicao] = useState("");
   const chave = useRef<string | null>(null);
+  const versaoEdicao = useRef(minhaEquipe.versao);
   const ultimaData = useRef(data);
   ultimaData.current = data;
   const alteradoRef = useRef(alterado);
@@ -335,7 +336,7 @@ export default function PreparacaoPartida({
 
   useEffect(() => {
     if (!alteradoRef.current && !emOperacao.current)
-      setConvocados(minhaEquipe.escalacao);
+      { setConvocados(minhaEquipe.escalacao); versaoEdicao.current = minhaEquipe.versao; }
   }, [minhaEquipe.escalacao, ocupado]);
 
   useEffect(() => {
@@ -446,7 +447,7 @@ export default function PreparacaoPartida({
     await requisicaoPartida(
       `/partidas/${partida.id}${caminho ? `/${caminho}` : ""}`,
       clubeId,
-      { ...dados, versao: ultimaData.current.partida.versao },
+      { ...dados, ...(caminho === "escalacao" ? { versao_equipe: versaoEdicao.current } : {}), versao: ultimaData.current.partida.versao },
       metodo,
     );
     const atualizada = await onRefresh();
@@ -493,6 +494,7 @@ export default function PreparacaoPartida({
       (item) => item.id === atualizada.minhaEquipeId,
     );
     setConvocados(equipe?.escalacao || []);
+    versaoEdicao.current = equipe?.versao;
     alteradoRef.current = false;
     setAlterado(false);
   }
@@ -521,6 +523,7 @@ export default function PreparacaoPartida({
     const normalizados = normalizarConvocados(proximos, quantidadeTitulares);
     convocadosRef.current = normalizados;
     setConvocados(normalizados);
+    if (!alteradoRef.current) versaoEdicao.current = minhaEquipe.versao;
     alteradoRef.current = true;
     setAlterado(true);
     setErro("");
@@ -1415,6 +1418,7 @@ export default function PreparacaoPartida({
             </View>
           </>
         )}
+        {alterado && minhaEquipe.versao !== versaoEdicao.current && <View style={styles.notice}><Text style={styles.muted}>A escalação foi alterada em outro dispositivo. Seu rascunho foi preservado.</Text><TouchableOpacity accessibilityRole="button" onPress={() => Alert.alert('Usar escalação atualizada?', 'Isso descarta apenas as alterações locais ainda não salvas.', [{ text: 'Voltar', style: 'cancel' }, { text: 'Usar atualizada', onPress: () => { setConvocados(minhaEquipe.escalacao); convocadosRef.current = minhaEquipe.escalacao; versaoEdicao.current = minhaEquipe.versao; alteradoRef.current = false; setAlterado(false); setErro(''); } }])}><Text style={styles.muted}>Usar escalação atualizada</Text></TouchableOpacity></View>}
         {!!erro && !dialogo && (
           <View accessibilityRole="alert" style={styles.notice}>
             <Icon name="info" size={18} color={colors.texto} />

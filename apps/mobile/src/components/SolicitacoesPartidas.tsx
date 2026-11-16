@@ -77,7 +77,11 @@ type Props = {
 
 export default function SolicitacoesPartidas(props: Props = {}) {
   const { autenticado, carregando } = useSessao();
-  if (carregando) return null;
+  const { podeGerenciar, carregandoClubeAtivo } = useClubeAtivo();
+  const { colors } = useTheme();
+  const router = useRouter();
+  if (carregando || carregandoClubeAtivo) return null;
+  if (autenticado && !podeGerenciar) return <SafeAreaView style={{ flex: 1, backgroundColor: colors.fundo, padding: 16, gap: 16 }}><Text accessibilityRole="alert" style={{ color: colors.texto }}>Você precisa de permissão de gestão neste clube para acessar solicitações.</Text><AppButton label="Voltar" onPress={() => props.onClose ? props.onClose() : router.back()} /></SafeAreaView>;
   return autenticado ? <SolicitacoesAutenticadas {...props} /> : <PerfilVisitante />;
 }
 function SolicitacoesAutenticadas({ onClose, onChanged, onOpenMatch }: Props) {

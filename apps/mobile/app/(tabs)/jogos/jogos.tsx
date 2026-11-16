@@ -434,7 +434,7 @@ export default function Jogos() {
         <View style={styles.filterBarContainer}>
           {podeGerenciar && (
             <IconButton
-              icon="email-outline"
+              icon="email-fill"
               label={`Solicitações: ${solicitacoesPendentes} aguardando sua resposta`}
               badge={solicitacoesPendentes}
               onPress={() => router.push("/solicitacoes-partidas")}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Text, View, useWindowDimensions } from 'react-native';
 import type { JogoPaulista, SnapshotPaulista } from '../../../../../packages/shared-types/src/paulista';
 import { campanhaPublicada, classificacaoProxima, nomeGrupo, nomeOficial, resumoClube, etapaPublicada, type EstadoEtapa } from '../../utils/paulista';
@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Icon } from '@ludora/icons';
 
 export const estadoEtapa: Record<EstadoEtapa, string> = { advanced: 'Avanço confirmado', ended: 'Eliminação confirmada', published: 'Confronto publicado', pending: 'Aguardando publicação', unreached: 'Não alcançada' };
-export function PaulistaOverview({ snapshot, minhas, clubeNome, resumo, chave, onTab, onOpen }: {
+export const PaulistaOverview = memo(function PaulistaOverview({ snapshot, minhas, clubeNome, resumo, chave, onTab, onOpen }: {
   snapshot: SnapshotPaulista; minhas: Set<number>; clubeNome: string; resumo: ReturnType<typeof resumoClube>; chave?: string; onTab: (aba: 'jogos' | 'classificacao' | 'chaveamento') => void; onOpen: (jogo: JogoPaulista) => void;
 }) {
   const s = usePaulistaStyles(), { colors } = useTheme(), { width } = useWindowDimensions();
@@ -31,10 +31,10 @@ export function PaulistaOverview({ snapshot, minhas, clubeNome, resumo, chave, o
           <View style={{ flex: 1, gap: 2 }}><Text style={[s.text, { fontFamily: 'Inter_600SemiBold', color: etapa.estado === 'pending' || etapa.estado === 'unreached' ? colors.textoSecundario : colors.texto }]}>{etapa.titulo === 'Semifinais' ? 'Semifinal' : etapa.titulo}</Text><Text style={s.tiny}>{etapa.etapa === -1 ? linha ? `${linha.posicao}º lugar` : 'A confirmar' : estadoEtapa[etapa.estado]}</Text></View>
         </View>)}</View>
       </View>
-      <View style={[s.row, { padding: 16, borderTopWidth: 1, borderTopColor: colors.borda, gap: 18, justifyContent: 'center' }]}>
+      <View style={[s.row, { padding: 16, borderTopWidth: 1, borderTopColor: colors.borda, gap: 16, justifyContent: 'flex-start' }]}>
         <Text style={[s.number, { fontSize: 48, lineHeight: 59 }]}>{linha ? `${linha.posicao}º` : '—'}</Text>
-        <View style={{ flexShrink: 1 }}>
-          <Text style={s.muted}>Posição na fase de classificação</Text>
+        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+          <Text style={s.tiny}>Posição na fase de classificação</Text>
           <Text style={s.tiny}>{vizinhas.total ? `de ${vizinhas.total} equipes · ` : ''}{linha ? nomeGrupo(linha.grupo) : 'Tabela a confirmar'}</Text>
           <LinkPaulista onPress={() => onTab('classificacao')}>Ver classificação</LinkPaulista>
         </View>
@@ -42,10 +42,10 @@ export function PaulistaOverview({ snapshot, minhas, clubeNome, resumo, chave, o
     </Panel>
     <Panel style={{ padding: 16 }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 18 }}>
-        <View style={[s.metric, { flexBasis: wide ? '25%' : '50%', borderRightWidth: 1, borderRightColor: colors.borda }]}><Text style={s.muted}>Pontos</Text><Text style={s.number}>{linha?.pontosNota || linha?.pontos || (linha ? 0 : '—')}</Text></View>
-        <View style={[s.metric, { flexBasis: wide ? '25%' : '50%' }]}><Text style={s.muted}>Jogos</Text><Text style={s.number}>{linha?.jogos ?? '—'}</Text></View>
-        <View style={[s.metric, { flexBasis: wide ? '25%' : '50%', borderRightWidth: 1, borderRightColor: colors.borda, paddingHorizontal: 8 }]}><Text style={[s.muted, { textAlign: 'center' }]}>Vitórias · empates · derrotas</Text><Text style={s.number}>{linha ? <>{linha.vitorias}<Text style={s.tiny}> V </Text>{linha.empates}<Text style={s.tiny}> E </Text>{linha.derrotas}<Text style={s.tiny}> D</Text></> : '—'}</Text>{linha && <BarraCampanha linha={linha} />}</View>
-        <View style={[s.metric, { flexBasis: wide ? '25%' : '50%' }]}><Text style={s.muted}>Saldo de gols</Text><Text style={s.number}>{linha ? saldoOficial(linha.saldo) : '—'}</Text></View>
+        <View style={[{ alignItems: 'center', justifyContent: 'center', gap: 7, minWidth: 0 }, { flexGrow: 0, flexShrink: 0, width: wide ? '25%' : '50%', borderRightWidth: 1, borderRightColor: colors.borda }]}><Text style={s.muted}>Pontos</Text><Text style={s.number}>{linha?.pontosNota || linha?.pontos || (linha ? 0 : '—')}</Text></View>
+        <View style={[{ alignItems: 'center', justifyContent: 'center', gap: 7, minWidth: 0 }, { flexGrow: 0, flexShrink: 0, width: wide ? '25%' : '50%' }]}><Text style={s.muted}>Jogos</Text><Text style={s.number}>{linha?.jogos ?? '—'}</Text></View>
+        <View style={[{ alignItems: 'center', justifyContent: 'center', gap: 7, minWidth: 0 }, { flexGrow: 0, flexShrink: 0, width: wide ? '25%' : '50%', borderRightWidth: 1, borderRightColor: colors.borda, paddingHorizontal: 8 }]}><Text style={[s.muted, { textAlign: 'center' }]}>Vitórias · empates · derrotas</Text><Text style={s.number}>{linha ? <>{linha.vitorias}<Text style={s.tiny}> V </Text>{linha.empates}<Text style={s.tiny}> E </Text>{linha.derrotas}<Text style={s.tiny}> D</Text></> : '—'}</Text>{linha && <BarraCampanha linha={linha} />}</View>
+        <View style={[{ alignItems: 'center', justifyContent: 'center', gap: 7, minWidth: 0 }, { flexGrow: 0, flexShrink: 0, width: wide ? '25%' : '50%' }]}><Text style={s.muted}>Saldo de gols</Text><Text style={s.number}>{linha ? saldoOficial(linha.saldo) : '—'}</Text></View>
       </View>
     </Panel>
     <View style={{ flexDirection: wide ? 'row' : 'column', alignItems: 'flex-start', gap: 18 }}>
@@ -76,4 +76,4 @@ export function PaulistaOverview({ snapshot, minhas, clubeNome, resumo, chave, o
       </Panel>
     </View>
   </View>;
-}
+});

@@ -56,9 +56,11 @@ export default function ClubesPage() {
   const [buscandoCasca, setBuscandoCasca] = useState(false);
   const buscaRef = useRef<HTMLDivElement>(null);
 
+  const pedido = useRef(0);
   const carregar = useCallback(() => {
+    const atual = ++pedido.current;
     setErro('');
-    fetchVisaoGlobal().then((v: VisaoGlobal) => {if(vivo.current)setClubes(v.clubes);}).catch(e => {if(vivo.current)setErro(e.message);});
+    fetchVisaoGlobal().then((v: VisaoGlobal) => {if(vivo.current && atual === pedido.current)setClubes(v.clubes);}).catch(e => {if(vivo.current && atual === pedido.current)setErro(e.message);});
   }, []);
   useEffect(carregar, [carregar]);
   useEffect(() => {

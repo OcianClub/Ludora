@@ -91,6 +91,7 @@ export { ReturnArrowIcon } from './icons/ReturnArrowIcon';
 export { GripVerticalIcon } from './icons/GripVerticalIcon';
 export { ShareIcon } from './icons/ShareIcon';
 export { SlidersHorizontalIcon } from './icons/SlidersHorizontalIcon';
+export { EmailFillIcon } from './icons/EmailFillIcon';
 export { Icon } from './Icon';
 export type { IconName, IconProps } from './Icon';
 export type { LudoraIconProps } from './types';

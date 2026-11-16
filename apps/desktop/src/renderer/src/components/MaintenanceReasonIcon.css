@@ -1,5 +1,5 @@
 .maintenance-reason-icon { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--texto-sec); }
-.maintenance-reason-icon[data-tone="review"] { color:var(--desktop-status-warning); }
+.maintenance-reason-icon[data-tone="review"] { color:var(--desktop-status-warning-accent, var(--desktop-status-warning)); }
 .maintenance-reason-icon[data-tone="fix"] { color:var(--primaria); }
 .maintenance-reason-icon[data-tone="failure"] { color:var(--desktop-status-error); }
 .maintenance-reason-icon[data-tone="checked"] { color:var(--ciano); }

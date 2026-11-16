@@ -2,7 +2,7 @@ import { apiFetch } from './api';
 import { lerJsonMedido } from '../utils/desempenho';
 import { ErroConsulta } from '../utils/request';
 export interface EquipePartida {
-  id: number; clube_id: number; categoria_id: number; time_id: number; pronta: boolean; publicada_em: string | null;
+  id: number; clube_id: number; categoria_id: number; time_id: number; pronta: boolean; versao?: number; publicada_em: string | null;
   clube: { id: number; nome: string }; categoria: { id: number; nome: string };
   escalacao: { jogador_id: number; numCamisa: number; titular: boolean; expulso?: boolean; reposicao_pendente?: boolean; titular_inicial?: boolean; jogador?: { nome: string; posicao: string } }[];
 }

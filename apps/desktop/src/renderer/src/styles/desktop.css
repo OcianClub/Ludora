@@ -162,6 +162,9 @@
   font-size: 12px;
   font-weight: 600;
 }
+:root[data-theme="light"] .admin-api-status {
+  background: var(--fundo-card-sec);
+}
 .admin-environment > :first-child { flex-shrink: 0; color: var(--texto-sec); }
 .admin-environment > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-environment-production > :first-child { color: var(--primaria); }

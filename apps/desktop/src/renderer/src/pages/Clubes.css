@@ -128,3 +128,5 @@
 @media (max-width:480px) {
  .desktop-clubs-page .club-toolbar { grid-template-columns:1fr; }
 }
+
+.desktop-app .desktop-clubs-page .club-toolbar .desktop-menu-trigger { background:var(--fundo-card); }

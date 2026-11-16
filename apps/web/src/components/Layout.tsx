@@ -20,7 +20,7 @@ const NAV: { to: string; label: string; icon: IconName }[] = [
   { to: '/elenco', label: 'Scout', icon: 'radar' },
   { to: '/jogadores', label: 'Jogadores', icon: 'player' },
   { to: '/times', label: 'Times', icon: 'shield' },
-  { to: '/competicoes', label: 'Competições', icon: 'trophy' },
+  { to: '/competicoes', label: 'Torneios', icon: 'trophy' },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -34,7 +34,7 @@ export default function Layout() {
 }
 
 function LayoutContent() {
-  const { clube } = useAuth();
+  const { clube, mudarModo } = useAuth();
   const pending = useClubPending();
   const missingShirts = pending?.missing ? [...pending.missing.values()].reduce((sum, value) => sum + value, 0) : 0;
   const [moreOpen, setMoreOpen] = useState(false);
@@ -52,8 +52,7 @@ function LayoutContent() {
   const role = clube?.meuPapel ? ROLE_LABELS[clube.meuPapel] || clube.meuPapel : 'Visualização pública';
   const gerenciaClube = ['ADMIN', 'TECNICO', 'MESARIO'].includes(clube?.meuPapel || '');
   const extraLinks: typeof NAV = [...NAV.slice(4), ...(clube?.meuPapel === 'ADMIN'
-    ? [{ to: '/membros', label: 'Pessoas e acessos', icon: 'people' as IconName },
-      { to: '/clube', label: 'Configurações do clube', icon: 'settings' as IconName }] : [])];
+    ? [{ to: '/membros', label: 'Pessoas e acessos', icon: 'people' as IconName }] : [])];
   const moreActive = extraLinks.some(item => location.pathname.startsWith(item.to));
   function toggleSidebar() {
     if (compactSidebar) setTabletExpanded(value => !value);
@@ -230,6 +229,8 @@ function LayoutContent() {
           </section>
 
           <div className="mobile-more-account">
+            {clube?.meuPapel === 'ADMIN' && <Link className="mobile-more-item" to="/clube" onClick={() => setMoreOpen(false)}><span className="mobile-more-item-icon"><Icon name="settings" /></span><span>Configurações do clube</span><Icon name="chevronRight" size={18} /></Link>}
+            <Link className="mobile-more-item" to={`/clubes/${clube?.id}`} onClick={() => { setMoreOpen(false); mudarModo('publico'); }}><span className="mobile-more-item-icon"><Icon name="eye" /></span><span>Ver como visitante</span><Icon name="chevronRight" size={18} /></Link>
             <SupportButton variant="menu" />
             <AccountMenu menuItem />
           </div>

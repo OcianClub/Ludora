@@ -1,3 +1,4 @@
+import SupportButton from '../components/SupportButton';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Btn, Card, Input, PapelBadge } from '../components/UI';
@@ -17,7 +18,7 @@ const SECOES = [
 ] as const;
 
 export default function PerfilPage() {
-  const { usuario, clube, atualizarPerfil, definirClube } = useAuth();
+  const { usuario, clube, atualizarPerfil, definirClube, modo, mudarModo, podeEntrarGestao } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const secao = SECOES.find(item => item.id === searchParams.get('secao'))?.id || 'dados';
@@ -137,6 +138,10 @@ export default function PerfilPage() {
         {clube && <Link className="btn btn-ghost btn-md" to="/dashboard"><Icon name="chevronLeft" size={18} />Voltar ao clube</Link>}
       </div>
 
+      <div className="perfil-account-actions"><SupportButton variant="menu" />
+        {modo === 'gestao' && clube?.meuPapel === 'ADMIN' && <Link className="btn btn-ghost btn-md" to="/clube"><Icon name="settings" size={18} />Configurações do clube</Link>}
+        {podeEntrarGestao && <Link className="btn btn-ghost btn-md" to={modo === 'gestao' ? `/clubes/${clube!.id}` : '/dashboard'} onClick={() => mudarModo(modo === 'gestao' ? 'publico' : 'gestao')}><Icon name="eye" size={18} />{modo === 'gestao' ? 'Ver como visitante' : 'Voltar à gestão'}</Link>}
+      </div>
       <div className="perfil-settings-layout">
       <nav className="perfil-atalhos" role="tablist" aria-label="Seções da conta">
         {SECOES.map((item, index) => (

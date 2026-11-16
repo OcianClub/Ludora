@@ -413,3 +413,7 @@
     gap: 5px;
   }
 }
+
+.perfil-account-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:20px; min-width:0; }
+.perfil-account-actions > :is(button,a) { max-width:100%; min-width:0; white-space:normal; text-align:left; }
+.perfil-account-actions > .mobile-more-item { width:auto; }

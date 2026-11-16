@@ -37,7 +37,7 @@ export function criarCompartilhadasRoutes(io: Server) {
     const p = await prisma.partida.findUniqueOrThrow({ where: { id }, include: incluirPartida });
     notificarPartidaPublica(io, p);
     for (const equipe of p.participantes) {
-      io.to(`clube:${equipe.clube_id}`).emit('partida_atualizada', { id });
+      io.to(`clube:${equipe.clube_id}`).emit('partida_atualizada', { id, versao: p.versao, status: p.status });
       io.to(`clube:${equipe.clube_id}`).emit('placar_atualizado', { id, gols_mandante: p.gols_mandante, gols_visitante: p.gols_visitante });
     }
     await Promise.all(p.participantes.map(async equipe => {
@@ -249,6 +249,7 @@ export function criarCompartilhadasRoutes(io: Server) {
     const rows = await transacao(async tx => {
       const { p, equipe } = await partida(tx, id, ctx, true);
       exigir(!['AO_VIVO', 'FINALIZADA', 'CANCELADA'].includes(p.status), 'Durante o jogo, use substituições. A escalação inicial fica preservada.');
+      if (req.body.versao_equipe != null) exigir(inteiro(req.body.versao_equipe, 0) === equipe!.versao, 'A escalação foi alterada em outro dispositivo. Use a escalação atualizada antes de editar novamente.', 409);
       exigir(Array.isArray(req.body.jogadores) && req.body.jogadores.length <= 50, 'Informe até 50 convocados.');
       const entrada = req.body.jogadores.map((j: any, ordem: number) => ({ partida_id: id, time_id: equipe!.time_id, jogador_id: inteiro(j.jogador_id), numCamisa: inteiro(j.numCamisa, 1, 99), titular: j.titular === true, ordem }));
       exigir(new Set(entrada.map((r: any) => r.jogador_id)).size === entrada.length && new Set(entrada.map((r: any) => r.numCamisa)).size === entrada.length, 'Jogadores e camisas não podem se repetir na mesma equipe.');
@@ -264,7 +265,8 @@ export function criarCompartilhadasRoutes(io: Server) {
       await auditar(tx, ctx, id, 'ESCALACAO_SALVA');
       return entrada;
     });
-    // Somente a confirmação publica a escalação; rascunhos não são transmitidos.
+    // Only the invalidation is broadcast; draft lineups remain protected by GET permissions.
+    await transmitir(id).catch(() => console.error('Falha ao sinalizar atualização da escalação.'));
     res.json(rows);
   }));
   router.get('/partidas/:id/escalacao', exigirClubePublico, tratar(async (req, res) => {
@@ -446,7 +448,7 @@ export function criarCompartilhadasRoutes(io: Server) {
       exigir(p.status === 'FINALIZADA' && equipe && req.body.time_id === equipe.time_id, 'Registre apenas acontecimentos da sua equipe nesta súmula oficial.', 403);
       exigir(!req.body.gol_contra && !req.body.autor_pendente && !req.body.assistencia_jogador_id && !req.body.placar, 'Identifique o atleta; registre assistências como um evento próprio. O resultado oficial permanece separado.');
       const e = await retroativo(prisma, oficial.jogo.id, ctx.clubeId, ctx.usuarioId, { requestId: req.body.request_id, jogadorId: req.body.jogador_id, tipo: req.body.tipo, motivo: req.body.motivo, periodo: req.body.periodo, minuto: req.body.minuto });
-      io.to(`clube:${ctx.clubeId}`).emit('partida_atualizada', { id });
+      io.to(`clube:${ctx.clubeId}`).emit('partida_atualizada', { id, versao: p.versao, status: p.status });
       return res.status(201).json(e);
     }
     const evento = await transacao(async tx => {

@@ -4,6 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { Icon } from '@ludora/icons';
 import { interfaceColors, liveBadgeColors } from '@ludora/design-tokens';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
+import { RadioOption } from '../ui/RadioOption';
 import { AnchoredMenu } from '../ui/AnchoredMenu';
 import { nomeOficial, temResultado } from '../../utils/paulista';
 import type { EstadoEtapa } from '../../utils/paulista';
@@ -58,7 +59,7 @@ export function MenuSelecao({ label, value, options, onChange, compact = false }
   return <AnchoredMenu label={compact ? `Selecionar temporada: ${value}` : `${label}: ${options.find(o => o.value === value)?.label || 'Selecionar'}`} width={compact ? 210 : 336}
     triggerStyle={compact ? { minHeight: 40, paddingHorizontal: 6, justifyContent: 'center' } : { width: '100%' }}
     trigger={open => <View style={[s.row, compact ? { gap: 6 } : s.select]}><Text numberOfLines={1} style={[s.text, { flexShrink: 1 }, !compact && { flex: 1 }]}>{compact ? value : options.find(o => o.value === value)?.label || label}</Text><Icon name={open ? 'chevron-up' : 'chevron-down'} size={compact ? 14 : 16} color={colors.textoSecundario} /></View>}
-  >{close => <><Text style={[s.text, { padding: 10 }]}>{label}</Text>{options.map(o => <TouchableOpacity key={o.value} accessibilityRole="radio" accessibilityState={{ checked: o.value === value }} aria-checked={o.value === value} onPress={() => { onChange(o.value); close(); }} style={[s.row, { minHeight: 44, padding: 10, gap: 8, borderRadius: 5, backgroundColor: o.value === value ? colors.cardSecundario : 'transparent' }]}><Text style={[s.text, { flex: 1 }]}>{o.label}</Text>{o.value === value && <Icon name="check" size={17} color={colors.primaria} />}</TouchableOpacity>)}</>}</AnchoredMenu>;
+  >{close => <><Text style={[s.text, { padding: 10 }]}>{label}</Text>{options.map(o => <RadioOption key={o.value} label={o.label} selected={o.value === value} onPress={() => { onChange(o.value); close(); }} />)}</>}</AnchoredMenu>;
 }
 export function AtualizarIcon() { const { colors } = useTheme(); return <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.texto} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><Path d="M20 4v6h-6M4 20v-6h6M5.5 9a7 7 0 0 1 12-3L20 10M4 14l2.5 4a7 7 0 0 0 12-3" /></Svg>; }
 export function Globo() { const { colors } = useTheme(); return <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={colors.primaria} strokeWidth={1.7}><Circle cx={12} cy={12} r={9} /><Path d="M3 12h18M5 7h14M5 17h14M12 3c-5 5-5 13 0 18M12 3c5 5 5 13 0 18" /></Svg>; }

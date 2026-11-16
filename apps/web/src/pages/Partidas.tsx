@@ -612,7 +612,7 @@ export default function PartidasPage() {
     <div className="match-schedule" data-status={filtroStatus}>
       <div className="page-header">
         <div><span className="eyebrow">DENTRO DA QUADRA</span><h1 className="page-title">Partidas</h1><p className="page-sub">{podeGerenciar ? 'Gerencie, acompanhe e consulte os resultados das partidas do clube.' : 'Acompanhe a agenda, os placares e os resultados do clube.'}</p></div>
-        {podeGerenciar && <div className="schedule-header-actions"><Link className="btn btn-ghost btn-md" to="/partidas/solicitacoes"><Icon name="email" size={18}/>Solicitações{requests > 0 && <span className="schedule-request-badge" aria-label={`${requests} solicitações aguardando resposta`}>{requests}</span>}</Link><Btn className="schedule-desktop-new" aria-label="Nova partida" data-tooltip="Nova partida" data-tooltip-icon-only loading={checkingMaintenance} disabled={!!matchPause} aria-describedby={matchPause ? "schedule-maintenance" : undefined} onClick={openCreate}>{!checkingMaintenance && <Icon name="plus" size={18} />}Nova partida</Btn></div>}
+        {podeGerenciar && <div className="schedule-header-actions"><Link className="btn btn-ghost btn-md" to="/partidas/solicitacoes"><Icon name="emailFill" size={18}/>Solicitações{requests > 0 && <span className="schedule-request-badge" aria-label={`${requests} solicitações aguardando resposta`}>{requests}</span>}</Link><Btn className="schedule-desktop-new" aria-label="Nova partida" data-tooltip="Nova partida" data-tooltip-icon-only loading={checkingMaintenance} disabled={!!matchPause} aria-describedby={matchPause ? "schedule-maintenance" : undefined} onClick={openCreate}>{!checkingMaintenance && <Icon name="plus" size={18} />}Nova partida</Btn></div>}
       </div>
 
       <HomeCategories categories={phaseCategories} phase={phase} selected={selectedCategory}
@@ -630,7 +630,7 @@ export default function PartidasPage() {
 
       <div className="schedule-filters">
         <div className="schedule-mobile-actions">
-          {podeGerenciar && <Link className="btn btn-ghost schedule-mobile-requests" aria-label="Solicitações de partidas" to="/partidas/solicitacoes"><Icon name="email" size={18}/>{requests > 0 && <span className="schedule-request-badge">{requests}</span>}</Link>}
+          {podeGerenciar && <Link className="btn btn-ghost schedule-mobile-requests" aria-label="Solicitações de partidas" to="/partidas/solicitacoes"><Icon name="emailFill" size={18}/>{requests > 0 && <span className="schedule-request-badge">{requests}</span>}</Link>}
           <CollectionSearch className="schedule-mobile-search" label="Buscar partidas" placeholder="Time ou adversário" value={opponent} onChange={value => changeFilters({ busca: value })} />
           <CollectionFilterButton className="schedule-mobile-filter-button" count={chips.length} expanded={!!filterAnchor} onClick={event => openFilters(event.currentTarget, true)} />
           {podeGerenciar && <Btn className="schedule-mobile-new" aria-label="Nova partida" data-tooltip="Nova partida" data-tooltip-icon-only loading={checkingMaintenance} disabled={!!matchPause} aria-describedby={matchPause ? "schedule-maintenance" : undefined} onClick={openCreate}>{!checkingMaintenance && <Icon name="plus" size={22}/>}<span className="schedule-mobile-new-label">Nova partida</span></Btn>}

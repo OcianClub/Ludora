@@ -5,7 +5,7 @@ import { criarCompartilhadasRoutes } from '../src/modules/partidas/compartilhada
 import { validarEquipe } from '../src/modules/partidas/compartilhadas.service';
 
 test('preparação: consultas paralelas, privacidade e numeração atualizada', async t => {
-  const own = { id: 1, clube_id: 2, categoria_id: 7, time_id: 10, publicada_em: null as Date | null, clube: { id: 2, nome: 'Ocian' } };
+  const own = { id: 1, clube_id: 2, categoria_id: 7, time_id: 10, publicada_em: null as Date | null, versao: 0, clube: { id: 2, nome: 'Ocian' } };
   const opponent = { id: 2, clube_id: 3, categoria_id: 8, time_id: 20, publicada_em: null as Date | null, clube: { id: 3, nome: 'Santos' } };
   const p: any = { id: 1, versao: 0, status: 'AGENDADA', data: new Date('2026-11-06T00:00:00Z'), horario: '19:30', organizador_id: 2, sumula_clube_id: 2,
     titulares_necessarios: 5, categoria: { clube_id: 2 }, participantes: [own, opponent],
@@ -23,6 +23,7 @@ test('preparação: consultas paralelas, privacidade e numeração atualizada', 
     const old = target[name]; target[name] = value; t.after(() => { target[name] = old; });
   }
   replace(prisma.partida, 'findUnique', async () => p);
+  replace(prisma.partida, 'findUniqueOrThrow', async () => p);
   replace(prisma.usuarioClube, 'findUnique', async () => ({ papel: role, categorias: [] }));
   replace(prisma.clube, 'findUnique', async () => { organizerReads++; return own.clube; });
   replace(prisma.escalacaoPartida, 'findMany', async ({ where }: any) => {
@@ -39,7 +40,9 @@ test('preparação: consultas paralelas, privacidade e numeração atualizada', 
   replace(prisma.escalacaoPartida, 'createMany', async () => { writes++; });
   replace(prisma.participantePartida, 'update', async () => { writes++; });
   replace(prisma.auditoriaPartida, 'create', async () => { writes++; });
-  const router = criarCompartilhadasRoutes({} as any);
+  const emissions: unknown[] = [];
+  const io = { to: (room: string) => ({ emit: (event: string, data: unknown) => emissions.push({ room, event, data }) }), of: () => ({ to: () => ({ emit() {} }) }) };
+  const router = criarCompartilhadasRoutes(io as any);
   async function call(method: string, path: string, body = {}, club = 2) {
     const route = (router as any).stack.find((l: any) => l.route?.path === path && l.route.methods[method]).route;
     let status = 200, result: any;
@@ -87,6 +90,18 @@ test('preparação: consultas paralelas, privacidade e numeração atualizada', 
     assert.equal(writes, 0);
     assert.equal((await call('put', '/partidas/:id/escalacao', { jogadores: rows, versao: 0 })).status, 200);
     assert.equal(writes, 5);
+  });
+  await t.test('rascunho antigo não sobrescreve a escalação de outro dispositivo; alterações notificam ambos sem expor jogadores', async () => {
+    const before = writes;
+    const rows = players.map((j, i) => ({ jogador_id: j.id, numCamisa: j.numCamisa, titular: i < 5 }));
+    own.versao = 2;
+    const rejected = await call('put', '/partidas/:id/escalacao', { jogadores: rows, versao: 0, versao_equipe: 1 });
+    assert.equal(rejected.status, 409); assert.equal(writes, before);
+    emissions.length = 0;
+    assert.equal((await call('put', '/partidas/:id/escalacao', { jogadores: rows, versao: 0, versao_equipe: 2 })).status, 200);
+    assert.deepEqual(emissions.filter((v: any) => v.event === 'partida_atualizada').map((v: any) => v.room), ['clube:2', 'clube:3']);
+    assert.equal(JSON.stringify(emissions).includes('jogador_id'), false);
+    own.versao = 0;
   });
   await t.test('confirmar exige cinco titulares e camisas atuais, inclusive na reserva', async () => {
     await validarEquipe(prisma, p, own as any);

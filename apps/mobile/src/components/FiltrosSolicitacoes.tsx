@@ -1,3 +1,4 @@
+import { RadioOption } from './ui/RadioOption';
 import { AppSheet } from "./ui/AppSheet";
 import { AppButton } from "./ui/Controls";
 import { useMemo, useState } from "react";
@@ -22,20 +23,7 @@ export function FiltrosSolicitacoes(props: Props) {
   const [todas, setTodas] = useState(props.todas);
   const [direcao, setDirecao] = useState(props.direcao);
   function opcao(label: string, selecionada: boolean, onPress: () => void) {
-    return (
-      <TouchableOpacity
-        key={label}
-        accessibilityRole="radio"
-        accessibilityState={{ checked: selecionada }}
-        aria-checked={selecionada}
-        onPress={onPress}
-        style={[styles.chip, selecionada && styles.chipActive]}
-      >
-        <Text style={[styles.optionText, selecionada && styles.chipTextActive]}>
-          {label}
-        </Text>
-      </TouchableOpacity>
-    );
+    return <RadioOption key={label} label={label} selected={selecionada} onPress={onPress} />;
   }
   return (
     <AppSheet
@@ -67,7 +55,7 @@ export function FiltrosSolicitacoes(props: Props) {
         accessibilityLabel="Situação"
       >
         <Text style={styles.label}>Situação</Text>
-        <View style={styles.chipRow}>
+        <View style={{ gap: 4 }}>
           {opcao(`Pendentes · ${props.pendentes}`, !todas, () =>
             setTodas(false),
           )}
@@ -80,7 +68,7 @@ export function FiltrosSolicitacoes(props: Props) {
         accessibilityLabel="Solicitações"
       >
         <Text style={styles.label}>Solicitações</Text>
-        <View style={styles.chipRow}>
+        <View style={{ gap: 4 }}>
           {opcao("Todas", direcao === "todas", () => setDirecao("todas"))}
           {opcao(
             `Para responder · ${props.paraResponder}`,

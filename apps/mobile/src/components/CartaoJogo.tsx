@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Image, Text, View } from "react-native";
+import { MatchCardLayout } from "./MatchCardLayout";
 import { SinalAoVivo } from "./SinalAoVivo";
 import { Icon } from "@ludora/icons";
 import { lightColors } from "@ludora/design-tokens";
@@ -11,6 +12,7 @@ import { resultadoDoClube } from "@/src/utils/resumoPartidas";
 
 export interface PartidaJogo extends PartidaAgendaBase {
   organizador_id?: number | null;
+  paulista_evento_id?: number | null;
   somente_leitura?: boolean;
   mandante: { id: number; nome: string; escudo: string | null };
   visitante: { id: number; nome: string; escudo: string | null };
@@ -41,8 +43,8 @@ function TimeJogo({
   const [falhou, setFalhou] = useState<string | null>(null);
   const escudo = time.escudo?.trim();
   return (
-    <View style={styles.teamCol}>
-      <View style={[styles.fundoImg, destaque && styles.crestHighlight]}>
+    <View style={[styles.teamCol, { flex: 0, width: "100%" }]}>
+      <View style={[styles.fundoImg, { width: 48, height: 48 }, destaque && styles.crestHighlight]}>
         {escudo && falhou !== escudo ? (
           <Image
             source={{ uri: escudo }}
@@ -55,7 +57,7 @@ function TimeJogo({
           </Text>
         )}
       </View>
-      <Text style={styles.teamName} numberOfLines={2}>
+      <Text style={[styles.teamName, { fontSize: 13, lineHeight: 20, height: 40 }]} numberOfLines={2}>
         {time.nome}
       </Text>
     </View>
@@ -99,34 +101,23 @@ export const CartaoJogo = memo(function CartaoJogo({
       : "Ver detalhes";
 
   return (
-    <TouchableOpacity
-      style={[styles.matchCard, aoVivo && styles.matchCardAoVivo]}
-      activeOpacity={0.82}
-      accessibilityRole="button"
-      accessibilityHint={acao}
+    <MatchCardLayout
       onPress={() => onPress(partida)}
-    >
-      <View style={styles.cardTop}>
-        <View style={styles.cardDateBlock}>
-          <View style={styles.cardTopLeft}>
-            <Text style={styles.cardDate}>{dia}</Text>
-            <Text style={styles.catText} numberOfLines={1}>
-              {partida.categoria?.nome.toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.cardTopLeft}>
-            <Text style={styles.weekdayText}>{diaSemana}</Text>
-            <Icon
-              name="clock-outline"
-              size={12}
-              color={colors.textoSecundario}
-            />
-            <Text style={styles.timeText}>
-              {partida.horario?.slice(0, 5) ?? "--:--"}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.cardBadges}>
+      label={`${partida.mandante.nome} contra ${partida.visitante.nome}`}
+      action={acao} live={aoVivo} badgesBelow={finalizada}
+      local={partida.local?.trim() || "Local não definido"}
+      agenda={<View style={[styles.cardTopLeft, { flexWrap: 'wrap', gap: 8 }]}>
+        <Text style={styles.cardDate}>{dia}</Text>
+        {!partida.paulista_evento_id && <Text style={styles.catText}>{partida.categoria?.nome.toUpperCase()}</Text>}
+        <Text style={styles.weekdayText}>{diaSemana}</Text>
+        <Icon name="clock-outline" size={12} color={colors.textoSecundario}/>
+        <Text style={styles.timeText}>{partida.horario?.slice(0, 5) ?? "--:--"}</Text>
+      </View>}
+      context={!!partida.paulista_evento_id && <View style={[styles.cardTopLeft, { marginTop: 7, flexWrap: 'wrap', gap: 10 }]}>
+        <Text style={[styles.catText, { color: colors.primaria }]}>Campeonato Paulista</Text>
+        <Text style={styles.catText}>{partida.categoria?.nome.toUpperCase()}</Text>
+      </View>}
+      badges={<>
           {aoVivo && (
             <View accessible accessibilityLabel="Ao vivo">
               <SinalAoVivo />
@@ -158,16 +149,10 @@ export const CartaoJogo = memo(function CartaoJogo({
               {partida.emCasa ? "Casa" : "Fora"}
             </Text>
           </View>
-        </View>
-      </View>
-      <View style={styles.cardBody}>
-        <TimeJogo
-          time={partida.mandante}
-          destaque={partida.emCasa}
-          styles={styles}
-        />
-        <View style={styles.placarCentral}>
-          {aoVivo || finalizada ? (
+      </>}
+      home={<TimeJogo time={partida.mandante} destaque={partida.emCasa} styles={styles}/>}
+      away={<TimeJogo time={partida.visitante} destaque={!partida.emCasa} styles={styles}/>}
+      score={aoVivo || finalizada ? (
             <View
               style={styles.placarRow}
               accessible
@@ -180,35 +165,6 @@ export const CartaoJogo = memo(function CartaoJogo({
           ) : (
             <Text style={styles.vsText}>VS</Text>
           )}
-        </View>
-        <TimeJogo
-          time={partida.visitante}
-          destaque={!partida.emCasa}
-          styles={styles}
-        />
-      </View>
-      <View style={styles.cardFooter}>
-        <Icon
-          name="map-marker-outline"
-          size={16}
-          color={colors.textoSecundario}
-        />
-        <Text style={styles.locationText} numberOfLines={2}>
-          {partida.local?.trim() || "Local não definido"}
-        </Text>
-      </View>
-      <View style={[styles.cardDetails, aoVivo && styles.cardDetailsLive]}>
-        <Text
-          style={[styles.cardDetailsText, aoVivo && styles.cardDetailsLiveText]}
-        >
-          {acao}
-        </Text>
-        <Icon
-          name={aoVivo ? "live" : "chevron-right"}
-          size={16}
-          color={aoVivo ? colors.textoSobrePrimaria : colors.primaria}
-        />
-      </View>
-    </TouchableOpacity>
+    />
   );
 });

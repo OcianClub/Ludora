@@ -15,6 +15,7 @@ import { Oswald_700Bold } from '@expo-google-fonts/oswald/700Bold';
 import { ClubeAtivoProvider } from '@/src/contexts/ClubeAtivoContext';
 import { ThemeProvider } from '@/src/contexts/ThemeContext';
 import { NotificacoesProvider } from '@/src/contexts/NotificacoesContext';
+import { AssistanceProvider } from '@/src/contexts/AssistanceContext';
 import { SessaoProvider } from '@/src/contexts/SessaoContext';
 
 SplashScreen.preventAutoHideAsync();
@@ -47,14 +48,14 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}><ThemeProvider>
       <SessaoProvider><ClubeAtivoProvider>
-        <NotificacoesProvider>
+        <NotificacoesProvider><AssistanceProvider>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="convite" />
             <Stack.Screen name="(tabs)" />
           </Stack>
-        </NotificacoesProvider>
+        </AssistanceProvider></NotificacoesProvider>
       </ClubeAtivoProvider></SessaoProvider>
     </ThemeProvider></GestureHandlerRootView>
   );

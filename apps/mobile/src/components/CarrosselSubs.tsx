@@ -369,7 +369,7 @@ const createStyles = (colors: ThemeColors, tema: keyof typeof interfaceColors) =
       justifyContent: "center",
       alignItems: "center",
       borderWidth: 1,
-      borderColor: interfaceColors[tema].categoria.sub.borda,
+      borderColor: colors.borda,
       borderRadius: 8,
       backgroundColor: interfaceColors[tema].categoria.sub.fundo,
     },
