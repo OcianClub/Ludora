@@ -102,10 +102,11 @@ function fixture({ theme }) {
         data = { consultadoEm: '2026-11-10T12:00:00Z', chamados: { abertos: 3, atrasados: 1 }, manutencao: 1, federacao: { pendencias: 0, falhas: 0, erroRotina: false }, semInicio: [], antigas: [{ id: 10, inicioAoVivo: '2026-11-08T12:00:00Z', organizador_id: 1, data: '2026-08-01T00:00:00Z', horario: '20:00', categoria: { nome: 'SUB-7', clube_id: 1 }, mandante: { nome: 'Ocian', escudo: null }, visitante: { nome: 'Santos', escudo: null } }] };
       }
       else if (/^\/admin\/overview\/partidas\/\d+\/lembrete$/.test(p)) data = { organizador: { id: 1, nome: 'Ocian', ativo: true }, gestores: [{ id: 25, nome: 'Responsável teste', papel: 'ADMIN' }, { id: 26, nome: 'Administrador', email: 'admin.um@example.test', papel: 'ADMIN' }, { id: 27, nome: 'Administrador', email: 'admin.dois@example.test', papel: 'ADMIN' }], podeEnviar: !window.__lembreteEnviado, ultimoEnvio: window.__lembreteEnviado ? '2026-11-10T12:00:00Z' : null, disponivelEm: window.__lembreteEnviado ? '2026-11-11T12:00:00Z' : null };
+      else if (/^\/admin\/clubes\/\d+\/resumo$/.test(p)) data = clubes.find(c => c.id === Number(p.split('/')[3]));
       else if (/^\/admin\/clubes\/\d+\/membros$/.test(p)) data = { categorias: [{ id: 7, nome: 'sub-7', tipo: 'INICIACAO', ativa: true, faixaIdade: 7 }], membros: [{ usuario: contas[1], papel: 'TECNICO', acesso_todas_categorias: true, categorias: [] }] };
       else if (p === '/admin/usuarios') data = [...contas].reverse().filter(u => `${u.nome} ${u.email}`.toLowerCase().includes((url.searchParams.get('busca') || '').toLowerCase()));
       else if (p === '/admin/cadastro-pendente') data = cadastro.map(c => window.__cadastroCompleto ? { ...c, motivos: [] } : c);
-      else if (/^\/admin\/cadastro-pendente\/\d+\/destinatarios$/.test(p)) data = [{ id: 25, nome: 'Responsável pelo cadastro' }];
+      else if (/^\/admin\/cadastro-pendente\/\d+\/destinatarios$/.test(p)) data = [{ id: 25, nome: 'Responsável pelo cadastro', email: 'responsavel@exemplo.test' }];
       else if (p === '/admin/equipe/chamados/filtros') data = { clubes: clubes.map(c => ({ value: c.id, label: c.nome })), responsaveis: [], contagens: { '': chamados.length, NOVO: chamados.filter(c=>c.status === 'NOVO').length, ATRASADO: 1, RECORRENTE: 1, MEUS: 1, ENCAMINHADOS: 1, FINALIZADOS: chamados.filter(c=>c.status === 'RESOLVIDO').length } };
       else if (p === '/admin/equipe/chamados/clubes') data = clubes.map(c => ({ value: c.id, label: c.nome }));
       else if (p === '/admin/equipe/chamados') data = chamados.filter(c => {
@@ -248,6 +249,65 @@ async function testarChamados(page, base, scenario) {
   assert.equal(await page.evaluate(() => window.__calls.filter(c => c.route === '/admin/equipe/chamados/filtros').length), filterCalls, 'Busca não recarrega as opções da fila');
 }
 
+async function testarCadastro(page, base, scenario) {
+  await page.goto(base + 'usuarios');
+  await page.getByRole('tab', {name:'Cadastro dos clubes',exact:true}).click();
+  let dialog;
+      await page.getByRole('group', { name: 'Clubes com pendências', exact: true }).waitFor();
+      assert.equal(await page.getByRole('radio', { name: 'Ocian', exact: true }).count(), 0, 'Clube completo não aparece por ter tarefa antiga');
+      await page.getByRole('radio', { name: 'Santos', exact: true }).check();
+      await page.getByRole('button', { name: 'Dado pendente: Escolha o dado a atualizar', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: 'Escudo do clube', exact: true }).click();
+      assert.equal(await page.getByRole('button', { name: 'Revisar aviso', exact: true }).isDisabled(), true, 'Exige um destinatário');
+      await page.getByRole('checkbox', { name: /Responsável pelo cadastro.*responsavel@exemplo\.test/ }).check();
+      await page.mouse.move(5,5);
+      await page.waitForTimeout(200);
+      if (scenario.theme === 'dark') {
+        assert.equal(await page.locator('.registration-missing > li').first().evaluate(el=>getComputedStyle(el).backgroundColor), 'rgb(20, 23, 31)', 'Pendências reutilizam #14171F');
+        assert.equal(await page.locator('.registration-recipients label').first().evaluate(el=>getComputedStyle(el).backgroundColor), 'rgb(20, 23, 31)', 'Destinatários reutilizam #14171F');
+      }
+      await page.screenshot({ path: path.join(output, `cadastro-formulario-${scenario.width}.png`), fullPage: true });
+      await page.getByRole('button', { name: 'Revisar aviso', exact: true }).click();
+      dialog = page.getByRole('dialog', { name: 'Revisar aviso', exact: true });
+      await dialog.getByText('Complete o cadastro de Santos. Falta informar o escudo.', { exact: true }).waitFor();
+      await dialog.getByText('Responsável pelo cadastro · responsavel@exemplo.test', { exact: true }).waitFor();
+      await dialog.getByRole('button', { name: 'Enviar aviso', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' });
+      await page.getByRole('button', { name: 'Dispensar tarefa', exact: true }).click();
+      dialog = page.getByRole('dialog', { name: 'Dispensar tarefa', exact: true });
+      assert.equal(await dialog.getByRole('textbox').count(), 0, 'Justificativa livre só existe em Outro');
+      const alturaFechado = (await dialog.boundingBox()).height;
+      await dialog.getByRole('button', { name: 'Motivo da dispensa: Selecione o motivo', exact: true }).click();
+      if (scenario.height >= 700) {
+        assert.ok((await dialog.boundingBox()).height > alturaFechado + 100, 'Modal cresce para acomodar o seletor aberto');
+        const menu = await dialog.getByRole('menu').boundingBox();
+        const corpo = await dialog.locator('.modal-body').boundingBox();
+        assert.ok(menu.y + menu.height <= corpo.y + corpo.height + 1, 'Opções ficam dentro da área visível do modal');
+      }
+      await dialog.screenshot({ path: path.join(output, `cadastro-motivos-aberto-${scenario.width}.png`) });
+      await dialog.getByRole('menuitemradio', { name: 'Outro', exact: true }).click();
+      await dialog.getByRole('textbox', { name: 'Descreva o motivo', exact: true }).fill('Curto');
+      assert.equal(await dialog.getByRole('button', { name: 'Confirmar dispensa', exact: true }).isDisabled(), true);
+      await dialog.getByRole('button', { name: 'Motivo da dispensa: Outro', exact: true }).click();
+      await dialog.getByRole('menuitemradio', { name: 'Aviso registrado por engano', exact: true }).click();
+      assert.equal(await dialog.getByRole('textbox').count(), 0);
+      await dialog.screenshot({ path: path.join(output, `cadastro-dispensa-${scenario.width}.png`) });
+      await dialog.getByRole('button', { name: 'Confirmar dispensa', exact: true }).click();
+      await dialog.waitFor({ state: 'detached' });
+      await page.getByText('Este aviso de cadastro foi registrado por engano.', { exact: true }).waitFor();
+      const cadastroWrites = await page.evaluate(() => window.__writes.filter(w => w.route.includes('/cadastro-pendente')));
+      assert.equal(cadastroWrites.length, 2, 'Envio e dispensa geram somente uma gravação cada');
+      assert.equal(cadastroWrites[1].body.motivo, 'Este aviso de cadastro foi registrado por engano.');
+      await page.getByRole('button', { name: 'Atualizar', exact: true }).waitFor();
+      await page.screenshot({ path: path.join(output, `cadastro-pendencias-${scenario.width}.png`), fullPage: true });
+      await page.evaluate(() => { window.__cadastroCompleto = true; });
+      await page.getByRole('button', { name: 'Atualizar', exact: true }).click();
+      await page.getByRole('heading', { name: 'Nenhum clube possui pendências', exact: true }).waitFor();
+      assert.equal(await page.locator('.desktop-registration').getByRole('radio').count(), 0, 'Cadastro completo limpa a seleção e a lista');
+      await page.screenshot({ path: path.join(output, `cadastro-vazio-${scenario.width}.png`), fullPage: true });
+
+}
+
 async function main() {
   fs.mkdirSync(output, { recursive: true });
   const server = http.createServer((req, res) => {
@@ -264,6 +324,12 @@ async function main() {
       const errors = []; page.on('pageerror', e => errors.push(e.message));
       await page.addInitScript(fixture, scenario);
       const base = `http://127.0.0.1:${server.address().port}/#/`;
+      if (process.env.DESKTOP_TEST_REGISTRATION_ONLY) {
+        await testarCadastro(page, base, scenario);
+        assert.deepEqual(errors, []);
+        console.log(`PASS cadastro: email, destinatários, envio e dispensa ${scenario.width} ${scenario.theme}`);
+        await context.close(); continue;
+      }
       if (process.env.DESKTOP_TEST_SUPPORT_ONLY) {
         await testarChamados(page, base, scenario);
         assert.deepEqual(errors, []);
@@ -450,7 +516,7 @@ async function main() {
       await page.getByRole('searchbox', { name: 'Buscar clube', exact: true }).fill('Ocian');
       await page.locator('.club-directory-card').first().click();
       await page.getByRole('heading', { level: 1, name: 'Ocian', exact: true }).waitFor();
-      await page.getByRole('link', { name: '← Clubes', exact: true }).click();
+      await page.getByRole('link', { name: 'Voltar para clubes', exact: true }).click();
       assert.equal(await page.getByRole('searchbox', { name: 'Buscar clube', exact: true }).inputValue(), 'Ocian');
 
       await page.goto(base + 'usuarios');
@@ -463,8 +529,8 @@ async function main() {
       const tab = page.getByRole('tab', { name: 'Cadastro dos clubes', exact: true });
       const tabStyle = await tab.evaluate(el => ({ color: getComputedStyle(el).color, background: getComputedStyle(el).backgroundColor }));
       await tab.hover();
-      assert.deepEqual(await tab.evaluate(el => ({ color: getComputedStyle(el).color, background: getComputedStyle(el).backgroundColor })), tabStyle, 'Abas não mudam cores no hover');
-      assert.equal(await tab.evaluate(el => getComputedStyle(el).justifyContent), 'flex-start', 'Texto das abas alinhado à esquerda');
+      assert.equal(await tab.evaluate(el => getComputedStyle(el).backgroundColor), tabStyle.background, 'Hover da aba preserva o fundo e usa o destaque de texto compartilhado');
+      assert.ok(['normal', 'flex-start'].includes(await tab.evaluate(el => getComputedStyle(el).justifyContent)), 'Abas mantêm o alinhamento inicial, incluindo o valor padrão do flex');
       const stateColors = await page.locator('.desktop-user-state').evaluateAll(items => items.map(el => ({ suspended: el.dataset.suspended, color: getComputedStyle(el).color })));
       assert.notEqual(stateColors.find(s => s.suspended === 'false').color, stateColors.find(s => s.suspended === 'true').color, 'Ativa e Suspensa têm cores distintas');
       assert.equal(await page.locator('.desktop-user-role .desktop-role-badge > .icon, .desktop-user-role .desktop-role-badge > svg').count(), 4, 'Cargos mostram seus ícones');
@@ -536,57 +602,7 @@ async function main() {
       await tab.press('Enter');
       assert.equal(await tab.getAttribute('aria-selected'), 'true', 'Enter seleciona a aba');
       assert.equal(await page.getByRole('tabpanel').getAttribute('aria-labelledby'), await tab.getAttribute('id'), 'Painel identifica a aba selecionada');
-      await page.getByRole('group', { name: 'Clubes com pendências', exact: true }).waitFor();
-      assert.equal(await page.getByRole('radio', { name: 'Ocian', exact: true }).count(), 0, 'Clube completo não aparece por ter tarefa antiga');
-      await page.getByRole('radio', { name: 'Santos', exact: true }).check();
-      await page.getByRole('button', { name: 'Dado pendente: Escolha o dado a atualizar', exact: true }).click();
-      await page.getByRole('menuitemradio', { name: 'Escudo do clube', exact: true }).click();
-      assert.equal(await page.getByRole('button', { name: 'Revisar aviso', exact: true }).isDisabled(), true, 'Exige um destinatário');
-      await page.getByRole('checkbox', { name: 'Responsável pelo cadastro', exact: true }).check();
-      await page.mouse.move(5,5);
-      await page.waitForTimeout(200);
-      if (scenario.theme === 'dark') {
-        assert.equal(await page.locator('.registration-missing > li').first().evaluate(el=>getComputedStyle(el).backgroundColor), 'rgb(20, 23, 31)', 'Pendências reutilizam #14171F');
-        assert.equal(await page.locator('.registration-recipients label').first().evaluate(el=>getComputedStyle(el).backgroundColor), 'rgb(20, 23, 31)', 'Destinatários reutilizam #14171F');
-      }
-      await page.screenshot({ path: path.join(output, `cadastro-formulario-${scenario.width}.png`), fullPage: true });
-      await page.getByRole('button', { name: 'Revisar aviso', exact: true }).click();
-      dialog = page.getByRole('dialog', { name: 'Revisar aviso', exact: true });
-      await dialog.getByText('Complete o cadastro de Santos. Falta informar o escudo.', { exact: true }).waitFor();
-      await dialog.getByRole('button', { name: 'Enviar aviso', exact: true }).click();
-      await dialog.waitFor({ state: 'detached' });
-      await page.getByRole('button', { name: 'Dispensar tarefa', exact: true }).click();
-      dialog = page.getByRole('dialog', { name: 'Dispensar tarefa', exact: true });
-      assert.equal(await dialog.getByRole('textbox').count(), 0, 'Justificativa livre só existe em Outro');
-      const alturaFechado = (await dialog.boundingBox()).height;
-      await dialog.getByRole('button', { name: 'Motivo da dispensa: Selecione o motivo', exact: true }).click();
-      if (scenario.height >= 700) {
-        assert.ok((await dialog.boundingBox()).height > alturaFechado + 100, 'Modal cresce para acomodar o seletor aberto');
-        const menu = await dialog.getByRole('menu').boundingBox();
-        const corpo = await dialog.locator('.modal-body').boundingBox();
-        assert.ok(menu.y + menu.height <= corpo.y + corpo.height + 1, 'Opções ficam dentro da área visível do modal');
-      }
-      await dialog.screenshot({ path: path.join(output, `cadastro-motivos-aberto-${scenario.width}.png`) });
-      await dialog.getByRole('menuitemradio', { name: 'Outro', exact: true }).click();
-      await dialog.getByRole('textbox', { name: 'Descreva o motivo', exact: true }).fill('Curto');
-      assert.equal(await dialog.getByRole('button', { name: 'Confirmar dispensa', exact: true }).isDisabled(), true);
-      await dialog.getByRole('button', { name: 'Motivo da dispensa: Outro', exact: true }).click();
-      await dialog.getByRole('menuitemradio', { name: 'Aviso registrado por engano', exact: true }).click();
-      assert.equal(await dialog.getByRole('textbox').count(), 0);
-      await dialog.screenshot({ path: path.join(output, `cadastro-dispensa-${scenario.width}.png`) });
-      await dialog.getByRole('button', { name: 'Confirmar dispensa', exact: true }).click();
-      await dialog.waitFor({ state: 'detached' });
-      await page.getByText('Este aviso de cadastro foi registrado por engano.', { exact: true }).waitFor();
-      const cadastroWrites = await page.evaluate(() => window.__writes.filter(w => w.route.includes('/cadastro-pendente')));
-      assert.equal(cadastroWrites.length, 2, 'Envio e dispensa geram somente uma gravação cada');
-      assert.equal(cadastroWrites[1].body.motivo, 'Este aviso de cadastro foi registrado por engano.');
-      await page.getByRole('button', { name: 'Atualizar', exact: true }).waitFor();
-      await page.screenshot({ path: path.join(output, `cadastro-pendencias-${scenario.width}.png`), fullPage: true });
-      await page.evaluate(() => { window.__cadastroCompleto = true; });
-      await page.getByRole('button', { name: 'Atualizar', exact: true }).click();
-      await page.getByRole('heading', { name: 'Nenhum clube possui pendências', exact: true }).waitFor();
-      assert.equal(await page.locator('.desktop-registration').getByRole('radio').count(), 0, 'Cadastro completo limpa a seleção e a lista');
-      await page.screenshot({ path: path.join(output, `cadastro-vazio-${scenario.width}.png`), fullPage: true });
+      await testarCadastro(page, base, scenario);
 
       await testarChamados(page, base, scenario);
 
@@ -627,7 +643,7 @@ async function main() {
       await page.getByText('Função pausada', {exact:true}).waitFor();
       const reasonIcon = page.locator('.maintenance-card-header .maintenance-reason-icon');
       assert.equal(await reasonIcon.getAttribute('data-tone'), 'fix', 'Card herda o motivo da pausa');
-      assert.equal(await reasonIcon.evaluate(el=>getComputedStyle(el).color), 'rgb(14, 120, 255)', 'Correção usa primary sem colorir o texto do card');
+      assert.equal(await reasonIcon.evaluate(el=>getComputedStyle(el).color), scenario.theme === 'light' ? 'rgb(8, 99, 216)' : 'rgb(14, 120, 255)', 'Correção usa primary do tema sem colorir o texto do card');
       await page.screenshot({path:path.join(output,`manutencao-ativa-${scenario.width}.png`),fullPage:true});
       await page.getByRole('button', {name:'Filtrar pausas',exact:true}).click();
       dialog = page.getByRole('dialog', {name:'Filtrar pausas',exact:true});

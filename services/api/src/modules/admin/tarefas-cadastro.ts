@@ -34,7 +34,7 @@ export function criarTarefasCadastroRoutes(io: Server) {
   r.get(`${base}/:id/destinatarios`, async (req, res) => {
     const clubeId = idPositivo(req.params.id);
     if (!clubeId) { res.status(400).json({ error: 'Clube inválido.' }); return; }
-    const vinculos = await prisma.usuarioClube.findMany({ where: { clube_id: clubeId, papel: 'ADMIN', usuario: { suspenso: false } }, select: { usuario: { select: { id: true, nome: true } } }, orderBy: { usuario: { nome: 'asc' } } });
+    const vinculos = await prisma.usuarioClube.findMany({ where: { clube_id: clubeId, papel: 'ADMIN', usuario: { suspenso: false } }, select: { usuario: { select: { id: true, nome: true, email: true } } }, orderBy: { usuario: { nome: 'asc' } } });
     res.json(vinculos.map(v => v.usuario));
   });
   r.post(`${base}/:id`, async (req, res) => {

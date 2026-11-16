@@ -333,10 +333,6 @@ export default function DadosPessoais({
 
   const formulario = (
     <View style={embutido && styles.embeddedCard}>
-      {embutido && <View style={styles.embeddedIntro}>
-        <Text style={styles.embeddedTitle} accessibilityRole="header">Dados pessoais</Text>
-        <Text style={styles.sectionDescription}>Mantenha seu nome e seus dados de acesso atualizados.</Text>
-      </View>}
         {/* PERFIL */}
         <View style={[styles.profileHeader, embutido && styles.embeddedIdentity]}>
           <View style={styles.avatarWrapper}>
@@ -365,6 +361,10 @@ export default function DadosPessoais({
         </View>
 
         {/* INFORMAÇÕES */}
+        {embutido && <View style={styles.embeddedIntro}>
+          <Text style={styles.embeddedTitle} accessibilityRole="header">Dados pessoais</Text>
+          <Text style={styles.sectionDescription}>Mantenha seu nome e e-mail atualizados.</Text>
+        </View>}
         <View style={[styles.section, embutido && styles.embeddedSection]}>
           {!embutido && <><View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
@@ -400,6 +400,7 @@ export default function DadosPessoais({
 
             {!embutido && <View style={styles.divider} />}
 
+            {embutido && <View style={styles.embeddedSecurity}><Text style={styles.embeddedTitle} accessibilityRole="header">Segurança da conta</Text><Text style={styles.sectionDescription}>Atualize sua senha quando precisar.</Text></View>}
             <Campo
               simples={embutido}
               label={editando ? 'Nova senha (opcional)' : 'Senha'}

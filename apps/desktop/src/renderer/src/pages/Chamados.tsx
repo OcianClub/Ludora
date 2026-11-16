@@ -52,6 +52,7 @@ const decisoes = {
 };
 type Decisao = keyof typeof decisoes;
 const historicoRotulos: Record<string, string> = {
+  LEITURA_CLIENTE: 'Resposta visualizada pelo solicitante',
   CRIADO: 'Chamado recebido', CRIADO_MANUAL: 'Chamado aberto pela equipe', OCORRENCIA: 'Ocorrência registrada',
   ATRIBUIR: 'Responsável atualizado', STATUS: 'Situação alterada', CLASSIFICAR: 'Tipo alterado',
   ENCAMINHAR: 'Encaminhado aos desenvolvedores', DEVOLVER: 'Devolvido ao suporte',

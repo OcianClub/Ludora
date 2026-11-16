@@ -14,7 +14,7 @@ export const documentDirectory='memory://';window.draftFiles={};
 export const getInfoAsync=async p=>({exists:p in window.draftFiles});
 export const readAsStringAsync=async p=>window.draftFiles[p];
 export const writeAsStringAsync=async(p,s)=>{window.draftFiles[p]=s};
-export const useAssistance=()=>{const[v,set]=React.useState(0);useEffect(()=>{const fn=()=>set(n=>n+1);window.addEventListener('fixture-support',fn);return()=>window.removeEventListener('fixture-support',fn);},[]);const seen=React.useCallback(()=>{},[]);return {seen,version:v};};
+export const useAssistance=()=>{const[v,set]=React.useState(0);useEffect(()=>{const fn=()=>set(n=>n+1);window.addEventListener('fixture-support',fn);return()=>window.removeEventListener('fixture-support',fn);},[]);const seen=React.useCallback(()=>{},[]);const refresh=React.useCallback(()=>{},[]);return {seen,version:v,refresh};};
 export const Header=({title})=><Text>{title}</Text>;
 export const useTheme=()=>({colors:darkColors,tema:'dark'});
 export const useSessao=()=>({autenticado:!location.search.includes('guest')});
@@ -50,6 +50,7 @@ export async function apiFetch(url,options={}) {
  f.requests.push({url,method:options.method||'GET',body});
  if(options.method==='POST'&&url==='/suporte') {const ticket={id:'isolated-id',assunto:body.assunto,descricao:body.descricao,status:'NOVO',historico:[]};f.tickets.push(ticket);return new Response(JSON.stringify(ticket),{status:201});}
  if(options.method==='POST') {f.tickets[0].historico.push({id:2,acao:'RESPOSTA_CLIENTE',motivo:body.mensagem,criadoEm:new Date().toISOString()});return new Response('{}');}
+ if(url!=='/suporte'&&!f.tickets[0])return new Response(JSON.stringify({error:'Chamado não encontrado.'}),{status:404});
  return new Response(JSON.stringify(url==='/suporte'?f.tickets:f.tickets[0]));
 }
 `);
@@ -86,7 +87,10 @@ await page.getByText('Estamos trabalhando na solução.',{exact:true}).waitFor()
 await page.getByLabel('Responder ao suporte',{exact:true}).fill('Acontece também em outro jogo.');
 await page.getByRole('button',{name:'Enviar resposta',exact:true}).click();await page.getByText('Acontece também em outro jogo.',{exact:true}).waitFor();
 assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-await page.screenshot({path:path.join(output,`support-${width}.png`),fullPage:true});assert.deepEqual(errors,[]);await page.close();}
+await page.screenshot({path:path.join(output,`support-${width}.png`),fullPage:true});
+await page.evaluate(()=>{window.supportFixture.tickets=[];window.dispatchEvent(new Event('fixture-support'));});
+await page.getByText('Você ainda não abriu chamados.',{exact:true}).waitFor();
+assert.equal(await page.getByText('Problema ao consultar partida',{exact:true}).count(),0);assert.deepEqual(errors,[]);await page.close();}
 console.log('PASS: support drafts, ticket creation, replies, live updates, responsive 320/390/820');
 }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

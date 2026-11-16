@@ -1,4 +1,5 @@
 import { Icon } from "@ludora/icons";
+import { LinearGradient } from 'expo-linear-gradient';
 import { memo, useEffect, useMemo, useState } from "react";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { interfaceColors, typography } from "@ludora/design-tokens";
@@ -268,6 +269,8 @@ export const CarrosselSubs = memo(function CarrosselSubs({
                 />
               ))}
             </Animated.View>
+            {!isPrevDisabled && <LinearGradient pointerEvents="none" colors={[colors.card, `${colors.card}00`]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.edgeFade, { left: 0 }]} />}
+            {!isNextDisabled && <LinearGradient pointerEvents="none" colors={[`${colors.card}00`, colors.card]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.edgeFade, { right: 0 }]} />}
           </View>
         </GestureDetector>
 
@@ -345,6 +348,7 @@ const createStyles = (colors: ThemeColors, tema: keyof typeof interfaceColors) =
       alignItems: "center",
     },
     trackViewport: { flex: 1, height: 34, overflow: "hidden" },
+    edgeFade: { position: 'absolute', top: 0, bottom: 0, width: 18 },
     track: {
       flexDirection: "row",
       alignItems: "center",
@@ -368,8 +372,6 @@ const createStyles = (colors: ThemeColors, tema: keyof typeof interfaceColors) =
       ...StyleSheet.absoluteFillObject,
       justifyContent: "center",
       alignItems: "center",
-      borderWidth: 1,
-      borderColor: colors.borda,
       borderRadius: 8,
       backgroundColor: interfaceColors[tema].categoria.sub.fundo,
     },

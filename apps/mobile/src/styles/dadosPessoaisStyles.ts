@@ -15,6 +15,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderRadius: 10,
   },
   embeddedIntro: { gap: 4 },
+  embeddedSecurity: { borderTopWidth: 1, borderTopColor: colors.linha, paddingTop: 18, marginTop: 6, gap: 4 },
   embeddedTitle: {
     fontFamily: typography.fontFamily.titulo.bold,
     fontSize: 20,

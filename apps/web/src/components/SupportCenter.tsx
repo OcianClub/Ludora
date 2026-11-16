@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
 import { SupportContext, type SuporteAviso } from '../contexts/SupportContext';
@@ -31,11 +31,18 @@ function SuporteAutenticado({ usuarioId, token, children }: { usuarioId: number;
   const [vistos, setVistos] = useState(() => lerVistos(chave));
   const [avisos, setAvisos] = useState<AvisosPorChamado>({});
   const [destino, setDestino] = useState<{ escopo: string; chamadoId?: string; historico: boolean } | null>(null);
+  const leiturasEnviadas = useRef<AvisosPorChamado>({});
   const [descartado, setDescartado] = useState(0);
   useEffect(() => { setDestino(null); }, [escopo]);
 
   const marcarVisto = useCallback((chamadoId: string, respostaId: number) => {
     if (!respostaId || document.hidden) return;
+    if (respostaId > (leiturasEnviadas.current[chamadoId] || 0)) {
+      leiturasEnviadas.current[chamadoId] = respostaId;
+      void requestJson(`/suporte/${encodeURIComponent(chamadoId)}/lido`, { method: 'PATCH', semClube: true, body: JSON.stringify({ respostaId }) }).catch(() => {
+        if (leiturasEnviadas.current[chamadoId] === respostaId) delete leiturasEnviadas.current[chamadoId];
+      });
+    }
     setVistos(anterior => {
       if ((anterior[chamadoId] || 0) >= respostaId) return anterior;
       return { ...anterior, [chamadoId]: respostaId };
@@ -61,7 +68,7 @@ function SuporteAutenticado({ usuarioId, token, children }: { usuarioId: number;
 
   useEffect(() => {
     const controller = new AbortController();
-    let consultando = false;
+    let consultando = false, agendado = false;
 
     function receber(novos: SuporteAviso[]) {
       if (controller.signal.aborted) return;
@@ -78,19 +85,25 @@ function SuporteAutenticado({ usuarioId, token, children }: { usuarioId: number;
     }
 
     async function atualizar() {
-      if (consultando || document.hidden) return;
+      if (document.hidden || controller.signal.aborted) return;
+      if (consultando) { agendado = true; return; }
       consultando = true;
       try {
         const novos = await requestJson<SuporteAviso[]>('/suporte/avisos', {
           semClube: true, cache: 'no-store', signal: controller.signal,
         });
-        if (Array.isArray(novos)) receber(novos);
+        if (!controller.signal.aborted && Array.isArray(novos)) {
+          const atuais: AvisosPorChamado = {};
+          for (const aviso of novos) atuais[aviso.chamadoId] = Math.max(atuais[aviso.chamadoId] || 0, aviso.id);
+          setAvisos(atuais);
+        }
       } catch { /* A conexão em tempo real e a próxima consulta retomam os avisos. */ }
-      finally { consultando = false; }
+      finally { consultando = false; if (agendado && !controller.signal.aborted) { agendado = false; void atualizar(); } }
     }
 
     const socket = io(BASE_URL + '/suporte', { auth: { token } });
-    socket.on('resposta_suporte', aviso => receber([aviso]));
+    socket.on('resposta_suporte', aviso => { receber([aviso]); void atualizar(); });
+    socket.on('avisos_suporte_atualizados', atualizar);
     socket.on('connect', atualizar);
     void atualizar();
     const timer = window.setInterval(atualizar, 30_000);

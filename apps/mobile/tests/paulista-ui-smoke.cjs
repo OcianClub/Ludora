@@ -26,6 +26,7 @@ export function useCategoryPagerMotion(pager){
   return {goTo,onSettled(){}};
 }
 export const CategoryPager=React.forwardRef(function CategoryPager({children,initialPage,onPageSelected},ref){
+  window.pagerRenders=(window.pagerRenders||0)+1;
   const [active,setActive]=React.useState(initialPage);
   React.useImperativeHandle(ref,()=>({setPage(index){setActive(index);onPageSelected({nativeEvent:{position:index}});}}));
   return <View style={{flex:1,minHeight:0}}>{React.Children.toArray(children)[active]}</View>;
@@ -76,6 +77,7 @@ await page.getByText('Nenhuma participação publicada para SUB-12 na temporada 
 await page.getByRole('button',{name:'INICIACAO',exact:true}).click();
 await page.getByText('Eliminado na semifinal',{exact:true}).waitFor();
 assert.equal(await page.evaluate(()=>window.fixture.requests.length),1,'switches reuse the club publication');
+const pagerBeforeTabs=await page.evaluate(()=>window.pagerRenders);
 if (width <= 390) {
   await page.getByRole('tab', {name:'Jogos',exact:true}).click();
   await page.getByRole('button', {name:/^Ver detalhes:/}).first().waitFor();
@@ -84,6 +86,11 @@ if (width <= 390) {
   await page.getByRole('textbox',{name:'Buscar adversário ou local'}).fill('ginasio municipal');
   await page.getByText('1 jogo do Ocian',{exact:true}).waitFor();
   await page.screenshot({path:path.join(output,`games-${role}-${width}.png`),fullPage:true});
+  await page.getByRole('textbox',{name:'Buscar adversário ou local'}).evaluate(e=>{window.gameSearchNode=e;});
+  await page.getByRole('tab',{name:'Visão geral',exact:true}).click();
+  await page.getByRole('tab',{name:'Jogos',exact:true}).click();
+  assert.equal(await page.getByRole('textbox',{name:'Buscar adversário ou local'}).inputValue(),'ginasio municipal','tab return keeps search');
+  assert.equal(await page.getByRole('textbox',{name:'Buscar adversário ou local'}).evaluate(e=>e===window.gameSearchNode),true,'visited games stay mounted');
 
   await page.getByRole('tab', {name:'Chaveamento',exact:true}).click();
   const quartas = page.getByRole('tab',{name:'Quartas',exact:true});
@@ -107,6 +114,8 @@ if (width <= 390) {
   await page.screenshot({path:path.join(output,`bracket-${role}-${width}.png`),fullPage:true});
 }
 await page.getByRole('tab',{name:'Classificação',exact:true}).click();await page.getByRole('button',{name:'Localizar meu clube',exact:true}).waitFor();
+assert.equal(await page.evaluate(()=>window.pagerRenders),pagerBeforeTabs,'tab navigation does not rerender native category pager');
+assert.equal(await page.evaluate(()=>window.fixture.requests.length),1,'tab navigation does not request publication again');
 const row=page.getByLabel('12º, Ocian, seu clube',{exact:true});
 assert.deepEqual(await row.evaluate(e=>[getComputedStyle(e).backgroundColor,getComputedStyle(e).borderLeftColor]),['rgb(20, 30, 47)','rgb(14, 120, 255)']);
 assert.equal(await page.getByText('Chave Ouro',{exact:true}).count(),1);assert.equal(await page.getByText('Chave Bronze',{exact:true}).count(),1);

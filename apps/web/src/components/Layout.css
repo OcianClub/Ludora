@@ -795,3 +795,19 @@
   .bottom-nav-item > .nav-icon { width: 40px; height: 28px; }
   .bottom-nav-item > .nav-icon .icon { width: 20px !important; height: 20px !important; }
 }
+
+@media (max-width: 760px) {
+  .mobile-more-sheet .mobile-more-links > .mobile-more-item {
+    display: grid; grid-template-columns: 38px minmax(0, 1fr) 20px;
+    align-items: center; justify-items: stretch; gap: 10px; min-height: 58px; height: auto;
+    width: 100%; padding: 8px 12px; border: 0; border-radius: 0;
+    background: transparent; color: var(--texto); font-size: 14px;
+    font-weight: 550; text-align: left;
+  }
+  .mobile-more-sheet .mobile-more-links > .mobile-more-item + .mobile-more-item {
+    border-top: 1px solid var(--linha);
+  }
+  .mobile-more-sheet .mobile-more-links > .mobile-more-item:hover {
+    background: var(--superficie-neutra);
+  }
+}

@@ -55,6 +55,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingTop: 16,
     gap: 14,
   },
+  contextCard: { backgroundColor: colors.card, borderRadius: 10, borderWidth: 1, borderColor: colors.borda, padding: 18, gap: 14, marginTop: 18 },
+  helpAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   sessionHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   clubCard: { backgroundColor: colors.card, borderColor: colors.borda, borderWidth: 1, borderRadius: 10, padding: 16, gap: 14 },
   clubCrest: { width: 38, height: 38, borderRadius: 8, backgroundColor: colors.cardSecundario, alignItems: 'center', justifyContent: 'center' },

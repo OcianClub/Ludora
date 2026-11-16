@@ -36,7 +36,8 @@ export default function PaulistaScreen() {
   const publicacao = usePaulistaPublicacao(clubeAtivo?.id, autenticado);
   const { eventos } = publicacao;
   const [selecao, setSelecao] = useState<{ clubeId: number; ano?: number; sub: string }>();
-  const [aba, setAba] = useState<Aba>('visao');
+  const ultimaAba = useRef<Aba>('visao');
+  const lembrarAba = useCallback((aba: Aba) => { ultimaAba.current = aba; }, []);
   const pagerRef = useRef<CategoryPagerHandle>(null);
   const motion = useCategoryPagerMotion(pagerRef);
 
@@ -103,9 +104,9 @@ export default function PaulistaScreen() {
                 ano={ano}
                 evento={eventoDaSelecao(eventos, ano, title)}
                 opcoesTemporada={opcoesTemporada}
-                aba={aba}
+                abaInicial={ultimaAba.current}
                 escolherAno={escolherAno}
-                trocarAba={setAba}
+                lembrarAba={lembrarAba}
                 carregando={publicacao.carregando}
                 recebida={publicacao.recebida}
                 atualizando={publicacao.atualizando}
@@ -131,19 +132,22 @@ type PaulistaSubPageProps = {
   ano: number;
   evento?: EventoPublicoPaulista;
   opcoesTemporada: { value: string; label: string }[];
-  aba: Aba;
+  abaInicial: Aba;
   escolherAno: (value: string, sub: string) => void;
-  trocarAba: (aba: Aba) => void;
+  lembrarAba: (aba: Aba) => void;
 } & Pick<ReturnType<typeof usePaulistaPublicacao>, 'carregando' | 'recebida' | 'atualizando' | 'erro' | 'atualizar'>;
 
 const PaulistaSubPage = memo(function PaulistaSubPage({
-  clubeAtivo, sub, ano, evento, opcoesTemporada, aba, escolherAno, trocarAba,
+  clubeAtivo, sub, ano, evento, opcoesTemporada, abaInicial, escolherAno, lembrarAba,
   carregando, recebida, atualizando, erro, atualizar,
 }: PaulistaSubPageProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const s = usePaulistaStyles();
+  // A navegação das abas não precisa reconstruir o pager nativo de categorias.
+  const [aba, setAba] = useState(abaInicial);
+  const trocarAba = useCallback((value: Aba) => { setAba(value); lembrarAba(value); }, [lembrarAba]);
   const [busca, setBusca] = useState('');
   const [faseJogo, setFaseJogo] = useState('');
   const [filtros, setFiltros] = useState(false);
@@ -162,7 +166,7 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
   const equipes = useMemo(() => new Map(snapshot?.equipes.map(e => [e.id, e])), [snapshot]);
   const buscaAdiada = useDeferredValue(busca);
   const jogos = useMemo(() => {
-    if (aba !== 'jogos' || !resumo) return [];
+    if (!resumo) return [];
     const termo = normalizarBusca(buscaAdiada);
     return [...resumo.jogos].reverse().filter(jogo => {
       if (faseJogo && jogo.faseId !== faseJogo) return false;
@@ -171,7 +175,7 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
       const visitante = equipes.get(jogo.visitanteId)?.nome ?? '';
       return normalizarBusca(`${mandante} ${visitante} ${jogo.local ?? ''}`).includes(termo);
     });
-  }, [aba, resumo, faseJogo, buscaAdiada, equipes]);
+  }, [resumo, faseJogo, buscaAdiada, equipes]);
   const scope = `${clubeAtivo?.id}:${evento?.id}:${ano}:${sub}`;
   const detalhe = jogoSelecionado?.scope === scope ? snapshot?.jogos.find(j => j.id === jogoSelecionado.id) : null;
   const setDetalhe = useCallback((jogo: JogoPaulista | null) => {
@@ -211,8 +215,8 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
         {!snapshot ? <View style={s.empty}><Icon name="trophy" size={32} color={colors.textoSecundario} /><Text style={[s.muted, { textAlign: 'center' }]}>Nenhuma participação publicada para {sub} na temporada {ano}.</Text></View> : <>
           {visited.current.has('visao') && <View style={{ display: aba === 'visao' ? 'flex' : 'none' }}><PaulistaOverview key={scope} snapshot={snapshot} minhas={minhas} clubeNome={clubeAtivo.nome} resumo={resumo!} chave={chave} onTab={trocarAba} onOpen={setDetalhe} /></View>}
           {visited.current.has('classificacao') && <View style={{ display: aba === 'classificacao' ? 'flex' : 'none' }}><PaulistaStandings key={scope} snapshot={snapshot} minhas={minhas} onLocate={localizar} /></View>}
-          {aba === 'jogos' && (
-            <View style={{ gap: 16 }}>
+          {visited.current.has('jogos') && (
+            <View style={{ gap: 16, display: aba === 'jogos' ? 'flex' : 'none' }}>
               <View style={[s.row, { gap: 8 }]}>
                 <SearchField
                   accessibilityLabel="Buscar adversário ou local"

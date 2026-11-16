@@ -25,16 +25,45 @@ const idsAfetados = (valor: Prisma.JsonValue) => Array.isArray(valor) ? valor.fi
 export function criarSuporteRoutes(io: Server) {
   const router = Router();
   router.use('/suporte', exigirAutenticacao, (req, res, next) =>
-    (req.method === 'GET' ? limiteLeitura : limite)(req, res, next));
+    (req.method === 'GET' || req.path.endsWith('/lido') ? limiteLeitura : limite)(req, res, next));
   router.get('/suporte/avisos', async (req, res) => {
     const usuarioId = (req as any).usuarioId as number;
     const avisos = await prisma.suporteHistorico.findMany({
-      where: { ...filtroResposta, chamado: { usuarioId } },
+      where: { ...filtroResposta, chamado: { usuarioId, status: { not: 'RESOLVIDO' } } },
+      distinct: ['chamadoId'],
       orderBy: { id: 'desc' },
       select: { id: true, chamadoId: true },
       take: 100,
     });
-    res.json(avisos);
+    const leituras = avisos.length ? await prisma.suporteHistorico.findMany({
+      where: { chamadoId: { in: avisos.map(a => a.chamadoId) }, acao: 'LEITURA_CLIENTE', operadorId: usuarioId },
+      distinct: ['chamadoId'], orderBy: { id: 'desc' }, select: { chamadoId: true, dados: true },
+    }) : [];
+    const vistos = new Map(leituras.map(l => [l.chamadoId, Number((l.dados as { respostaId?: number } | null)?.respostaId) || 0]));
+    res.json(avisos.filter(a => a.id > (vistos.get(a.chamadoId) || 0)));
+  });
+  router.patch('/suporte/:id/lido', async (req, res) => {
+    const usuarioId = (req as any).usuarioId as number;
+    const chamadoId = String(req.params.id), respostaId = req.body?.respostaId;
+    if (!Number.isSafeInteger(respostaId) || respostaId <= 0) { res.status(400).json({ error: 'Resposta inválida.' }); return; }
+    try {
+      const result = await prisma.$transaction(async tx => {
+        const chamado = await tx.suporteChamado.findFirst({ where: { id: chamadoId, usuarioId }, select: { id: true } });
+        if (!chamado) return null;
+        const resposta = await tx.suporteHistorico.findFirst({ where: { ...filtroResposta, chamadoId, id: { lte: respostaId } }, orderBy: { id: 'desc' }, select: { id: true } });
+        if (!resposta) return { alterou: false };
+        const ultima = await tx.suporteHistorico.findFirst({ where: { chamadoId, acao: 'LEITURA_CLIENTE', operadorId: usuarioId }, orderBy: { id: 'desc' }, select: { dados: true } });
+        if (Number((ultima?.dados as { respostaId?: number } | null)?.respostaId) >= resposta.id) return { alterou: false };
+        await tx.suporteHistorico.create({ data: { chamadoId, operadorId: usuarioId, acao: 'LEITURA_CLIENTE', motivo: 'Resposta visualizada pelo solicitante.', publico: false, dados: { respostaId: resposta.id } } });
+        return { alterou: true };
+      }, { isolationLevel: 'Serializable' });
+      if (!result) { res.status(404).json({ error: 'Chamado não encontrado.' }); return; }
+      if (result.alterou) io.of('/suporte').to(`usuario:${usuarioId}`).emit('avisos_suporte_atualizados', { chamadoId });
+      res.json({ ok: true });
+    } catch (error) {
+      if ((error as { code?: string }).code === 'P2034') { res.status(409).json({ error: 'A leitura mudou. Tente novamente.' }); return; }
+      throw error;
+    }
   });
   router.get('/suporte', async (req, res) => {
     const lista = await prisma.suporteChamado.findMany({
@@ -302,6 +331,7 @@ export function criarSuporteRoutes(io: Server) {
       });
     });
     if (resultado && publico) io.of('/suporte').to('usuario:' + c.usuarioId).emit('resposta_suporte', resultado);
+    if (resultado && c.usuarioId) io.of('/suporte').to('usuario:' + c.usuarioId).emit('avisos_suporte_atualizados', { chamadoId: c.id });
     res.status(resultado ? 200 : 409).json(resultado ? { ok: true } : { error: 'O chamado mudou. Atualize antes de registrar.' });
   });
   return router;

@@ -21,7 +21,10 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5187';
       await more.getByRole('link',{name:'Torneios',exact:true}).waitFor();
       await more.evaluate(async e=>{await Promise.all(e.getAnimations({subtree:true}).map(a=>a.finished.catch(()=>{})));});
       assert.equal(await more.getByRole('link',{name:'Configurações do clube',exact:true}).count(),1);
-      const config=await more.getByRole('link',{name:'Configurações do clube',exact:true}).boundingBox(), visitor=await more.getByRole('link',{name:'Ver como visitante',exact:true}).boundingBox();assert.ok(visitor.y>config.y,JSON.stringify({width,config,visitor,layout:await more.locator('.mobile-more-account').evaluate(e=>({display:getComputedStyle(e).display,columns:getComputedStyle(e).gridTemplateColumns}))}));
+      const settings=more.getByRole('navigation',{name:'Configurações e visualização',exact:true});
+      assert.deepEqual(await settings.locator('a').allTextContents(),['Configurações do clube','Ver como visitante']);
+      const personal=more.getByRole('navigation',{name:'Conta e ajuda',exact:true});
+      assert.equal(await personal.getByRole('button',{name:'Suporte e ajuda',exact:true}).count(),1);
       await more.getByRole('button',{name:'Menu da conta',exact:true}).click();
       await page.waitForURL('**/perfil'); assert.equal(await page.locator('[data-account-popover]').count(),0);
     } else {

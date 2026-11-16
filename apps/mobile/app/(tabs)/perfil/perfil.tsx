@@ -199,7 +199,7 @@ function PerfilAutenticado() {
         keyboardDismissMode="on-drag"
       >
         <View style={styles.profileTitleRow}>
-          <Text style={styles.profileTitle} accessibilityRole="header">Meu perfil</Text>
+          <View style={styles.profileIdentity}><Text style={styles.profileTitle} accessibilityRole="header">Meu perfil</Text><Text style={styles.sectionDescription}>Sua conta, do seu jeito.</Text></View>
           <TouchableOpacity style={styles.outlineAction} accessibilityRole="button"
             onPress={() => navegarSemPerderDados(() => router.navigate('/'))}>
             <Icon name="chevron-left" size={17} color={colors.textoSecundario} />
@@ -302,8 +302,6 @@ function PerfilAutenticado() {
               ultimo
             />
             <View style={styles.menuDivider} />
-            <CardMenu titulo="Suporte e ajuda" subtitulo="Abra e acompanhe seus chamados" icone="info" action={() => router.push('/suporte')} />
-            <View style={styles.menuDivider} />
             <CardMenu
               titulo="Histórico de notificações"
               subtitulo="Consulte os avisos do clube atual"
@@ -368,6 +366,19 @@ function PerfilAutenticado() {
             </TouchableOpacity>
           </View>
         )}
+        {!!clubeAtivo && secao !== 'clubes' && <View style={styles.contextCard}>
+          <Text style={styles.sectionTitle} accessibilityRole="header">ACESSO AO CLUBE</Text>
+          <View style={styles.sessionHeading}>
+            <View style={styles.clubCrest}>{clubeAtivo.escudo ? <Image source={{ uri: clubeAtivo.escudo }} style={styles.clubImage} resizeMode="contain" /> : <Icon name="shield-outline" size={23} color={colors.textoSecundario} />}</View>
+            <View style={styles.menuContent}><Text style={styles.menuTitulo}>{clubeAtivo.nome}</Text><Text style={styles.menuSubtitulo}>Clube que você está acessando</Text></View>
+          </View>
+          <TouchableOpacity style={styles.outlineAction} accessibilityRole="button" onPress={() => navegarSemPerderDados(() => { setSecao('clubes'); scrollRef.current?.scrollTo({ y: 0, animated: true }); })}><Text style={styles.outlineActionText}>Ver meus clubes</Text><Icon name="chevron-right" size={17} color={colors.textoSecundario} /></TouchableOpacity>
+        </View>}
+        <View style={styles.contextCard}>
+          <Text style={styles.menuTitulo} accessibilityRole="header">Precisa de ajuda?</Text>
+          <Text style={styles.sectionDescription}>Abra um chamado ou acompanhe as respostas da equipe Ludora.</Text>
+          <TouchableOpacity style={styles.helpAction} accessibilityRole="button" onPress={() => navegarSemPerderDados(() => router.push('/suporte'))}><Icon name="info" size={20} color={colors.primaria} /><Text style={[styles.outlineActionText, { color: colors.primaria }]}>Suporte e ajuda</Text><Icon name="chevron-right" size={17} color={colors.primaria} /></TouchableOpacity>
+        </View>
       </ScrollView>
 
       {modalNotificacoes && <PreferenciasNotificacoes onFechar={() => setModalNotificacoes(false)} />}

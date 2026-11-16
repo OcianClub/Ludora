@@ -28,14 +28,14 @@ export default function SupportScreen() {
   return <Support key={identity} identity={identity} />;
 }
 function Support({ identity }: { identity: string }) {
-  const { colors: c } = useTheme(), { clubeAtivo } = useClubeAtivo(), { seen, version } = useAssistance();
-  const { tela } = useLocalSearchParams<{ tela?: string }>(); const router = useRouter();
+  const { colors: c } = useTheme(), { clubeAtivo } = useClubeAtivo(), { seen, version, refresh } = useAssistance();
+  const { tela, historico } = useLocalSearchParams<{ tela?: string; historico?: string }>(); const router = useRouter();
   const insets = useSafeAreaInsets();
   const scroll = useRef<ScrollView>(null);
   const reveal = useSheetKeyboard(scroll);
   const initial = useRef({ assunto: '', descricao: '', tipo: 'OUTRO', impacto: 'DIFICULDADE', requestId: uuid() }).current;
   const draft = useLocalDraft(`support-${identity}-${clubeAtivo?.id ?? 0}`, initial);
-  const [tab, setTab] = useState('novo'), [selected, setSelected] = useState(''), [tickets, setTickets] = useState<Ticket[]>([]), [ticket, setTicket] = useState<Ticket>();
+  const [tab, setTab] = useState(historico === '1' ? 'historico' : 'novo'), [selected, setSelected] = useState(''), [tickets, setTickets] = useState<Ticket[]>([]), [ticket, setTicket] = useState<Ticket>();
   const [error, setError] = useState(''), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [refreshKey, setRefreshKey] = useState(0);
   const lock = useRef(false);
   const reply = useLocalDraft(`reply-${identity}-${selected || 'none'}`, { mensagem: '' });
@@ -47,17 +47,24 @@ function Support({ identity }: { identity: string }) {
       running = true;
       try {
         const r = await apiFetch(selected ? `/suporte/${encodeURIComponent(selected)}` : '/suporte', { signal: controller.signal, revalidar: true });
-        const data = await r.json(); if (!r.ok) throw Error(data.error || 'Não foi possível consultar os chamados.');
+        const data = await r.json();
+        if (controller.signal.aborted) return;
+        if (r.status === 404 && selected) { setTicket(undefined); setTickets(old => old.filter(t => t.id !== selected)); setSelected(''); refresh(); return; }
+        if (!r.ok) throw Error(data.error || 'Não foi possível consultar os chamados.');
         if (controller.signal.aborted) return;
         if (selected) setTicket(data); else setTickets(data);
-        setError(''); if (selected) seen(selected);
+        setError(''); if (selected) {
+          const responseId = Math.max(0, ...(data.historico || []).filter((h: { acao: string }) => ['COMENTAR', 'FINALIZAR', 'STATUS'].includes(h.acao)).map((h: { id: number }) => h.id));
+          if (responseId) seen(selected, responseId);
+          if (data.status === 'RESOLVIDO') refresh();
+        }
       } catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Verifique sua conexão.'); }
       finally { running = false; if (!controller.signal.aborted) setLoading(false); }
     }
     setLoading(true); setTicket(undefined); void load(); const timer = setInterval(load, 15000);
     const listener = AppState.addEventListener('change', s => { if (s === 'active') void load(); });
     return () => { controller.abort(); clearInterval(timer); listener.remove(); };
-  }, [tab, selected, refreshKey, seen, version]);
+  }, [tab, selected, refreshKey, seen, version, refresh]);
   const change = (field: string, value: string) => draft.setValue(old => ({ ...old, [field]: value, requestId: uuid() }));
   async function submit(answer = false) {
     if (lock.current) return;

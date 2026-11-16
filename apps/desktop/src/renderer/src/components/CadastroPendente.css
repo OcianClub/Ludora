@@ -36,6 +36,8 @@
 .registration-recipients:disabled label { opacity:.65; cursor:default; }
 .registration-recipients input:disabled { cursor:default; }
 .registration-person-avatar { display:grid; place-items:center; width:30px; height:30px; flex-shrink:0; border-radius:50%; background:color-mix(in srgb,var(--fundo-card-sec) 85%,var(--texto) 15%); color:var(--texto); font-size:11px; font-weight:600; }
+.registration-person-copy { display:grid; gap:4px; min-width:0; overflow-wrap:anywhere; }
+.registration-person-copy small { color:var(--texto-sec); font-size:12px; }
 .registration-preview { padding:14px; border:1px solid var(--linha); border-radius:8px; background:var(--fundo); }
 .registration-preview > span { display:flex; align-items:center; gap:7px; color:var(--texto); font-size:12px; font-weight:600; }
 .registration-preview p { margin:8px 0 0; color:var(--texto-sec); font-size:12px; line-height:1.65; }

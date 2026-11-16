@@ -27,6 +27,7 @@ const primeiroPlano = () => AppState.currentState !== 'background' && AppState.c
 export function usePaulistaPublicacao(clubeId: number | undefined, autenticado: boolean) {
   const [publicacao, setPublicacao] = useState<Publicacao>();
   const ultima = useRef<Publicacao | undefined>(undefined);
+  const versoes = useRef(new Map<number, { json: string; evento: EventoPublicoPaulista }>());
   const [estado, setEstado] = useState<Estado>();
   const refreshRef = useRef<() => void>(() => {});
   const atualizar = useCallback(() => refreshRef.current(), []);
@@ -74,9 +75,20 @@ export function usePaulistaPublicacao(clubeId: number | undefined, autenticado: 
         const eventos: unknown = await response.json();
         if (!publicacaoValida(eventos)) throw new Error('Publicação inválida.');
         if (!controller.signal.aborted) {
-          const resultado = { clubeId: id, eventos, consultadoEm: Date.now() };
+          // Preserve as referências das categorias que não mudaram na publicação.
+          const anteriores = ultima.current?.clubeId === id ? versoes.current : new Map();
+          const proximas = new Map<number, { json: string; evento: EventoPublicoPaulista }>();
+          const estaveis = eventos.map(evento => {
+            const json = JSON.stringify(evento);
+            const anterior = anteriores.get(evento.id);
+            const item = anterior?.json === json ? anterior : { json, evento };
+            proximas.set(evento.id, item);
+            return item.evento;
+          });
+          versoes.current = proximas;
+          const resultado = { clubeId: id, eventos: estaveis, consultadoEm: Date.now() };
           ultima.current = resultado;
-          setPublicacao(resultado);
+          setPublicacao(anterior => anterior?.clubeId === id && anterior.eventos.length === estaveis.length && anterior.eventos.every((evento, index) => evento === estaveis[index]) ? anterior : resultado);
         }
       } catch {
         erro = 'Não foi possível atualizar o campeonato. Tente novamente.';

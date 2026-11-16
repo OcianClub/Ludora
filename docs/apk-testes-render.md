@@ -2,6 +2,32 @@
 
 O perfil `preview` em `apps/mobile/eas.json` gera APK instalável, com JavaScript embarcado, sem servidor Expo/Metro ou computador ligado. O perfil `development` continua disponível para desenvolvimento com o APK dev-client.
 
+## Segundo APK para apresentação na rede local
+
+O perfil `preview-local` também é independente do Expo/Metro. Ele usa a API do notebook e instala como **Ludora Local**, separado do APK público **Ludora**.
+
+Primeiro ative o hotspot do celular e conecte o notebook a ele. Na raiz do projeto:
+
+```powershell
+node scripts/configure-local-apk.cjs
+pnpm dev:apresentacao
+```
+
+O primeiro comando atualiza apenas a URL de `preview-local` no `eas.json`, usando o IPv4 da rede atual. Se o notebook tiver várias interfaces, informe explicitamente o IPv4 do hotspot: `node scripts/configure-local-apk.cjs 192.168.x.x`. O endereço precisa pertencer ao notebook.
+
+Com a API ligada, abra no navegador do celular o endereço `/health` exibido pelo comando. Deve retornar `{"status":"ok"}`. Se não abrir, confira a conexão dos dois aparelhos e permita o acesso do Node à porta 3000 no firewall do notebook.
+
+Em outro terminal:
+
+```powershell
+cd apps/mobile
+npx eas-cli@latest build --platform android --profile preview-local
+```
+
+O EAS compila na nuvem; **local** neste perfil significa a localização da API. Não adicione `--local` ao comando. Durante a demonstração, mantenha `pnpm dev:apresentacao` rodando no notebook. Se o IPv4 mudar, configure e gere outro APK Local.
+
+Para o público, use o perfil `preview` abaixo e coloque o link de download desse APK no QR code. O público não precisa estar na rede do notebook. Os serviços do Render precisam estar publicados e acessíveis; gerar o APK não faz o deploy da API.
+
 ## Gerar
 
 Na raiz do Ludora:

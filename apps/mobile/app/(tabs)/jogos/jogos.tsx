@@ -1,4 +1,5 @@
 import { CategoryFilterScroll } from "@/src/components/CategoryPager";
+import { ScrollToTop } from '@/src/components/ui/ScrollToTop';
 import { SearchField, IconButton } from "@/src/components/ui/Controls";
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
@@ -86,6 +87,17 @@ export default function Jogos() {
     'INICIACAO'
   );
   const [subIndex, setSubIndex] = useState(0);
+  const listas = useRef<Record<number, Pick<SectionList<Partida>, 'getScrollResponder'> | null>>({});
+  const offsets = useRef<Record<number, number>>({});
+  const paginaAtiva = useRef(subIndex);
+  paginaAtiva.current = subIndex;
+  const [mostrarTopo, setMostrarTopo] = useState(false);
+  const registrarScroll = useCallback((index: number, y: number) => {
+    offsets.current[index] = y;
+    if (index === paginaAtiva.current) setMostrarTopo(atual => atual === (y > 700) ? atual : y > 700);
+  }, []);
+  useEffect(() => { offsets.current = {}; setMostrarTopo(false); }, [tipoFiltro, clubeAtivo?.id]);
+  useEffect(() => { setMostrarTopo((offsets.current[subIndex] ?? 0) > 700); }, [subIndex]);
   const [partidas, setPartidas] = useState<Partida[]>([]);
   const [agora, setAgora] = useState(() => new Date());
   const referenciaAgenda = useRef('');
@@ -514,6 +526,9 @@ export default function Jogos() {
             >
               <PaginaCategoria grupo={`${clubeAtivo?.id}-${tipoFiltro}`} preparar>
                 <SectionList
+                  ref={lista => { listas.current[indexPagina] = lista; }}
+                  onScroll={e => registrarScroll(indexPagina, e.nativeEvent.contentOffset.y)}
+                  scrollEventThrottle={32}
                   sections={carregando ? [] : secoesDaPagina}
                   keyExtractor={(item) => String(item.id)}
                   contentContainerStyle={styles.content}
@@ -737,6 +752,7 @@ export default function Jogos() {
       }),
     [
       paginas,
+      registrarScroll,
       filtros.ordem,
       styles,
       progressoPagina,
@@ -782,6 +798,7 @@ export default function Jogos() {
       >
         {conteudoPaginas}
       </CategoryPager>
+      <ScrollToTop visible={mostrarTopo && !partidaSelecionada && !modalFiltrosVisible} onPress={() => listas.current[subIndex]?.getScrollResponder()?.scrollTo({ y: 0, animated: true })} />
 
       {modalFiltrosVisible && (
         <FiltrosJogos

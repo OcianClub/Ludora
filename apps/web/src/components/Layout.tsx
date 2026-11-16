@@ -228,12 +228,21 @@ function LayoutContent() {
             </nav>
           </section>
 
-          <div className="mobile-more-account">
+          <section className="mobile-more-section" aria-labelledby="mobile-more-settings">
+            <h3 id="mobile-more-settings">Configurações e visualização</h3>
+            <nav className="mobile-more-links" aria-label="Configurações e visualização">
             {clube?.meuPapel === 'ADMIN' && <Link className="mobile-more-item" to="/clube" onClick={() => setMoreOpen(false)}><span className="mobile-more-item-icon"><Icon name="settings" /></span><span>Configurações do clube</span><Icon name="chevronRight" size={18} /></Link>}
             <Link className="mobile-more-item" to={`/clubes/${clube?.id}`} onClick={() => { setMoreOpen(false); mudarModo('publico'); }}><span className="mobile-more-item-icon"><Icon name="eye" /></span><span>Ver como visitante</span><Icon name="chevronRight" size={18} /></Link>
-            <SupportButton variant="menu" />
-            <AccountMenu menuItem />
-          </div>
+            </nav>
+          </section>
+
+          <section className="mobile-more-section" aria-labelledby="mobile-more-personal">
+            <h3 id="mobile-more-personal">Conta e ajuda</h3>
+            <nav className="mobile-more-links" aria-label="Conta e ajuda">
+              <AccountMenu menuItem />
+              <SupportButton variant="menu" />
+            </nav>
+          </section>
 
         </Modal>
       </div>, document.body)}

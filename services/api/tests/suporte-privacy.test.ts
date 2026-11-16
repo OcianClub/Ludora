@@ -25,5 +25,5 @@ test('chamados pertencem ao usuário e respostas nunca vão à sala do clube', a
   assert.equal((await call('get', '/suporte/:id', 8, 'one')).status, 404);
   assert.equal((await call('post', '/suporte/:id/responder', 8, 'one', { mensagem: 'Tentativa de responder em outra conta.' })).status, 404);
   assert.equal((await call('patch', '/admin/equipe/chamados/:id', 1, 'one', { acao: 'COMENTAR', motivo: 'Estamos trabalhando na solução.', revisao: 1, publico: true, usuarioId: 8 })).status, 200);
-  assert.equal(emitted.length, 1); assert.equal(emitted[0].namespace, '/suporte'); assert.equal(emitted[0].room, 'usuario:7'); assert.equal(emitted[0].event, 'resposta_suporte');
+  assert.equal(emitted.length, 2); assert.ok(emitted.every(e => e.room === 'usuario:7' && e.namespace === '/suporte')); assert.equal(emitted[0].namespace, '/suporte'); assert.equal(emitted[0].room, 'usuario:7'); assert.equal(emitted[0].event, 'resposta_suporte');
 });

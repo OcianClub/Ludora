@@ -12,7 +12,7 @@ import './CadastroPendente.css';
 
 type Tarefa = { id: string; motivo: string; estado: string; mensagem: string; criadoEm: string; destinatarios: number[]; justificativa?: string };
 type Clube = { id: number; nome: string; ativo: boolean; motivos: { value: string; label: string; mensagem: string }[]; tarefas: Tarefa[] };
-type Destinatario = { id: number; nome: string };
+type Destinatario = { id: number; nome: string; email: string };
 const endpoint = '/admin/cadastro-pendente';
 const estados: Record<string, string> = { PENDENTE: 'Pendente', CONCLUIDA: 'Concluída', DISPENSADA: 'Dispensada' };
 const tipos: Record<string, string> = { ESCUDO: 'Escudo', ENDERECO: 'Endereço', CNPJ: 'CNPJ' };
@@ -27,6 +27,7 @@ const motivosDispensa = [
 export default function CadastroPendente({ resumos = [] }: { resumos?: readonly ClubeResumo[] }) {
   const grupo = useId();
   const montado = useRef(true);
+  const envioEmCurso = useRef(false);
   const [clubes, setClubes] = useState<Clube[] | null>(null);
   const [busca, setBusca] = useState('');
   const [id, setId] = useState('');
@@ -69,7 +70,8 @@ export default function CadastroPendente({ resumos = [] }: { resumos?: readonly 
   const podeEnviar = !!clube?.ativo && !!mensagem && !erroPessoas && ids.length > 0;
 
   async function confirmar() {
-    if (!modal || ocupado || modal === 'enviar' && !podeEnviar || modal !== 'enviar' && justificativa.length < 10) return;
+    if (!modal || envioEmCurso.current || modal === 'enviar' && !podeEnviar || modal !== 'enviar' && justificativa.length < 10) return;
+    envioEmCurso.current = true;
     setOcupado(true); setErro(''); setAviso('');
     try {
       if (modal === 'enviar') {
@@ -84,7 +86,7 @@ export default function CadastroPendente({ resumos = [] }: { resumos?: readonly 
       }
       setModal(null); await carregar();
     } catch (e) { if (montado.current) setErro((e as Error).message); }
-    finally { if (montado.current) setOcupado(false); }
+    finally { envioEmCurso.current = false; if (montado.current) setOcupado(false); }
   }
 
   if (!clubes) return erroConsulta
@@ -114,7 +116,7 @@ export default function CadastroPendente({ resumos = [] }: { resumos?: readonly 
               {erroPessoas ? <div role="alert"><p>Não foi possível consultar os administradores.</p><Btn variant="ghost" size="sm" onClick={() => setTentativaPessoas(n => n + 1)}>Tentar novamente</Btn></div>
                 : pessoas === null ? <Spinner label="Consultando administradores…"/> : pessoas.length ? <div>{pessoas.map(p => <label key={p.id}>
                   <input type="checkbox" checked={ids.includes(p.id)} onChange={() => setIds(a => a.includes(p.id) ? a.filter(v => v !== p.id) : [...a, p.id])}/>
-                  <span className="registration-person-avatar" aria-hidden="true">{p.nome.trim().slice(0, 1).toLocaleUpperCase('pt-BR')}</span><span>{p.nome}</span>
+                  <span className="registration-person-avatar" aria-hidden="true">{p.nome.trim().slice(0, 1).toLocaleUpperCase('pt-BR')}</span><span className="registration-person-copy"><strong>{p.nome}</strong><small>{p.email}</small></span>
                 </label>)}</div> : <p className="registration-note">Este clube não tem administrador ativo.</p>}
             </fieldset>
             {mensagem && <div className="registration-preview"><span><Icon name="bell" size={15}/>Mensagem do aviso</span><p>{mensagem}</p></div>}
@@ -133,7 +135,7 @@ export default function CadastroPendente({ resumos = [] }: { resumos?: readonly 
     </>}
     {modal && <Modal open title={modal === 'enviar' ? 'Revisar aviso' : 'Dispensar tarefa'} onClose={() => { if (!ocupado) setModal(null); }} className="desktop-account-dialog registration-review-dialog"
       footer={<div className="schedule-review-actions"><Btn variant="ghost" disabled={ocupado} onClick={() => setModal(null)}>Voltar</Btn><Btn disabled={ocupado || (modal === 'enviar' ? !podeEnviar : justificativa.length < 10)} onClick={() => void confirmar()}>{ocupado ? 'Registrando…' : modal === 'enviar' ? 'Enviar aviso' : 'Confirmar dispensa'}</Btn></div>}>
-      {modal === 'enviar' ? <div className="registration-review"><span className="registration-review-club"><Icon name="bell" size={18}/>{clube?.nome}</span><h3>Cadastro do clube incompleto</h3><p>{mensagem}</p><div><strong>Destinatários</strong><p>{pessoas?.filter(p => ids.includes(p.id)).map(p => p.nome).join(', ')}</p></div></div> : <div className="registration-review">
+      {modal === 'enviar' ? <div className="registration-review"><span className="registration-review-club"><Icon name="bell" size={18}/>{clube?.nome}</span><h3>Cadastro do clube incompleto</h3><p>{mensagem}</p><div><strong>Destinatários</strong>{pessoas?.filter(p => ids.includes(p.id)).map(p => <p key={p.id}>{p.nome} · {p.email}</p>)}</div></div> : <div className="registration-review">
         <div><strong>{clube?.nome} · {tipos[modal.motivo] || modal.motivo}</strong><p>A dispensa encerra o aviso, sem preencher nem alterar o cadastro do clube.</p></div>
         <DesktopSelect label="Motivo da dispensa" placeholder="Selecione o motivo" showLabel fullWidth expandInDialog value={dispensa} options={motivosDispensa} onChange={setDispensa} disabled={ocupado}/>
         {dispensa === 'OUTRO' && <Input label="Descreva o motivo" value={outroMotivo} maxLength={300} placeholder="Pelo menos 10 caracteres" onChange={e => setOutroMotivo(e.target.value)} disabled={ocupado}/>}

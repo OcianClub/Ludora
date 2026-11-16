@@ -1,4 +1,5 @@
-import SupportButton from '../components/SupportButton';
+import { useSupport } from '../contexts/SupportContext';
+import { ClubBadge } from '../components/Brand';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Btn, Card, Input, PapelBadge } from '../components/UI';
@@ -20,6 +21,7 @@ const SECOES = [
 export default function PerfilPage() {
   const { usuario, clube, atualizarPerfil, definirClube, modo, mudarModo, podeEntrarGestao } = useAuth();
   const navigate = useNavigate();
+  const { abrirSuporte, naoLidos } = useSupport();
   const [searchParams, setSearchParams] = useSearchParams();
   const secao = SECOES.find(item => item.id === searchParams.get('secao'))?.id || 'dados';
   const [perfil, setPerfil] = useState<PerfilUsuario | null>(null);
@@ -138,10 +140,6 @@ export default function PerfilPage() {
         {clube && <Link className="btn btn-ghost btn-md" to="/dashboard"><Icon name="chevronLeft" size={18} />Voltar ao clube</Link>}
       </div>
 
-      <div className="perfil-account-actions"><SupportButton variant="menu" />
-        {modo === 'gestao' && clube?.meuPapel === 'ADMIN' && <Link className="btn btn-ghost btn-md" to="/clube"><Icon name="settings" size={18} />Configurações do clube</Link>}
-        {podeEntrarGestao && <Link className="btn btn-ghost btn-md" to={modo === 'gestao' ? `/clubes/${clube!.id}` : '/dashboard'} onClick={() => mudarModo(modo === 'gestao' ? 'publico' : 'gestao')}><Icon name="eye" size={18} />{modo === 'gestao' ? 'Ver como visitante' : 'Voltar à gestão'}</Link>}
-      </div>
       <div className="perfil-settings-layout">
       <nav className="perfil-atalhos" role="tablist" aria-label="Seções da conta">
         {SECOES.map((item, index) => (
@@ -175,8 +173,6 @@ export default function PerfilPage() {
 
       <section id="perfil-panel-dados" role="tabpanel" aria-labelledby="perfil-tab-dados" hidden={secao !== 'dados'} tabIndex={0}>
         <Card className="perfil-dados-card">
-          <h2 className="perfil-section-title" id="perfil-dados" tabIndex={-1}>Dados pessoais</h2>
-          <p className="perfil-section-description">Mantenha seu nome e seus dados de acesso atualizados.</p>
           <div className="perfil-identidade">
             <div className="perfil-avatar">{usuario?.nome?.[0]?.toUpperCase() || '?'}</div>
             <div>
@@ -188,11 +184,16 @@ export default function PerfilPage() {
             </div>
           </div>
 
+          <div className="perfil-card-intro"><h2 className="perfil-section-title" id="perfil-dados" tabIndex={-1}>Dados pessoais</h2><p className="perfil-section-description">Atualize seu nome e o e-mail usado para entrar.</p></div>
           <form className="perfil-form" onSubmit={salvar}>
+            <div className="perfil-form-fields">
             <Input label="Nome" value={nome} onChange={e => setNome(e.target.value)} required minLength={2} maxLength={100} autoComplete="name" disabled={carregando || salvando} />
             <Input label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" disabled={carregando || salvando} />
+            </div>
+            <fieldset className="perfil-security-fields"><legend>Segurança da conta</legend>
             <Input label="Nova senha (opcional)" type="password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="Mínimo de 8 caracteres" autoComplete="new-password" disabled={carregando || salvando} />
             <p className="perfil-form-hint">Deixe a senha em branco para manter a atual.</p>
+            </fieldset>
             {erro && <div className="perfil-alerta perfil-alerta--erro" role="alert">{erro}</div>}
             {confirmacao && <div className="perfil-alerta perfil-alerta--sucesso" role="status">{confirmacao}</div>}
             <Btn type="submit" disabled={salvando || salvandoNotificacoes || carregando || !dadosAlterados}>{salvando ? 'Salvando...' : 'Salvar alterações'}</Btn>
@@ -284,6 +285,21 @@ export default function PerfilPage() {
       </Card>
       </section>
       </div>
+      <aside className="perfil-context" aria-label="Clube e suporte">
+        {clube && <Card className="perfil-context-card">
+          <h2>Acesso ao clube</h2>
+          <div className="perfil-current-club"><ClubBadge src={clube.escudo} name={clube.nome} size={36} /><strong>{clube.nome}</strong></div>
+          <nav aria-label="Ações do clube">
+            {modo === 'gestao' && clube.meuPapel === 'ADMIN' && <Link className="perfil-context-link" to="/clube"><Icon name="settings" size={18} /><span>Configurações do clube</span><Icon name="chevronRight" size={16} /></Link>}
+            {podeEntrarGestao && <Link className="perfil-context-link" to={modo === 'gestao' ? `/clubes/${clube.id}` : '/dashboard'} onClick={() => mudarModo(modo === 'gestao' ? 'publico' : 'gestao')}><Icon name="eye" size={18} /><span>{modo === 'gestao' ? 'Ver como visitante' : 'Voltar à gestão'}</span><Icon name="chevronRight" size={16} /></Link>}
+          </nav>
+        </Card>}
+        <Card className="perfil-context-card">
+          <h2>Precisa de ajuda?</h2>
+          <p>Abra um chamado ou acompanhe seu atendimento.</p>
+          <button type="button" className="perfil-context-link" aria-label="Suporte e ajuda" onClick={() => abrirSuporte()}><Icon name="headset" size={18} /><span>Suporte e ajuda{naoLidos > 0 && <small>{naoLidos} {naoLidos === 1 ? 'nova resposta' : 'novas respostas'}</small>}</span><Icon name="chevronRight" size={16} /></button>
+        </Card>
+      </aside>
       </div>
     </div>
   );
