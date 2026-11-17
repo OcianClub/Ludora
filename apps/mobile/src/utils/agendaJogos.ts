@@ -28,7 +28,7 @@ export function agoraAgenda(agora = new Date()) {
   return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}T${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
 }
 
-export function secoesAgenda<T extends PartidaAgendaBase>(partidas: T[], porSituacao = false): SecaoAgenda<T>[] {
+export function secoesAgenda<T extends PartidaAgendaBase>(partidas: T[], porSituacao = false, gestor = true): SecaoAgenda<T>[] {
   const grupos: Record<GrupoAgenda, T[]> = {
     ao_vivo: [], agenda: [], pendentes: [], historico: [], finalizadas: [], canceladas: [],
   };
@@ -44,9 +44,10 @@ export function secoesAgenda<T extends PartidaAgendaBase>(partidas: T[], porSitu
   };
   adicionar('ao_vivo', 'Ao vivo', 'Partidas em andamento');
   if (porSituacao) {
+    if(gestor)adicionar('pendentes','Atrasadas','Confira se pode iniciar, reagende ou cancele');
     adicionar('agenda', 'Próximas', 'Partidas agendadas e preparadas');
-    adicionar('pendentes', 'Partidas atrasadas', 'Partidas sem resultado registrado');
     adicionar('finalizadas', 'Finalizadas', 'Mais recentes primeiro');
+    if(!gestor)adicionar('pendentes','Atrasadas','O horário previsto passou, mas o início ainda não foi registrado.');
     adicionar('canceladas', 'Canceladas', 'Mais recentes primeiro');
     adicionar('historico', 'Partidas anteriores', 'Mais recentes primeiro');
     return secoes;

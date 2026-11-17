@@ -103,7 +103,6 @@ export async function consultarAgenda(
              WHEN p.status = 'FINALIZADA' AND ${porSituacao} THEN 'finalizadas'
              WHEN p.status = 'CANCELADA' AND ${porSituacao} THEN 'canceladas'
              WHEN p.status IN ('FINALIZADA', 'CANCELADA') THEN 'historico'
-             WHEN ${porSituacao} THEN 'agenda'
              WHEN p.data + COALESCE(
                CASE WHEN p.horario ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
                  THEN p.horario::time END, '23:59:59'::time

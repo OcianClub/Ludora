@@ -49,7 +49,7 @@ export async function apiFetch(endpoint, opts = {}) {
     if(method==='PUT')window.fixture.vote=body.escolha;
     else window.fixture.pollReads++;
     const votos={MANDANTE:0,EMPATE:0,VISITANTE:0};votos[window.fixture.vote || 'MANDANTE']=1;
-    return new Response(JSON.stringify({partida_id:model.partida.id,revisao:window.fixture.vote?2:1,status:model.partida.status,aberta:model.partida.status==='AO_VIVO',total:1,votos,percentuais:Object.fromEntries(Object.entries(votos).map(([key,value])=>[key,value*100])),meuVoto:window.fixture.vote || null,podeVotar:!location.search.includes('staff-elsewhere')}));
+    return new Response(JSON.stringify({partida_id:model.partida.id,revisao:window.fixture.vote?2:1,status:model.partida.status,aberta:model.partida.status==='AO_VIVO',total:1,votos,percentuais:Object.fromEntries(Object.entries(votos).map(([key,value])=>[key,value*100])),meuVoto:window.fixture.vote || null,podeVotar:!model.podeSumula}));
   }
   window.fixture.writes.push({ endpoint, method, body });
   if (endpoint.endsWith('/eventos') && method === 'POST') {
@@ -110,13 +110,14 @@ const aliasModules = /^(expo-router|expo-secure-store|expo-linear-gradient|expo-
         assert.equal(await page.getByRole('button',{name:'Próximo tempo',exact:true}).isDisabled(),true);
         assert.equal(await page.evaluate(()=>window.fixture.writes.length),0,'consultar e retornar não grava mudança de tempo');
       }
-      if(['manager','staff-team','opponent'].includes(role)){
-        assert.equal(await page.getByRole('radio').count(),0);
-        assert.equal(await page.evaluate(()=>window.fixture.pollReads),0);
+      await page.getByRole('radio').first().waitFor();
+      if(role==='manager'){
+        assert.equal(await page.getByRole('radio',{disabled:true}).count(),3,'Operador acompanha resultados sem votar');
+        await page.getByText(/Você está operando a súmula. Acompanhe os resultados/).waitFor();
       }
-      if(role==='staff-elsewhere'){
+      if(['staff-team','opponent','staff-elsewhere'].includes(role)){
         await page.waitForFunction(()=>window.fixture.pollReads>0);
-        await page.getByText('Quem você acha que vence?',{exact:true}).waitFor({state:'hidden'});
+        assert.equal(await page.getByRole('radio',{disabled:false}).count(),3,'Demais cargos podem votar');
       }
       if(role==='guest'||role.startsWith('final')){
         await page.getByRole('radio').first().waitFor();

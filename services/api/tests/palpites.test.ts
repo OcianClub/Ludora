@@ -8,13 +8,13 @@ import { registrarPalpite, consultarPalpite, resumirVotos, ErroPalpite } from '.
 import { JWT_SECRET, JWT_OPTIONS } from '../src/config/env';
 
 function fixture(legada = false) {
-  let status = 'AO_VIVO', revisao = 0, exists = true;
+  let status = 'AO_VIVO', revisao = 0, exists = true, sumulaClube: number | null = 2;
   const votos = new Map<number, string>();
   const vinculos = new Map<string, { papel: string; acesso_todas_categorias: boolean; categorias: { categoria_id: number }[] }>();
   const emitted: { rooms: string[]; event: string; data: any }[] = [];
   const io: any = { to: (rooms: string[]) => ({ emit: (event: string, data: any) => emitted.push({ rooms, event, data }) }) };
   io.of = () => io;
-  const partida = () => ({ id: 77, status, palpites_versao: revisao, categoria: { id: 8, clube_id: 2 }, participantes: legada ? [] : [{ clube_id: 2, categoria_id: 8 }, { clube_id: 3, categoria_id: 15 }], mandante: { clube_representado_id: 2 }, visitante: { clube_representado_id: 3 } });
+  const partida = () => ({ id: 77, status, sumula_clube_id: sumulaClube, palpites_versao: revisao, categoria: { id: 8, clube_id: 2 }, participantes: legada ? [] : [{ clube_id: 2, categoria_id: 8 }, { clube_id: 3, categoria_id: 15 }], mandante: { clube_representado_id: 2 }, visitante: { clube_representado_id: 3 } });
   let serial = Promise.resolve();
   const banco: any = {
     usuario: { findUnique: async ({ where }: any) => where.id > 0 && where.id < 20 ? { versao_sessao: 0 } : null },
@@ -41,7 +41,7 @@ function fixture(legada = false) {
       return result;
     },
   };
-  return { banco, io, votos, emitted, vinculos, setStatus: (value: string) => { status = value; }, missing: () => { exists = false; } };
+  return { banco, io, votos, emitted, vinculos, setSumula: (id: number | null) => { sumulaClube = id; }, setStatus: (value: string) => { status = value; }, missing: () => { exists = false; } };
 }
 
 test('percentuais: zeros, arredondamento e soma exata de 100', () => {
@@ -73,7 +73,7 @@ test('encerra/cancela a votação e mantém os resultados; consulta pública nã
   f.missing(); await assert.rejects(() => consultarPalpite(f.banco, 77), (e: unknown) => e instanceof ErroPalpite && e.status === 404);
 });
 
-test('gestão dos dois lados bloqueia o palpite e mantém o voto de quem está fora do escopo', async () => {
+test('somente gestores da súmula são bloqueados; outros cargos e clube adversário podem votar', async () => {
   const f = fixture();
   f.vinculos.set('1:2', { papel: 'TECNICO', acesso_todas_categorias: false, categorias: [{ categoria_id: 8 }] });
   f.vinculos.set('2:3', { papel: 'MESARIO', acesso_todas_categorias: true, categorias: [] });
@@ -85,16 +85,26 @@ test('gestão dos dois lados bloqueia o palpite e mantém o voto de quem está f
 
   for (const status of ['AGENDADA', 'PREPARADA', 'AO_VIVO']) {
     f.setStatus(status);
-    for (const usuario of [1, 2, 3]) {
+    for (const usuario of [1]) {
       assert.equal((await consultarPalpite(f.banco, 77, usuario)).podeVotar, false);
       await assert.rejects(() => registrarPalpite(f.banco, 77, usuario, 'EMPATE'), (e: unknown) => e instanceof ErroPalpite && e.status === 403);
     }
   }
   assert.equal(f.votos.size, 0);
-  for (const usuario of [4, 5, 6, 7, 8]) {
+  for (const usuario of [2, 3, 4, 5, 6, 7, 8]) {
     assert.equal((await registrarPalpite(f.banco, 77, usuario, 'EMPATE')).resultado.podeVotar, true);
   }
-  assert.equal((await consultarPalpite(f.banco, 77)).total, 5);
+  assert.equal((await consultarPalpite(f.banco, 77)).total, 7);
+
+  f.setSumula(3);
+  assert.equal((await consultarPalpite(f.banco, 77, 1)).podeVotar, true, 'Transferir súmula libera o gestor anterior');
+  await registrarPalpite(f.banco, 77, 1, 'MANDANTE');
+  for (const usuario of [2, 3]) {
+    assert.equal((await consultarPalpite(f.banco, 77, usuario)).podeVotar, false);
+    await assert.rejects(() => registrarPalpite(f.banco, 77, usuario, 'MANDANTE'), (e: unknown) => e instanceof ErroPalpite && e.status === 403);
+  }
+  f.setSumula(null);
+  assert.equal((await consultarPalpite(f.banco, 77, 2)).podeVotar, true, 'Sem operador designado, não bloqueia por cargo');
 
   const legada = fixture(true);
   legada.vinculos.set('1:2', { papel: 'TECNICO', acesso_todas_categorias: false, categorias: [{ categoria_id: 8 }] });
@@ -111,7 +121,7 @@ test('HTTP: anônimo só consulta; autenticação, validação, identidade e rea
   });
   const token = jwt.sign({ id: 1, versao_sessao: 0 }, JWT_SECRET, JWT_OPTIONS);
   const tecnico = jwt.sign({ id: 2, versao_sessao: 0 }, JWT_SECRET, JWT_OPTIONS);
-  f.vinculos.set('2:3', { papel: 'TECNICO', acesso_todas_categorias: false, categorias: [{ categoria_id: 15 }] });
+  f.vinculos.set('2:2', { papel: 'TECNICO', acesso_todas_categorias: false, categorias: [{ categoria_id: 8 }] });
   const read = await call('/publico/partidas/77/palpite'); assert.equal(read.status, 200); assert.equal(read.headers.get('cache-control'), 'no-store');
   assert.equal((await read.json()).podeVotar, undefined);
   assert.equal((await (await call('/partidas/77/palpite', undefined, tecnico)).json()).podeVotar, false);

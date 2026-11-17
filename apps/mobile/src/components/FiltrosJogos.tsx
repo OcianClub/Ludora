@@ -12,11 +12,12 @@ import {
   filtrosJogosAtuais,
   PERIODOS_JOGOS,
   periodoJogos,
-  STATUS_JOGOS,
+  statusJogos,
   type FiltrosJogos as ValoresFiltros,
 } from "@/src/utils/filtrosJogos";
 
 type Props = {
+  gestor?:boolean;
   filtros: ValoresFiltros;
   onAplicar: (filtros: ValoresFiltros) => void;
   onFechar: () => void;
@@ -59,7 +60,7 @@ const grupos = [
   },
 ] as const;
 
-export function FiltrosJogos({ filtros, onAplicar, onFechar }: Props) {
+export function FiltrosJogos({ filtros, onAplicar, onFechar, gestor=true }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [rascunho, setRascunho] = useState<ValoresFiltros>({ ...filtros });
@@ -113,7 +114,7 @@ export function FiltrosJogos({ filtros, onAplicar, onFechar }: Props) {
             label="Aplicar filtros"
             variant="primary"
             disabled={invalido}
-            accessibilityLabel={`Aplicar filtros: ${periodoJogos(rascunho)}, ${STATUS_JOGOS.find((opcao) => opcao.value === rascunho.status)?.label}`}
+            accessibilityLabel={`Aplicar filtros: ${periodoJogos(rascunho)}, ${statusJogos(gestor).find((opcao) => opcao.value === rascunho.status)?.label}`}
             onPress={() => onAplicar(rascunho)}
           />
         </>

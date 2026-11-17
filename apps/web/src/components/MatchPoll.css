@@ -14,7 +14,8 @@
 .match-poll-option-name { max-width: 100%; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .match-poll-draw { height: 24px; display: grid; place-items: center; font-size: 14px; }
 .match-poll-options strong { font-size: 18px; font-variant-numeric: tabular-nums; }
-.match-poll-fill { position: absolute; inset: 0; transform-origin: center bottom; pointer-events: none; background: color-mix(in srgb, var(--texto-sec) 14%, transparent); }
+.match-poll-fill { position: absolute; inset: 0; transform-origin: center bottom; pointer-events: none; background: color-mix(in srgb, var(--primaria) 9%, transparent); }
+.match-poll-options button[aria-pressed="true"] .match-poll-fill { background: color-mix(in srgb, var(--primaria) 24%, transparent); }
 .match-poll small { display: block; font-size: 10px; color: var(--texto-sec); margin-top: 12px; line-height: 1.5; }
 .match-poll-login { display: flex; align-items: center; gap: 5px; margin-top: 14px; font-size: 12px; }
 .match-poll-hint,.match-poll-feedback { color: var(--texto-sec); font-size: 11px; line-height: 1.6; margin: 12px 0 0; }

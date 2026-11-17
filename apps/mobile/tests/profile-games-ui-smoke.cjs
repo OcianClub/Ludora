@@ -28,7 +28,7 @@ export const useCategoryPagerMotion=ref=>({goTo:index=>ref.current?.setPage(inde
 fs.writeFileSync(backend, `
 export const BASE_URL='/isolated';export const invalidarConsultasRecentes=()=>{},desvincularDispositivoPush=async()=>{},excluirConta=async()=>{};
 export const atualizarUsuario=async data=>{window.savedProfile=data;return data;};export const fetchClubes=async()=>[{id:1,nome:'Ocian',papel:'ADMIN'}];
-export const fetchAgenda=async()=>Array.from({length:16},(_,i)=>({id:i+1,status:'PREPARADA',grupo_agenda:'agenda',posicao:i+1,total_grupo:16,data:'2026-11-20T12:00:00Z',horario:'14:00',categoria:{id:7,nome:'SUB-7'},mandante:{id:1,nome:'Ocian',escudo:null},visitante:{id:2,nome:'Santos',escudo:null},gols_mandante:0,gols_visitante:0,local:'Ginásio Municipal',emCasa:true}));
+export const fetchAgenda=async()=>[...Array.from({length:16},(_,i)=>({id:i+1,status:'PREPARADA',grupo_agenda:'agenda',posicao:i+1,total_grupo:16,data:'2026-11-20T12:00:00Z',horario:'14:00',categoria:{id:7,nome:'SUB-7'},mandante:{id:1,nome:'Ocian',escudo:null},visitante:{id:2,nome:'Santos',escudo:null},gols_mandante:0,gols_visitante:0,local:'Ginásio Municipal',emCasa:true})),{id:100,status:'AGENDADA',grupo_agenda:'pendentes',posicao:1,total_grupo:1,data:'2020-01-01',horario:'14:00',categoria:{id:7,nome:'SUB-7'},mandante:{id:1,nome:'Ocian',escudo:null},visitante:{id:2,nome:'Santos',escudo:null},gols_mandante:0,gols_visitante:0,local:'Ginásio Municipal',emCasa:true}];
 `);
 fs.writeFileSync(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import Profile from '../../apps/mobile/app/(tabs)/perfil/perfil';import Games from '../../apps/mobile/app/(tabs)/jogos/jogos';createRoot(document.getElementById('root')).render(location.pathname==='/games'?<Games/>:<Profile/>);`);
 (async () => {
@@ -55,6 +55,14 @@ fs.writeFileSync(entry, `import React from 'react';import {createRoot} from 'rea
     await page.getByRole('tab',{name:/Preferências/}).click();await page.getByText('Aparência',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:/Suporte e ajuda/}).count(),1,'help is shared across tabs');
     await page.goto(`http://127.0.0.1:${server.address().port}/games?${theme}`);
     await page.getByText('Próximas',{exact:true}).first().waitFor();
+    await page.getByRole('tab',{name:/^Atrasadas/}).click();
+    const overdue=page.getByText('Atrasada',{exact:true});await overdue.waitFor();
+    assert.equal(await overdue.evaluate(e=>getComputedStyle(e).color),theme==='light'?'rgb(166, 83, 19)':'rgb(240, 184, 78)');
+    assert.equal(await overdue.evaluate(e=>getComputedStyle(e).fontSize),'10px');
+    await page.screenshot({path:path.join(output,`overdue-${width}-${theme}.png`),fullPage:true});
+    await page.getByRole('tab',{name:/^Próximas/}).click();
+    assert.equal(await page.getByText('Atrasada',{exact:true}).count(),0,'Upcoming excludes overdue matches');
+
     await page.waitForFunction(()=>Array.from(document.querySelectorAll('*')).some(e=>e.scrollHeight>e.clientHeight+900&&getComputedStyle(e).overflowY==='auto'));
     await page.evaluate(()=>{const e=Array.from(document.querySelectorAll('*')).find(e=>e.scrollHeight>e.clientHeight+900&&getComputedStyle(e).overflowY==='auto');window.gamesScroll=e;e.scrollTop=1100;e.dispatchEvent(new Event('scroll'));});
     await page.getByRole('button',{name:'Voltar ao topo',exact:true}).click();await page.waitForFunction(()=>window.gamesScroll.scrollTop<10);

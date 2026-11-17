@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { Time } from '../services/api';
 import { teamName } from '../utils/teamIdentity';
 import { ClubBadge } from './Brand';
-import { CollectionSearch } from './CollectionToolbar';
+import { CollectionSearch, CollectionViewToggle } from './CollectionToolbar';
+import { RadioIndicator } from './RadioIndicator';
 import { Icon } from './Icon';
 import './MatchOpponentPicker.css';
 
@@ -15,12 +16,9 @@ export function MatchOpponentPicker({ clubName, categoryName, teams, recentIds =
   const options = recentOnly ? teams.filter(team => recentIds.includes(team.id)) : teams;
   const selectedVisible = options.some(team => team.id === selectedId);
   return <div className="match-opponent-picker">
-    <div className="match-opponent-context"><strong>{clubName}</strong><span aria-hidden="true">·</span><span>{categoryName.toUpperCase()}</span></div>
+    <div className="match-opponent-context"><span>Escolha quem enfrenta o</span><strong>{clubName} · {categoryName.toUpperCase()}</strong></div>
     <div className="match-opponent-search"><CollectionSearch label="Buscar adversário" placeholder="Nome do adversário" value={search} onChange={onSearch}/></div>
-    {!!recentIds.length && <div className="match-opponent-shortcuts" role="group" aria-label="Filtrar adversários">
-      <button type="button" aria-pressed={!recentOnly} onClick={() => setRecentOnly(false)}>Todos</button>
-      <button type="button" aria-pressed={recentOnly} onClick={() => setRecentOnly(true)}><Icon name="clock" size={15}/>Recentes</button>
-    </div>}
+    {!!recentIds.length && <div className="match-opponent-shortcuts"><CollectionViewToggle label="Filtrar adversários" value={recentOnly ? 'recentes' : 'todos'} onChange={value=>setRecentOnly(value==='recentes')} options={[{value:'todos',label:'Todos',icon:'team'},{value:'recentes',label:'Recentes',icon:'clock'}]}/></div>}
     <div className="match-opponent-list" role="radiogroup" aria-label="Adversários disponíveis" onKeyDown={event => {
       if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
@@ -35,8 +33,8 @@ export function MatchOpponentPicker({ clubName, categoryName, teams, recentIds =
           <p>{ludora ? 'O outro clube precisará aceitar o confronto.' : 'Confrontos criados diretamente.'}</p>
           {group.map(team => <button key={team.id} type="button" className="match-opponent-option" role="radio" aria-label={teamName(team.nome)} aria-checked={team.id === selectedId}
             tabIndex={selectedVisible ? team.id === selectedId ? 0 : -1 : options[0]?.id === team.id ? 0 : -1} onClick={() => onSelect(team.id)}>
-            <ClubBadge src={team.escudo || team.clubeRepresentado?.escudo} name={team.nome} size={44} fallbackWhileLoading/>
-            <strong>{teamName(team.nome)}</strong><Icon name={team.id === selectedId ? 'checkAll' : 'chevronRight'} size={18}/>
+            <ClubBadge src={team.escudo || team.clubeRepresentado?.escudo} name={team.nome} size={40} fallbackWhileLoading/>
+            <strong>{teamName(team.nome)}</strong><RadioIndicator checked={team.id===selectedId}/>
           </button>)}
         </section> : null;
       })}

@@ -33,7 +33,7 @@ import {
   mesmosFiltrosJogos,
   parametrosJogos,
   periodoJogos,
-  STATUS_JOGOS,
+  statusJogos,
   type FiltrosJogos as ValoresFiltros,
 } from '@/src/utils/filtrosJogos';
 import { useFocusEffect } from 'expo-router';
@@ -262,7 +262,7 @@ export default function Jogos() {
       ano: Number(anoHome) || new Date().getFullYear(),
       mes: null,
       todosPeriodos: true, periodo: 'todos',
-      status: statusHome === 'FINALIZADA' ? 'FINALIZADA' : statusHome === 'AGENDADA' ? 'PROXIMAS' : 'TODOS',
+      status: statusHome === 'FINALIZADA' ? 'FINALIZADA' : statusHome === 'ATRASADAS' ? 'ATRASADAS' : statusHome === 'AGENDADA' ? 'PROXIMAS' : 'TODOS',
     });
     router.setParams({ status: undefined, sub: undefined, ano: undefined });
   }, [anoHome, router, statusHome, subHome]);
@@ -277,9 +277,9 @@ export default function Jogos() {
       sub,
       secoes: secoesAgenda(partidas.filter((partida) =>
         categoriaAgenda(partida.categoria?.nome ?? '') === sub.title
-      ), true),
+      ), true, podeGerenciar),
     })),
-    [partidas, dadosAtuais]
+    [partidas, dadosAtuais, podeGerenciar]
   );
 
   const paginas = useMemo(() => secoesPorSub.map(({ sub, secoes }, indexPagina) => {
@@ -288,16 +288,17 @@ export default function Jogos() {
       : [{ sub, secoes }];
     return categorias.flatMap(categoria => categoria.secoes.filter(secao => {
       if (filtros.status === 'TODOS') return true;
-      if (filtros.status === 'PROXIMAS') return secao.key === 'agenda' || secao.key === 'pendentes';
+      if (filtros.status === 'PROXIMAS') return secao.key === 'agenda';
+      if(filtros.status==='ATRASADAS')return secao.key==='pendentes';
       if (filtros.status === 'AO_VIVO') return secao.key === 'ao_vivo';
       return secao.key === (filtros.status === 'FINALIZADA' ? 'finalizadas' : 'canceladas');
     }).map(secao => {
-      const key = `${categoria.sub.title}-${secao.key}`;
+      const key = `${podeGerenciar?'gestao':'publico'}-${categoria.sub.title}-${secao.key}`;
       const expansivel = filtros.status === 'TODOS';
-      const aberto = !expansivel || (acordeoes[key] ?? !['finalizadas', 'canceladas', 'historico'].includes(secao.key));
+      const aberto = !expansivel || (acordeoes[key] ?? (!['finalizadas', 'canceladas', 'historico'].includes(secao.key) && (secao.key!=='pendentes' || podeGerenciar)));
       return { ...secao, key, expansivel, aberto, data: aberto ? secao.data : [], categoria: categoria.sub.title };
     }));
-  }), [secoesPorSub, filtros.ordem, filtros.status, acordeoes]);
+  }), [secoesPorSub, filtros.ordem, filtros.status, acordeoes, podeGerenciar]);
 
   const totaisPorSub = useMemo(
     () =>
@@ -307,13 +308,14 @@ export default function Jogos() {
             const total = secao.total ?? secao.data.length;
             contagem.TODOS += total;
             if (secao.key === "ao_vivo") contagem.AO_VIVO += total;
-            if (secao.key === "agenda" || secao.key === "pendentes")
+            if (secao.key === "pendentes")contagem.ATRASADAS += total;
+            if (secao.key === "agenda")
               contagem.PROXIMAS += total;
             if (secao.key === "finalizadas") contagem.FINALIZADA += total;
             if (secao.key === "canceladas") contagem.CANCELADA += total;
             return contagem;
           },
-          { TODOS: 0, AO_VIVO: 0, PROXIMAS: 0, FINALIZADA: 0, CANCELADA: 0 },
+          { TODOS: 0, AO_VIVO: 0, ATRASADAS:0, PROXIMAS: 0, FINALIZADA: 0, CANCELADA: 0 },
         ),
       ),
     [secoesPorSub],
@@ -412,7 +414,7 @@ export default function Jogos() {
           style={styles.statusTabScroll}
           contentContainerStyle={styles.statusTabs}
         >
-          {STATUS_JOGOS.map((option) => {
+          {statusJogos(podeGerenciar).map((option) => {
             const selected = filtros.status === option.value;
             return (
               <TouchableOpacity
@@ -690,6 +692,7 @@ export default function Jogos() {
                           </View>
                         )}
                         <CartaoJogo
+                          gestor={podeGerenciar}
                           partida={item}
                           styles={styles}
                           onPress={abrirJogo}
@@ -802,6 +805,7 @@ export default function Jogos() {
 
       {modalFiltrosVisible && (
         <FiltrosJogos
+          gestor={podeGerenciar}
           filtros={{ ...filtros, busca: busca.trim() || undefined }}
           onAplicar={novos => {
             setBusca(novos.busca ?? '');

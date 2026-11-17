@@ -111,7 +111,20 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
     return () => observer.disconnect();
   }, [viewerLayout]);
   const [resultPeriod, setResultPeriod] = useState<number | null>(null);
-  const finalPeriod = live ? null : resultPeriod;
+  // null follows the official period; browsing past periods never sends a command.
+  const [viewedPeriod, setViewedPeriod] = useState<number | null>(null);
+  const readOnlyPeriod = live && !data.podeSumula;
+  const displayedPeriod = readOnlyPeriod && viewedPeriod !== null
+    ? Math.max(1, Math.min(viewedPeriod, p.periodo_atual)) : p.periodo_atual;
+  const browsingPast = readOnlyPeriod && displayedPeriod < p.periodo_atual;
+  const finalPeriod = live ? (browsingPast ? displayedPeriod : null) : resultPeriod;
+  useEffect(() => {
+    if (!readOnlyPeriod || (viewedPeriod !== null && viewedPeriod >= p.periodo_atual)) setViewedPeriod(null);
+  }, [readOnlyPeriod, viewedPeriod, p.periodo_atual]);
+  function browsePeriod(offset: number) {
+    const target = Math.max(1, Math.min(displayedPeriod + offset, p.periodo_atual));
+    setViewedPeriod(target === p.periodo_atual ? null : target);
+  }
   const maxRecordedPeriod = Math.max(1, p.periodo_atual || 1, ...data.eventos.map(event => event.periodo || 1));
   const resultEvents = finalPeriod === null ? data.eventos : data.eventos.filter(event => event.periodo === finalPeriod);
   const mine = data.equipes.find((team) => team.id === data.minhaEquipeId);
@@ -208,10 +221,10 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
   }
   function teamFouls(teamId: number) {
     if (!live || !(data.podePreparar || data.podeSumula)) return null;
-    const events = data.eventos.filter(event => event.time_id === teamId && event.periodo === p.periodo_atual);
+    const events = data.eventos.filter(event => event.time_id === teamId && event.periodo === displayedPeriod);
     const fouls = events.filter(event => event.tipo === 'FALTA').length;
     return <div className="live-discipline">
-      <span className="live-foul-dots" aria-label={`${fouls} faltas cometidas no ${p.periodo_atual}º tempo`} data-tooltip="Faltas cometidas neste tempo">
+      <span className="live-foul-dots" aria-label={`${fouls} faltas cometidas no ${displayedPeriod}º tempo`} data-tooltip="Faltas cometidas neste tempo">
         {Array.from({ length: 5 }, (_, index) => <i key={index} className={index < fouls ? 'is-filled' : ''} />)}
         {fouls > 5 && <small>+{fouls - 5}</small>}
       </span>
@@ -221,6 +234,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
   const pendingDescription = pending.every(event => event.tipo === 'GOL')
     ? pending.length === 1 ? 'gol sem jogador identificado' : 'gols sem jogador identificado'
     : pending.length === 1 ? 'evento sem jogador identificado' : 'eventos sem jogador identificado';
+  const ownGoalWithoutAuthor = !!form?.ownGoal && !form.existing;
   const actorId = form
     ? form.ownGoal
       ? form.teamId === p.mandante_id
@@ -383,12 +397,12 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
     void sendEvent({
       tipo: form.type,
       time_id: form.teamId,
-      jogador_id: later ? undefined : form.playerId ? Number(form.playerId) : undefined,
+      jogador_id: later || ownGoalWithoutAuthor ? undefined : form.playerId ? Number(form.playerId) : undefined,
       gol_contra: form.ownGoal,
       autor_pendente: later,
       periodo: live ? p.periodo_atual : form.period || p.periodo_atual,
       minuto: form.minute ? Number(form.minute) : undefined,
-      assistencia_jogador_id: !later && form.assistId ? Number(form.assistId) : undefined,
+      assistencia_jogador_id: !later && !form.ownGoal && form.assistId ? Number(form.assistId) : undefined,
       motivo: form.reason,
     });
   }
@@ -399,14 +413,14 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
     assistantEligible &&
     (!form.existing?.jogador_id || form.playerId !== String(form.existing.jogador_id)) &&
     EVENT_TYPES.some((type) => type.value === form.type && !type.unavailable) &&
-    (form.existing ? playerEligible : (!actor && !form.playerId) || playerEligible || (form.type === 'GOL' && form.ownGoal && !form.playerId)) &&
+    (form.existing ? playerEligible : ownGoalWithoutAuthor ? form.type === 'GOL' && !form.playerId && !form.assistId : (!actor && !form.playerId) || playerEligible) &&
     (!live ? !!form.reason.trim() : form.existing
       ? !form.existing.jogador_id ||
         form.playerId === String(form.existing.jogador_id) ||
         !!form.reason.trim()
       : true);
   const canLeavePending =
-    canCorrect && !data.podeAnotarOficial && !!form && !form.existing && form.type === 'GOL' && !!actor && (live || !!form.reason.trim());
+    canCorrect && !data.podeAnotarOficial && !!form && !form.existing && !form.ownGoal && form.type === 'GOL' && !!actor && (live || !!form.reason.trim());
 
   return (
     <div className="match-live-board" ref={board}>
@@ -567,9 +581,9 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
           </section> : <MatchResultSummary data={data} period={finalPeriod} onFeedback={setFeedback} onCorrectEvent={canCorrect || data.podeAnotarOficial ? () => openEvent('GOL') : undefined}
             onRequestCorrection={!canCorrect && !data.podeAnotarOficial && data.podePreparar ? () => { setReason(''); setError(''); setCorrectionRequest(true); } : undefined} />}
           {live && <div className="live-time-stepper" role="group" aria-label="Tempo da partida">
-            <button type="button" aria-label="Voltar tempo" disabled={!live || !data.podeSumula || changing || p.periodo_atual <= 1} onClick={goBackPeriod}><Icon name="chevronLeft" size={20} /></button>
-            <span><strong>{p.periodo_atual}º tempo{!live && ' · Encerrada'}</strong><small>{p.periodo_atual}/{Math.max(totalTimes, p.periodo_atual)}</small></span>
-            <button type="button" aria-label="Avançar tempo" disabled={!live || !data.podeSumula || changing || p.periodo_atual >= totalTimes} onClick={() => changePeriod(p.periodo_atual + 1)}><Icon name="chevronRight" size={20} /></button>
+            <button type="button" aria-label="Voltar tempo" disabled={readOnlyPeriod ? displayedPeriod <= 1 : changing || p.periodo_atual <= 1} onClick={readOnlyPeriod ? () => browsePeriod(-1) : goBackPeriod}><Icon name="chevronLeft" size={20} /></button>
+            <span aria-live="polite"><strong>{displayedPeriod}º tempo</strong><small>{browsingPast ? `Visualizando · Atual: ${p.periodo_atual}º tempo` : `${displayedPeriod}/${Math.max(totalTimes, p.periodo_atual)}`}</small></span>
+            <button type="button" aria-label="Avançar tempo" disabled={readOnlyPeriod ? displayedPeriod >= p.periodo_atual : changing || p.periodo_atual >= totalTimes} onClick={readOnlyPeriod ? () => browsePeriod(1) : () => changePeriod(p.periodo_atual + 1)}><Icon name="chevronRight" size={20} /></button>
           </div>}
           </div>
           {(live && data.podeSumula || !live && data.podeAnotarOficial) && (
@@ -749,11 +763,11 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
         {viewerLayout && <div ref={viewerHighlights} className="viewer-highlights-slot" />}
         </div>
       </div>
-      {!prioritizeLineup && <MatchInsights data={data} selectedPeriod={live ? undefined : resultPeriod}
+      {!prioritizeLineup && <MatchInsights data={data} selectedPeriod={live ? (browsingPast ? displayedPeriod : undefined) : resultPeriod}
         placement={viewerLayout && viewerWide && viewerAnalysis.current && viewerHighlights.current ? { analysis: viewerAnalysis.current, highlights: viewerHighlights.current } : undefined} />}
       <section className="live-lineups">
         <div className="live-section-heading">
-          <div className="live-section-title"><h2>{live ? 'Escalação' : 'Escalação final'}</h2><small>{live || finalPeriod === null ? 'Acumulado da partida' : `Registros do ${finalPeriod}º tempo`}</small></div>
+          <div className="live-section-title"><h2>{live ? 'Escalação' : 'Escalação final'}</h2><small>{finalPeriod === null ? 'Acumulado da partida' : `Registros do ${finalPeriod}º tempo`}</small></div>
           {live && data.podePreparar && mine && (
             <Btn
               variant="ghost"
@@ -771,8 +785,8 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
             </Btn>
           )}
         </div>
-        {!live && finalPeriod !== null && <p className="match-result-lineup-note">Última escalação publicada · números dos eventos no {finalPeriod}º tempo, sem estimativa de minutos jogados.</p>}
-        <PublishedLineups data={live || finalPeriod === null ? data : { ...data, eventos: resultEvents }} statistics />
+        {finalPeriod !== null && <p className="match-result-lineup-note">Última escalação publicada · números dos eventos no {finalPeriod}º tempo, sem estimativa de minutos jogados.</p>}
+        <PublishedLineups data={finalPeriod === null ? data : { ...data, eventos: resultEvents }} statistics />
       </section>
 
       {live && data.podeSumula && <div className="live-finish-actions">
@@ -909,7 +923,9 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
               </div>
             )}
 
-            {actor ? (
+            {ownGoalWithoutAuthor ? (
+              <p className="live-player-instruction">Gol contra do adversário. Conta a favor do {teamName}, sem identificar jogador.</p>
+            ) : actor ? (
               <>
                 <p className="live-player-instruction">
                   {form.ownGoal

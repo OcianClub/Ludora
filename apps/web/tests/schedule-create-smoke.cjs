@@ -95,7 +95,11 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5188';
         if(900-trigger.y-trigger.height>200)assert.ok(panel.y>=trigger.y+trigger.height,'Prefer opening below when there is room');
       }
       assert.equal(await form.locator('.schedule-create-category > span').count(),0,'No repeated category heading');
-      await competitionPanel.getByRole('button', { name: /Amistoso/ }).click();
+      await competitionPanel.getByRole('searchbox').fill('Competição inexistente');
+      await competitionPanel.getByText('Nenhuma competição encontrada.',{exact:true}).waitFor();
+      await competitionPanel.getByRole('button',{name:'Limpar busca',exact:true}).click();
+      await competitionPanel.screenshot({path:path.resolve(__dirname,`../../../test-results/web-schedule/competitions-${width}-${theme}.png`)});
+      await competitionPanel.getByRole('radio', { name: /Amistoso/ }).click();
       assert.equal(await form.locator('.schedule-fixed-team').getByText('Ocian', { exact: true }).count(), 1);
       assert.equal(await form.locator('.schedule-fixed-team button').count(), 0, 'O time do clube é fixo');
       assert.equal(await form.getByRole('button', { name: /Selecionar mandante/ }).count(), 0);
@@ -129,6 +133,7 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5188';
       else {const box=await away.boundingBox();assert.ok(box.y+box.height>=899,'Mobile selector is attached to bottom');}
       assert.equal(await away.getByRole('radio', { name: /Ocian/ }).count(), 0, 'Seu clube não pode ser escolhido como adversário');
       await away.getByRole('button',{name:'Recentes',exact:true}).click();
+      assert.ok((await away.getByRole('button',{name:'Recentes',exact:true}).evaluate(el=>getComputedStyle(el).fontSize))!=='0px','Recent filter keeps readable labels on mobile');
       assert.deepEqual(await away.locator('.match-opponent-option > strong').allTextContents(),['Santos']);
       await away.getByRole('button',{name:'Todos',exact:true}).click();
       await away.getByRole('radio', { name: 'Santos', exact:true }).hover();

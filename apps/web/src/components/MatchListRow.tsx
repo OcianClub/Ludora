@@ -51,7 +51,7 @@ export function MatchListRow({ partida: p, onOpen, returnTo, actions }: { partid
       <div className="match-list-status">{p.paulista_evento_id && <small className="match-official-label">Campeonato Paulista</small>}
         {occurrence ? <span className="status-badge">{occurrence === 'WO' ? 'W.O.' : 'Adiada'}</span> : finished ? <span className={p.semPerspectiva ? 'status-badge' : `match-result result-${result > 0 ? 'V' : result < 0 ? 'D' : 'E'}`}>{p.semPerspectiva ? 'Finalizada' : result > 0 ? 'Vitória' : result < 0 ? 'Derrota' : 'Empate'}</span>
           : p.status === 'CANCELADA' ? <span className="status-badge status-cancelada"><Icon name="cancel" size={14} />Cancelada</span>
-          : partidaAtrasada(p) ? <MatchOverdueBadge/> : <StatusBadge status={p.status} />}
+          : partidaAtrasada(p) ? <MatchOverdueBadge category={p.categoria}/> : <StatusBadge status={p.status} />}
         {!p.semPerspectiva && <span className="match-venue"><Icon name={p.emCasa ? 'home' : 'bus'} size={13} />{p.emCasa ? 'Casa' : 'Fora'}</span>}
       </div>
       <span className="match-list-open"><Icon name="chevronRight" size={18} /></span>

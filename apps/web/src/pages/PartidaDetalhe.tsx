@@ -1,3 +1,4 @@
+import { MatchConfirmationDialog } from '../components/MatchConfirmationDialog';
 import { FilterTabs } from '../components/FilterTabs';
 import { Toast } from '../components/Toast';
 import { PageSkeleton } from '../components/PageSkeleton';
@@ -733,12 +734,17 @@ export default function PartidaDetalhePage() {
         {gestao?.podePreparar && adversario && ['AGENDADA', 'PREPARADA', 'AO_VIVO'].includes(partida.status) && <p className="editor-description">{gestao.podeSumula ? `A transferência para o ${adversario.clube.nome}` : `A responsabilidade pelo ${clube?.nome || 'seu clube'}`} depende do aceite do outro clube na aba Solicitações.</p>}
         {transferError && <p className="notice-error" role="alert">{transferError}</p>}
       </Modal>
-      <Modal open={confirmRemove} title="Excluir partida" onClose={()=>{if(!deleteBusy)setConfirmRemove(false);}} footer={<div className="editor-actions"><Btn variant="ghost" disabled={deleteBusy} onClick={()=>setConfirmRemove(false)}>Voltar</Btn><Btn variant="danger" loading={deleteBusy} onClick={async()=>{if(deleteBusy)return;setDeleteBusy(true);setDeleteError('');try{await deletarPartida(partida.id,gestao?.partida.versao);navigate(scheduleReturn,{replace:true});}catch(e){setDeleteError((e as Error).message);}finally{setDeleteBusy(false);}}}>Excluir definitivamente</Btn></div>}><p>A partida será removida. Esta opção é permitida apenas para confrontos locais que não começaram e não têm resultados ou registros oficiais. Para manter o histórico, use Cancelar partida.</p>{deleteError && <p className="notice-error" role="alert">{deleteError}</p>}</Modal>
-      <Modal open={confirmDelete} title="Cancelar partida" onClose={() => { if (!deleteBusy) setConfirmDelete(false); }} footer={<div className="editor-actions"><Btn disabled={deleteBusy} variant="ghost" onClick={() => setConfirmDelete(false)}>Voltar</Btn><Btn disabled={deleteBusy || !motivoCancelamento.trim()} variant="danger" onClick={async () => {
-        setDeleteBusy(true); setDeleteError('');
-        try { await comandoPartida(partida.id, 'status', { status: 'CANCELADA', motivo: motivoCancelamento, versao: gestao?.partida.versao }, 'PATCH'); setConfirmDelete(false); await atualizarDados(); }
-        catch (e) { setDeleteError((e as Error).message); } finally { setDeleteBusy(false); }
-      }}>Confirmar cancelamento</Btn></div>}><p className="editor-description">O histórico será preservado e os clubes serão avisados.</p><Input label="Motivo do cancelamento" value={motivoCancelamento} onChange={e => setMotivoCancelamento(e.target.value)}/>{deleteError && <p className="notice-error" role="alert">{deleteError}</p>}</Modal>
+      <MatchConfirmationDialog open={confirmRemove} mode="delete" partida={partida} busy={deleteBusy} error={deleteError} onClose={()=>setConfirmRemove(false)} onConfirm={async()=>{
+        if(deleteBusy)return;setDeleteBusy(true);setDeleteError('');
+        try{await deletarPartida(partida.id,gestao?.partida.versao);navigate(scheduleReturn,{replace:true});}
+        catch(e){setDeleteError((e as Error).message);}finally{setDeleteBusy(false);}
+      }}/>
+      <MatchConfirmationDialog open={confirmDelete} mode="cancel" partida={partida} busy={deleteBusy} error={deleteError} reason={motivoCancelamento} onReason={value=>{setMotivoCancelamento(value);setDeleteError('');}} onClose={()=>setConfirmDelete(false)} onConfirm={async()=>{
+        if(deleteBusy || !motivoCancelamento.trim())return;setDeleteBusy(true);setDeleteError('');
+        try{await comandoPartida(partida.id,'status',{status:'CANCELADA',motivo:motivoCancelamento.trim(),versao:gestao?.partida.versao},'PATCH');setConfirmDelete(false);await atualizarDados();}
+        catch(e){setDeleteError((e as Error).message);}finally{setDeleteBusy(false);}
+      }}/>
+
 
       {shirtPlayer && <PlayerShirtDialog player={shirtPlayer} category={partida.categoria?.nome}
         onClose={() => setShirtPlayer(null)} onSaved={onShirtSaved}/>}

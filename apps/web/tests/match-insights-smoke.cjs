@@ -34,7 +34,7 @@ fs.mkdirSync(output, { recursive: true });
         { id: 4, tipo: 'GOL', time_id: 14, jogador_id: 202, jogador: opponent[1].jogador, periodo: 2 },
         { id: 5, tipo: 'DEFESA', time_id: 13, jogador_id: 103, jogador: players[2].jogador, periodo: 1 },
       ];
-      let guest = false, external = false, matchReads = 0, pollReads = 0, writes = 0, loseReply = false, managerBlocked = false;
+      let guest = false, external = false, matchReads = 0, pollReads = 0, writes = 0, loseReply = false, managerBlocked = false, operator = true;
       let votes = { MANDANTE: 1, EMPATE: 1, VISITANTE: 1 }, own = null, revision = 1;
       const poll = () => {
         const total = Object.values(votes).reduce((a, b) => a + b), percentuais = Object.fromEntries(Object.entries(votes).map(([key, count]) => [key, Math.floor(count / total * 100)]));
@@ -44,7 +44,7 @@ fs.mkdirSync(output, { recursive: true });
       };
       await page.route(url => url.origin !== new URL(base).origin && /\/(?:publico\/)?partidas\/106(?:\/gestao)?$/.test(url.pathname), route => {
         matchReads++;
-        return route.fulfill({ json: { clube: { id: 2, nome: 'Ocian' }, partida: p, organizador: { id: 2, nome: 'Ocian' }, minhaEquipeId: guest ? undefined : 1, podePreparar: !guest, podeSumula: !guest, eventos: events, auditoria: [], equipes: [
+        return route.fulfill({ json: { clube: { id: 2, nome: 'Ocian' }, partida: p, organizador: { id: 2, nome: 'Ocian' }, minhaEquipeId: guest ? undefined : 1, podePreparar: !guest, podeSumula: !guest && operator, eventos: events, auditoria: [], equipes: [
           { id: 1, clube_id: 2, time_id: 13, categoria_id: 1, clube: { id: 2, nome: 'Ocian' }, publicada_em: '2026-11-07', pronta: true, escalacao: players },
           ...external ? [] : [{ id: 2, clube_id: 3, time_id: 14, categoria_id: 2, clube: { id: 3, nome: 'Santos' }, publicada_em: '2026-11-07', pronta: true, escalacao: opponent }],
         ] } });
@@ -82,6 +82,7 @@ fs.mkdirSync(output, { recursive: true });
       await page.locator('.match-insights-periods button').nth(2).click();
       assert.equal(await page.locator('.match-insights-metric').first().locator('dd strong').first().innerText(), '1');
       await page.locator('.match-insights-periods button').first().click();
+      operator = false; await page.reload(); await page.locator('.match-poll-options button:not(:disabled)').first().waitFor();
       const initialReads = matchReads;
       await page.locator('.match-poll-options button').first().click();
       await page.waitForFunction(() => document.querySelector('.match-poll-options button')?.getAttribute('aria-pressed') === 'true');
@@ -137,11 +138,13 @@ fs.mkdirSync(output, { recursive: true });
         p.status = 'FINALIZADA'; await page.reload(); await page.locator('.match-poll-options').waitFor();
         assert.equal(await page.locator('.match-poll-options button:not(:disabled)').count(), 0);
         assert.match(await page.locator('.match-poll').innerText(), /votação encerrada/);
-        managerBlocked = true; p.status = 'AO_VIVO';
+        managerBlocked = true; operator = true; p.status = 'AO_VIVO';
         const managerPoll = page.waitForResponse(response => response.url().endsWith('/partidas/106/palpite'));
         await page.reload(); await managerPoll;
         await page.getByRole('button', { name: /Registrar gol/ }).first().waitFor();
-        await page.locator('.match-poll').waitFor({state:'hidden'});
+        await page.locator('.match-poll').waitFor({state:'visible'});
+        assert.equal(await page.locator('.match-poll-options button:not(:disabled)').count(), 0);
+        await page.getByText(/Você está operando a súmula. Acompanhe os resultados/).waitFor();
         assert.equal(writes, 2, 'Gestor da partida não registra palpite');
         guest = true; external = true; p.status = 'AO_VIVO';
         await page.evaluate(() => { localStorage.setItem('guestSmoke','true'); localStorage.removeItem('ludora_token'); localStorage.removeItem('ludora_usuario'); });

@@ -38,7 +38,7 @@ export function MatchCard({ partida: p, featured = false, actions, onOpen, compe
         {occurrence ? <span className="status-badge">{occurrence === 'WO' ? 'W.O.' : 'Adiada'}</span> : live
           ? <span className="match-live-radar" role="img" aria-label="Partida ao vivo" data-tooltip="Partida ao vivo"><Icon name="broadcast" size={20} /></span>
           : p.status === 'FINALIZADA' ? <span className={p.semPerspectiva ? 'status-badge' : `match-result result-${result > 0 ? 'V' : result < 0 ? 'D' : 'E'}`}>{p.semPerspectiva ? 'Finalizada' : result > 0 ? 'Vitória' : result < 0 ? 'Derrota' : 'Empate'}</span>
-          : p.status === 'CANCELADA' ? <span className="status-badge status-cancelada"><Icon name="cancel" size={14} />Cancelada</span> : partidaAtrasada(p) ? <MatchOverdueBadge/> : <StatusBadge status={p.status} />}
+          : p.status === 'CANCELADA' ? <span className="status-badge status-cancelada"><Icon name="cancel" size={14} />Cancelada</span> : partidaAtrasada(p) ? <MatchOverdueBadge category={p.categoria}/> : <StatusBadge status={p.status} />}
         {!p.semPerspectiva && <span className="match-venue"><Icon name={p.emCasa ? 'home' : 'bus'} size={14} />{p.emCasa ? 'Casa' : 'Fora'}</span>}
       </div>;
   return <article className={`match-card match-card-interactive${compact ? ' match-card-compact' : ''}${featured ? ' match-card-featured' : ''}${live ? ' match-card-live' : ' match-card-static'}`}

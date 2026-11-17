@@ -71,6 +71,7 @@ export const CartaoJogo = memo(function CartaoJogo({
   onPress,
 }: {
   partida: PartidaJogo;
+  gestor?:boolean;
   styles: Estilos;
   onPress: (partida: PartidaJogo) => void;
 }) {
@@ -132,7 +133,8 @@ export const CartaoJogo = memo(function CartaoJogo({
               <SinalAoVivo />
             </View>
           )}
-          {!!situacao && (
+          {atrasada && <View style={{flexDirection:'row',alignItems:'center',gap:5,minHeight:23,paddingVertical:3,paddingHorizontal:6,borderRadius:6,backgroundColor:colors.cardSecundario,flexShrink:1}}><Icon name="clock-outline" size={14} color={tema==='light'?'#A65313':colors.tituloAtencao}/><Text style={{color:tema==='light'?'#A65313':colors.tituloAtencao,fontFamily:'Inter_600SemiBold',fontSize:10,lineHeight:13,letterSpacing:.3,flexShrink:1}}>{situacao}</Text></View>}
+          {!!situacao && !atrasada && (
             <Text
               style={[
                 styles.cardStatusBadge,

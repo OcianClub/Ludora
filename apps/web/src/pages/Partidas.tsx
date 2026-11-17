@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useListState } from '../hooks/listMemory';
+import { gerenciaCategoria } from '../utils/homeDashboard';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { BASE_URL, ApiResponseError, cachedJson, invalidateApiReads, fetchPartidas, criarPartida, fetchTimes, fetchCategorias, fetchCompeticoes, type Partida, type Time, type Categoria, type Competicao } from '../services/api';
 import { PUBLIC_MATCHES_CHANGED, subscribeClubMatches } from '../services/matchRealtime';
@@ -7,6 +8,7 @@ import { useMaintenance } from '../contexts/MaintenanceContext';
 import { readLocal, writeLocal } from '../services/localState';
 import { Btn, Modal, Input, LoadingSkeleton } from '../components/UI';
 import { ClubBadge } from '../components/Brand';
+import { MatchCompetitionPicker } from '../components/MatchCompetitionPicker';
 import { MatchCreationReview } from '../components/MatchCreationReview';
 import { MatchOpponentPicker } from '../components/MatchOpponentPicker';
 import { ResponsivePanel } from '../components/ResponsivePanel';
@@ -29,7 +31,7 @@ import { LocationInput } from '../components/LocationInput';
 import { InfoNotice } from '../components/InfoNotice';
 import { CollectionSearch, CollectionFilterButton, CollectionViewToggle, CollectionFilterDialog, FilterRadioGroup } from '../components/CollectionToolbar';
 import { useMatchRequests } from '../hooks/useMatchRequests';
-import { agoraPartida, horarioPassado } from '../../../../packages/shared-types/src/matchSchedule';
+import { agoraPartida, horarioPassado, partidaAtrasada } from '../../../../packages/shared-types/src/matchSchedule';
 import { useMatchOrganization } from '../hooks/useMatchOrganization';
 import { adversariosRecentes, repetirConfronto } from '../utils/matchOrganization';
 import './Partidas.css';
@@ -40,6 +42,7 @@ import '../components/ResponsiveControls.css';
 const STATUSES = [
   { value: 'TODAS', label: 'Todos' },
   { value: 'PROXIMAS', label: 'Próximas (agendadas e preparadas)' },
+  { value: 'ATRASADAS', label: 'Atrasadas' },
   { value: 'AGENDADA', label: 'Agendada' },
   { value: 'PREPARADA', label: 'Preparada' },
   { value: 'AO_VIVO', label: 'Ao vivo' },
@@ -97,9 +100,10 @@ function ScheduleResults({ matches, renderMatch, list, grouped, memoryKey }: {
   </div>;
 }
 
-function ScheduleAccordion({ title, icon, matches, initialOpen = false, renderMatch, list, memoryKey }: {
+function ScheduleAccordion({ title, description, icon, matches, initialOpen = false, renderMatch, list, memoryKey }: {
   memoryKey: string;
   title: string;
+  description?: string;
   icon: IconName;
   matches: Partida[];
   initialOpen?: boolean;
@@ -122,6 +126,7 @@ function ScheduleAccordion({ title, icon, matches, initialOpen = false, renderMa
       </button>
     </h2>
     <div id={id} hidden={!open} role="region" aria-labelledby={`${id}-heading`}>
+      {open && description && <p className="schedule-status-description">{description}</p>}
       {open && <ScheduleResults memoryKey={memoryKey} matches={matches} renderMatch={renderMatch} list={list} grouped={title !== 'Ao vivo'} />}
     </div>
   </section>;
@@ -568,12 +573,12 @@ export default function PartidasPage() {
   const resultsByCategory = useMemo(() => new Map((relevantCategories.length ? relevantCategories : [undefined]).map(category => {
     const scoped = contextualMatches.filter(match => !category || match.categoria_id === category.id
       || (match.categoria?.clube_id !== clube?.id && match.categoria?.nome.trim().toLowerCase() === category.nome.trim().toLowerCase()));
-    const filtered = scoped.filter(match => filtroStatus === 'TODAS' || !filtroStatus || (filtroStatus === 'PROXIMAS'
-      ? grupoSituacao(match.status) === 'next' : match.status === filtroStatus));
+    const filtered = scoped.filter(match => filtroStatus === 'TODAS' || !filtroStatus || (filtroStatus === 'ATRASADAS' ? partidaAtrasada(match) : filtroStatus === 'PROXIMAS'
+      ? grupoSituacao(match.status) === 'next' && !partidaAtrasada(match) : match.status === filtroStatus));
     const counts = scoped.reduce((total, match) => {
-      total[grupoSituacao(match.status)]++;
+      total[partidaAtrasada(match) ? 'overdue' : grupoSituacao(match.status)]++;
       return total;
-    }, { all: scoped.length, live: 0, next: 0, past: 0, cancelled: 0 });
+    }, { all: scoped.length, live: 0, overdue:0, next: 0, past: 0, cancelled: 0 });
     const groups = agruparAgenda(filtered);
     return [category?.id ?? 0, {
       filtered, counts,
@@ -585,7 +590,12 @@ export default function PartidasPage() {
       cancelled: ordenarAgenda(groups.cancelled, sortCategory, true),
     }];
   })), [contextualMatches, relevantCategories, filtroStatus, sortCategory, clube?.id]);
-  const { filtered, counts } = resultsByCategory.get(selectedCategory?.id ?? 0) ?? { filtered: [], counts: { all: 0, live: 0, next: 0, past: 0, cancelled: 0 } };
+  const { filtered, counts } = resultsByCategory.get(selectedCategory?.id ?? 0) ?? { filtered: [], counts: { all: 0, live: 0, overdue:0, next: 0, past: 0, cancelled: 0 } };
+  const managesCurrentCategory = podeGerenciar && !!selectedCategory && gerenciaCategoria(clube,selectedCategory);
+  const overdueTab = {id:'overdue' as const,value:'ATRASADAS',label:'Atrasadas'};
+  const statusTabs = managesCurrentCategory
+    ? [...LEGEND.slice(0,2),overdueTab,...LEGEND.slice(2)]
+    : [...LEGEND.slice(0,4),overdueTab,...LEGEND.slice(4)];
   const customLabel = start && end ? `${formatMatchDate(start)} — ${formatMatchDate(end)}` : 'Escolher período';
   const filterKey = [phase, filtroCategoria, filtroStatus, period, start, end, opponent, mando, onlyOrganized, sortCategory].join('|');
   const chips = [
@@ -626,7 +636,8 @@ export default function PartidasPage() {
       </div>}
       {!!chips.length && <Btn variant="ghost" onClick={clearFilters}>Limpar filtros</Btn>}
     </div>;
-    const pageKey = `partidas:${usuario?.id ?? 'visitante'}:${clube?.id}:${category?.id ?? 0}:${filterKey}`;
+    const managesCategory = podeGerenciar && !!category && gerenciaCategoria(clube, category);
+    const pageKey = `partidas:${usuario?.id ?? 'visitante'}:${clube?.id}:${category?.id ?? 0}:${managesCategory ? 'gestao' : 'publico'}:${filterKey}`;
     const toolbar = <div className="schedule-results-toolbar schedule-presentation-toolbar">
       <p className="schedule-result-count" role="status">{result.filtered.length} {result.filtered.length === 1 ? 'partida' : 'partidas'}</p>
       {!compactViewport && filtroStatus !== 'AO_VIVO' && <CollectionViewToggle label="Visualização das partidas" value={list ? 'lista' : 'cards'} onChange={value => changeFilters({ visualizacao: value === 'lista' ? 'lista' : '' })} options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />}
@@ -634,12 +645,14 @@ export default function PartidasPage() {
     if (filtroStatus === 'TODAS') return <div className="schedule-results">
       <ScheduleAccordion key={`live:${pageKey}`} memoryKey={`live:${pageKey}`} title="Ao vivo" icon="live" matches={result.live} initialOpen renderMatch={renderMatch} list={list} />
       {toolbar}
-      <ScheduleAccordion key={`overdue:${pageKey}`} memoryKey={`overdue:${pageKey}`} title="Atrasadas" icon="alert" matches={result.overdue} initialOpen renderMatch={renderMatch} list={list}/>
+      {managesCategory && <ScheduleAccordion key={`overdue:${pageKey}`} memoryKey={`overdue:${pageKey}`} title="Atrasadas" icon="alert" matches={result.overdue} initialOpen renderMatch={renderMatch} list={list}/>}
       <ScheduleAccordion key={`next:${pageKey}`} memoryKey={`next:${pageKey}`} title="Próximas" icon="clock" matches={ordenarAgenda([...result.today, ...result.upcoming], sortCategory)} initialOpen renderMatch={renderMatch} list={list} />
       <ScheduleAccordion key={`past:${pageKey}`} memoryKey={`past:${pageKey}`} title="Finalizadas" icon="checkAll" matches={result.finished} renderMatch={renderMatch} list={list} />
+      {!managesCategory && <ScheduleAccordion key={`overdue:${pageKey}`} memoryKey={`overdue:${pageKey}`} title="Atrasadas" description="O horário previsto passou, mas o início ainda não foi registrado." icon="clock" matches={result.overdue} renderMatch={renderMatch} list={list}/>}
       <ScheduleAccordion key={`cancelled:${pageKey}`} memoryKey={`cancelled:${pageKey}`} title="Canceladas" icon="minus" matches={result.cancelled} renderMatch={renderMatch} list={list} />
     </div>;
     const ordered = filtroStatus === 'AO_VIVO' ? result.live
+      : filtroStatus === 'ATRASADAS' ? result.overdue
       : filtroStatus === 'FINALIZADA' ? result.finished
       : filtroStatus === 'CANCELADA' ? result.cancelled
       : ordenarAgenda([...result.overdue, ...result.today, ...result.upcoming], sortCategory);
@@ -663,7 +676,7 @@ export default function PartidasPage() {
       {podeGerenciar && matchPause && <p id="schedule-maintenance" className="maintenance-inline" role="status"><Icon name="alert" size={17} /><span>Criação de partidas em manutenção. {matchPause.motivo}</span></p>}
       <FilterTabs className="schedule-status-summary" label="Filtrar por situação"
         value={['AGENDADA', 'PREPARADA'].includes(filtroStatus) ? 'PROXIMAS' : filtroStatus}
-        options={LEGEND.map(item => ({ ...item, count: counts[item.id], icon: item.id === 'live' && <i className="schedule-live-dot" aria-hidden="true" /> }))}
+        options={statusTabs.map(item => ({ ...item, count: counts[item.id], icon: item.id === 'live' && <i className="schedule-live-dot" aria-hidden="true" /> }))}
         onChange={status => changeFilters({ status })} />
 
       <div className="schedule-filters">
@@ -815,26 +828,8 @@ export default function PartidasPage() {
           </div>
           {confirmCategoryChange && <p className="schedule-category-warning" role="note">Trocar a categoria limpa o adversário e a competição. Data, horário, local e mando serão mantidos.</p>}
           {!categorias.length && <p className="schedule-picker-empty">Nenhuma categoria disponível. Cadastre as categorias do clube antes de organizar uma partida.</p>}
-        </div> : picker === 'visitante' ? <MatchOpponentPicker key={form.categoria_id} clubName={clube?.nome || 'Seu clube'} categoryName={formCategory?.nome || ''} teams={visibleOpponents} recentIds={recentOpponentIds} selectedId={selectedOpponent?.id} search={pickerSearch} onSearch={setPickerSearch} onSelect={chooseTeam}/> : <div className="schedule-picker-content">
-          <p className="schedule-picker-intro">Vincule uma competição ou escolha Amistoso para jogar sem competição.</p>
-          <CollectionSearch label="Buscar competição ou ano" placeholder="Nome da competição ou ano" value={pickerSearch} onChange={setPickerSearch} />
-          <div className="schedule-picker-options">
-            {picker === 'competicao' ? <>
-              <button type="button" aria-pressed={form.competicao_id === 'amistoso'} onClick={() => { setForm(f => ({ ...f, competicao_id: 'amistoso', rodada: '' })); setErro(''); setPicker(null); }}><span className="schedule-picker-icon"><Icon name="ball" size={23} /></span><span><strong>Amistoso</strong><small>Sem competição</small></span>{form.competicao_id === 'amistoso' && <Icon name="checkAll" size={18} />}</button>
-              {competicoes.filter(item => !item.paulista_evento_id && (!formCategory || item.tipo === formCategory.tipo) && normalizarBusca(`${item.nome} ${item.ano}`).includes(normalizarBusca(pickerSearch))).map(item => (
-                <button key={item.id} type="button" aria-pressed={form.competicao_id === String(item.id)} onClick={() => {
-                  setForm(f => ({ ...f, competicao_id: String(item.id), rodada: f.competicao_id === String(item.id) ? f.rodada : '' }));
-                  setErro('');
-                  setPicker(null);
-                }}>
-                  <span className="schedule-picker-icon"><Icon name="trophy" size={23} /></span>
-                  <span><strong>{item.nome}</strong><small>Temporada {item.ano}</small></span>
-                  {form.competicao_id === String(item.id) && <Icon name="checkAll" size={18} />}
-                </button>
-              ))}
-            </> : null}
-          </div>
-        </div>}
+        </div> : picker === 'visitante' ? <MatchOpponentPicker key={form.categoria_id} clubName={clube?.nome || 'Seu clube'} categoryName={formCategory?.nome || ''} teams={visibleOpponents} recentIds={recentOpponentIds} selectedId={selectedOpponent?.id} search={pickerSearch} onSearch={setPickerSearch} onSelect={chooseTeam}/> : <MatchCompetitionPicker items={competicoes.filter(item=>!item.arquivada && !item.paulista_evento_id && (!formCategory || item.tipo===formCategory.tipo))} value={form.competicao_id} search={pickerSearch} onSearch={setPickerSearch} onSelect={value=>{setForm(f=>({...f,competicao_id:value,rodada:f.competicao_id===value ? f.rodada : ''}));setErro('');setPicker(null);}}/>}
+
       </ResponsivePanel>
       <MatchCreationReview open={reviewOpen} onClose={()=>setReviewOpen(false)} onConfirm={salvar}
         home={formHome} away={formAway} category={formCategory?.nome} phase={formCategory?.tipo}

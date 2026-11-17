@@ -41,9 +41,9 @@ export default function PalpitePartida({ data }: { data: GestaoPartida }) {
     const timer = setInterval(() => { if (AppState.currentState === 'active' && data.partida.status === 'AO_VIVO') void carregar(); }, 30000);
     const state = AppState.addEventListener('change', value => { if (value === 'active') void carregar(); });
     return () => { controller.abort(); parar(); clearInterval(timer); state.remove(); };
-  }, [id, autenticado, data.partida.status]);
+  }, [id, autenticado, data.partida.status, data.podeSumula]);
   async function votar(escolha: PollChoice) {
-    if (!autenticado || write.current || !poll?.aberta || poll.podeVotar === false || data.partida.status !== 'AO_VIVO') return;
+    if (data.podeSumula || !autenticado || write.current || !poll?.aberta || poll.podeVotar === false || data.partida.status !== 'AO_VIVO') return;
     write.current = true; setBusy(true); setErro(''); setNotice('');
     const controller = requisicao.current!;
     try { const value = await votarPartida(id, escolha, controller.signal); if (!controller.signal.aborted) { aplicar(value, true); setNotice('Palpite salvo. Você pode trocar até o encerramento.'); } }
@@ -53,8 +53,8 @@ export default function PalpitePartida({ data }: { data: GestaoPartida }) {
     } finally { if (!controller.signal.aborted) { write.current = false; setBusy(false); } }
   }
   const aoVivo = data.partida.status === 'AO_VIVO';
-  if (aoVivo && poll?.podeVotar === false) return null;
-  const bloqueado = busy || !autenticado || !poll?.aberta || !aoVivo;
+  const somenteResultados = data.podeSumula || poll?.podeVotar === false;
+  const bloqueado = somenteResultados || busy || !autenticado || !poll?.aberta || !aoVivo;
   const choices = [{ key: 'MANDANTE', team: data.partida.mandante }, { key: 'EMPATE', team: { nome: 'Empate', escudo: undefined } }, { key: 'VISITANTE', team: data.partida.visitante }] as const;
   return <View style={s.panel}><View style={s.between}><View><Text style={s.heading}>Quem você acha que vence?</Text><Text style={s.tiny}>{poll ? `${poll.total} palpite${poll.total === 1 ? '' : 's'}` : 'Carregando votação…'}</Text></View><Icon name="trophy" size={18} color={colors.textoSecundario} /></View>
     <View style={[s.row, { alignItems: 'stretch' }]}>{choices.map(({ key, team }) => <TouchableOpacity key={key} accessibilityRole="radio" accessibilityState={{ checked: poll?.meuVoto === key, disabled: bloqueado }} accessibilityLabel={`${team.nome}, ${poll?.percentuais[key] ?? 0}% dos votos`} disabled={bloqueado} onPress={() => void votar(key)} style={{ flex: 1, minWidth: 0, minHeight: 108, gap: 6, alignItems: 'center', justifyContent: 'center', padding: 9, overflow: 'hidden', borderWidth: 1, borderRadius: 8, borderColor: poll?.meuVoto === key ? colors.primaria : colors.borda, backgroundColor: colors.fundo }}>
@@ -62,7 +62,7 @@ export default function PalpitePartida({ data }: { data: GestaoPartida }) {
       {key === 'EMPATE' ? <Text style={[s.heading, { height: 28 }]}>X</Text> : <MiniEscudo nome={team.nome} url={team.escudo} />}<Text numberOfLines={1} style={s.name}>{team.nome}</Text><Text style={s.resultNumber}>{poll?.total ? `${poll.percentuais[key]}%` : '—'}</Text>
     </TouchableOpacity>)}</View>
     {busy && <ActivityIndicator color={colors.primaria} />}
-    {!autenticado && data.partida.status === 'AO_VIVO' ? <TouchableOpacity accessibilityRole="button" onPress={() => router.push('/(auth)/login')}><Text style={s.link}>Entrar para dar um palpite →</Text></TouchableOpacity> : <Text style={s.tiny}>{data.partida.status !== 'AO_VIVO' ? 'Votação encerrada.' : notice || 'Um palpite por conta. Você pode trocar até o fim do jogo.'}</Text>}
+    {!autenticado && data.partida.status === 'AO_VIVO' ? <TouchableOpacity accessibilityRole="button" onPress={() => router.push('/(auth)/login')}><Text style={s.link}>Entrar para dar um palpite →</Text></TouchableOpacity> : <Text style={s.tiny}>{data.partida.status !== 'AO_VIVO' ? 'Votação encerrada.' : somenteResultados ? 'Você está operando a súmula. Acompanhe os resultados; os demais usuários podem votar.' : notice || 'Um palpite por conta. Você pode trocar até o fim do jogo.'}</Text>}
     {!!erro && <Text accessibilityRole="alert" style={s.error}>{erro}</Text>}<Text style={s.tiny}>Opinião do público, não uma previsão do Scout.</Text>
   </View>;
 }

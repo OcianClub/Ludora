@@ -25,6 +25,7 @@
 .schedule-create-error { margin: -4px 0 0; color: var(--titulo-erro); font-size: 13px; line-height: 1.45; }
 .schedule-create-actions, .schedule-review-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
 .schedule-review-dialog { width: min(560px, calc(100vw - 32px)); }
+.schedule-status-description { margin:14px 16px 0; color:var(--texto-sec); font-size:12px; line-height:1.6; }
 .schedule-review { display: grid; gap: 16px; }
 .schedule-review > p { margin: 0; color: var(--texto-sec); font-size: 13px; }
 .schedule-review-category { display: grid; gap: 5px; padding: 16px; border-radius: 10px; background: var(--primaria); color: white; }

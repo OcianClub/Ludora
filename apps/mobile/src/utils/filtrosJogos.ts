@@ -16,10 +16,16 @@ export const MESES_JOGOS = [
 export const STATUS_JOGOS = [
   { label: 'Todos os jogos', value: 'TODOS', icon: 'soccer' },
   { label: 'Ao vivo', value: 'AO_VIVO', icon: 'record-circle-outline' },
+  { label: 'Atrasadas', value: 'ATRASADAS', icon: 'clock-outline' },
   { label: 'Próximas', value: 'PROXIMAS', icon: 'calendar-clock' },
   { label: 'Finalizadas', value: 'FINALIZADA', icon: 'check' },
   { label: 'Canceladas', value: 'CANCELADA', icon: 'minus' },
 ] as const;
+
+export function statusJogos(gestor:boolean) {
+  if(gestor)return STATUS_JOGOS;
+  return [...STATUS_JOGOS.filter(item=>!['ATRASADAS','CANCELADA'].includes(item.value)),{...STATUS_JOGOS[2],label:'Atrasadas'},STATUS_JOGOS[STATUS_JOGOS.length-1]];
+}
 
 export const PERIODOS_JOGOS = [
   { id: 'todos', label: 'Todos' },
@@ -79,7 +85,7 @@ export function parametrosJogos(filtros: FiltrosJogos) {
   return {
     ano: filtros.ano,
     mes: filtros.mes ?? undefined,
-    status: ['TODOS', 'PROXIMAS'].includes(filtros.status) ? undefined : filtros.status,
+    status: ['TODOS', 'PROXIMAS', 'ATRASADAS'].includes(filtros.status) ? undefined : filtros.status,
     ...((filtros.periodo === 'todos' || (!filtros.periodo && filtros.todosPeriodos)) && { todos_periodos: true }),
     ...(filtros.periodo && filtros.periodo !== 'todos' && { periodo: filtros.periodo }),
     ...(filtros.periodo === 'personalizado' && { de: filtros.de, ate: filtros.ate ?? filtros.de }),

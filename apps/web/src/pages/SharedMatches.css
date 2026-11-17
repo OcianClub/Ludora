@@ -1,4 +1,4 @@
-.shared-matches-page { max-width: 1100px; }
+.shared-matches-page { min-width: 0; }
 .shared-mobile-header { display: none; }
 .shared-mobile-back .icon,
 .shared-desktop-header > a .icon { transform: rotate(180deg); }

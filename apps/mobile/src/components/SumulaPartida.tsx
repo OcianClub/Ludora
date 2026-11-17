@@ -835,7 +835,14 @@ export default function SumulaPartida({
             Reconectando. Buscando atualizações do servidor.
           </Text>
         )}
-        {finalizada && <View style={[styles.row, { flexWrap: 'wrap' }]}><Text style={styles.muted}>Registros por tempo</Text>{Array.from({ length: ultimoPeriodoIniciado(data) + 1 }, (_, n) => <TouchableOpacity key={n} accessibilityRole="tab" accessibilityState={{ selected: tempo === n }} onPress={() => setTempoSelecionado(n)} style={[styles.button, tempo === n && { borderColor: colors.primaria }]}><Text style={styles.text}>{n ? `${n}º tempo` : 'Todos'}</Text></TouchableOpacity>)}</View>}
+        {finalizada && (
+          <View style={{ gap: 8 }}>
+            <Text style={styles.muted}>Registros por tempo</Text>
+            <View style={[styles.row, { flexWrap: 'wrap' }]}>
+              {Array.from({ length: ultimoPeriodoIniciado(data) + 1 }, (_, n) => <TouchableOpacity key={n} accessibilityRole="tab" accessibilityState={{ selected: tempo === n }} onPress={() => setTempoSelecionado(n)} style={[styles.button, tempo === n && { borderColor: colors.primaria }]}><Text style={styles.text}>{n ? `${n}º tempo` : 'Todos'}</Text></TouchableOpacity>)}
+            </View>
+          </View>
+        )}
         <View style={[styles.panel, aoVivo && styles.match]}>
           <View style={styles.between}>
             {finalizada ? (
@@ -1248,7 +1255,7 @@ export default function SumulaPartida({
           })}
           {acontecimentos.length > limiteEventos && <AppButton label={`Carregar mais acontecimentos (${acontecimentos.length - limiteEventos})`} onPress={() => setLimiteEventos(v => v + 30)} />}
         </View>
-        {(finalizada || (aoVivo && !data.podePreparar && !data.podeSumula)) && (
+        {(finalizada || aoVivo) && (
           <PalpitePartida data={data} />
         )}
         {finalizada && <AnalisePartida data={data} periodo={tempo || null} onPeriodoChange={value => setTempoSelecionado(value || 0)} />}

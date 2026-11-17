@@ -13,7 +13,8 @@
   color: var(--match-overdue-texto, var(--titulo-atencao));
   font: 600 10px/1.3 var(--font-corpo);
   letter-spacing: .3px;
-  white-space: nowrap;
+  max-width:100%;
+  white-space:normal;
 }
 :root[data-theme="light"] .match-overdue { --match-overdue-texto: #A65313; }
 .match-overdue > .icon { flex-shrink: 0; color: inherit; }

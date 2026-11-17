@@ -18,7 +18,7 @@ export function resumirVotos(contagens: Record<OpcaoPalpite, number>) {
 }
 
 const selecionarPartida = {
-  id: true, status: true, palpites_versao: true,
+  id: true, status: true, palpites_versao: true, sumula_clube_id: true,
   categoria: { select: { id: true, clube_id: true } },
   participantes: { select: { clube_id: true, categoria_id: true } },
   mandante: { select: { clube_representado_id: true } },
@@ -27,10 +27,11 @@ const selecionarPartida = {
 
 type PartidaPalpite = Prisma.PartidaGetPayload<{ select: typeof selecionarPartida }>;
 
-async function podeGerenciarPartida(tx: Prisma.TransactionClient, partida: PartidaPalpite, usuarioId: number) {
-  const equipes = partida.participantes.length ? partida.participantes : [
+async function podeOperarSumula(tx: Prisma.TransactionClient, partida: PartidaPalpite, usuarioId: number) {
+  if (!partida.sumula_clube_id) return false;
+  const equipes = (partida.participantes.length ? partida.participantes : [
     { clube_id: partida.categoria.clube_id, categoria_id: partida.categoria.id },
-  ];
+  ]).filter(equipe => equipe.clube_id === partida.sumula_clube_id);
   const permissoes = await Promise.all(equipes.map(equipe =>
     acesso(tx, { usuarioId, clubeId: equipe.clube_id }, equipe.categoria_id),
   ));
@@ -54,7 +55,7 @@ export async function consultarPalpite(banco: PrismaClient, partidaId: number, u
   return banco.$transaction(async tx => {
     const partida = await tx.partida.findUnique({ where: { id: partidaId }, select: selecionarPartida });
     if (!partida) throw new ErroPalpite(404, 'Partida não encontrada.');
-    const podeVotar = usuarioId ? !await podeGerenciarPartida(tx, partida, usuarioId) : undefined;
+    const podeVotar = usuarioId ? !await podeOperarSumula(tx, partida, usuarioId) : undefined;
     return resumo(tx, partida, usuarioId, podeVotar);
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
 }
@@ -66,8 +67,8 @@ export async function registrarPalpite(banco: PrismaClient, partidaId: number, u
     let partida = await tx.partida.findUnique({ where: { id: partidaId }, select: selecionarPartida });
     if (!partida) throw new ErroPalpite(404, 'Partida não encontrada.');
     if (!['AGENDADA', 'PREPARADA', 'AO_VIVO'].includes(partida.status)) throw new ErroPalpite(409, 'A votação desta partida está encerrada.');
-    if (await podeGerenciarPartida(tx, partida, usuarioId)) {
-      throw new ErroPalpite(403, 'Quem gerencia esta partida não pode dar um palpite nela.');
+    if (await podeOperarSumula(tx, partida, usuarioId)) {
+      throw new ErroPalpite(403, 'Quem opera a súmula desta partida pode acompanhar os resultados, mas não pode votar.');
     }
     const chave = { partida_id: partidaId, usuario_id: usuarioId };
     const anterior = await tx.votoPartida.findUnique({ where: { partida_id_usuario_id: chave }, select: { escolha: true } });
