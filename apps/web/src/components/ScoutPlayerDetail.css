@@ -440,6 +440,8 @@
   color: var(--texto-sec);
   font-size: 13px;
 }
+.athlete-loading-label { flex-direction: column; justify-content: center; text-align: center; min-width: 0; }
+.athlete-loading-label .spinner { margin: 0; flex-shrink: 0; }
 .athlete-skeleton {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

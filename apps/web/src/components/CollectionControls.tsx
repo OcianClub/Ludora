@@ -13,15 +13,15 @@ export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (va
   return <CollectionViewToggle className="collection-view" value={value} onChange={next => onChange(next === 'list' ? 'list' : 'grid')}
     options={[{ value: 'grid', label: 'Blocos', icon: 'grid' }, { value: 'list', label: 'Lista', icon: 'list' }]} />;
 }
-export function Choice({ label, value, options, onChange, disabled = false, placeholder = 'Selecionar', inlineOptions = false }: {
-  label: string; value: string; options: { value: string; label: string; icon?: IconName }[]; onChange: (value: string) => void; disabled?: boolean; placeholder?: string; inlineOptions?: boolean;
+export function Choice({ label, value, options, onChange, disabled = false, placeholder = 'Selecionar', inlineOptions = false, overlayInDialog = false }: {
+  label: string; value: string; options: { value: string; label: string; icon?: IconName }[]; onChange: (value: string) => void; disabled?: boolean; placeholder?: string; inlineOptions?: boolean; overlayInDialog?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const id = useId();
-  const inline = inlineOptions || !!root.current?.closest('dialog[open]');
-  const placement = useDropdownPlacement(root, open && !disabled, inline, 225);
+  const inline = inlineOptions || (!overlayInDialog && !!root.current?.closest('dialog[open]'));
+  const placement = useDropdownPlacement(root, open && !disabled, inline, 225, overlayInDialog);
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };

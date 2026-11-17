@@ -17,9 +17,9 @@ export function BirthDateField({ value, onChange }: { value: string; onChange: (
   return <fieldset className="birth-date-field full">
     <legend><Icon name="calendar" size={17} />Data de nascimento</legend>
     <div className="birth-fields">
-      <Choice label="Dia" placeholder="Dia" value={day} onChange={v => update(2, v)} options={Array.from({length:days},(_,i)=>option(i+1))} />
-      <Choice label="Mês" placeholder="Mês" value={month} onChange={v => update(1, v)} options={['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'].map((label,i) => ({value:String(i+1).padStart(2,'0'),label}))} />
-      <Choice label="Ano" placeholder="Ano" value={year} onChange={v => update(0, v)} options={Array.from({length: max-min+1}, (_,i) => option(max-i))} />
+      <Choice overlayInDialog label="Dia" placeholder="Dia" value={day} onChange={v => update(2, v)} options={Array.from({length:days},(_,i)=>option(i+1))} />
+      <Choice overlayInDialog label="Mês" placeholder="Mês" value={month} onChange={v => update(1, v)} options={['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'].map((label,i) => ({value:String(i+1).padStart(2,'0'),label}))} />
+      <Choice overlayInDialog label="Ano" placeholder="Ano" value={year} onChange={v => update(0, v)} options={Array.from({length: max-min+1}, (_,i) => option(max-i))} />
     </div>
     <small className="birth-date-hint">Nascimentos de {min} a {max}. O sub é definido pela idade na temporada.</small>
   </fieldset>;

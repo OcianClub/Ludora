@@ -63,6 +63,11 @@ try{for(const width of [320,360,390,600,900])for(const role of ['guest','manager
 const page=await browser.newPage({viewport:{width,height:840}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.goto(`${url}/?${role}`);
 try{await page.getByText('Eliminado na semifinal',{exact:true}).waitFor({timeout:10000});}catch(e){console.error(errors,await page.locator('body').innerText());throw e;}
+// The very first overview render must already have compact rows and a centered score.
+const trajectory=page.getByRole('button',{name:/^Ver partida:/}).first();
+const trajectoryBox=await trajectory.boundingBox();assert.ok(trajectoryBox.height<=70,'trajectory does not stretch during the first layout');
+const score=trajectory.getByText(/\d+ – \d+/, {exact:true});
+const scoreBox=await score.boundingBox();assert.ok(Math.abs((scoreBox.y+scoreBox.height/2)-(trajectoryBox.y+trajectoryBox.height/2))<5,'score is centered in the match row');
 await page.evaluate(()=>document.fonts.ready);
 assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${width}/${role} page overflow`);
 await page.screenshot({path:path.join(output,`overview-${role}-${width}.png`),fullPage:true});

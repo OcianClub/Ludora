@@ -5,7 +5,7 @@ import './ResponsivePanel.css';
 
 const mobileQuery = '(max-width: 760px)';
 
-export function ResponsivePanel({ anchor, title, onClose, children, footer, className = '', wide = false }: {
+export function ResponsivePanel({ anchor, title, onClose, children, footer, className = '', wide = false, desktopModal = false, matchAnchorWidth = false }: {
   anchor: HTMLElement | null;
   title: string;
   onClose: () => void;
@@ -13,13 +13,28 @@ export function ResponsivePanel({ anchor, title, onClose, children, footer, clas
   footer?: ReactNode;
   className?: string;
   wide?: boolean;
+  desktopModal?: boolean;
+  matchAnchorWidth?: boolean;
 }) {
   const [mobile, setMobile] = useState(() => matchMedia(mobileQuery).matches);
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const sheetId = useId();
   const close = useRef(onClose);
 
   useLayoutEffect(() => { close.current = onClose; }, [onClose]);
+  useLayoutEffect(() => {
+    const viewport = window.visualViewport;
+    if (!anchor || !mobile || !viewport) return;
+    const sheet = document.getElementById(sheetId);
+    if (!sheet) return;
+    const update = () => {
+      sheet.style.setProperty('--responsive-sheet-height', `${Math.max(0, viewport.height - 16)}px`);
+      sheet.style.bottom = `${Math.max(0, innerHeight - viewport.height - viewport.offsetTop)}px`;
+    };
+    update(); viewport.addEventListener('resize', update); viewport.addEventListener('scroll', update);
+    return () => { viewport.removeEventListener('resize', update); viewport.removeEventListener('scroll', update); };
+  }, [anchor, mobile, sheetId]);
   useEffect(() => {
     if (!anchor) return;
     const media = matchMedia(mobileQuery);
@@ -34,7 +49,7 @@ export function ResponsivePanel({ anchor, title, onClose, children, footer, clas
 
   useLayoutEffect(() => {
     const element = panel.current;
-    if (!anchor || mobile || !element) return;
+    if (!anchor || mobile || desktopModal || !element) return;
     if (typeof element.showPopover === 'function' && !element.matches(':popover-open')) {
       element.setAttribute('popover', 'manual');
       element.showPopover();
@@ -46,6 +61,7 @@ export function ResponsivePanel({ anchor, title, onClose, children, footer, clas
         return;
       }
       const box = anchor.getBoundingClientRect();
+      if (matchAnchorWidth) element.style.width = `${box.width}px`;
       const gutter = 12;
       const gap = 6;
       const below = innerHeight - box.bottom - gutter - gap;
@@ -53,7 +69,7 @@ export function ResponsivePanel({ anchor, title, onClose, children, footer, clas
       const content = element.querySelector('.modal-body');
       const fixedHeight = element.offsetHeight - (content?.clientHeight ?? 0);
       const desiredHeight = fixedHeight + (content?.scrollHeight ?? 0);
-      const up = below < Math.min(desiredHeight, 540) && above > below;
+      const up = below < Math.min(desiredHeight, matchAnchorWidth ? 200 : 540) && above > below;
       element.style.maxHeight = `${Math.min(540, Math.max(0, up ? above : below))}px`;
       element.style.left = `${Math.max(gutter, Math.min(box.right - element.offsetWidth, innerWidth - element.offsetWidth - gutter))}px`;
       element.style.top = up ? 'auto' : `${Math.max(gutter, box.bottom + gap)}px`;
@@ -85,10 +101,10 @@ export function ResponsivePanel({ anchor, title, onClose, children, footer, clas
         anchor.focus({ preventScroll: true });
       }
     };
-  }, [anchor, mobile]);
+  }, [anchor, mobile, desktopModal, matchAnchorWidth]);
 
   if (!anchor) return null;
-  if (mobile) return <Modal open title={title} onClose={onClose} className={`responsive-sheet ${className}`} footer={footer}>{children}</Modal>;
+  if (mobile || desktopModal) return <Modal id={sheetId} open title={title} onClose={onClose} className={`${mobile ? 'responsive-sheet' : 'responsive-dialog'} ${className}`} footer={footer}>{children}</Modal>;
 
   return createPortal(
     <div ref={panel} role="dialog" aria-labelledby={titleId} tabIndex={-1} data-swipe-ignore

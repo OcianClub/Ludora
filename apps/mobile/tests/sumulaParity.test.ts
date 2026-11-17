@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { acontecimentosPartida, nomeNaSubstituicao } from '../../../packages/shared-types/src/matchTimeline';
 import { test } from 'node:test';
 import type { GestaoPartida } from '../src/services/partidasCompartilhadas';
 import { validarLance, ultimoLance, placarDoPeriodo, trocaValida, ultimoPeriodoIniciado, podeControlarAoVivo, podeAvancarTempo } from '../src/utils/validacaoSumula';
@@ -116,7 +117,7 @@ test('expulso não registra lance nem retorna como reserva; reposição usa apen
 });
 
 
-test('somente o operador ao vivo avança tempos ou substitui, mesmo com permissão de preparação', () => {
+test('somente o operador inicia novos tempos; qualquer espectador pode consultar e voltar ao tempo atual', () => {
   const data = sumulaFixture();
   assert.equal(podeControlarAoVivo(data), true);
   assert.equal(podeAvancarTempo(data, 1, 4), true);
@@ -127,7 +128,7 @@ test('somente o operador ao vivo avança tempos ou substitui, mesmo com permiss�
   for (const podePreparar of [true, false]) {
     data.podePreparar = podePreparar;
     assert.equal(podeControlarAoVivo(data), false);
-    assert.equal(podeAvancarTempo(data, 1, 4), false, 'consultar tempo anterior não libera a seta de avanço');
+    assert.equal(podeAvancarTempo(data, 1, 4), true, 'consultar tempo anterior permite voltar ao tempo atual sem alterar a partida');
     assert.equal(podeAvancarTempo(data, 2, 4), false);
   }
   data.podeSumula = true;
@@ -136,4 +137,16 @@ test('somente o operador ao vivo avança tempos ou substitui, mesmo com permiss�
     assert.equal(podeControlarAoVivo(data), false);
     assert.equal(podeAvancarTempo(data, 1, 4), false);
   }
+});
+
+
+test('acontecimentos unem substituições e lances em ordem cronológica sem alterar os dados estatísticos', () => {
+  const eventos = [{id:1,periodo:1,criado_em:'2026-11-16T12:00:00Z'}, {id:2,periodo:1,criado_em:'2026-11-16T12:02:00Z'}];
+  const trocas = [{id:1,time_id:10,periodo:1,criado_em:'2026-11-16T12:01:00Z',reposicao_expulsao:false,sai:{nome:'Ana',numCamisa:7},entra:{nome:'Bia',numCamisa:9}}];
+  const antes = structuredClone(eventos);
+  const items = acontecimentosPartida(eventos,trocas);
+  assert.deepEqual(items.map(i=>i.key), ['evento:2','substituicao:1','evento:1']);
+  assert.deepEqual(eventos,antes);
+  assert.equal(nomeNaSubstituicao(trocas[0].sai),'#07 · Ana');
+  assert.deepEqual(acontecimentosPartida(eventos).map(i=>i.key),['evento:2','evento:1']);
 });

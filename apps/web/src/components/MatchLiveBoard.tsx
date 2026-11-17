@@ -1,4 +1,5 @@
 import { Toast } from './Toast';
+import { acontecimentosPartida, nomeNaSubstituicao } from '../../../../packages/shared-types/src/matchTimeline';
 import { createPortal } from 'react-dom';
 import { EVENT_REVIEW_MS, useDelayedMatchEvents } from '../hooks/useDelayedMatchEvents';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -153,7 +154,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
   }, canCorrect);
   const changing = busy || delayed.queue.length > 0;
   const scores = eventScores(data);
-  const timelineEvents = [...resultEvents].sort((a, b) => b.id - a.id);
+  const timelineEvents = acontecimentosPartida(resultEvents, (data.substituicoes || []).filter(troca => finalPeriod === null || troca.periodo === finalPeriod));
   const timelinePeriods = [...new Set(timelineEvents.map(event => event.periodo))].sort((a, b) => b - a);
   const lastRecorded = [...data.eventos].sort((a, b) => b.id - a.id)[0];
   // A goal and its optional assist are one action; undoing it must remove both.
@@ -640,7 +641,18 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
             )}
             {timelinePeriods.map(period => <section className="live-timeline-period" key={period} aria-label={`${period}º tempo`}>
               <h3><span>{period}º tempo</span></h3>
-              {timelineEvents.filter(event => event.periodo === period).map((event) => {
+              {timelineEvents.filter(event => event.periodo === period).map((item) => {
+                if (item.tipo === 'substituicao') {
+                  const troca = item.substituicao;
+                  const team = teams.find(team => team.id === troca.time_id);
+                  return <article key={item.key} data-substitution-id={troca.id} className={`live-timeline-event${troca.time_id === p.visitante_id ? ' is-visitor' : ' is-home'}`}>
+                    <span className="live-event-symbol"><Icon name="switchClub" size={20} /></span>
+                    <div className="live-event-copy"><div><strong>{troca.reposicao_expulsao ? 'Reposição após expulsão' : 'Substituição'}{team && <span className="live-event-team">{team.nome}</span>}</strong></div>
+                      <p>Sai: {nomeNaSubstituicao(troca.sai)}</p><p>Entra: {nomeNaSubstituicao(troca.entra)}</p>
+                    </div>
+                  </article>;
+                }
+                const event = item.evento;
                 const team = teams.find((team) => team.id === event.time_id);
                 const player = data.equipes
                   .find((team) => team.time_id === eventAuthorTeam(data, event))

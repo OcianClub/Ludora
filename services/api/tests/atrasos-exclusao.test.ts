@@ -1,0 +1,60 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {excluirNaoIniciada,exigirHorarioFuturo} from '../src/modules/partidas/compartilhadas.service';
+import {agoraPartida,filtroPartidasAtrasadas,horarioPassado} from '../src/modules/partidas/horario';
+import {processarAtrasos} from '../src/modules/partidas/atrasos';
+import {consultarLembrete,enviarLembrete} from '../src/modules/admin/partidas-revisao';
+const agora=new Date('2026-11-17T00:47:30Z');
+
+test('horário de Brasília: impede ontem e horários passados hoje; admite minuto atual e datas futuras',()=>{
+  assert.equal(agoraPartida(agora),'2026-11-16T21:47');
+  assert.throws(()=>exigirHorarioFuturo('2026-11-16','21:46',agora),/horário já passou/);
+  assert.throws(()=>exigirHorarioFuturo('2026-11-15','23:59',agora),/horário já passou/);
+  assert.doesNotThrow(()=>exigirHorarioFuturo('2026-11-16','21:47',agora));
+  assert.doesNotThrow(()=>exigirHorarioFuturo('2026-11-17','00:00',agora));
+  assert.equal(horarioPassado('2026-11-16',null,agora),false);
+  const filtro=filtroPartidasAtrasadas(agora);
+  assert.deepEqual(filtro.status,{in:['AGENDADA','PREPARADA']});
+  assert.equal((filtro.OR![1] as any).horario.lt,'21:47');
+});
+test('exclusão trava a partida e só remove confronto local não iniciado e sem registros',async()=>{
+  const p:any={id:1,status:'AGENDADA',versao:2,categoria_id:4,categoria:{clube_id:2},organizador_id:2,participantes:[{clube_id:2}],mandante:{clube_representado_id:2},visitante:{clube_representado_id:null},gols_mandante:0,gols_visitante:0};
+  let locked=false,deleted=0,events=0,official=0,history=0,proposals=0,role='ADMIN';
+  const tx:any={ $queryRaw:async()=>{locked=true;},partida:{findUnique:async()=>{assert.equal(locked,true);return p;},delete:async()=>{deleted++;}},usuarioClube:{findUnique:async()=>({papel:role,categorias:[]})},evento:{count:async()=>events},fpfsJogo:{count:async()=>official},propostaPartida:{count:async()=>proposals},auditoriaPartida:{count:async()=>history,deleteMany:async()=>{}} };
+  const excluir=()=>excluirNaoIniciada(tx,{usuarioId:10,clubeId:2},1,2);
+  role='TORCEDOR';await assert.rejects(excluir,/organizador autorizado/);role='ADMIN';
+  p.organizador_id=3;await assert.rejects(excluir,/organizador autorizado/);p.organizador_id=2;
+  p.status='AO_VIVO';await assert.rejects(excluir,/iniciadas/);p.status='AGENDADA';
+  p.versao=3;await assert.rejects(excluir,/partida mudou/);p.versao=2;
+  p.participantes.push({clube_id:3});await assert.rejects(excluir,/outro clube/);p.participantes.pop();
+  p.visitante.clube_representado_id=3;await assert.rejects(excluir,/outro clube/);p.visitante.clube_representado_id=null;
+  events=1;await assert.rejects(excluir,/registros vinculados/);events=0;
+  official=1;await assert.rejects(excluir,/dados oficiais/);official=0;
+  history=1;await assert.rejects(excluir,/registros vinculados/);history=0;
+  proposals=1;await assert.rejects(excluir,/registros vinculados/);proposals=0;
+  assert.equal(deleted,0);await excluir();assert.equal(deleted,1);
+});
+test('avisos automáticos são individuais, idempotentes e renovados apenas para nova agenda',async()=>{
+  const p:any={id:1,status:'AGENDADA',data:new Date('2026-11-16'),horario:'18:00',organizador_id:2,categoria_id:4,categoria:{clube_id:2},fpfsJogo:null,mandante:{nome:'Ocian'},visitante:{nome:'Visitante'}};
+  const auditorias:any[]=[],notificacoes:any[]=[],pushes:any[]=[],emissoes:any[]=[];
+  const banco:any={partida:{findMany:async()=>[{id:1}],findUnique:async()=>p},$queryRaw:async()=>{},usuarioClube:{findMany:async({where}:any)=>{assert.equal(where.clube_id,2);assert.deepEqual(where.usuario,{suspenso:false});return [{usuario_id:10},{usuario_id:10},{usuario_id:11}];}},auditoriaPartida:{findFirst:async({where}:any)=>auditorias.find(a=>a.dados.agenda===where.dados.equals),create:async({data}:any)=>{auditorias.push(data);}},notificacao:{create:async({data}:any)=>{const n={id:notificacoes.length+1,...data};notificacoes.push(n);return n;}}};
+  let fila=Promise.resolve();banco.$transaction=(fn:any)=>{const result=fila.then(()=>fn(banco));fila=result.catch(()=>{});return result;};
+  const io:any={to:(room:string)=>({emit:(event:string,n:any)=>emissoes.push({room,event,n})})};
+  const executar=()=>processarAtrasos(banco,io,agora,0,async(...args:any[])=>{pushes.push(args);});
+  await Promise.all([executar(),executar()]);assert.equal(notificacoes.length,2);assert.equal(auditorias.length,1);assert.equal(pushes.length,2);
+  assert.deepEqual(notificacoes.map(n=>n.usuario_id),[10,11]);assert.equal(p.status,'AGENDADA');
+  assert.ok(emissoes.some(e=>e.room==='usuario:10' && e.event==='notificacao_criada'));
+  p.status='FINALIZADA';await executar();assert.equal(notificacoes.length,2);
+  p.status='AGENDADA';p.horario='19:00';await executar();assert.equal(notificacoes.length,4);
+  p.data=new Date('2026-11-18');await executar();assert.equal(notificacoes.length,4);
+  p.data=new Date('2026-11-16');p.fpfsJogo={id:1};await executar();assert.equal(notificacoes.length,4,'official source is not treated as an abandoned local game');
+});
+test('desktop envia lembrete de atraso ao gestor escolhido, sem cancelar/iniciar por conta própria',async()=>{
+  const p:any={id:1,status:'PREPARADA',data:new Date('2026-11-16'),horario:'18:00',organizador_id:2,sumula_clube_id:2,categoria_id:4,auditoria:[],mandante:{nome:'Ocian'},visitante:{nome:'Visitante'}};
+  const notas:any[]=[],logs:any[]=[];
+  const banco:any={partida:{findUnique:async()=>p},clube:{findUnique:async()=>({id:2,nome:'Ocian',ativo:true})},usuarioClube:{findMany:async()=>[{papel:'ADMIN',usuario:{id:10,nome:'Ana',email:'ana@example.test'}}]},auditoriaPartida:{findFirst:async()=>logs.at(-1),create:async({data}:any)=>logs.push(data)},notificacao:{create:async({data}:any)=>{notas.push(data);return {...data,id:1};}},$queryRaw:async()=>{}};
+  banco.$transaction=(fn:any)=>fn(banco);
+  assert.equal((await consultarLembrete(banco,1,agora)).atrasada,true);
+  await enviarLembrete(banco,1,10,100,agora);assert.equal(notas[0].usuario_id,10);assert.equal(notas[0].dados.acao,'REVISAR_ATRASO');assert.match(notas[0].corpo,/reagende ou cancele/);assert.equal(p.status,'PREPARADA');
+  await assert.rejects(enviarLembrete(banco,1,10,100,agora),/últimas 24 horas/);
+});

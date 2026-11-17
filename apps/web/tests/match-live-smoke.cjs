@@ -24,13 +24,13 @@ fs.mkdirSync(output, { recursive: true });
       opponent[1].jogador.nome = 'Atleta Santos com nome e sobrenome extremamente longos para validar truncamento';
       let external = false, operator = true, readyPending = false, failReply = width === 1440 && theme === 'dark';
       let events = [], nextId = 1, posts = 0;
-      const saved = new Map();
+      const saved = new Map(), substitutions = [];
       const p = { id: 106, status: 'AO_VIVO', data: '2026-10-30', horario: '19:30', local: 'Ginásio Ocian', categoria_id: 1, categoria: { id: 1, nome: 'sub-7' }, mandante_id: 13, visitante_id: 14, mandante: { id: 13, nome: 'Ocian' }, visitante: { id: 14, nome: 'Santos' }, gols_mandante: 0, gols_visitante: 0, periodo_atual: 1, versao: 1, sumula_clube_id: 2, titulares_necessarios: 5 };
       const audit = [
         { id: 1, acao: 'PARTIDA_CRIADA', criado_em: '2026-10-30T18:00:00Z' },
         { id: 2, acao: 'EQUIPE_CONFIRMADA', criado_em: '2026-10-30T18:05:00Z' },
       ];
-      const data = () => ({ partida: p, organizador: { id: 2, nome: 'Ocian' }, podePreparar: operator, podeSumula: operator, minhaEquipeId: 1, auditoria: audit, eventos: events, equipes: [{ id: 1, clube_id: 2, time_id: 13, categoria_id: 1, clube: { id: 2, nome: 'Ocian' }, publicada_em: '2026-10-30', escalacao: players }, ...(!external ? [{ id: 2, clube_id: 3, time_id: 14, categoria_id: 2, clube: { id: 3, nome: 'Santos' }, publicada_em: '2026-10-30', escalacao: opponent }] : [])] });
+      const data = () => ({ partida: p, organizador: { id: 2, nome: 'Ocian' }, podePreparar: operator, podeSumula: operator, minhaEquipeId: 1, auditoria: audit, eventos: events, substituicoes: external ? [] : substitutions, equipes: [{ id: 1, clube_id: 2, time_id: 13, categoria_id: 1, clube: { id: 2, nome: 'Ocian' }, publicada_em: '2026-10-30', escalacao: players }, ...(!external ? [{ id: 2, clube_id: 3, time_id: 14, categoria_id: 2, clube: { id: 3, nome: 'Santos' }, publicada_em: '2026-10-30', escalacao: opponent }] : [])] });
       await page.route('**/partidas/106/gestao', route => route.fulfill({ json: data() }));
       await page.route('**/partidas/106/eventos', async route => {
         posts++;
@@ -65,7 +65,10 @@ fs.mkdirSync(output, { recursive: true });
       await page.route('**/partidas/106/local', route => { p.local = route.request().postDataJSON().local; p.versao++; return route.fulfill({ json: {} }); });
       await page.route('**/partidas/106/periodo', route => { p.periodo_atual = route.request().postDataJSON().periodo; p.versao++; return route.fulfill({ json: {} }); });
       await page.route('**/partidas/106/substituicoes', route => {
-        const { sai, entra } = route.request().postDataJSON(); players.find(player => player.jogador_id === sai).titular = false; players.find(player => player.jogador_id === entra).titular = true; p.versao++; return route.fulfill({ json: {} });
+        const { sai, entra } = route.request().postDataJSON();
+        const identity = id => { const row = players.find(p => p.jogador_id === id); return {nome: row.jogador.nome, numCamisa: row.numCamisa}; };
+        substitutions.push({id:1,time_id:13,periodo:p.periodo_atual,criado_em:new Date().toISOString(),reposicao_expulsao:false,sai:identity(sai),entra:identity(entra)});
+        players.find(player => player.jogador_id === sai).titular = false; players.find(player => player.jogador_id === entra).titular = true; p.versao++; return route.fulfill({ json: {} });
       });
       p.local = width === 320 ? '' : 'Ginásio Ocian com endereço longo para testar o alinhamento';
       await page.goto(base + '/partidas/106');
@@ -289,6 +292,9 @@ fs.mkdirSync(output, { recursive: true });
       await dialog.getByRole('button', { name: 'Confirmar troca' }).click();
       await dialog.waitFor({ state: 'detached' });
       assert.equal(players[0].titular, false); assert.equal(players[5].titular, true);
+      await page.locator('[data-substitution-id="1"]').getByText('Sai: #01 · Atleta Ocian 1',{exact:true}).waitFor();
+      await page.locator('[data-substitution-id="1"]').getByText('Entra: #06 · Atleta Ocian 6',{exact:true}).waitFor();
+      assert.equal(await page.locator('[data-substitution-id="1"] .live-event-menu').count(),0,'Substitution does not expose event deletion controls');
       assert.equal(await page.locator('.ludora-toast-action').count(), 0, 'Substituição não oferece reverter um gol anterior');
       await page.locator('.match-detail-header h1').click();
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));

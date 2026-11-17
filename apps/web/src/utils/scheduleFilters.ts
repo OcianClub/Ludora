@@ -1,4 +1,5 @@
 import type { Partida } from '../services/api';
+import { agoraPartida, partidaAtrasada } from '../../../../packages/shared-types/src/matchSchedule';
 
 export type PeriodoAgenda = 'all' | 'today' | 'week' | 'month' | 'custom';
 
@@ -46,7 +47,8 @@ export function agruparAgenda(matches: Partida[], hoje = diaLocal(new Date())) {
     else if (match.status === 'CANCELADA') groups.cancelled.push(match);
     else {
       const day = match.data.slice(0, 10);
-      groups[day === hoje ? 'today' : day > hoje ? 'upcoming' : 'overdue'].push(match);
+      const atrasoHoje=day===hoje && agoraPartida().startsWith(hoje) && partidaAtrasada(match);
+      groups[atrasoHoje ? 'overdue' : day === hoje ? 'today' : day > hoje ? 'upcoming' : 'overdue'].push(match);
     }
   }
   return groups;

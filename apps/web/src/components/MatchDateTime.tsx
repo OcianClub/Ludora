@@ -4,11 +4,12 @@ import { Choice } from './CollectionControls';
 import { Icon } from './Icon';
 import './MatchDateTime.css';
 import { formatTimeInput, validTimeInput } from '../utils/timeInput';
+import { atalhosDataPartida } from '../utils/matchOrganization';
 
 const pad = (value: number) => String(value).padStart(2, '0');
 const months = Array.from({ length: 12 }, (_, i) => ({ value: String(i), label: new Date(2026, i, 1).toLocaleDateString('pt-BR', { month: 'long' }) }));
 
-export function MatchDateField({ value, onChange, min, disabled = false }: { value: string; onChange: (value: string) => void; min?: string; disabled?: boolean }) {
+export function MatchDateField({ value, onChange, min, disabled = false, quickDates = false }: { value: string; onChange: (value: string) => void; min?: string; disabled?: boolean; quickDates?: boolean }) {
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [cursor, setCursor] = useState(new Date());
   const id = useId();
@@ -21,6 +22,7 @@ export function MatchDateField({ value, onChange, min, disabled = false }: { val
     <button className="field-input date-time-trigger" type="button" aria-labelledby={id} aria-haspopup="dialog" aria-expanded={!!anchor} disabled={disabled} onClick={event => {
       setCursor(new Date(`${value || min || new Date().toLocaleDateString('sv-SE')}T12:00:00`)); setAnchor(anchor ? null : event.currentTarget);
     }}><Icon name="calendar" size={18}/>{value ? value.split('-').reverse().join('/') : 'Escolher data'}</button>
+    {quickDates && min && <div className="match-quick-dates" role="group" aria-label="Atalhos de data">{atalhosDataPartida(min).map(item => <button type="button" key={item.label} disabled={disabled} aria-pressed={value === item.value} onClick={() => onChange(item.value)}>{item.label}<span>{item.dateLabel}</span></button>)}</div>}
     <ResponsivePanel anchor={anchor} onClose={() => setAnchor(null)} title="Data da partida" className="match-date-dialog" wide>
       <div className="calendar-navigation">
         <button type="button" aria-label="Mês anterior" disabled={year <= 1900 || !!min && prefix <= min.slice(0, 7)} onClick={() => setCursor(new Date(year, month - 1, 1))}><Icon name="chevronLeft"/></button>

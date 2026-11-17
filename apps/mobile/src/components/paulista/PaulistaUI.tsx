@@ -87,12 +87,12 @@ export function ResultadoOficial({ jogo, minhas }: { jogo: JogoPaulista; minhas:
 export function ConfrontoOficial({ jogo, equipes, minhas, onPress }: { jogo: JogoPaulista; equipes: Map<number, EquipePaulista>; minhas: Set<number>; onPress?: () => void }) {
   const s = usePaulistaStyles(), { colors } = useTheme();
   const team = (id: number, reverse = false) => <View style={[s.team, { flexDirection: reverse ? 'row-reverse' : 'row' }]}><EscudoOficial equipe={equipes.get(id)} size={24} /><Text numberOfLines={1} style={[s.tiny, { flexShrink: 1, color: minhas.has(id) ? colors.texto : colors.textoSecundario, fontFamily: minhas.has(id) ? 'Inter_600SemiBold' : 'Inter_400Regular' }]}>{nomeOficial(equipes.get(id)?.nome || 'A confirmar')}</Text></View>;
-  const content = <>{team(jogo.mandanteId)}<Text style={s.score}>{temResultado(jogo) ? `${jogo.golsMandante} – ${jogo.golsVisitante}` : jogo.ocorrencia === 'WO' ? 'WO' : 'VS'}</Text>{team(jogo.visitanteId, true)}</>;
+  const content = <View collapsable={false} style={s.contestRow}>{team(jogo.mandanteId)}<View collapsable={false} style={s.scoreCell}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.8} style={s.score}>{temResultado(jogo) ? `${jogo.golsMandante} – ${jogo.golsVisitante}` : jogo.ocorrencia === 'WO' ? 'WO' : 'VS'}</Text></View>{team(jogo.visitanteId, true)}{onPress && <Icon name="chevron-right" size={12} color={colors.textoSecundario}/>}</View>;
   if (!onPress) return <View style={s.contest}>{content}</View>;
   const mandante = equipes.get(jogo.mandanteId)?.nome || 'Equipe a confirmar';
   const visitante = equipes.get(jogo.visitanteId)?.nome || 'Equipe a confirmar';
   return <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Ver partida: ${mandante} contra ${visitante}`} onPress={onPress} activeOpacity={.85} style={s.contest}>
-    {content}<Icon name="chevron-right" size={12} color={colors.textoSecundario} />
+    {content}
   </TouchableOpacity>;
 }
 export function Panel({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) { const s = usePaulistaStyles(); return <View style={[s.panel, style]}>{children}</View>; }
@@ -104,9 +104,11 @@ function estilos(c: ThemeColors) { return StyleSheet.create({
   heading: { color: c.texto, fontSize: 15, fontFamily: 'Inter_600SemiBold' }, title: { color: c.texto, fontSize: 25, lineHeight: 33, fontFamily: 'Oswald_600SemiBold' },
   text: { color: c.texto, fontSize: 13, lineHeight: 20, fontFamily: 'Inter_400Regular' }, muted: { color: c.textoSecundario, fontSize: 12, lineHeight: 19, fontFamily: 'Inter_400Regular' }, tiny: { color: c.textoSecundario, fontSize: 11, lineHeight: 17, fontFamily: 'Inter_400Regular' },
   link: { color: c.primaria, fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular' }, number: { color: c.texto, fontSize: 30, lineHeight: 39, fontFamily: 'Oswald_600SemiBold' },
-  team: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  contest: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 9, borderWidth: 1, borderColor: c.borda, backgroundColor: c.fundo, borderRadius: 7, minHeight: 48 },
-  score: { color: c.texto, fontSize: 17, fontFamily: 'Inter_600SemiBold', textAlign: 'center', minWidth: 46, fontVariant: ['tabular-nums'] },
+  team: { flexGrow:1, flexShrink:1, flexBasis:0, minWidth:0, flexDirection:'row', alignItems:'center', gap:6 },
+  contest: { alignSelf:'stretch', flexShrink:0, paddingHorizontal:8, paddingVertical:9, borderWidth:1, borderColor:c.borda, backgroundColor:c.fundo, borderRadius:7 },
+  contestRow: { flexDirection:'row', width:'100%', alignItems:'center', gap:6, minHeight:30, flexGrow:0, flexShrink:0 },
+  scoreCell: { width:64, flexShrink:0, justifyContent:'center' },
+  score: { color:c.texto, fontSize:17, lineHeight:23, includeFontPadding:false, fontFamily:'Inter_600SemiBold', textAlign:'center', fontVariant:['tabular-nums'] },
   select: { gap: 10, borderRadius: 8, borderWidth: 1, borderColor: c.borda, backgroundColor: c.card, minHeight: 44, paddingHorizontal: 12 },
   divider: { borderBottomWidth: 1, borderBottomColor: c.linha }, metric: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 7, minWidth: 0 },
   empty: { paddingVertical: 48, paddingHorizontal: 16, alignItems: 'center', gap: 12 },

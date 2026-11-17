@@ -8,11 +8,13 @@ export type PlanoClube = 'FREE' | 'DEMO' | 'TRIAL' | 'PRO';
 export type NivelLog = 'info' | 'warn' | 'error' | 'audit';
 
 export interface PartidaRevisao {
+  atrasada?: boolean;
   id: number; data: string; horario: string | null; organizador_id: number | null; inicioAoVivo: string | null;
   mandante: { nome: string; escudo: string | null }; visitante: { nome: string; escudo: string | null };
   categoria: { nome: string; clube_id: number };
 }
 export interface ResumoOperacional {
+  atrasadas?: PartidaRevisao[] | null;
   consultadoEm: string;
   chamados: { abertos: number; atrasados: number } | null;
   manutencao: number | null;

@@ -21,8 +21,7 @@ function Lembrete({ partida }: { partida: PartidaRevisao }) {
     const cargo = g.papel === 'ADMIN' ? 'Administrador' : 'Técnico';
     const nome = g.nome.trim();
     const label = nome.localeCompare(cargo, 'pt-BR', { sensitivity: 'base' }) === 0 ? nome : `${nome} · ${cargo}`;
-    const homonimos = ctx!.gestores.filter(outro => outro.nome.trim().localeCompare(nome, 'pt-BR', { sensitivity: 'base' }) === 0);
-    return { value: String(g.id), label: homonimos.length > 1 && g.email ? `${label} · ${g.email}` : label };
+    return { value: String(g.id), label: g.email ? `${label} · ${g.email}` : label };
   });
   const url = `/admin/overview/partidas/${partida.id}/lembrete`;
   useEffect(() => {
@@ -50,13 +49,13 @@ function Lembrete({ partida }: { partida: PartidaRevisao }) {
     } finally { setOcupado(false); }
   }
   return <div className="overview-reminder" data-open={aberto}>
-    {!aberto ? <Btn variant="ghost" aria-label="Solicitar revisão ao organizador" disabled={!partida.organizador_id} onClick={() => setAberto(true)}><Icon name="bell" size={15}/>Solicitar revisão</Btn> : <>
+    {!aberto ? <Btn variant="ghost" aria-label="Solicitar revisão ao organizador" disabled={!(partida.organizador_id ?? partida.categoria.clube_id)} onClick={() => setAberto(true)}><Icon name="bell" size={15}/>Solicitar revisão</Btn> : <>
       {ocupado && !ctx && <p role="status">Consultando responsáveis…</p>}
       {ctx && <><strong>Organizador: {ctx.organizador?.nome ?? 'Não identificado'}</strong>
         {ctx.gestores.length > 0 ? <DesktopSelect label="Gestor destinatário" placeholder="Selecione o responsável" fullWidth showLabel value={gestor} onChange={setGestor} disabled={ocupado || !ctx.podeEnviar}
           options={destinatarios}/> : <p>Nenhum gestor habilitado disponível para esta categoria.</p>}
         {ctx.ultimoEnvio && <small>Último lembrete: {data(ctx.ultimoEnvio)}. Novo envio a partir de {ctx.disponivelEm && data(ctx.disponivelEm)}.</small>}
-        <p>O responsável receberá um aviso para conferir e finalizar a súmula, se o jogo já terminou. A partida continuará ativa.</p>
+        <p>{partida.atrasada ? 'O responsável receberá um aviso para conferir se pode iniciar, reagendar ou cancelar a partida. Nada será excluído automaticamente.' : 'O responsável receberá um aviso para conferir e finalizar a súmula, se o jogo já terminou. A partida continuará ativa.'}</p>
       </>}
       {enviado && <p role="status">Lembrete salvo nas notificações do gestor.</p>}
       {erro && <p role="alert">{erro}</p>}
@@ -69,13 +68,13 @@ function Lembrete({ partida }: { partida: PartidaRevisao }) {
 }
 
 export function LiveMatchesReview({ open, onClose, partidas, consultadoEm }: { open: boolean; onClose: () => void; partidas: PartidaRevisao[]; consultadoEm?: string }) {
-  return <Modal open={open} title="Revisar partidas ao vivo" className="overview-review-dialog" onClose={onClose}>
-    <div className="overview-review-intro"><p className="overview-modal-note">O prazo conta desde a mudança para “Ao vivo”. Sem registro do início, a duração não pode ser confirmada.</p>
+  return <Modal open={open} title="Revisar partidas" className="overview-review-dialog" onClose={onClose}>
+    <div className="overview-review-intro"><p className="overview-modal-note">Partidas atrasadas ultrapassaram o horário previsto sem início. Nas partidas ao vivo, o prazo conta desde o início registrado.</p>
     {consultadoEm && <small className="overview-modal-note">Consulta: {data(consultadoEm)}</small>}</div>
     <ul className="overview-old-matches">{partidas.map(p => <li key={p.id}>
       <div className="overview-review-match-main">
       <div className="overview-review-teams"><span><ClubBadge src={p.mandante.escudo} name={p.mandante.nome} size={32}/><strong>{p.mandante.nome}</strong></span><span aria-hidden="true">×</span><span><ClubBadge src={p.visitante.escudo} name={p.visitante.nome} size={32}/><strong>{p.visitante.nome}</strong></span></div>
-      <small>{p.categoria.nome} · {p.inicioAoVivo ? `Ao vivo desde ${data(p.inicioAoVivo)}` : 'Início não registrado · duração desconhecida'}</small>
+      <small>{p.categoria.nome} · {p.atrasada ? `Atrasada · ${p.data.slice(0,10).split('-').reverse().join('/')} às ${p.horario || 'horário não informado'}` : p.inicioAoVivo ? `Ao vivo desde ${data(p.inicioAoVivo)}` : 'Início não registrado · duração desconhecida'}</small>
       </div>
       <div className="overview-review-actions"><Lembrete partida={p}/><Link to={`/clubes/${p.organizador_id ?? p.categoria.clube_id}`} onClick={onClose}>Gerenciar clube<Icon name="chevronRight" size={14}/></Link></div>
     </li>)}</ul>

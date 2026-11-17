@@ -7,6 +7,7 @@ export interface EquipePartida {
   escalacao: { jogador_id: number; numCamisa: number; titular: boolean; expulso?: boolean; reposicao_pendente?: boolean; titular_inicial?: boolean; jogador?: { nome: string; posicao: string } }[];
 }
 export interface GestaoPartida {
+  substituicoes?: import('../../../../packages/shared-types/src/matchTimeline').SubstituicaoPartida[];
   partida: { id: number; status: string; versao: number; data: string; horario: string; local?: string; periodo_atual: number; titulares_necessarios: number; sumula_clube_id: number; organizador_id: number;
     mandante_id: number; visitante_id: number; gols_mandante: number; gols_visitante: number; categoria: { id: number; nome: string }; competicao?: { nome: string } | null;
     mandante: { id: number; nome: string; escudo?: string }; visitante: { id: number; nome: string; escudo?: string } };

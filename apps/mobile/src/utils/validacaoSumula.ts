@@ -4,7 +4,8 @@ export function podeControlarAoVivo(data: GestaoPartida) {
   return data.partida.status === 'AO_VIVO' && data.podeSumula;
 }
 export function podeAvancarTempo(data: GestaoPartida, tempo: number, total: number, alterando = false) {
-  return podeControlarAoVivo(data) && !alterando && tempo >= 1 && tempo < total;
+  return data.partida.status === 'AO_VIVO' && !alterando && tempo >= 1 && tempo < total
+    && (tempo < data.partida.periodo_atual || podeControlarAoVivo(data));
 }
 export function ultimoPeriodoIniciado(data: GestaoPartida) {
   return Math.max(1, data.partida.periodo_atual,

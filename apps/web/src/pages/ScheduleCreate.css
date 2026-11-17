@@ -10,6 +10,10 @@
 .schedule-create-club strong {
   overflow-wrap: anywhere;
 }
+.schedule-create-club > span:not(.club-badge) { display:grid; gap:3px; min-width:0; }
+.schedule-create-club small { color:var(--texto-sec); font-size:11px; }
+.schedule-create-category { display:grid; flex-shrink:0; gap:5px; }
+.schedule-create-category > span { color:var(--texto-sec); font-size:11px; }
 
 .schedule-create-club .club-badge,
 .schedule-create-team .club-badge,
@@ -28,12 +32,13 @@
   gap: 10px;
   min-height: 44px;
   padding: 10px 14px;
-  border: 0;
+  border: 1px solid var(--borda);
   border-radius: 9px;
-  background: var(--primaria);
-  color: white;
+  background: var(--fundo-card);
+  color: var(--texto);
   font-weight: 600;
 }
+.schedule-create-sub:hover, .schedule-create-sub[aria-expanded="true"] { background:var(--superficie-neutra); }
 
 .schedule-create-sub > .icon,
 .schedule-create-competition > .icon:last-child {
@@ -175,6 +180,15 @@
   display: grid;
   gap: 4px;
 }
+.schedule-picker-group-label {
+  margin: 14px 4px 4px;
+  color: var(--texto-sec);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+.schedule-picker-group-label:first-child { margin-top: 4px; }
 
 .schedule-picker-options > button {
   display: flex;
@@ -417,6 +431,51 @@
 }
 .schedule-picker-options > button[aria-pressed="true"] { border-color: var(--primaria); box-shadow: inset 0 0 0 1px var(--primaria); }
 .schedule-category-groups { display: grid; gap: 24px; }
+.responsive-popover.schedule-selection-panel[role="dialog"] { width:min(448px,calc(100vw - 24px)); }
+.responsive-popover.schedule-selection-categoria[role="dialog"] { width:min(400px,calc(100vw - 24px)); }
+.schedule-selection-panel .modal-footer > .btn { width:100%; }
+.schedule-selection-panel .schedule-category-groups { gap:18px; }
+.schedule-selection-panel .schedule-category-group h3 { color:var(--texto-sec); font:600 11px var(--font-corpo); letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; }
+.schedule-selection-panel .schedule-category-group > div { gap:8px; }
+.schedule-selection-panel .schedule-category-group button { min-height:44px; padding:9px 4px; font-size:12px; gap:4px; }
+.schedule-selection-panel .schedule-category-options { gap:16px; }
+.schedule-selection-panel .schedule-category-warning { font-size:12px; line-height:1.6; }
+.responsive-popover.schedule-selection-visitante[role="dialog"] { height:520px; }
+.schedule-selection-visitante[role="dialog"] .modal-body { display:flex; flex:1; padding:0; overflow:hidden; min-height:0; }
+.schedule-selection-visitante[role="dialog"] .modal-header { border-bottom:0; }
+.responsive-dialog.schedule-selection-visitante { width:min(600px,calc(100vw - 40px)); max-width:600px; height:min(720px,calc(100dvh - 48px)); }
+.responsive-sheet.schedule-selection-visitante { height:min(88dvh,760px); }
+.schedule-repeat-action { display:inline-flex; align-items:center; justify-content:center; gap:6px; border:0; border-radius:6px; background:transparent; padding:8px 5px; color:var(--texto-sec); font:inherit; font-size:11px; min-height:36px; }
+.schedule-repeat-action:hover { color:var(--primaria); background:var(--superficie-neutra); }
+.schedule-repeat-action:focus-visible { outline:2px solid var(--primaria); outline-offset:2px; }
+.schedule-match-grid .match-card-actions:has(.schedule-repeat-action) { flex-wrap:wrap; justify-content:flex-end; gap:4px 10px; }
+.match-list-actions .schedule-repeat-action { width:36px; min-height:36px; padding:8px; }
+.match-list-actions .schedule-repeat-action > span { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.schedule-repeat-note { margin:0; color:var(--texto-sec); font-size:12px; line-height:1.6; }
+.match-quick-dates { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; gap:6px; margin-top:8px; }
+.match-quick-dates button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-width:0; min-height:48px; padding:6px 4px; border:1px solid var(--linha); border-radius:7px; background:var(--fundo-card); color:var(--texto); font:inherit; font-size:11px; text-align:center; }
+.match-quick-dates button > span { color:var(--texto-sec); font-size:10px; }
+.match-quick-dates button:hover { background:var(--superficie-neutra); }
+.match-quick-dates button[aria-pressed="true"] { border-color:var(--primaria); color:var(--primaria); }
+.schedule-create-date { align-items:start; }
+.schedule-availability { display:flex; align-items:flex-start; gap:7px; font-size:12px; line-height:1.6; color:var(--texto-sec); }
+.schedule-availability > .icon { flex-shrink:0; margin-top:2px; }
+.schedule-availability[data-conflict="true"] { color:var(--texto); }
+.schedule-availability[data-conflict="true"] > .icon { color:var(--primaria); }
+.schedule-availability a { display:block; width:fit-content; color:var(--primaria); text-decoration:underline; }
+.schedule-location-shortcut { display:flex; gap:8px; align-items:center; padding:10px 12px; border:1px solid var(--linha); border-radius:8px; background:var(--fundo-card); color:var(--texto); text-align:left; font:inherit; font-size:12px; }
+.schedule-location-shortcut:hover { background:var(--superficie-neutra); }
+.schedule-location-shortcut .icon { flex-shrink:0; color:var(--primaria); }
+.schedule-location-shortcut small { display:block; margin-top:4px; color:var(--texto-sec); overflow-wrap:anywhere; }
+.schedule-selection-panel .schedule-category-group button:focus-visible { outline:2px solid var(--primaria); outline-offset:2px; }
+@media (max-width:380px) {
+  .schedule-selection-panel .schedule-category-group > div { gap:6px; }
+  .schedule-selection-panel .schedule-category-group button { padding-inline:2px; gap:3px; }
+}
+@media (max-width:480px) {
+  .schedule-selection-panel .schedule-category-group > div { grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+  .schedule-selection-panel .schedule-category-group button { padding-inline:2px; gap:3px; }
+}
 .schedule-category-group { min-width: 0; }
 .schedule-category-dialog { max-height: min(680px, calc(100dvh - 32px)); }
 .schedule-picker-dialog .modal-body { min-height: 0; }

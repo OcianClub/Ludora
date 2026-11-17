@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
 
-export function MatchActionsMenu({ disabled, onEdit, onDelete, onResponsibility }: {
-  disabled: boolean; onEdit?: () => void; onDelete?: () => void; onResponsibility?: () => void;
+export function MatchActionsMenu({ disabled, onEdit, onDelete, onRemove, onResponsibility }: {
+  disabled: boolean; onEdit?: () => void; onDelete?: () => void; onRemove?:()=>void; onResponsibility?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
@@ -46,6 +46,7 @@ export function MatchActionsMenu({ disabled, onEdit, onDelete, onResponsibility 
       {onEdit && <button type="button" role="menuitem" onClick={() => { close(true); onEdit(); }}><Icon name="edit" size={17}/>Editar partida</button>}
       {onResponsibility && <button type="button" role="menuitem" onClick={() => { close(true); onResponsibility(); }}><Icon name="team" size={17}/>Responsável pela súmula</button>}
       {onDelete && <button type="button" role="menuitem" className="match-actions-delete" onClick={() => { close(true); onDelete(); }}><Icon name="trash" size={17}/>Cancelar partida</button>}
+      {onRemove && <button type="button" role="menuitem" className="match-actions-delete" onClick={()=>{close(true);onRemove();}}><Icon name="trash" size={17}/>Excluir partida</button>}
     </div>}
   </div>;
 }

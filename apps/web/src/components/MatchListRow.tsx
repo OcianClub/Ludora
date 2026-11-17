@@ -1,13 +1,16 @@
 import { Link } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import type { Partida } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { teamName } from '../utils/teamIdentity';
 import { ClubBadge } from './Brand';
 import { Icon } from './Icon';
 import { StatusBadge } from './UI';
+import { MatchOverdueBadge } from './MatchOverdueBadge';
 import './MatchListRow.css';
+import { partidaAtrasada } from '../../../../packages/shared-types/src/matchSchedule';
 
-export function MatchListRow({ partida: p, onOpen, returnTo }: { partida: Partida; onOpen?: () => void; returnTo?: string }) {
+export function MatchListRow({ partida: p, onOpen, returnTo, actions }: { partida: Partida; onOpen?: () => void; returnTo?: string; actions?: ReactNode }) {
   const { clube } = useAuth();
   const date = new Date(`${p.data.slice(0, 10)}T12:00:00Z`);
   const validDate = !Number.isNaN(date.getTime());
@@ -24,7 +27,8 @@ export function MatchListRow({ partida: p, onOpen, returnTo }: { partida: Partid
   const finished = !occurrence && p.status === 'FINALIZADA';
 
   return (
-    <Link className="match-list-row" to={onOpen ? '#' : `/partidas/${p.id}`} state={{ fromSchedule: returnTo }} role={onOpen ? 'button' : undefined} onClick={event => { if (onOpen) { event.preventDefault(); onOpen(); } }} onKeyDown={event => { if (onOpen && event.key === ' ') { event.preventDefault(); onOpen(); } }} aria-label={`${home} contra ${away}, ${dateLabel}, ${p.horario || 'horário a definir'}. Ver partida.`}>
+    <article className="match-list-row">
+    <Link className="match-list-main" to={onOpen ? '#' : `/partidas/${p.id}`} state={{ fromSchedule: returnTo }} role={onOpen ? 'button' : undefined} onClick={event => { if (onOpen) { event.preventDefault(); onOpen(); } }} onKeyDown={event => { if (onOpen && event.key === ' ') { event.preventDefault(); onOpen(); } }} aria-label={`${home} contra ${away}, ${dateLabel}, ${p.horario || 'horário a definir'}. Ver partida.`}>
       <div className="match-list-date">
         <time dateTime={validDate ? p.data.slice(0, 10) : undefined}>{dateLabel}</time>
         <span><span>{weekday}</span><span className="match-list-time"><Icon name="clock" size={13} />{p.horario || 'A definir'}</span></span>
@@ -47,10 +51,12 @@ export function MatchListRow({ partida: p, onOpen, returnTo }: { partida: Partid
       <div className="match-list-status">{p.paulista_evento_id && <small className="match-official-label">Campeonato Paulista</small>}
         {occurrence ? <span className="status-badge">{occurrence === 'WO' ? 'W.O.' : 'Adiada'}</span> : finished ? <span className={p.semPerspectiva ? 'status-badge' : `match-result result-${result > 0 ? 'V' : result < 0 ? 'D' : 'E'}`}>{p.semPerspectiva ? 'Finalizada' : result > 0 ? 'Vitória' : result < 0 ? 'Derrota' : 'Empate'}</span>
           : p.status === 'CANCELADA' ? <span className="status-badge status-cancelada"><Icon name="cancel" size={14} />Cancelada</span>
-          : <StatusBadge status={p.status} />}
+          : partidaAtrasada(p) ? <MatchOverdueBadge/> : <StatusBadge status={p.status} />}
         {!p.semPerspectiva && <span className="match-venue"><Icon name={p.emCasa ? 'home' : 'bus'} size={13} />{p.emCasa ? 'Casa' : 'Fora'}</span>}
       </div>
       <span className="match-list-open"><Icon name="chevronRight" size={18} /></span>
     </Link>
+    {actions && <div className="match-list-actions">{actions}</div>}
+    </article>
   );
 }

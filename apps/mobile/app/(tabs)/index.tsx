@@ -54,6 +54,7 @@ type PendenciasHome = {
   clubeId: number;
   acesso: Awaited<ReturnType<typeof fetchClubes>>[number] | undefined;
   categorias: { id: number; nome: string }[];
+  atrasadas?: {id:number;categoria:{id:number;nome:string}}[];
   camisas: { categoria_id: number; semCamisa: number }[] | null;
   propostas: { categoria_nome?: string; respondente_id: number; status: string }[] | null;
 };
@@ -280,7 +281,8 @@ export default function Home() {
       fetchCategorias(clubeId),
       consultar<NonNullable<PendenciasHome['camisas']>>('/jogadores?resumo=true'),
       consultar<NonNullable<PendenciasHome['propostas']>>('/partidas/solicitacoes'),
-    ]).then(([clubes, categorias, camisas, propostas]) => {
+      consultar<NonNullable<PendenciasHome['atrasadas']>>('/partidas/atrasadas'),
+    ]).then(([clubes, categorias, camisas, propostas, atrasadas]) => {
       if (!ativa) return;
       setPendencias({
         clubeId,
@@ -288,6 +290,7 @@ export default function Home() {
         categorias: categorias.status === 'fulfilled' ? categorias.value : [],
         camisas: camisas.status === 'fulfilled' ? camisas.value : null,
         propostas: propostas.status === 'fulfilled' ? propostas.value : null,
+        atrasadas: atrasadas.status === 'fulfilled' ? atrasadas.value : undefined,
       });
     });
     return () => {
@@ -380,6 +383,7 @@ export default function Home() {
                   pendencias={
                     dadosGestao
                       ? {
+                          atrasadas: dadosGestao.atrasadas?.filter(p=>normalizarSub(p.categoria.nome)===sub.title).map(p=>p.id),
                           semCamisa: dadosGestao.camisas
                             ? (dadosGestao.camisas.find(
                                 (item) =>

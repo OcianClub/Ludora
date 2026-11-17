@@ -100,6 +100,7 @@ export default function PartidaDetalhePage() {
   const stageHeading = useRef<HTMLHeadingElement>(null);
   const [deletingEvent, setDeletingEvent] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const refreshVersion = useRef(0);
@@ -136,7 +137,7 @@ export default function PartidaDetalhePage() {
     setPartida({ ...data.partida, categoria_id: mine?.categoria_id || data.partida.categoria_id, categoria: mine?.categoria || data.partida.categoria,
       somente_leitura: !data.podePreparar, emCasa: mine ? mine.time_id === data.partida.mandante_id : data.partida.emCasa });
     setEventos(data.eventos);
-    if (!manterRascunho) setEscalacao(mine?.escalacao || []);
+    if (!manterRascunho || !dirtyRef.current) { setEscalacao(mine?.escalacao || []); lineupBaseVersion.current = mine?.versao; }
     if (players) {
       setJogadores(players);
       const result = reconcileLineupShirts(lineupRef.current, new Map(players.map(j => [j.id, j.numCamisa])));
@@ -181,8 +182,9 @@ export default function PartidaDetalhePage() {
       const version = ++refreshVersion.current;
       try {
         const data = await carregarGestao(Number(id), controller.signal);
+        if (active && version === refreshVersion.current) { aplicarGestao(data, dirtyRef.current); setSyncError(''); }
         const players = await carregarElenco(data, controller.signal);
-        if (active && version === refreshVersion.current) { aplicarGestao(data, dirtyRef.current, players); setSyncError(''); }
+        if (active && version === refreshVersion.current && players) aplicarGestao(data, dirtyRef.current, players);
       } catch { if (active) setSyncError('Não foi possível sincronizar. Confira sua conexão e tente recarregar.'); }
       finally {
         refreshing = false;
@@ -382,11 +384,12 @@ export default function PartidaDetalhePage() {
     }
     setSavingStatus(true);
     try {
-      await comandoPartida(partida!.id, 'preparacao', { versao: gestao?.partida.versao });
+      await comandoPartida(partida!.id, 'preparacao', { versao: gestao?.partida.versao, versao_equipe: lineupBaseVersion.current });
       await atualizarDados();
       setNotice('');
       rememberPreparationStep(preparationKey, 2);
     } catch (error) {
+      await atualizarDados(true).catch(() => {});
       setActionError(error instanceof Error ? error.message : 'Não foi possível confirmar a preparação. Tente novamente.');
     } finally { setSavingStatus(false); }
   }
@@ -524,6 +527,7 @@ export default function PartidaDetalhePage() {
         {podeEditarDados && <div className="match-detail-header-actions">
           <Btn variant="ghost" size="sm" className="match-detail-edit" aria-label="Editar partida" data-tooltip="Editar partida" data-tooltip-icon-only disabled={busy || deleteBusy} onClick={() => setEditor('match')}><Icon name="edit" size={17}/><span>Editar partida</span></Btn>
           {gestao && <MatchActionsMenu disabled={busy || salvandoEvento || deletingEvent !== null || deleteBusy}
+          onRemove={gestao.organizador.id===clube?.id && gestao.equipes.length===1 && [partida.mandante?.clube_representado_id,partida.visitante?.clube_representado_id].every(id=>!id || id===clube?.id) && ['AGENDADA','PREPARADA'].includes(partida.status) && !partida.paulista_evento_id ? ()=>{setDeleteError('');setConfirmRemove(true);} : undefined}
           onResponsibility={gestao && gestao.equipes.length > 1 ? () => { setTransferError(''); setResponsibilityOpen(true); } : undefined}
           onDelete={gestao && (gestao.podeSumula || gestao.organizador.id === clube?.id) ? () => { setMotivoCancelamento(''); setDeleteError(''); setConfirmDelete(true); } : undefined}/>}</div>}
       </header>
@@ -729,6 +733,7 @@ export default function PartidaDetalhePage() {
         {gestao?.podePreparar && adversario && ['AGENDADA', 'PREPARADA', 'AO_VIVO'].includes(partida.status) && <p className="editor-description">{gestao.podeSumula ? `A transferência para o ${adversario.clube.nome}` : `A responsabilidade pelo ${clube?.nome || 'seu clube'}`} depende do aceite do outro clube na aba Solicitações.</p>}
         {transferError && <p className="notice-error" role="alert">{transferError}</p>}
       </Modal>
+      <Modal open={confirmRemove} title="Excluir partida" onClose={()=>{if(!deleteBusy)setConfirmRemove(false);}} footer={<div className="editor-actions"><Btn variant="ghost" disabled={deleteBusy} onClick={()=>setConfirmRemove(false)}>Voltar</Btn><Btn variant="danger" loading={deleteBusy} onClick={async()=>{if(deleteBusy)return;setDeleteBusy(true);setDeleteError('');try{await deletarPartida(partida.id,gestao?.partida.versao);navigate(scheduleReturn,{replace:true});}catch(e){setDeleteError((e as Error).message);}finally{setDeleteBusy(false);}}}>Excluir definitivamente</Btn></div>}><p>A partida será removida. Esta opção é permitida apenas para confrontos locais que não começaram e não têm resultados ou registros oficiais. Para manter o histórico, use Cancelar partida.</p>{deleteError && <p className="notice-error" role="alert">{deleteError}</p>}</Modal>
       <Modal open={confirmDelete} title="Cancelar partida" onClose={() => { if (!deleteBusy) setConfirmDelete(false); }} footer={<div className="editor-actions"><Btn disabled={deleteBusy} variant="ghost" onClick={() => setConfirmDelete(false)}>Voltar</Btn><Btn disabled={deleteBusy || !motivoCancelamento.trim()} variant="danger" onClick={async () => {
         setDeleteBusy(true); setDeleteError('');
         try { await comandoPartida(partida.id, 'status', { status: 'CANCELADA', motivo: motivoCancelamento, versao: gestao?.partida.versao }, 'PATCH'); setConfirmDelete(false); await atualizarDados(); }

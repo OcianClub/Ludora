@@ -7,6 +7,7 @@ import { MatchDateField, MatchTimeField } from './MatchDateTime';
 import { LocationInput } from './LocationInput';
 import { validTimeInput } from '../utils/timeInput';
 import { Toast } from './Toast';
+import { horarioPassado } from '../../../../packages/shared-types/src/matchSchedule';
 
 type EditorProps = { partida: Partida; onClose: () => void; onSaved: (partida: Partida) => void };
 
@@ -21,6 +22,7 @@ export function MatchEditor({ partida, onClose, onSaved, approvalClub }: EditorP
     const date = new Date(`${form.data}T00:00:00Z`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.data) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== form.data) { setError('Escolha uma data válida para a partida.'); return; }
     if (!validTimeInput(form.horario)) { setError('Use um horário de 00:00 a 23:59.'); return; }
+    if ((form.data !== partida.data.slice(0,10) || form.horario !== partida.horario) && horarioPassado(form.data, form.horario)) { setError('Escolha um horário futuro para reagendar a partida.'); return; }
     setSaving(true); setError('');
     try {
       const updated = await atualizarPartida(partida.id, { data: form.data, horario: form.horario, local: form.local, ...('versao' in partida ? { versao: partida.versao } : {}) });

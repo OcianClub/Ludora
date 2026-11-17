@@ -447,7 +447,7 @@ export default function PreparacaoPartida({
     await requisicaoPartida(
       `/partidas/${partida.id}${caminho ? `/${caminho}` : ""}`,
       clubeId,
-      { ...dados, ...(caminho === "escalacao" ? { versao_equipe: versaoEdicao.current } : {}), versao: ultimaData.current.partida.versao },
+      { ...dados, ...(["escalacao", "preparacao"].includes(caminho) ? { versao_equipe: versaoEdicao.current } : {}), versao: ultimaData.current.partida.versao },
       metodo,
     );
     const atualizada = await onRefresh();

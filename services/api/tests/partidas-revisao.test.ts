@@ -63,7 +63,7 @@ test('Recusa destinatário indevido, clube desativado, partida encerrada ou iní
   f.clube.ativo = false;
   await assert.rejects(enviarLembrete(f.banco as any, 1, 25, 99, agora), /organizador não está disponível/);
   f.clube.ativo = true; f.p.status = 'FINALIZADA';
-  await assert.rejects(enviarLembrete(f.banco as any, 1, 25, 99, agora), /já não está ao vivo/);
+  await assert.rejects(enviarLembrete(f.banco as any, 1, 25, 99, agora), /já não precisa desta revisão/);
   f.p.status = 'AO_VIVO'; f.p.auditoria[0].criado_em = agora;
   await assert.rejects(enviarLembrete(f.banco as any, 1, 25, 99, agora), /24 horas/);
   assert.equal(f.notificacoes.length, 0);

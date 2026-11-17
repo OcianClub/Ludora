@@ -1,4 +1,5 @@
 import { dataPartidaISO, horarioPartidaValido } from './validarPartida';
+import { horarioPassado } from '../../../../packages/shared-types/src/matchSchedule';
 
 export type CategoriaPartida = {
   id: number;
@@ -104,6 +105,7 @@ export function errosOrganizarPartida(campos: CamposPartida) {
     erros.data = 'Informe uma data válida: DD/MM/AAAA.';
   if (!horarioPartidaValido(campos.horario))
     erros.horario = 'Use um horário entre 00:00 e 23:59.';
+  if (!erros.data && !erros.horario && horarioPassado(dataPartidaISO(campos.data)!,campos.horario)) erros.horario='Este horário já passou. Escolha um horário futuro para a partida.';
   if (campos.local.trim().length > 160)
     erros.local = 'Use até 160 caracteres para o local.';
   return erros;

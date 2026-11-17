@@ -2,12 +2,13 @@ import type { PrismaClient } from '@prisma/client';
 import { divergenciaPlacar } from '../paulista/service';
 import { pendenciaDeCalendario } from '../paulista/rules';
 import { inicioAoVivo, inicioSelect, passou24h } from './partidas-revisao';
+import { filtroPartidasAtrasadas } from '../partidas/horario';
 
 
 // Somente leitura: usa os mesmos critérios da fila Paulista, sem sincronizar a fonte.
 export async function resumoOperacional(banco: PrismaClient, agora = new Date()) {
   const abertas = ['ABERTA', 'EM_REVISAO', 'AGUARDANDO_CLUBE'];
-  const [chamados, manutencao, federacao, antigas] = await Promise.allSettled([
+  const [chamados, manutencao, federacao, antigas, atrasadas] = await Promise.allSettled([
     Promise.all([
       banco.suporteChamado.count({ where: { status: { not: 'RESOLVIDO' } } }),
       banco.suporteChamado.count({ where: { status: { not: 'RESOLVIDO' }, revisarEm: { lt: agora } } }),
@@ -32,6 +33,7 @@ export async function resumoOperacional(banco: PrismaClient, agora = new Date())
         visitante: { select: { nome: true, escudo: true, clubeRepresentado: { select: { escudo: true } } } },
         organizador_id: true, auditoria: inicioSelect,
         categoria: { select: { nome: true, clube_id: true } } } }),
+    banco.partida.findMany({where:{AND:[filtroPartidasAtrasadas(agora),{fpfsJogo:null}]},take:100,orderBy:[{data:'asc'},{id:'asc'}],select:{id:true,data:true,horario:true,organizador_id:true,categoria:{select:{nome:true,clube_id:true}},mandante:{select:{nome:true,escudo:true}},visitante:{select:{nome:true,escudo:true}}}}),
   ]);
   const partidas = antigas.status === 'fulfilled' ? antigas.value.map(({ auditoria, ...p }) => ({
     ...p,
@@ -40,6 +42,7 @@ export async function resumoOperacional(banco: PrismaClient, agora = new Date())
     inicioAoVivo: inicioAoVivo(auditoria, agora)?.toISOString() ?? null,
   })) : null;
   return { consultadoEm: agora.toISOString(),
+    atrasadas:atrasadas.status==='fulfilled' ? atrasadas.value.map(p=>({...p,atrasada:true,inicioAoVivo:null})) : null,
     chamados: chamados.status === 'fulfilled' ? chamados.value : null,
     manutencao: manutencao.status === 'fulfilled' ? manutencao.value : null,
     federacao: federacao.status === 'fulfilled' ? federacao.value : null,

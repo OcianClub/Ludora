@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { horarioPassado } from '../partidas/horario';
 
 type Banco = Prisma.TransactionClient;
 const DIA = 86_400_000;
@@ -21,23 +22,26 @@ export class ErroRevisao extends Error {
 
 export async function consultarLembrete(banco: Banco, partidaId: number, agora = new Date()) {
   const p = await banco.partida.findUnique({ where: { id: partidaId }, select: {
-    id: true, status: true, organizador_id: true, sumula_clube_id: true, categoria_id: true, auditoria: inicioSelect,
+    id: true, status: true, data:true, horario:true, organizador_id: true, sumula_clube_id: true, categoria_id: true, auditoria: inicioSelect,
+    categoria:{select:{clube_id:true}},
     mandante: { select: { nome: true } }, visitante: { select: { nome: true } },
   } });
   if (!p) throw new ErroRevisao(404, 'Partida não encontrada.');
-  if (p.status !== 'AO_VIVO') throw new ErroRevisao(409, 'A partida já não está ao vivo. Atualize a lista.');
+  const atrasada=['AGENDADA','PREPARADA'].includes(p.status) && horarioPassado(p.data.toISOString(),p.horario,agora);
+  if (p.status !== 'AO_VIVO' && !atrasada) throw new ErroRevisao(409, 'A partida já não precisa desta revisão. Atualize a lista.');
   const inicio = inicioAoVivo(p.auditoria, agora);
   if (inicio && !passou24h(inicio, agora)) throw new ErroRevisao(409, 'A partida ainda não completou mais de 24 horas ao vivo.');
-  const organizador = p.organizador_id ? await banco.clube.findUnique({ where: { id: p.organizador_id }, select: { id: true, nome: true, ativo: true } }) : null;
+  const organizadorId=p.organizador_id ?? p.categoria?.clube_id;
+  const organizador = organizadorId ? await banco.clube.findUnique({ where: { id: organizadorId }, select: { id: true, nome: true, ativo: true } }) : null;
   const [vinculos, ultimo] = await Promise.all([
     organizador?.ativo ? banco.usuarioClube.findMany({ where: {
       clube_id: organizador.id, usuario: { suspenso: false },
       OR: [{ papel: 'ADMIN' }, { papel: 'TECNICO', OR: [{ acesso_todas_categorias: true }, { categorias: { some: { categoria_id: p.categoria_id } } }] }],
     }, select: { papel: true, usuario: { select: { id: true, nome: true, email: true } } }, orderBy: { id: 'asc' } }) : [],
-    banco.auditoriaPartida.findFirst({ where: { partida_id: p.id, acao: ACAO_LEMBRETE }, orderBy: [{ criado_em: 'desc' }, { id: 'desc' }], select: { criado_em: true } }),
+    banco.auditoriaPartida.findFirst({ where: { partida_id: p.id, acao: atrasada ? 'LEMBRETE_ATRASO_ENVIADO' : ACAO_LEMBRETE }, orderBy: [{ criado_em: 'desc' }, { id: 'desc' }], select: { criado_em: true } }),
   ]);
   const disponivelEm = ultimo ? new Date(ultimo.criado_em.getTime() + DIA) : null;
-  return { partida: p, inicio, organizador, gestores: vinculos.map(v => ({ ...v.usuario, papel: v.papel })),
+  return { partida: p, inicio, atrasada, organizador, gestores: vinculos.map(v => ({ ...v.usuario, papel: v.papel })),
     ultimoEnvio: ultimo?.criado_em ?? null, disponivelEm, podeEnviar: !!organizador?.ativo && vinculos.length > 0 && (!disponivelEm || agora >= disponivelEm) };
 }
 
@@ -49,16 +53,16 @@ export async function enviarLembrete(banco: PrismaClient, partidaId: number, des
     if (!ctx.organizador?.ativo) throw new ErroRevisao(409, 'O organizador não está disponível.');
     if (!ctx.gestores.some(g => g.id === destinatarioId)) throw new ErroRevisao(400, 'Selecione um gestor habilitado do clube organizador.');
     if (!ctx.podeEnviar) throw new ErroRevisao(409, 'Um lembrete já foi enviado nas últimas 24 horas.');
-    const titulo = 'Revise a partida ainda ao vivo';
+    const titulo = ctx.atrasada ? 'Revise a partida atrasada' : 'Revise a partida ainda ao vivo';
     const encerramento = ctx.partida.sumula_clube_id && ctx.partida.sumula_clube_id !== ctx.organizador.id
       ? 'Confira se já terminou e solicite ao responsável pela súmula o encerramento para atualizar o Scout.'
       : 'Confira se já terminou e finalize a súmula, se necessário, para atualizar o Scout.';
-    const corpo = `${ctx.partida.mandante.nome} × ${ctx.partida.visitante.nome}. ${ctx.inicio ? 'A partida está há mais de 24 horas ao vivo.' : 'A partida consta como ao vivo, mas o início não foi registrado.'} ${encerramento}`;
-    const dados = { acao: 'REVISAR_ENCERRAMENTO', partidaId, clubeId: ctx.organizador.id };
+    const corpo = ctx.atrasada ? `${ctx.partida.mandante.nome} × ${ctx.partida.visitante.nome}. O horário previsto passou. Confira se pode iniciar, reagende ou cancele a partida.` : `${ctx.partida.mandante.nome} × ${ctx.partida.visitante.nome}. ${ctx.inicio ? 'A partida está há mais de 24 horas ao vivo.' : 'A partida consta como ao vivo, mas o início não foi registrado.'} ${encerramento}`;
+    const dados = { acao: ctx.atrasada ? 'REVISAR_ATRASO' : 'REVISAR_ENCERRAMENTO', partidaId, clubeId: ctx.organizador.id };
     const notificacao = await tx.notificacao.create({ data: { usuario_id: destinatarioId, clube_id: ctx.organizador.id,
       partida_id: partidaId, tipo: 'PARTIDA_AGENDADA', titulo, corpo, dados } });
     await tx.auditoriaPartida.create({ data: { partida_id: partidaId, clube_id: ctx.organizador.id, usuario_id: operadorId,
-      acao: ACAO_LEMBRETE, dados: { destinatario_id: destinatarioId, notificacao_id: notificacao.id }, criado_em: agora } });
+      acao: ctx.atrasada ? 'LEMBRETE_ATRASO_ENVIADO' : ACAO_LEMBRETE, dados: { destinatario_id: destinatarioId, notificacao_id: notificacao.id }, criado_em: agora } });
     return { notificacao, dados };
   }, { timeout: 10_000 });
 }

@@ -1,4 +1,5 @@
 import { SeletorEscalacao } from "./SeletorEscalacao";
+import { acontecimentosPartida, nomeNaSubstituicao } from '../../../../packages/shared-types/src/matchTimeline';
 import { equipesEscalacao, equipeEscalacaoVisivel } from "../utils/equipesEscalacao";
 import { enviarComConfirmacao } from "../utils/confirmacaoPublicacao";
 import { ErroConexao } from "../utils/request";
@@ -446,6 +447,7 @@ export default function SumulaPartida({
     () => placaresEventos(data),
     [data.eventos, p.gols_mandante, p.gols_visitante],
   );
+  const acontecimentos = useMemo(() => acontecimentosPartida(eventos, (data.substituicoes || []).filter(e => (aoVivo && !consultandoTempo) || !tempo || e.periodo === tempo)), [eventos, data.substituicoes, tempo, aoVivo, consultandoTempo]);
   const semJogador = useMemo(
     () => eventosSemJogador(data),
     [data.eventos, data.equipes],
@@ -1127,14 +1129,6 @@ export default function SumulaPartida({
               <Text style={styles.tiny}>
                 {tempo ? `${tempo}/${totalTempos}` : "Resumo completo"}
               </Text>
-              {consultandoTempo && (
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  onPress={() => setTempoSelecionado(0)}
-                >
-                  <Text style={styles.link}>Voltar ao vivo</Text>
-                </TouchableOpacity>
-              )}
               {finalizada && tempo > 0 && (
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -1212,16 +1206,34 @@ export default function SumulaPartida({
             )}
           </View>
           <View style={styles.divider} />
-          {!eventos.length && (
+          {!acontecimentos.length && (
             <Text style={styles.muted}>
               Nenhum evento registrado{tempo ? " neste tempo" : ""}.
             </Text>
           )}
-          {eventos.slice(0, limiteEventos).map((e, index) => {
+          {acontecimentos.slice(0, limiteEventos).map((item, index) => {
+            const novaFaixa = index === 0 || acontecimentos[index - 1].periodo !== item.periodo;
+            if (item.tipo === 'substituicao') {
+              const troca = item.substituicao;
+              const direita = troca.time_id === p.visitante_id;
+              return <React.Fragment key={item.key}>
+                {novaFaixa && <View style={styles.row}><View style={[styles.divider, styles.flex]} /><Text style={styles.tiny}>{troca.periodo}º tempo</Text><View style={[styles.divider, styles.flex]} /></View>}
+                <View style={{ flexDirection: direita ? 'row-reverse' : 'row', alignItems: 'flex-start', gap: 8 }}>
+                  <View style={styles.eventIcon}><Icon name="swap-horizontal" size={18} color={colors.textoSecundario} /></View>
+                  <View style={{ flexShrink: 1, alignItems: direita ? 'flex-end' : 'flex-start', gap: 4, maxWidth: '80%' }}>
+                    <Text style={styles.name}>{troca.reposicao_expulsao ? 'Reposição após expulsão' : 'Substituição'}</Text>
+                    <Text style={styles.tiny}>{nomeTime(troca.time_id)}</Text>
+                    <Text style={[styles.text, { textAlign: direita ? 'right' : 'left' }]}>Sai: {nomeNaSubstituicao(troca.sai)}</Text>
+                    <Text style={[styles.text, { textAlign: direita ? 'right' : 'left' }]}>Entra: {nomeNaSubstituicao(troca.entra)}</Text>
+                  </View>
+                </View>
+              </React.Fragment>;
+            }
+            const e = item.evento;
             const direita = e.time_id === p.visitante_id;
             const permitido = podeOperar || (data.podePreparar && e.tipo === 'GOL' && !e.jogador_id && minha?.time_id === timeAutor(data, e) && aoVivo);
             return <React.Fragment key={e.id}>
-              {(index === 0 || eventos[index - 1].periodo !== e.periodo) && <View style={styles.row}><View style={[styles.divider, styles.flex]} /><Text style={styles.tiny}>{e.periodo}º tempo</Text><View style={[styles.divider, styles.flex]} /></View>}
+              {novaFaixa && <View style={styles.row}><View style={[styles.divider, styles.flex]} /><Text style={styles.tiny}>{e.periodo}º tempo</Text><View style={[styles.divider, styles.flex]} /></View>}
               <View style={{ flexDirection: direita ? 'row-reverse' : 'row', alignItems: 'flex-start', gap: 8 }}>
                 {permitido && <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Opções de ${NOMES_EVENTOS[e.tipo]} ${e.id}`} style={{ minWidth: 28, minHeight: 40, alignItems: 'center', justifyContent: 'center' }} onPress={event => setMenu({ evento: e, top: event.nativeEvent.pageY + 8 })}><View style={{ transform: [{ rotate: '90deg' }] }}><Icon name="dots-horizontal" size={18} color={colors.textoSecundario} /></View></TouchableOpacity>}
                 <View style={styles.eventIcon}><EventoIcon tipo={e.tipo} size={18} /></View>
@@ -1234,7 +1246,7 @@ export default function SumulaPartida({
               </View>
             </React.Fragment>;
           })}
-          {eventos.length > limiteEventos && <AppButton label={`Carregar mais acontecimentos (${eventos.length - limiteEventos})`} onPress={() => setLimiteEventos(v => v + 30)} />}
+          {acontecimentos.length > limiteEventos && <AppButton label={`Carregar mais acontecimentos (${acontecimentos.length - limiteEventos})`} onPress={() => setLimiteEventos(v => v + 30)} />}
         </View>
         {(finalizada || (aoVivo && !data.podePreparar && !data.podeSumula)) && (
           <PalpitePartida data={data} />

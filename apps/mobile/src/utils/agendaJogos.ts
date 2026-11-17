@@ -45,7 +45,7 @@ export function secoesAgenda<T extends PartidaAgendaBase>(partidas: T[], porSitu
   adicionar('ao_vivo', 'Ao vivo', 'Partidas em andamento');
   if (porSituacao) {
     adicionar('agenda', 'Próximas', 'Partidas agendadas e preparadas');
-    adicionar('pendentes', 'Aguardando atualização', 'Partidas sem resultado registrado');
+    adicionar('pendentes', 'Partidas atrasadas', 'Partidas sem resultado registrado');
     adicionar('finalizadas', 'Finalizadas', 'Mais recentes primeiro');
     adicionar('canceladas', 'Canceladas', 'Mais recentes primeiro');
     adicionar('historico', 'Partidas anteriores', 'Mais recentes primeiro');
@@ -60,7 +60,7 @@ export function secoesAgenda<T extends PartidaAgendaBase>(partidas: T[], porSitu
       secoes.push({ key: 'agenda', titulo: 'Próximos jogos', descricao: 'Agenda por data e horário', data: restantes, mais });
     } else secoes[secoes.length - 1].mais = mais;
   }
-  adicionar('pendentes', 'Aguardando atualização', 'A data passou, mas o resultado ainda não foi registrado');
+  adicionar('pendentes', 'Partidas atrasadas', 'A data passou, mas o resultado ainda não foi registrado');
   adicionar('historico', 'Partidas anteriores', 'Mais recentes primeiro');
   return secoes;
 }
@@ -92,7 +92,7 @@ export function rotuloAgenda(partida: PartidaAgendaBase, agora: Date, gestor: bo
   const horarioValido = /^([01]\d|2[0-3]):[0-5]\d$/.test(partida.horario ?? '');
   const inicio = new Date(`${data}T${horarioValido ? partida.horario : '23:59'}:00`);
   const falta = inicio.getTime() - agora.getTime();
-  if (falta < 0) return 'Aguardando atualização';
+  if (falta < 0) return 'Atrasada';
   if (horarioValido && falta <= 60 * 60 * 1000) return `Em breve · às ${partida.horario}`;
   const amanha = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + 1);
   const prefixo = data === hoje ? 'Hoje' : data === agoraAgenda(amanha).slice(0, 10) ? 'Amanhã' : curta;

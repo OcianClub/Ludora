@@ -39,6 +39,7 @@ if (/guest|common|staff-elsewhere/.test(location.search)) { model.podePreparar =
 if (location.search.includes('staff-team')) model.podeSumula = false;
 if (location.search.includes('opponent')) { model.podeSumula = false; model.minhaEquipeId = 2; }
 if (location.search.includes('final')) model.partida.status = 'FINALIZADA';
+model.substituicoes = [{id:900,time_id:10,periodo:2,criado_em:'2026-11-16T12:00:00Z',reposicao_expulsao:false,sai:{nome:'Atleta que saiu',numCamisa:2},entra:{nome:'Atleta que entrou',numCamisa:6}}];
 model.eventos = []; model.partida.gols_mandante = 0; model.partida.gols_visitante = 0;
 export const BASE_URL = '/isolated';
 window.fixture = { writes: [], model, pollReads: 0 };
@@ -94,6 +95,8 @@ const aliasModules = /^(expo-router|expo-secure-store|expo-linear-gradient|expo-
       await page.goto(`${url}/?${role}`);
       try { await page.getByText('Acontecimentos',{exact:true}).waitFor({timeout:7000}); }
       catch(error) { await page.screenshot({path:path.join(output,'failure.png'),fullPage:true}); console.error({errors, text:await page.locator('body').innerText()}); throw error; }
+      await page.getByText('Sai: #02 · Atleta que saiu',{exact:true}).waitFor();
+      await page.getByText('Entra: #06 · Atleta que entrou',{exact:true}).waitFor();
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${width}/${role}: overflow`);
       if(/guest|common|opponent|staff-team|staff-elsewhere/.test(role)) {
         for(const name of ['Registrar gol de Ocian','Fazer substituição','Finalizar partida',...(/opponent|staff-team/.test(role)?[]:['Histórico de alterações'])]) assert.equal(await page.getByRole('button',{name,exact:true}).count(),0,`${width}/${role}: ${name}`);
@@ -101,9 +104,11 @@ const aliasModules = /^(expo-router|expo-secure-store|expo-linear-gradient|expo-
       if(/guest|common|opponent|staff-team|staff-elsewhere/.test(role) && !role.startsWith('final')) {
         assert.equal(await page.getByRole('button',{name:'Próximo tempo',exact:true}).isDisabled(),true);
         await page.getByRole('button',{name:'Tempo anterior',exact:true}).click();
-        assert.equal(await page.getByRole('button',{name:'Próximo tempo',exact:true}).isDisabled(),true);
+        assert.equal(await page.getByRole('button',{name:'Próximo tempo',exact:true}).isDisabled(),false);
         assert.equal(await page.evaluate(()=>window.fixture.writes.length),0);
-        await page.getByText('Voltar ao vivo',{exact:true}).click();
+        await page.getByRole('button',{name:'Próximo tempo',exact:true}).click();
+        assert.equal(await page.getByRole('button',{name:'Próximo tempo',exact:true}).isDisabled(),true);
+        assert.equal(await page.evaluate(()=>window.fixture.writes.length),0,'consultar e retornar não grava mudança de tempo');
       }
       if(['manager','staff-team','opponent'].includes(role)){
         assert.equal(await page.getByRole('radio').count(),0);
@@ -125,7 +130,8 @@ const aliasModules = /^(expo-router|expo-secure-store|expo-linear-gradient|expo-
     const periodPage=await browser.newPage({viewport:{width:320,height:840}});
     await periodPage.goto(`${url}/?manager`);
     await periodPage.getByRole('button',{name:'Tempo anterior',exact:true}).click();
-    await periodPage.getByText('Voltar ao vivo',{exact:true}).waitFor();
+    assert.equal(await periodPage.getByRole('button',{name:'Próximo tempo',exact:true}).isEnabled(),true);
+    assert.equal(await periodPage.getByText('Voltar ao vivo',{exact:true}).count(),0);
     assert.equal(await periodPage.evaluate(()=>window.fixture.model.partida.periodo_atual),2,'voltar consulta sem alterar período oficial');
     assert.equal(await periodPage.evaluate(()=>window.fixture.writes.length),0);
     await periodPage.getByRole('button',{name:'Registrar gol de Ocian',exact:true}).click();

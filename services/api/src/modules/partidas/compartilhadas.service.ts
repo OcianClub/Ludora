@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { horarioPassado } from './horario';
 
 export class FluxoInvalido extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -28,6 +29,9 @@ export function validarDataHorario(data: unknown, horario: unknown) {
   exigir(typeof horario === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(horario), 'Informe o horário entre 00:00 e 23:59.');
   return { data: date, horario };
 }
+export function exigirHorarioFuturo(data: string, horario: string | null, agora = new Date()) {
+  exigir(!horarioPassado(data, horario, agora), 'Este horário já passou. Escolha um horário futuro para organizar ou reagendar a partida.');
+}
 export async function acesso(tx: Banco, ctx: Contexto, categoriaId: number) {
   const vinculo = await tx.usuarioClube.findUnique({
     where: { usuario_id_clube_id: { usuario_id: ctx.usuarioId, clube_id: ctx.clubeId } },
@@ -47,6 +51,23 @@ export async function partida(tx: Banco, id: number, ctx: Contexto, editar = fal
 export async function auditar(tx: Banco, ctx: Contexto, id: number, acao: string, dados: Prisma.InputJsonValue = {}) {
   await tx.auditoriaPartida.create({ data: { partida_id: id, usuario_id: ctx.usuarioId, clube_id: ctx.clubeId, acao, dados } });
 }
+export async function excluirNaoIniciada(tx: Banco, ctx: Contexto, id:number, versao?:unknown) {
+  await tx.$queryRaw`SELECT id FROM "Partida" WHERE id = ${id} FOR UPDATE`;
+  const {p}=await partida(tx,id,ctx);
+  exigir((p.organizador_id ?? p.categoria.clube_id)===ctx.clubeId && p.categoria.clube_id===ctx.clubeId && await acesso(tx,ctx,p.categoria_id),'Somente o organizador autorizado pode excluir a partida.',403);
+  exigir(['AGENDADA','PREPARADA','CANCELADA'].includes(p.status),'Partidas iniciadas ou finalizadas devem manter o histórico.',409);
+  if(versao!=null)exigir(inteiro(versao,0)===p.versao,'A partida mudou. Revise os dados antes de excluir.',409);
+  exigir(p.participantes.length<=1 && [p.mandante.clube_representado_id,p.visitante.clube_representado_id].every(clube=>!clube || clube===ctx.clubeId) && p.gols_mandante===0 && p.gols_visitante===0,'Este confronto tem registros ou envolve outro clube. Cancele a partida para preservar o histórico.',409);
+  const [eventos,oficial,historico,propostas]=await Promise.all([
+    tx.evento.count({where:{partida_id:id}}), tx.fpfsJogo.count({where:{partidaId:id}}),
+    tx.auditoriaPartida.count({where:{partida_id:id,acao:{in:['STATUS_AO_VIVO','STATUS_FINALIZADA']}}}),
+    tx.propostaPartida.count({where:{partida_id:id}}),
+  ]);
+  exigir(!eventos && !oficial && !historico && !propostas,'Há registros vinculados ou dados oficiais. Cancele o confronto para preservar o histórico.',409);
+  await tx.auditoriaPartida.deleteMany({where:{partida_id:id}});
+  await tx.partida.delete({where:{id}});
+  return p;
+}
 export async function podeCorrigirSumula(tx: Banco, p: PartidaCompleta, ctx: Contexto) {
   if (p.sumula_clube_id === ctx.clubeId) return true;
   if (p.status !== 'FINALIZADA' || !p.sumula_clube_id) return false;
@@ -60,12 +81,17 @@ export async function tocar(tx: Banco, p: { id: number; versao: number }, versao
   const updated = await tx.partida.updateMany({ where: { id: p.id, versao: p.versao }, data: { versao: { increment: 1 } } });
   exigir(updated.count, 'A partida mudou. Atualize antes de continuar.', 409);
 }
-export async function transacao<T>(callback: (tx: Banco) => Promise<T>) {
-  try { return await prisma.$transaction(callback, { isolationLevel: 'Serializable', timeout: 15000 }); }
-  catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2034', 'P2002'].includes(error.code))
-      throw new FluxoInvalido('Outro usuário alterou este registro ou o confronto já existe. Atualize e tente novamente.', 409);
-    throw error;
+export async function transacao<T>(callback: (tx: Banco) => Promise<T>, repetirConflitos = false) {
+  for (let tentativa = 0; ; tentativa++) {
+    try { return await prisma.$transaction(callback, { isolationLevel: 'Serializable', timeout: 15000 }); }
+    catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2034' && repetirConflitos && tentativa < 2) continue;
+        if (['P2034', 'P2002'].includes(error.code))
+          throw new FluxoInvalido('Outro usuário alterou este registro ou o confronto já existe. Atualize e tente novamente.', 409);
+      }
+      throw error;
+    }
   }
 }
 export async function validarDados(tx: Banco, ctx: Contexto, body: any, aceitarRegistrada = false) {
@@ -91,24 +117,32 @@ export async function validarDados(tx: Banco, ctx: Contexto, body: any, aceitarR
   const competicao = compId ? await tx.competicao.findUnique({ where: { id: compId } }) : null;
   exigir(!compId || (competicao && !competicao.arquivada && competicao.clube_id === ctx.clubeId && competicao.tipo === cat.tipo), 'Escolha uma competição ativa e compatível do clube.');
   const { data, horario } = validarDataHorario(body.data, body.horario);
-  const local = typeof body.local === 'string' ? body.local.trim().slice(0, 300) : null;
+  exigirHorarioFuturo(data.toISOString().slice(0,10), horario);
+  exigir(body.local == null || typeof body.local === 'string', 'Informe o local como texto.');
+  exigir(body.local == null || body.local.trim().length <= 300, 'Informe o local com até 300 caracteres.');
+  const local = typeof body.local === 'string' ? body.local.trim() : null;
   return { cat, destino, adversario, propria: propria[0], competicao, dados: {
     categoria_id: catId, mandante_id: mandanteId, visitante_id: visitanteId, data: data.toISOString().slice(0, 10), horario,
     local, competicao_id: compId, rodada: body.rodada ? inteiro(body.rodada) : null, grupo: typeof body.grupo === 'string' ? body.grupo.slice(0, 60) : null,
     emCasa: propria[0].id === mandanteId,
   } };
 }
-export async function bloquearDuplicidade(tx: Banco, origem: number, destino: number | null, categoria: { nome: string; faixaIdade: number; tipo?: string }, dados: any, ignorarPartida?: number, ignorarProposta?: string, conferirAgenda = true) {
+export function chaveConfronto(origem: number, destino: number | null, categoria: { nome: string; faixaIdade: number; tipo?: string }, dados: { mandante_id: number; visitante_id: number; data: string; horario: string }) {
   const par = [origem, destino || -dados.visitante_id - dados.mandante_id].sort((a, b) => a - b);
   const faixa = categoria.faixaIdade || Number(categoria.nome.match(/\d+/)?.[0]) || categoria.nome.toLowerCase();
-  const chave = `${par.join(':')}:${categoria.tipo || 'categoria'}:${faixa}:${dados.data}:${dados.horario}`;
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${chave}))::text`;
-  const data = new Date(`${dados.data}T00:00:00Z`);
-  const conflito = conferirAgenda ? await tx.partida.findFirst({ where: {
-    id: ignorarPartida ? { not: ignorarPartida } : undefined, status: { not: 'CANCELADA' }, data, horario: dados.horario,
+  return `${par.join(':')}:${categoria.tipo || 'categoria'}:${faixa}:${dados.data}:${dados.horario}`;
+}
+export function filtroConflitoAgenda(origem: number, destino: number | null, categoria: { nome: string; faixaIdade: number }, dados: { data: string; horario: string }, ignorarPartida?: number): Prisma.PartidaWhereInput {
+  return {
+    id: ignorarPartida ? { not: ignorarPartida } : undefined, status: { not: 'CANCELADA' }, data: new Date(`${dados.data}T00:00:00Z`), horario: dados.horario,
     OR: [{ participantes: { some: { clube_id: origem, categoria: { faixaIdade: categoria.faixaIdade, nome: categoria.nome } } } },
       ...(destino ? [{ participantes: { some: { clube_id: destino, categoria: { faixaIdade: categoria.faixaIdade, nome: categoria.nome } } } }] : [])],
-  } }) : null;
+  };
+}
+export async function bloquearDuplicidade(tx: Banco, origem: number, destino: number | null, categoria: { nome: string; faixaIdade: number; tipo?: string }, dados: any, ignorarPartida?: number, ignorarProposta?: string, conferirAgenda = true) {
+  const chave = chaveConfronto(origem, destino, categoria, dados);
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${chave}))::text`;
+  const conflito = conferirAgenda ? await tx.partida.findFirst({ where: filtroConflitoAgenda(origem, destino, categoria, dados, ignorarPartida) }) : null;
   exigir(!conflito, `Já existe uma partida ou conflito de agenda neste horário${conflito ? ` (#${conflito.id})` : ''}.`, 409);
   const proposta = await tx.propostaPartida.findFirst({ where: { chave, status: 'PENDENTE', id: ignorarProposta ? { not: ignorarProposta } : undefined } });
   exigir(!proposta, 'Já existe uma proposta para este confronto. Consulte as solicitações recebidas e enviadas.', 409);

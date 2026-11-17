@@ -49,7 +49,10 @@ const output = path.resolve(__dirname, '../../../test-results/club-workspace');
         assert.equal(await form.getByRole('button', { name: 'Salvar aluno', exact: true }).isDisabled(), true);
         for (const [index, value] of ['15', 'Janeiro', '2019'].entries()) {
           const choice = form.locator('.birth-fields .choice').nth(index);
+          const before = (await form.locator('.birth-date-field').boundingBox()).height;
           await choice.locator('.choice-trigger').click();
+          assert.equal(await choice.locator('.choice-options').evaluate(el=>getComputedStyle(el).position),'absolute','Birth options overlay the form');
+          assert.equal((await form.locator('.birth-date-field').boundingBox()).height,before,'Opening options does not push the form down');
           await choice.getByRole('button', { name: value, exact: true }).click();
         }
         await page.waitForFunction(() => document.querySelector('.alunos-category-notice')?.textContent.includes('Temporada 2026'));
@@ -60,7 +63,7 @@ const output = path.resolve(__dirname, '../../../test-results/club-workspace');
         await form.getByLabel('CPF', { exact: true }).fill('52998224725');
         await form.getByLabel('Camisa (opcional)', { exact: true }).fill('9');
         const notice = form.locator('.alunos-category-notice');
-        assert.equal(await notice.evaluate(el => getComputedStyle(el).borderTopWidth), '0px');
+        assert.equal(await notice.evaluate(el => getComputedStyle(el).borderTopWidth), '1px', 'Aviso usa a borda do componente InfoNotice');
         await form.getByLabel('Nome completo', { exact: true }).press('Enter');
         const review = page.getByRole('dialog', { name: 'Revisar aluno', exact: true });
         await review.waitFor();
@@ -105,7 +108,7 @@ const output = path.resolve(__dirname, '../../../test-results/club-workspace');
       await page.route('**/*', route => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
       await require('./visual-fixture.cjs').install(page, { role });
       await page.goto(base + '/dashboard');
-      await page.getByRole('heading', { name: 'Histórico de partidas', exact: true }).waitFor();
+      await page.getByRole('heading', { name: /^Histórico de partidas/ }).waitFor();
       assert.equal(await page.locator('.home-pending').count(), role === 'ADMIN' ? 1 : 0);
       assert.ok(await page.locator('.home-upcoming-day > a').first().evaluate(el => parseFloat(getComputedStyle(el).borderRadius) > 0));
       console.log(`PASS pendências e hover: ${role || 'visitante'}`);

@@ -15,6 +15,12 @@ export function HomePending({ category, matches, refreshKey }: {
   const { clube } = useAuth();
   const data = useClubPending();
   const [requests, setRequests] = useState<{ clubId: number; items: PropostaPartida[] | null } | null>(null);
+  const [atrasadas,setAtrasadas]=useState<{clubeId:number;items:{id:number;categoria:{id:number}}[]}>();
+  useEffect(()=>{
+    if(!clube)return;const clubeId=clube.id,controller=new AbortController();
+    void requestJson<{id:number;categoria:{id:number}}[]>('/partidas/atrasadas',{signal:controller.signal}).then(items=>{if(!controller.signal.aborted)setAtrasadas({clubeId,items});}).catch(()=>{if(!controller.signal.aborted)setAtrasadas(undefined);});
+    return()=>controller.abort();
+  },[clube?.id,refreshKey]);
 
   useEffect(() => {
     if (!clube) return;
@@ -40,6 +46,8 @@ export function HomePending({ category, matches, refreshKey }: {
     && (match.gols_sem_autor ?? 0) > 0);
   const goals = unidentified.reduce((total, match) => total + (match.gols_sem_autor || 0), 0);
   const items: { title: string; copy: string; href: string; icon: IconName; count?: number }[] = [];
+  const atrasos=atrasadas?.clubeId===clube?.id ? atrasadas?.items.filter(p=>p.categoria.id===category.id) || [] : [];
+  if(atrasos.length)items.push({title:'Partidas atrasadas',copy:'Confira se pode iniciar, reagende ou cancele',href:`/partidas/${atrasos[0].id}`,icon:'clock',count:atrasos.length});
 
   if (count) items.push({ title: 'Solicitações de partida', copy: 'Convites ou alterações aguardando sua resposta',
     href: '/partidas/solicitacoes', icon: 'email', count });

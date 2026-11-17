@@ -1,4 +1,5 @@
-import { memo, useState } from "react";
+import { partidaAtrasada } from '../../../../packages/shared-types/src/matchSchedule';
+import { memo, useEffect, useState } from "react";
 import { Image, Text, View } from "react-native";
 import { MatchCardLayout } from "./MatchCardLayout";
 import { SinalAoVivo } from "./SinalAoVivo";
@@ -77,7 +78,15 @@ export const CartaoJogo = memo(function CartaoJogo({
   const aoVivo = partida.status === "AO_VIVO";
   const finalizada = partida.status === "FINALIZADA";
   const resultado = finalizada ? resultadoDoClube(partida) : null;
-  const situacao = resultado
+  const [relogio,setRelogio]=useState(()=>new Date());
+  const atrasada = partidaAtrasada(partida,relogio);
+  useEffect(()=>{
+    setRelogio(new Date());
+    if(!['AGENDADA','PREPARADA'].includes(partida.status) || atrasada)return;
+    const timer=setInterval(()=>setRelogio(new Date()),60000);
+    return()=>clearInterval(timer);
+  },[partida.id,partida.data,partida.horario,partida.status,atrasada]);
+  const situacao = atrasada ? "Atrasada" : resultado
     ? { V: "Vitória", E: "Empate", D: "Derrota" }[resultado]
     : {
         AGENDADA: "Agendada",
@@ -133,6 +142,7 @@ export const CartaoJogo = memo(function CartaoJogo({
                 resultado === "D" && styles.lossBadge,
                 resultado === "E" && styles.drawBadge,
                 tema === "light" && statusClaro && { color: statusClaro.texto, backgroundColor: statusClaro.fundo },
+                atrasada && {color:colors.tituloAtencao,backgroundColor:colors.fundoAtencao},
                 tema === "light" && resultado === "D" && { backgroundColor: lightColors.statusPartida.derrota },
               ]}
             >

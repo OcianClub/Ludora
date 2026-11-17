@@ -87,7 +87,7 @@ interface Props {
   sub: string;
   semPerfil?: number;
   proximaCategoria?: string;
-  pendencias?: { semCamisa: number | null; solicitacoes: number | null };
+  pendencias?: { atrasadas?:number[]; semCamisa: number | null; solicitacoes: number | null };
   carregando: boolean;
   atualizando: boolean;
   proximoJogo: PartidaHome | null;
@@ -252,6 +252,7 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
                 <Text style={styles.secondaryText}>Resolva os próximos passos da sua equipe.</Text>
               </View>
             </View>
+            {!!pendencias?.atrasadas?.length && <PendenciaHome styles={styles} icon="clock-outline" title="Partidas atrasadas" description="Confira se pode iniciar, reagende ou cancele" count={pendencias.atrasadas.length} onPress={()=>router.push({pathname:'/partida-compartilhada/[id]',params:{id:String(pendencias.atrasadas![0])}})}/>}
             {preparar && <PendenciaHome styles={styles} icon="account-group-outline"
               title={titulares === necessarios ? 'Confirmar sua equipe' : 'Preparar próximo jogo'}
               description={titulares == null ? 'Confira a escalação' : `${titulares}/${necessarios} titulares · ${titulares === necessarios ? 'Revise a escalação' : 'Complete a escalação'}`}
@@ -273,7 +274,7 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
                 </Text>
               </View>
             )}
-            {!semPerfil && !preparar && !golsPendentes && !pendencias?.semCamisa && !pendencias?.solicitacoes && (
+            {!semPerfil && !preparar && !golsPendentes && !pendencias?.semCamisa && !pendencias?.solicitacoes && !pendencias?.atrasadas?.length && (
               <Text style={[styles.secondaryText, styles.pendingEmpty]}>{pendencias?.semCamisa == null || pendencias.solicitacoes == null ? 'Não foi possível conferir todas as pendências.' : 'Nenhuma ação pendente nesta categoria.'}</Text>
             )}
           </View>

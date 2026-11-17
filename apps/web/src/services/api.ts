@@ -140,7 +140,7 @@ export type HomePartida = Omit<Partida, 'mandante_id' | 'visitante_id' | 'catego
   titulares_necessarios?: number;
   gols_sem_autor?: number;
 };
-export interface Evento { id: number; partida_id: number; tipo: string; periodo: number; minuto?: number; jogador_id?: number; jogador?: {id:number;nome:string} | null; }
+export interface Evento { id: number; partida_id: number; tipo: string; periodo: number; minuto?: number; jogador_id?: number; jogador?: {id:number;nome:string} | null; criado_em?: string; }
 export interface EscalacaoItem { jogador_id: number; numCamisa: number; titular: boolean; jogador?: Jogador; }
 export interface PerfilJogador extends Jogador {
   analise_scout?: { versao: 2; calculado_em: string; convocacoes: number; grupo_tamanho: number } | null;
@@ -487,8 +487,8 @@ export async function atualizarPlacarPartida(id: number, gols_mandante: number, 
   if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro ao atualizar placar'); }
   return res.json();
 }
-export async function deletarPartida(id: number) {
-  const res = await apiFetch(`/partidas/${id}`, { method: 'DELETE' });
+export async function deletarPartida(id: number, versao?:number) {
+  const res = await apiFetch(`/partidas/${id}`, { method: 'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({versao}) });
   if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro ao deletar partida'); }
   return res.json();
 }
