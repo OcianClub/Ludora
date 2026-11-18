@@ -578,7 +578,7 @@ Ludora/
 │   ├── icons/                      Ícones e recursos compartilhados
 │   └── shared-types/               Tipos e regras compartilhadas
 ├── scripts/                        Inicialização, rede e banco de testes
-├── homologacao-faculdade/           Cypress, evidências e relatório
+├── homologacao/                     Cypress, evidências e relatório
 ├── docs/                           Arquitetura, contratos e guias
 ├── pnpm-workspace.yaml             Pacotes e políticas de dependências
 ├── pnpm-lock.yaml                  Resolução das dependências
@@ -617,7 +617,7 @@ pnpm db:test:stop
 
 O iniciador fornece PostgreSQL portátil de testes no **Windows x64**, com dados em `.local-demo/equipe` e porta própria. Não é o banco de uso normal do app. Veja [banco de testes local](docs/banco-de-testes-local.md).
 
-[homologacao-faculdade](homologacao-faculdade/) contém relatório acadêmico, evidências e cenário Cypress. Não é uma aplicação do workspace com instalação própria de dependências.
+[homologacao](homologacao/) contém relatório acadêmico, evidências e cenário Cypress. Não é uma aplicação do workspace com instalação própria de dependências.
 
 ## Rotina de desenvolvimento
 
