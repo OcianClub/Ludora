@@ -16,6 +16,11 @@ test('solicitações: avisar os dois clubes após commit, sem aguardar a gravaç
   replace(prisma.propostaPartida, 'count', async () => 0);
   replace(prisma.propostaPartida, 'create', async () => proposal);
   replace(prisma.propostaPartida, 'findUniqueOrThrow', async () => proposal);
+  replace(prisma.auditoriaPartida, 'create', async ({ data }) => {
+    assert.equal(data.partida_id, p.id);
+    assert.equal(data.acao, 'SUMULA_SOLICITADA');
+    return { id: 1, ...data };
+  });
   replace(prisma.clube, 'findMany', async () => [{ id: 2, nome: 'Ocian' }, { id: 3, nome: 'Santos' }]);
   replace(prisma.usuarioClube, 'findMany', async () => [{ usuario_id: 1 }]);
   replace(prisma.dispositivoPush, 'findMany', async () => []);
