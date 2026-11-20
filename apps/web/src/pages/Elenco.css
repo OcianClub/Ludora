@@ -78,7 +78,7 @@
 }
 .scout-profile-filter[aria-pressed="true"] {
   border-color: transparent;
-  background: var(--primaria);
+  background: var(--acao-primaria);
   color: #fff;
 }
 .scout-active-filters {
@@ -224,22 +224,27 @@
 .scout-tone-scorer {
   --scout-profile-surface: var(--scout-scorer-fundo);
   --scout-accent: var(--scout-scorer-texto);
+  --scout-profile-marker: var(--scout-scorer-destaque);
 }
 .scout-tone-playmaker {
   --scout-profile-surface: var(--scout-playmaker-fundo);
   --scout-accent: var(--scout-playmaker-texto);
+  --scout-profile-marker: var(--scout-playmaker-destaque);
 }
 .scout-tone-keeper {
   --scout-profile-surface: var(--scout-keeper-fundo);
   --scout-accent: var(--scout-keeper-texto);
+  --scout-profile-marker: var(--scout-keeper-destaque);
 }
 .scout-tone-mixed {
   --scout-profile-surface: var(--scout-mixed-fundo);
   --scout-accent: var(--scout-mixed-texto);
+  --scout-profile-marker: var(--scout-mixed-destaque);
 }
 .scout-tone-pending {
   --scout-profile-surface: var(--scout-pending-fundo);
   --scout-accent: var(--scout-pending-texto);
+  --scout-profile-marker: var(--scout-pending-destaque);
 }
 .scout-player-main {
   display: grid;
@@ -323,7 +328,7 @@
   height: 6px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--scout-profile-marker, currentColor);
   content: '';
 }
 .scout-player-metrics {
@@ -536,7 +541,7 @@
   font-weight: 600;
 }
 .scout-context-tabs button[aria-pressed="true"] {
-  background: var(--primaria);
+  background: var(--acao-primaria);
   color: #fff;
 }
 .scout-context-tabs button:disabled {

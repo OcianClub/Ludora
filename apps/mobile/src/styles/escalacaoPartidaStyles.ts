@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { typography } from '@ludora/design-tokens';
+import { typography, radius } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 export const createStyles = (colors: ThemeColors) => StyleSheet.create({
@@ -267,7 +267,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: colors.primaria,
+    backgroundColor: colors.acaoPrimaria,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -288,10 +288,10 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     marginTop: 2,
   },
   tagTitular: {
-    backgroundColor: colors.primaria,
+    backgroundColor: colors.acaoPrimaria,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: radius.badge,
   },
   tagTitularTxt: {
     fontFamily: typography.fontFamily.corpo.semiBold,
@@ -331,8 +331,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   salvarBtn: {
     margin: 20,
-    backgroundColor: colors.primaria,
-    borderRadius: 12,
+    backgroundColor: colors.acaoPrimaria,
+    borderRadius: radius.control,
     paddingVertical: 16,
     alignItems: 'center',
   },
@@ -403,8 +403,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   mcBtnSave: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: colors.primaria,
+    borderRadius: radius.control,
+    backgroundColor: colors.acaoPrimaria,
     alignItems: 'center',
   },
   mcBtnSaveTxt: {
@@ -512,8 +512,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   mtBtnConfirm: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: colors.primaria,
+    borderRadius: radius.control,
+    backgroundColor: colors.acaoPrimaria,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',

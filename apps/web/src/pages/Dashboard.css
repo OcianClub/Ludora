@@ -1,6 +1,6 @@
 .dashboard {
-  --home-loss: var(--derrota-claro, #E5485D);
-  --home-draw: var(--resultado-empate);
+  --home-loss: var(--resultado-d-fundo);
+  --home-draw: var(--resultado-e-fundo);
 }
 .dashboard > .page-header { margin-bottom: 16px; }
 .home-swipe-surface {
@@ -267,8 +267,8 @@
   min-width: 0;
 }
 .dashboard .result-V strong, .dashboard .home-result-tag.result-V {
-  background: var(--primaria);
-  color: #fff;
+  background: var(--resultado-v-fundo);
+  color: var(--resultado-v-texto);
 }
 .dashboard .result-D strong, .dashboard .home-result-tag.result-D {
   background: var(--home-loss);

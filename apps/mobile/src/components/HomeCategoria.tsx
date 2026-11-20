@@ -3,7 +3,7 @@ import { Fragment, memo, useMemo, useRef, useState } from 'react';
 import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Icon, type IconName } from '@ludora/icons';
-import { darkColors } from '@ludora/design-tokens';
+import { matchResultColors } from '@ludora/design-tokens';
 import { useTheme } from '@/src/contexts/ThemeContext';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
 import { acoesDaPartidaNaHome, resultadoDoClube } from '@/src/utils/resumoPartidas';
@@ -138,7 +138,7 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
   }, { V: 0, E: 0, D: 0 });
   const verJogos = (status: 'TODOS' | 'AGENDADA' | 'FINALIZADA' = 'TODOS') =>
     router.push({ pathname: '/jogos/jogos', params: { status, sub, ano: status === 'FINALIZADA' ? ultimo?.data.slice(0, 4) : undefined } });
-  const amareloEmpate = tema === 'light' ? '#F4B942' : colors.amarelo;
+  const resultadoColors = matchResultColors[tema];
 
   return (
     <View style={{ flex: 1 }}><ScrollView ref={scroll} onScroll={e => setShowTop(e.nativeEvent.contentOffset.y > 700)} scrollEventThrottle={64}
@@ -328,8 +328,8 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
                   return <TouchableOpacity key={partida.id} onPress={() => onVerDetalhes(partida)} accessibilityRole="button"
                     accessibilityLabel={`${index === 0 ? 'Mais recente. ' : ''}${rotuloResultado[resultado]} em ${dataCurta(partida.data)}. Ver partida.`}
                     hitSlop={{ top: 6, bottom: 6, left: 3, right: 3 }} style={styles.formItem}>
-                    <View style={[styles.formPill, { backgroundColor: resultado === 'V' ? colors.primaria : resultado === 'E' ? amareloEmpate : VERMELHO_DERROTA }]}>
-                      <Text style={[styles.formLetter, { color: resultado === 'E' ? darkColors.fundo : '#fff' }]}>{resultado}</Text>
+                    <View style={[styles.formPill, { backgroundColor: resultadoColors[resultado].fundo }]}>
+                      <Text style={[styles.formLetter, { color: resultadoColors[resultado].texto }]}>{resultado}</Text>
                     </View>
                   </TouchableOpacity>;
                 })}</View>
@@ -375,7 +375,7 @@ const HomeCategoria = memo(function HomeCategoria(props: Props) {
                   <Text style={styles.historyGoals}>{partida.gols_visitante}</Text>
                 </View>
                 <View style={styles.historyResultCell}>
-                  <Text numberOfLines={1} style={[styles.historyResult, { backgroundColor: resultado === 'V' ? colors.primaria : resultado === 'D' ? VERMELHO_DERROTA : amareloEmpate, color: resultado === 'E' ? darkColors.fundo : '#fff' }]}>{rotuloResultado[resultado]}</Text>
+                  <Text numberOfLines={1} style={[styles.historyResult, { backgroundColor: resultadoColors[resultado].fundo, color: resultadoColors[resultado].texto }]}>{rotuloResultado[resultado]}</Text>
                   <Icon name="chevron-right" size={14} color={colors.primaria} />
                 </View>
               </TouchableOpacity>;

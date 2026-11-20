@@ -71,7 +71,7 @@ const output = path.resolve(__dirname, '../../../test-results/proposal-response'
         assert.ok(await page.getByRole('heading', { name: 'Solicitações', exact: true }).isVisible());
         assert.equal(await page.locator('.workspace-header').isVisible(), false);
         assert.equal(await page.locator('.shared-desktop-header').isVisible(), false);
-        assert.ok(await page.getByRole('button', { name: 'Filtrar solicitações', exact: true }).isVisible());
+        assert.ok(await page.getByRole('button', { name: /Para responder/ }).isVisible());
       }
       await page.screenshot({ path: path.join(output, `request-${width}-${theme}.png`), fullPage: true });
       await page.getByRole('button', { name: 'Aceitar', exact: true }).click();
@@ -103,6 +103,7 @@ const output = path.resolve(__dirname, '../../../test-results/proposal-response'
             proposal.origem_id = 2;
             proposal.respondente_id = 3;
             await page.reload();
+            await page.getByRole('button', { name: 'Enviadas', exact: true }).click();
           }
           await page.getByRole('button', { name: action, exact: true }).click();
           await page.locator('.proposal-response-dialog').waitFor();
@@ -129,30 +130,28 @@ const output = path.resolve(__dirname, '../../../test-results/proposal-response'
 
         listed = [proposal, { ...proposal, id: 'sent', origem_id: 2, destino_id: 3, respondente_id: 3 }, { ...proposal, id: 'accepted', status: 'ACEITA' }];
         await page.reload();
-        await page.locator('.shared-request-results strong').getByText('2 solicitações', { exact: true }).waitFor();
-        const openFilters = () => page.getByRole('button', { name: 'Filtrar solicitações', exact: true }).click();
-        const filters = page.getByRole('dialog', { name: 'Filtrar solicitações', exact: true });
-        await openFilters();
-        await filters.getByRole('button', { name: 'Enviadas', exact: true }).click();
-        assert.equal(await page.locator('.shared-proposal').count(), 2, 'Alterações só entram ao aplicar');
-        await filters.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
+        await page.locator('.shared-request-results strong').getByText('1 solicitação', { exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Enviadas', exact: true }).click();
         assert.equal(await page.locator('.shared-proposal').count(), 1);
         assert.ok(await page.getByRole('button', { name: 'Cancelar proposta', exact: true }).isVisible());
+        await page.getByRole('button', { name: 'Todas', exact: true }).click();
+        assert.equal(await page.locator('.shared-proposal').count(), 3);
+        const openFilters = () => page.getByRole('button', { name: 'Filtrar por situação', exact: true }).click();
+        const filters = page.getByRole('dialog', { name: 'Filtrar solicitações', exact: true });
+        await openFilters();
+        await filters.getByRole('radio', { name: 'Pendentes', exact: true }).click();
+        assert.equal(await page.locator('.shared-proposal').count(), 3, 'Alterações só entram ao aplicar');
+        await filters.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
+        assert.equal(await page.locator('.shared-proposal').count(), 2);
         await openFilters();
         await filters.getByRole('button', { name: 'Limpar filtros', exact: true }).click();
         await page.keyboard.press('Escape');
-        assert.equal(await page.locator('.shared-proposal').count(), 1, 'Fechar sem aplicar preserva os filtros');
-        await openFilters();
-        await filters.getByRole('button', { name: 'Limpar filtros', exact: true }).click();
-        await filters.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
-        assert.equal(await page.locator('.shared-proposal').count(), 3);
-        await openFilters();
-        await filters.getByRole('button', { name: 'Para responder', exact: true }).click();
-        await filters.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
+        assert.equal(await page.locator('.shared-proposal').count(), 2, 'Fechar sem aplicar preserva os filtros');
+        await page.getByRole('button', { name: /Para responder/ }).click();
         assert.equal(await page.locator('.shared-proposal').count(), 1, 'Para responder inclui somente pendentes destinadas ao clube');
         listed = [];
         await page.reload();
-        await page.getByRole('heading', { name: 'Nenhuma solicitação por aqui' }).waitFor();
+        await page.getByRole('heading', { name: 'Seu clube ainda não tem solicitações' }).waitFor();
         assert.ok(await page.locator('.shared-requests-empty > .icon').isVisible());
         assert.equal(await page.locator('.shared-requests-empty').evaluate(el => getComputedStyle(el).textAlign), 'center');
         await page.screenshot({ path: path.join(output, 'empty-360-dark.png') });

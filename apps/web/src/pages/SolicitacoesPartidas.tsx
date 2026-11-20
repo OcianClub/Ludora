@@ -11,6 +11,7 @@ import { ClubBadge } from '../components/Brand';
 import { CollectionFilterDialog, FilterRadioGroup } from '../components/CollectionToolbar';
 import { MatchDateField, MatchTimeField } from '../components/MatchDateTime';
 import { formatMatchDate } from '../components/MatchCard';
+import { FilterTabs } from '../components/FilterTabs';
 import { Toast } from '../components/Toast';
 import './SharedMatches.css';
 
@@ -22,17 +23,17 @@ export default function SolicitacoesPartidas() {
   const [selected, setSelected] = useState<PropostaPartida | null>(null);
   const [acao, setAcao] = useState('ACEITAR'), [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ data: '', horario: '', local: '', motivo: '' });
-  const [filtro, setFiltro] = useState('PENDENTE');
-  const [direcao, setDirecao] = useState('TODAS');
+  const [filtro, setFiltro] = useState('');
+  const [direcao, setDirecao] = useState('RESPONDER');
   const [filterAnchor, setFilterAnchor] = useState<HTMLButtonElement | null>(null);
-  const [draftFilters, setDraftFilters] = useState({ situacao: 'PENDENTE', direcao: 'TODAS' });
+  const [draftSituation, setDraftSituation] = useState('');
   const highlighted = useRef<string | null>(null);
   useEffect(() => {
     const id = params.get('id');
     const item = items.find(proposal => proposal.id === id);
     if (!item || highlighted.current === id) return;
     highlighted.current = id;
-    if (item.status !== 'PENDENTE') setFiltro('');
+    setFiltro('');
     setDirecao('TODAS');
     requestAnimationFrame(() => document.querySelector('[data-highlight]')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   }, [items, params]);
@@ -68,23 +69,32 @@ export default function SolicitacoesPartidas() {
   const responseLabel = acao === 'SUGERIR' ? 'Enviar sugestão' : responseTitle;
   const visibleItems = items.filter(p => (!filtro || p.status === filtro) && (direcao === 'TODAS' || (direcao === 'RESPONDER' ? p.status === 'PENDENTE' && p.respondente_id === clube?.id : p.origem_id === clube?.id)));
   const situationOptions = [['PENDENTE', 'Pendentes'], ['', 'Todas as situações']];
-  const directionOptions = [['TODAS', 'Todas as solicitações'], ['RESPONDER', 'Para responder'], ['ENVIADAS', 'Enviadas']];
-  const activeFilterCount = Number(!!filtro) + Number(direcao !== 'TODAS');
+  const directionOptions = [['RESPONDER', 'Para responder'], ['ENVIADAS', 'Enviadas'], ['TODAS', 'Todas']];
+  const awaitingReply = items.filter(p => p.status === 'PENDENTE' && p.respondente_id === clube?.id).length;
+  const emptyState = !items.length
+    ? { title: 'Seu clube ainda não tem solicitações', description: 'As propostas recebidas e enviadas aparecerão aqui.' }
+    : direcao === 'RESPONDER'
+      ? { title: 'Nenhuma solicitação para responder', description: 'Abra Todas para consultar o histórico do clube.' }
+      : { title: 'Nenhuma solicitação nesta seleção', description: 'Abra Todas ou ajuste o filtro de situação.' };
   function clearFilters() { setFiltro(''); setDirecao('TODAS'); }
   return <div className="shared-matches-page">
     <header className="page-header shared-desktop-header"><div><h1 className="page-title">Solicitações de partidas</h1><p className="page-sub">Combine os confrontos e acompanhe as respostas dos clubes.</p></div><Link className="btn btn-ghost btn-md" to="/partidas"><Icon name="arrow" size={18}/>Voltar às partidas</Link></header>
     <header className="shared-mobile-header">
       <Link to="/partidas" className="btn btn-ghost shared-mobile-back" aria-label="Voltar às partidas"><Icon name="arrow" size={20}/></Link>
       <h1>Solicitações</h1>
-      <button type="button" className="shared-mobile-filter" aria-label="Filtrar solicitações" aria-haspopup="dialog" aria-expanded={!!filterAnchor} onClick={event => { if (filterAnchor) { setFilterAnchor(null); return; } setDraftFilters({ situacao: filtro, direcao }); setFilterAnchor(event.currentTarget); }}><Icon name="filters" size={20}/>{activeFilterCount > 0 && <span className="shared-filter-dot" aria-hidden="true"/>}</button>
     </header>
-    <div className="shared-desktop-filters">
-      <div className="shared-status-tabs" role="group" aria-label="Situação das solicitações">{situationOptions.map(([v, l]) => <button type="button" key={l} aria-pressed={filtro === v} onClick={() => setFiltro(v)}>{l}</button>)}</div>
-      <div className="shared-status-tabs" role="group" aria-label="Direção das solicitações">{directionOptions.map(([v, l]) => <button type="button" key={l} aria-pressed={direcao === v} onClick={() => setDirecao(v)}>{l}</button>)}</div>
-    </div>
+    <FilterTabs label="Solicitações" value={direcao} className="shared-request-tabs" mode="filter"
+      options={directionOptions.map(([value, label]) => ({ value, label, count: value === 'RESPONDER' ? awaitingReply : undefined }))}
+      onChange={value => { setFilterAnchor(null); setDirecao(value); }} />
     <div className="shared-request-toolbar">
-      <div className="shared-request-results" aria-live="polite">{!loading && <><strong>{visibleItems.length} {visibleItems.length === 1 ? 'solicitação' : 'solicitações'}</strong><span>{filtro ? 'Pendentes' : 'Todas as situações'} · {directionOptions.find(([value]) => value === direcao)?.[1]}</span></>}</div>
+      <div className="shared-request-results" aria-live="polite">{!loading && <><strong>{visibleItems.length} {visibleItems.length === 1 ? 'solicitação' : 'solicitações'}</strong><span>{direcao === 'RESPONDER' || filtro ? 'Pendentes' : 'Todas as situações'}</span></>}</div>
+      <div className="shared-request-tools">
+        {direcao !== 'RESPONDER' && <button type="button" className="btn btn-ghost shared-request-filter" aria-label="Filtrar por situação" aria-haspopup="dialog" aria-expanded={!!filterAnchor} onClick={event => {
+          setDraftSituation(filtro);
+          setFilterAnchor(filterAnchor ? null : event.currentTarget);
+        }}><Icon name="filters" size={17}/><span>Situação</span>{filtro && <span className="shared-filter-dot" aria-hidden="true"/>}</button>}
       <button type="button" className="btn btn-ghost shared-request-refresh" aria-label="Atualizar solicitações" aria-busy={refreshing} disabled={refreshing || busy} onClick={() => { setError(''); void refresh(); }}><Icon name="refresh" size={17}/><span>{refreshing ? 'Atualizando…' : 'Atualizar'}</span></button>
+      </div>
     </div>
     <Toast message={notice} onClose={() => setNotice('')}/>
     {!selected && (error || refreshError) && <p role="alert" className="notice-error">{error || refreshError}</p>}
@@ -112,12 +122,13 @@ export default function SolicitacoesPartidas() {
         </div>
       </article>;
     })}</div>}
-    {!loading && !error && !refreshError && visibleItems.length === 0 && <div className="shared-requests-empty" role="status"><Icon name="email" size={36}/><h2>{items.length ? 'Nenhuma solicitação com esses filtros' : 'Nenhuma solicitação por aqui'}</h2><p>{items.length ? 'Tente outra situação ou veja todas as solicitações.' : 'Propostas de partida e pedidos entre clubes aparecerão aqui.'}</p>{items.length > 0 && <Btn variant="ghost" onClick={clearFilters}>Limpar filtros</Btn>}</div>}
-    <CollectionFilterDialog open={!!filterAnchor} anchor={filterAnchor} title="Filtrar solicitações" onClose={() => setFilterAnchor(null)} onClear={() => setDraftFilters({ situacao: '', direcao: 'TODAS' })} onApply={() => { setFiltro(draftFilters.situacao); setDirecao(draftFilters.direcao); setFilterAnchor(null); }} className="shared-request-filter-dialog">
-      <FilterRadioGroup label="Situação" value={draftFilters.situacao} options={situationOptions.map(([value, label]) => ({ value, label }))}
-        onChange={situacao => setDraftFilters(current => ({ ...current, situacao }))} />
-      <FilterRadioGroup label="Solicitações" value={draftFilters.direcao} options={directionOptions.map(([value, label]) => ({ value, label }))}
-        onChange={direcao => setDraftFilters(current => ({ ...current, direcao }))} />
+    {!loading && !error && !refreshError && visibleItems.length === 0 && <div className="shared-requests-empty" role="status">
+      <Icon name="email" size={36}/><h2>{emptyState.title}</h2><p>{emptyState.description}</p>
+      {items.length > 0 && (direcao !== 'TODAS' || filtro) && <Btn variant="ghost" onClick={clearFilters}>Ver todas</Btn>}
+    </div>}
+    <CollectionFilterDialog open={!!filterAnchor} anchor={filterAnchor} title="Filtrar solicitações" onClose={() => setFilterAnchor(null)}
+      onClear={() => setDraftSituation('')} onApply={() => { setFiltro(draftSituation); setFilterAnchor(null); }} className="shared-request-filter-dialog">
+      <FilterRadioGroup label="Situação" value={draftSituation} options={situationOptions.map(([value, label]) => ({ value, label }))} onChange={setDraftSituation} />
     </CollectionFilterDialog>
     <Modal open={!!selected} title={responseTitle} className="proposal-response-dialog" onClose={closeResponse} footer={<div className="proposal-response-actions"><Btn disabled={busy} variant="ghost" onClick={closeResponse}>Voltar</Btn><Btn disabled={busy} variant={['RECUSAR', 'CANCELAR'].includes(acao) ? 'danger' : 'primary'} onClick={() => void respond()}>{busy ? 'Salvando…' : responseLabel}</Btn></div>}>
       {selected && <><div className="proposal-response-match"><strong>{selected.origem?.nome} <span>×</span> {selected.destino?.nome}</strong>{selected.categoria_nome && <small>{selected.categoria_nome.toUpperCase()}</small>}</div>

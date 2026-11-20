@@ -97,9 +97,10 @@ function fixture({ theme }) {
         if (window.__failOverview) return { ok: false, status: 503, data: { error: 'Falha simulada' } };
         data = overview;
       }
+      else if (p === '/admin/clubes/opcoes') data = clubes.map(({ id, nome, escudo, cidade, estado }) => ({ id, nome, escudo, cidade, estado }));
       else if (p === '/admin/overview/operacao') {
         if (window.__failOverview) return { ok: false, status: 503, data: { error: 'Falha simulada' } };
-        data = { consultadoEm: '2026-11-10T12:00:00Z', chamados: { abertos: 3, atrasados: 1 }, manutencao: 1, federacao: { pendencias: 0, falhas: 0, erroRotina: false }, semInicio: [], antigas: [{ id: 10, inicioAoVivo: '2026-11-08T12:00:00Z', organizador_id: 1, data: '2026-08-01T00:00:00Z', horario: '20:00', categoria: { nome: 'SUB-7', clube_id: 1 }, mandante: { nome: 'Ocian', escudo: null }, visitante: { nome: 'Santos', escudo: null } }] };
+        data = { consultadoEm: '2026-11-10T12:00:00Z', chamados: { abertos: 3, atrasados: 1 }, manutencao: 1, federacao: { pendencias: 0, falhas: 0, erroRotina: false }, semInicio: [], atrasadas: [{ id: 11, atrasada: true, organizador_id: 1, data: '2026-08-01T00:00:00Z', horario: '20:00', categoria: { nome: 'SUB-7', clube_id: 1 }, mandante: { nome: 'Estrela Azul', escudo: null }, visitante: { nome: 'Ludora FC', escudo: null } }], antigas: [{ id: 10, inicioAoVivo: '2026-11-08T12:00:00Z', organizador_id: 1, data: '2026-08-01T00:00:00Z', horario: '20:00', categoria: { nome: 'SUB-7', clube_id: 1 }, mandante: { nome: 'Ocian', escudo: null }, visitante: { nome: 'Santos', escudo: null } }] };
       }
       else if (/^\/admin\/overview\/partidas\/\d+\/lembrete$/.test(p)) data = { organizador: { id: 1, nome: 'Ocian', ativo: true }, gestores: [{ id: 25, nome: 'Responsável teste', papel: 'ADMIN' }, { id: 26, nome: 'Administrador', email: 'admin.um@example.test', papel: 'ADMIN' }, { id: 27, nome: 'Administrador', email: 'admin.dois@example.test', papel: 'ADMIN' }], podeEnviar: !window.__lembreteEnviado, ultimoEnvio: window.__lembreteEnviado ? '2026-11-10T12:00:00Z' : null, disponivelEm: window.__lembreteEnviado ? '2026-11-11T12:00:00Z' : null };
       else if (/^\/admin\/clubes\/\d+\/resumo$/.test(p)) data = clubes.find(c => c.id === Number(p.split('/')[3]));
@@ -337,6 +338,7 @@ async function main() {
         await context.close();
         continue;
       }
+      if (!process.env.DESKTOP_TEST_LOGS_ONLY) {
       for (const [route, title] of [['visao', 'Visão global'], ['clubes', 'Clubes'], ['usuarios', 'Usuários'], ['visao', 'Visão global'], ['chamados', 'Chamados'], ['manutencao', 'Manutenção'], ['paulista', 'Campeonato Paulista'], ['banco', 'Banco e integrações'], ['logs', 'Logs ao vivo'], ['ajustes', 'Ajustes']].filter(([route]) => !process.env.DESKTOP_TEST_OVERVIEW_ONLY || route === 'visao')) {
         await page.goto(base + route);
         await page.getByRole('heading', { level: 1, name: title, exact: true }).waitFor();
@@ -377,9 +379,10 @@ async function main() {
           await page.getByRole('button', { name: 'Tabela', exact: true }).click();
           assert.equal(await page.locator('.overview-club-table tbody tr').count(), 3);
           const writesAntes = await page.evaluate(() => window.__writes.length);
-          await page.getByRole('button', { name: 'Revisar partidas', exact: true }).click();
-          const dialog = page.getByRole('dialog', { name: 'Revisar partidas ao vivo', exact: true });
+          await page.getByRole('button', { name: 'Revisar encerramentos', exact: true }).click();
+          const dialog = page.getByRole('dialog', { name: 'Ao vivo há mais de 24 horas', exact: true });
           await dialog.locator('.overview-review-teams').getByText('Ocian', { exact: true }).waitFor();
+          assert.equal(await dialog.locator('.overview-old-matches > li').count(), 1, 'A fila de encerramento é isolada');
           const reviewAlignment = await dialog.locator('.overview-old-matches > li').first().evaluate(card => {
             const home = card.querySelector('.overview-review-teams > span:first-child').getBoundingClientRect();
             const away = card.querySelector('.overview-review-teams > span:last-child').getBoundingClientRect();
@@ -427,6 +430,12 @@ async function main() {
           await page.keyboard.press('Escape');
           await dialog.waitFor({ state: 'hidden' });
           assert.equal(await page.evaluate(() => window.__writes.every(w => w.route.endsWith('/lembrete'))), true, 'Não altera partidas de teste');
+          await page.getByRole('button', { name: 'Ver atrasadas', exact: true }).click();
+          const overdueQueue = page.getByRole('dialog', { name: 'Partidas atrasadas', exact: true });
+          await overdueQueue.getByText('Estrela Azul', { exact: true }).waitFor();
+          assert.equal(await overdueQueue.locator('.overview-old-matches > li').count(), 1);
+          await page.keyboard.press('Escape');
+          await overdueQueue.waitFor({ state: 'hidden' });
           await page.getByRole('searchbox', { name: 'Buscar clube na visão global', exact: true }).fill('Santos');
           assert.equal(await page.locator('.overview-club-table tbody tr').count(), 1);
           await page.getByRole('searchbox', { name: 'Buscar clube na visão global', exact: true }).fill('');
@@ -686,6 +695,7 @@ async function main() {
       await dialog.getByRole('button', {name:'Voltar',exact:true}).click();
       await dialog.getByRole('button', {name:'Cancelar',exact:true}).click();
 
+      }
       await page.goto(base + 'logs');
       const consoleBox = page.getByRole('log', { name: 'Registros da API', exact: true });
       await consoleBox.waitFor();
@@ -697,7 +707,7 @@ async function main() {
       const scroll = await page.evaluate(() => ({ page: scrollY, main: document.getElementById('main-content').scrollTop }));
       await page.evaluate(() => window.__emitLogs(3, 1500));
       await page.waitForTimeout(500);
-      assert.equal(await page.locator('.log-linha').count(), 1000);
+      assert.ok(await page.locator('.log-linha').count() < 100, 'Monta só as linhas próximas da área visível');
       assert.deepEqual(await page.evaluate(() => ({ page: scrollY, main: document.getElementById('main-content').scrollTop })), scroll, 'Novos logs não rolam a página');
       await page.getByRole('button', { name: 'Pausar', exact: true }).click();
       const last = await page.locator('.log-msg').last().innerText();
@@ -776,8 +786,13 @@ async function main() {
       await logsFilter.getByRole('spinbutton', { name: 'Lenta a partir de (ms)', exact: true }).fill('10');
       await logsFilter.getByRole('checkbox', { name: 'Somente lentas', exact: true }).check();
       await logsFilter.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
-      assert.equal(await page.locator('.duration-lenta').count(), 1000);
-      assert.equal(await page.locator('.http-2').count(), 1000);
+      const renderizadas = await page.locator('.log-linha').count();
+      assert.ok(renderizadas > 0 && renderizadas < 100, `O console deve montar só a janela visível: ${renderizadas}`);
+      assert.equal(await page.locator('.duration-lenta').count(), renderizadas);
+      assert.equal(await page.locator('.http-2').count(), renderizadas);
+      await page.getByRole('button', { name: 'Opções dos logs', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Exportar .txt', exact: true }).click();
+      assert.equal(await page.evaluate(() => window.__logExports.at(-1).length), 1000, 'Exporta todos os registros filtrados');
       await page.locator('button.log-linha').first().click();
       const detail = page.getByRole('dialog', { name: 'Detalhes do registro', exact: true });
       await detail.getByText('Duração informada pela API', { exact: true }).waitFor();
@@ -799,6 +814,12 @@ async function main() {
       await page.getByRole('button', { name: /Novos registros/ }).click();
       assert.equal(await consoleBox.evaluate(el => el.scrollTop), 0);
       await page.screenshot({ path: path.join(output, `logs-cores-${scenario.width}.png`), fullPage: true });
+      console.log(`PASS logs, filtros, exportação e rolagem ${scenario.width}px ${scenario.theme} (${renderizadas} linhas montadas de 1000)`);
+      if (process.env.DESKTOP_TEST_LOGS_ONLY) {
+        assert.deepEqual(errors, []);
+        await context.close();
+        continue;
+      }
       await page.goto(base + 'ajustes');
       await page.getByRole('heading', { name: 'Ajustes', exact: true }).waitFor();
       assert.equal(await page.evaluate(() => window.__logListeners.size), 0, 'Libera listener de logs ao sair');

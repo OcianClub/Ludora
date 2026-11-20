@@ -24,7 +24,7 @@
 .match-calendar small { text-align:center; color:var(--texto-sec); padding:8px 0; }
 .match-calendar button,.time-values button { border:1px solid transparent; border-radius:6px; background:var(--fundo-card); color:var(--texto); min-height:40px; }
 .match-calendar button:hover:not(:disabled),.time-values button:hover { border-color:var(--primaria); }
-.match-calendar button[aria-pressed=true],.time-values button[aria-pressed=true] { background:var(--primaria); color:#fff; }
+.match-calendar button[aria-pressed=true],.time-values button[aria-pressed=true] { background:var(--acao-primaria); color:#fff; }
 .match-calendar button:disabled,.calendar-navigation>button:disabled { opacity:.3; }
 .date-time-note { font-size:12px; color:var(--texto-sec); margin-top:14px; }
 .time-preview { font-family:var(--font-titulo); font-size:40px; text-align:center; color:var(--primaria); margin-bottom:16px; }

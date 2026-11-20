@@ -1,5 +1,6 @@
 import { SeletorEscalacao } from "./SeletorEscalacao";
 import { acontecimentosPartida, nomeNaSubstituicao } from '../../../../packages/shared-types/src/matchTimeline';
+import type { EventoConfirmado } from '../../../../packages/shared-types/src/matchSync';
 import { equipesEscalacao, equipeEscalacaoVisivel } from "../utils/equipesEscalacao";
 import { enviarComConfirmacao } from "../utils/confirmacaoPublicacao";
 import { ErroConexao } from "../utils/request";
@@ -96,6 +97,7 @@ type Props = {
   connected: boolean;
   onBack: () => void;
   onRefresh: () => Promise<GestaoPartida | undefined>;
+  onEventoConfirmado: (evento: EventoConfirmado<GestaoPartida>) => GestaoPartida | undefined;
   headerAccessory?: React.ReactNode;
 };
 
@@ -263,6 +265,7 @@ export default function SumulaPartida({
   connected,
   onBack,
   onRefresh,
+  onEventoConfirmado,
   headerAccessory,
 }: Props) {
   const { colors } = useTheme();
@@ -337,19 +340,20 @@ export default function SumulaPartida({
             throw new Error(
               "A partida foi encerrada. Cancele este envio e registre a correção com justificativa.",
             );
+          let estadoConfirmado: GestaoPartida | undefined;
           try {
             const confirmado = await enviarComConfirmacao(
               item.id,
-              () => requisicaoPartida(
-                item.dados.endpoint,
-                clubeId,
-                {
-                  ...item.dados.payload,
-                  versao: atual.partida.versao,
-                  request_id: item.id,
-                },
-                item.dados.method,
-              ),
+              async () => {
+                const incremental = item.dados.method === 'POST' && item.dados.endpoint.endsWith('/eventos');
+                const resposta = await requisicaoPartida<EventoConfirmado<GestaoPartida>>(
+                  item.dados.endpoint, clubeId, {
+                    ...item.dados.payload, versao: atual.partida.versao, request_id: item.id,
+                    ...(incremental ? { retorno_incremental: true } : {}),
+                  }, item.dados.method,
+                );
+                if (incremental && resposta?.sincronizacao) estadoConfirmado = onEventoConfirmado(resposta);
+              },
               async () => {
                 const recente = await refreshAtual.current();
                 if (recente) ultimo.current = recente;
@@ -357,6 +361,10 @@ export default function SumulaPartida({
               },
             );
             if (confirmado) return;
+            if (estadoConfirmado) {
+              ultimo.current = estadoConfirmado;
+              return;
+            }
           } catch (e) {
             if (e instanceof ErroConexao) {
               throw new Error("Envio sem confirmação. Confira a súmula ou toque em Verificar.");
@@ -427,7 +435,8 @@ export default function SumulaPartida({
 
   const alterando = ocupado || restaurando || pendentes.length > 0;
   const tempo = aoVivo ? Math.min(tempoSelecionado || p.periodo_atual, p.periodo_atual) : tempoSelecionado;
-  const consultandoTempo = aoVivo && tempo !== p.periodo_atual;
+  const consultandoTempo = aoVivo && tempo < p.periodo_atual;
+  const operandoTempoAtual = aoVivo && !consultandoTempo && data.podeSumula;
   const scrollDialogo = useRef<ScrollView>(null);
   const revelarCampo = useSheetKeyboard(scrollDialogo);
   const [arrastandoSubstituicao, setArrastandoSubstituicao] = useState(false);
@@ -472,7 +481,7 @@ export default function SumulaPartida({
     : undefined;
   const equipeAutor = data.equipes.find((e) => e.time_id === atorTime);
   const golContraSemAutor = !!form?.contra && !form.existente;
-  const podeSubstituir = podeControlarAoVivo(data);
+  const podeSubstituir = operandoTempoAtual;
   const nomeTime = (id?: number | null) =>
     times.find((t) => t.id === id)?.nome || "Equipe";
   const roster = [...(equipeAutor?.publicada_em ? equipeAutor.escalacao : [])]
@@ -665,7 +674,7 @@ export default function SumulaPartida({
   }
   function mudarTempo(n: number) {
     if (!aoVivo) { setTempoSelecionado(Math.max(0, Math.min(n, ultimoPeriodoIniciado(data)))); return; }
-    if (n > tempo && !podeAvancarTempo(data, tempo, totalTempos, alterando)) return;
+    if (n > tempo && !podeAvancarTempo(data, tempo, totalTempos, alterando && !consultandoTempo)) return;
     if (n <= p.periodo_atual) { setTempoSelecionado(n === p.periodo_atual ? 0 : Math.max(1, n)); return; }
     if (!data.podeSumula || alterando || n !== p.periodo_atual + 1 || n > totalTempos) return;
     setProximoTempo(n);
@@ -815,7 +824,7 @@ export default function SumulaPartida({
               </Text>
             </View>
           </View>
-          {data.podePreparar && (
+          {!consultandoTempo && data.podePreparar && (
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="Opções da súmula"
@@ -844,6 +853,9 @@ export default function SumulaPartida({
           </View>
         )}
         <View style={[styles.panel, aoVivo && styles.match]}>
+          {consultandoTempo && <Text accessibilityRole="header" style={[styles.name, { textAlign: 'center' }]}>
+            Placar do {tempo}º tempo
+          </Text>}
           <View style={styles.between}>
             {finalizada ? (
               <Text style={styles.heading}>Resultado da partida</Text>
@@ -899,7 +911,7 @@ export default function SumulaPartida({
                       <React.Fragment key={lado}>
                         {lado === 1 && <Text style={styles.muted}>·</Text>}
                         <View style={styles.scoreColumn}>
-                          {aoVivo && data.podeSumula && (
+                          {operandoTempoAtual && (
                             <TouchableOpacity
                               accessibilityRole="button"
                               accessibilityLabel={`Registrar gol de ${times[lado].nome}`}
@@ -922,7 +934,7 @@ export default function SumulaPartida({
                           >
                             {gols}
                           </Text>
-                          {aoVivo && data.podeSumula && (
+                          {operandoTempoAtual && (
                             <TouchableOpacity
                               accessibilityRole="button"
                               accessibilityLabel={`Remover último gol de ${times[lado].nome}`}
@@ -1112,12 +1124,12 @@ export default function SumulaPartida({
               accessibilityLabel="Tempo anterior"
               accessibilityState={{
                 disabled: aoVivo
-                  ? (data.podeSumula && alterando) || tempo <= 1
+                  ? tempo <= 1
                   : tempo <= 0,
               }}
               disabled={
                 aoVivo
-                  ? (data.podeSumula && alterando) || tempo <= 1
+                  ? tempo <= 1
                   : tempo <= 0
               }
               style={[styles.iconButton, styles.close]}
@@ -1134,30 +1146,23 @@ export default function SumulaPartida({
                 {tempo ? `${tempo}º tempo` : "Todos os tempos"}
               </Text>
               <Text style={styles.tiny}>
-                {tempo ? `${tempo}/${totalTempos}` : "Resumo completo"}
+                {consultandoTempo ? `Em consulta · jogo no ${p.periodo_atual}º tempo` : `${tempo}/${totalTempos}`}
               </Text>
-              {finalizada && tempo > 0 && (
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  onPress={() => setTempoSelecionado(0)}
-                >
-                  <Text style={styles.link}>Ver todos</Text>
-                </TouchableOpacity>
-              )}
+              {consultandoTempo && <AppButton label="Voltar ao vivo" variant="ghost" onPress={() => setTempoSelecionado(0)} />}
             </View>
             <TouchableOpacity
               accessibilityRole="button"
-              accessibilityLabel="Próximo tempo"
-              accessibilityState={{ disabled: !podeAvancarTempo(data, tempo, totalTempos, alterando) }}
-              disabled={!podeAvancarTempo(data, tempo, totalTempos, alterando)}
-              style={[styles.iconButton, styles.close, !podeAvancarTempo(data, tempo, totalTempos, alterando) && styles.disabled]}
+              accessibilityLabel={consultandoTempo ? "Consultar próximo tempo" : "Próximo tempo"}
+              accessibilityState={{ disabled: !podeAvancarTempo(data, tempo, totalTempos, alterando && !consultandoTempo) }}
+              disabled={!podeAvancarTempo(data, tempo, totalTempos, alterando && !consultandoTempo)}
+              style={[styles.iconButton, styles.close, !podeAvancarTempo(data, tempo, totalTempos, alterando && !consultandoTempo) && styles.disabled]}
               onPress={() => mudarTempo(tempo + 1)}
             >
               <Icon name="chevron-right" size={22} color={colors.texto} />
             </TouchableOpacity>
           </View>
         )}
-        {aoVivo && data.podeSumula && (
+        {operandoTempoAtual && (
           <View style={styles.panel}>
             <Text style={styles.heading}>Registrar evento</Text>
             <View style={styles.eventGrid}>
@@ -1194,7 +1199,7 @@ export default function SumulaPartida({
         <View style={styles.panel}>
           <View style={styles.between}>
             <Text style={styles.heading}>Acontecimentos</Text>
-            {aoVivo && podeOperar && (
+            {operandoTempoAtual && (
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel="Desfazer último evento"
@@ -1238,7 +1243,7 @@ export default function SumulaPartida({
             }
             const e = item.evento;
             const direita = e.time_id === p.visitante_id;
-            const permitido = podeOperar || (data.podePreparar && e.tipo === 'GOL' && !e.jogador_id && minha?.time_id === timeAutor(data, e) && aoVivo);
+            const permitido = !consultandoTempo && (podeOperar || (data.podePreparar && e.tipo === 'GOL' && !e.jogador_id && minha?.time_id === timeAutor(data, e) && aoVivo));
             return <React.Fragment key={e.id}>
               {novaFaixa && <View style={styles.row}><View style={[styles.divider, styles.flex]} /><Text style={styles.tiny}>{e.periodo}º tempo</Text><View style={[styles.divider, styles.flex]} /></View>}
               <View style={{ flexDirection: direita ? 'row-reverse' : 'row', alignItems: 'flex-start', gap: 8 }}>
@@ -1333,7 +1338,7 @@ export default function SumulaPartida({
           <Text style={styles.muted}>EXPULSOS</Text>
           {equipeVisivel.escalacao.filter(j => j.expulso).map(jogadorLinha)}
         </View>}
-        {aoVivo && data.podeSumula && (
+        {operandoTempoAtual && (
           <View style={styles.finish}>
             <TouchableOpacity
               accessibilityRole="button"
@@ -1638,7 +1643,7 @@ export default function SumulaPartida({
                             setForm({ ...form, jogadorId: j.jogador_id, assistenteId: form.assistenteId === j.jogador_id ? undefined : form.assistenteId })
                           }
                         >
-                          <View style={[styles.shirt, j.titular && { backgroundColor: colors.primaria } ]}>
+                          <View style={[styles.shirt, j.titular && { backgroundColor: colors.acaoPrimaria } ]}>
                             <Text style={[styles.name, j.titular && { color: "#fff" }]}>
                               {String(j.numCamisa).padStart(2, "0")}
                             </Text>

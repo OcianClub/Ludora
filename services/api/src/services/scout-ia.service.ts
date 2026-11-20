@@ -1,33 +1,40 @@
 import axios from 'axios';
+import { isDeepStrictEqual } from 'node:util';
 
 import { PYTHON_AI_URL } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { validarResultadosScout } from './scout-result';
 
-const emExecucao = new Map<
-  number,
-  { pendente: boolean; promessa: Promise<void> }
->();
+type EscopoScout = Set<number> | 'clube';
+const emExecucao = new Map<number, { pendente?: EscopoScout; promessa: Promise<void> }>();
 
-export function processarMachineLearning(clubeId?: number): Promise<void> {
+export function processarMachineLearning(clubeId?: number, partidaId?: number): Promise<void> {
   const chave = clubeId ?? 0;
   const atual = emExecucao.get(chave);
   if (atual) {
-    atual.pendente = true;
+    if (!partidaId) atual.pendente = 'clube';
+    else if (atual.pendente !== 'clube') {
+      atual.pendente ??= new Set();
+      atual.pendente.add(partidaId);
+    }
     return atual.promessa;
   }
-  const job = { pendente: false, promessa: Promise.resolve() };
+  const job: { pendente?: EscopoScout; promessa: Promise<void> } = {
+    pendente: partidaId ? new Set([partidaId]) : 'clube',
+    promessa: Promise.resolve(),
+  };
   job.promessa = (async () => {
-    do {
-      job.pendente = false;
-      await executarAnalise(clubeId);
-    } while (job.pendente);
+    while (job.pendente) {
+      const escopo = job.pendente;
+      job.pendente = undefined;
+      await executarAnalise(clubeId, escopo);
+    }
   })().finally(() => emExecucao.delete(chave));
   emExecucao.set(chave, job);
   return job.promessa;
 }
 
-async function executarAnalise(clubeId?: number) {
+async function executarAnalise(clubeId: number | undefined, escopo: EscopoScout) {
   if (!PYTHON_AI_URL) {
     console.warn(
       'Scout IA: PYTHON_AI_URL não definida, pulando processamento.'
@@ -35,15 +42,29 @@ async function executarAnalise(clubeId?: number) {
     return;
   }
 
+  const categoriaClube = clubeId ? { categoria: { clube_id: clubeId } } : {};
+  const categoriasAfetadas = escopo === 'clube' ? null : await prisma.jogador.findMany({
+    where: { ativo: true, ...categoriaClube, OR: [
+      { escalacoes: { some: { partida_id: { in: [...escopo] } } } },
+      { eventos: { some: { partida_id: { in: [...escopo] } } } },
+    ] },
+    distinct: ['categoria_id'],
+    select: { categoria_id: true },
+  });
+  if (categoriasAfetadas?.length === 0) return;
   const jogadores = await prisma.jogador.findMany({
     where: {
       ativo: true,
-      ...(clubeId ? { categoria: { clube_id: clubeId } } : {}),
+      ...categoriaClube,
+      ...(categoriasAfetadas ? { categoria_id: { in: categoriasAfetadas.map(c => c.categoria_id) } } : {}),
     },
     select: {
       id: true,
       categoria_id: true,
       posicao: true,
+      perfil_ml: true,
+      scores_ml: true,
+      nota_geral: true,
       _count: {
         select: {
           escalacoes: { where: { partida: { status: 'FINALIZADA' } } },
@@ -128,21 +149,26 @@ async function executarAnalise(clubeId?: number) {
         throw new Error('Grupo inválido no Scout IA');
       }
     }
-    await prisma.$transaction(
-      resultados.map((resultado) =>
-        prisma.jogador.update({
-          where: { id: resultado.jogador_id },
-          data: {
-            perfil_ml: resultado.perfil_ml,
-            scores_ml: { ...resultado, calculado_em: new Date().toISOString() },
-            nota_geral: resultado.nota_geral,
-          },
-        })
-      )
-    );
-    console.log(
-      `Scout IA: ${resposta.data.length} jogadores processados e atualizados. ✅`
-    );
+    const porId = new Map(jogadores.map(jogador => [jogador.id, jogador]));
+    const alterados = resultados.flatMap(resultado => {
+      const jogador = porId.get(resultado.jogador_id);
+      if (!jogador) return [];
+      const scores = jogador.scores_ml;
+      const salvo = scores && typeof scores === 'object' && !Array.isArray(scores) ? { ...scores } : null;
+      if (salvo) delete salvo.calculado_em;
+      if (jogador.perfil_ml === resultado.perfil_ml && jogador.nota_geral === resultado.nota_geral
+          && isDeepStrictEqual(salvo, resultado)) return [];
+      return [prisma.jogador.updateMany({
+        where: { id: jogador.id, ativo: true, categoria_id: jogador.categoria_id, posicao: jogador.posicao },
+        data: {
+          perfil_ml: resultado.perfil_ml,
+          scores_ml: { ...resultado, calculado_em: new Date().toISOString() },
+          nota_geral: resultado.nota_geral,
+        },
+      })];
+    });
+    const atualizacoes = alterados.length ? await prisma.$transaction(alterados) : [];
+    console.log(`Scout IA: ${resultados.length} jogadores analisados, ${atualizacoes.reduce((total, item) => total + item.count, 0)} atualizados.`);
   } catch (error: any) {
     console.error(
       'Falha no processamento do Scout IA:',

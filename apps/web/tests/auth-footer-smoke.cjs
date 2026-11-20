@@ -55,8 +55,7 @@ async function checkOverlayKeyboard(page) {
           const invite = page.locator('.access-invite');
           assert.equal(await invite.evaluate(el => el.parentElement.classList.contains('auth-card')), true, 'Convite fica no conteúdo, fora do rodapé');
           assert.ok((await invite.boundingBox()).y >= (await inputs.last().boundingBox()).y + (await inputs.last().boundingBox()).height, 'Convite fica abaixo dos campos');
-          assert.ok(await invite.locator('small').isVisible(), 'Convite mantém descrição do app');
-          assert.ok((await invite.boundingBox()).height >= 80, 'Convite usa o card completo');
+          assert.ok((await invite.boundingBox()).height >= 44, 'Convite compacto mantém a área de toque');
           await checkOverlayKeyboard(page);
           await page.setViewportSize({ width, height: 420 });
           await inputs.last().focus();
@@ -73,8 +72,17 @@ async function checkOverlayKeyboard(page) {
         await page.locator('.access-field-feedback').first().waitFor();
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         if (path === '/registrar') {
+          const story = page.locator(width <= 760 ? '.auth-story-mobile' : '.auth-story');
+          await story.getByRole('heading', { name: 'Organize seu clube.' }).waitFor();
           await page.locator('input[name="nome"]').fill('João Teste');
           await page.locator('input[name="email"]').fill('joao@example.test');
+          await button.click();
+          await page.getByRole('heading', { name: 'Proteja sua conta' }).waitFor();
+          await story.getByRole('heading', { name: 'Acompanhe o jogo ao vivo.' }).waitFor();
+          await page.getByRole('button', { name: 'Voltar à etapa anterior' }).click();
+          await story.getByRole('heading', { name: 'Organize seu clube.' }).waitFor();
+          assert.equal(await page.locator('input[name="nome"]').inputValue(), 'João Teste');
+          assert.equal(await page.locator('input[name="email"]').inputValue(), 'joao@example.test');
           await button.click();
           await page.getByRole('heading', { name: 'Proteja sua conta' }).waitFor();
           if (width <= 760) await checkOverlayKeyboard(page);
@@ -85,6 +93,7 @@ async function checkOverlayKeyboard(page) {
           }));
           await button.click();
           await page.getByRole('heading', { name: 'Confirme seu e-mail' }).waitFor();
+          await story.getByRole('heading', { name: 'Conheça seus atletas.' }).waitFor();
           if (width <= 760) await checkOverlayKeyboard(page);
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         }

@@ -137,7 +137,7 @@ const invite = {
 
     await scenario('convite para nova conta mostra clube e aceita sem expor e-mail completo', async ({ page, calls }) => {
       await page.goto(base + '/login');
-      await page.getByRole('link', { name: /Tem um código de convite/ }).click();
+      await page.getByRole('link', { name: 'Tenho um código de convite' }).click();
       await page.getByLabel('Código do convite').fill('ABCD-2345');
       await page.getByRole('button', { name: 'Consultar convite' }).click();
       await page.getByRole('heading', { name: club.nome }).waitFor();
@@ -221,10 +221,13 @@ const invite = {
             await page.getByRole('radio', { name: theme === 'Escuro' ? 'Tema escuro' : 'Tema claro' }).click();
             assert.equal(await page.locator('.auth-page .brand:visible').count(), 1);
             if (route.includes('ABCD')) await page.getByRole('heading', { name: club.nome }).waitFor();
-            await page.waitForFunction(expected => {
+            await page.waitForFunction(expectedTheme => {
+              const root = document.documentElement;
               const input = document.querySelector('.access-input-row');
-              return input && getComputedStyle(input).backgroundColor === expected;
-            }, theme === 'Claro' ? 'rgb(253, 252, 248)' : 'rgb(20, 23, 31)');
+              const sample = document.createElement('span');
+              sample.style.backgroundColor = getComputedStyle(root).getPropertyValue('--fundo-card').trim();
+              return root.dataset.theme === expectedTheme && input && getComputedStyle(input).backgroundColor === sample.style.backgroundColor;
+            }, theme === 'Claro' ? 'light' : 'dark');
             assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `Overflow ${width} ${theme} ${route}`);
             const fields = await page.locator('.access-input-row').all();
             for (const field of fields) {

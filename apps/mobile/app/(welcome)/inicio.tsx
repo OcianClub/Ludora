@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SvgProps } from 'react-native-svg';
 
-import { typography } from '@ludora/design-tokens';
+import { typography, radius } from '@ludora/design-tokens';
 import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 
 import LogoArquivo from '@/assets/logo.svg';
@@ -85,9 +85,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   btnEntrar: {
     width: '100%',
-    backgroundColor: colors.primaria, 
+    backgroundColor: colors.acaoPrimaria,
     paddingVertical: 16,
-    borderRadius: 10,
+    borderRadius: radius.control,
     alignItems: 'center',
     marginBottom: 24,
   },

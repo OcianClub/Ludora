@@ -1,4 +1,4 @@
-import { fetchJsonResponse, RequestError } from './http';
+import { fetchRecoverableJsonResponse, isTemporaryServerError, RequestError } from './http';
 import { waitForApiConnection, reportApiConnection } from './apiConnection';
 
 export class AuthError extends Error {
@@ -24,8 +24,9 @@ export async function authRequest<T>(
   try {
     const connection = waitForApiConnection(url, options.signal);
     if (connection) await connection;
-    const response = await fetchJsonResponse(url, options, timeout);
-    reportApiConnection(url);
+    const retryLogin = options.method === 'POST' && url.endsWith('/auth/login');
+    const response = await fetchRecoverableJsonResponse(url, options, timeout, retryLogin);
+    if (!isTemporaryServerError(response.status)) reportApiConnection(url);
     const body = await response.json().catch(() => null);
     if (!response.ok) {
       const message = response.status === 429
@@ -48,8 +49,10 @@ export async function authRequest<T>(
     if (error instanceof RequestError && error.kind === 'response') throw new AuthError(error.message);
     throw new AuthError(uncertainWrite
       ? 'Não recebemos a confirmação do serviço. Verifique sua conexão. Se você estava criando uma conta, aceitando um convite ou trocando a senha, tente entrar antes de repetir a operação.'
-      : error instanceof RequestError && error.kind === 'timeout'
-        ? 'O serviço demorou para responder. Verifique sua internet e tente novamente.'
-        : 'Não conseguimos conectar ao Ludora. Verifique sua internet e tente novamente.');
+      : globalThis.navigator?.onLine === false
+        ? 'Seu dispositivo está sem internet. Reconecte-se à rede e tente novamente.'
+        : error instanceof RequestError && error.kind === 'timeout'
+          ? 'O Ludora demorou para responder. Aguarde um instante e tente novamente.'
+          : 'Não foi possível conectar ao Ludora. Confira sua conexão e tente novamente.');
   }
 }

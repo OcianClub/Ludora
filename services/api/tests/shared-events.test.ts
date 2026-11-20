@@ -7,6 +7,7 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
   let p: any;
   let events: any[];
   let audits: any[];
+  let avisos: any[];
   let nextId = 1;
   let correcaoAceita = false;
   const roster = [
@@ -15,7 +16,7 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
   ];
   const withPlayer = (event: any) => ({ ...event, jogador: event.jogador_id ? { nome: `Jogador ${event.jogador_id}` } : null });
   function reset() {
-    nextId = 1; events = []; audits = []; correcaoAceita = false;
+    nextId = 1; events = []; audits = []; avisos = []; correcaoAceita = false;
     roster.splice(4);
     roster.forEach((row, i) => { row.titular = i !== 2; row.jogador.posicao = 'Fixo'; row.numCamisa = i === 3 ? 1 : i + 1; });
     p = { id: 1, data: new Date('2026-10-30'), horario: '19:30', status: 'AO_VIVO', versao: 0, mandante_id: 10, visitante_id: 20, sumula_clube_id: 2, organizador_id: 2,
@@ -24,6 +25,7 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
       gols_mandante: 0, gols_visitante: 0, periodo_atual: 1, titulares_necessarios: 2 };
   }
   const tx: any = {
+    avisoPartidaPendente: { createMany: async ({ data }: any) => { avisos.push(...data); return { count: data.length }; } },
     propostaPartida: { findFirst: async () => correcaoAceita ? { id: 1 } : null },
     partida: {
       findUnique: async () => p,
@@ -61,8 +63,8 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
   };
   function replace(target: any, key: string, value: any) { const old = target[key]; target[key] = value; t.after(() => { target[key] = old; }); }
   replace(prisma, '$transaction', async (callback: any) => {
-    const snapshot = structuredClone({ p, events, audits, roster });
-    try { return await callback(tx); } catch (error) { ({ p, events, audits } = snapshot); roster.splice(0, roster.length, ...snapshot.roster); throw error; }
+    const snapshot = structuredClone({ p, events, audits, avisos, roster });
+    try { return await callback(tx); } catch (error) { ({ p, events, audits, avisos } = snapshot); roster.splice(0, roster.length, ...snapshot.roster); throw error; }
   });
   replace(prisma.partida, 'findUniqueOrThrow', async () => p);
   replace(prisma.participantePartida, 'findMany', async () => []);
@@ -116,6 +118,7 @@ test('súmula: gols, pendências, autoria, permissões e reenvio sem acessar ban
     const count = broadcasts.length;
     assert.equal((await call('post', post, body, 2, undefined, 200)).id, goal.id);
     assert.equal(events.length, 2); assert.equal(p.gols_mandante, 1); assert.equal(broadcasts.length, count);
+    assert.equal(avisos.length, 1, 'Reenvio de gol enfileira somente um aviso');
     await call('post', post, { ...body, jogador_id: 102 }, 2, undefined, 409);
     const removal = { motivo: 'Gol anulado', versao: p.versao, partida_id: p.id, request_id: 'request-remove-000001' };
     await call('delete', '/eventos/:id', removal, 2, goal.id, 200);

@@ -2,7 +2,7 @@ import { novoRequestId } from './requestId';
 import { cachedRead, invalidateReadCache, peekRead, readLifetime } from './readCache';
 import { BASE_URL } from './config';
 import { authRequest } from './authHttp';
-import { fetchJsonResponse, RequestError } from './http';
+import { fetchRecoverableJsonResponse, isTemporaryServerError, RequestError } from './http';
 import { waitForApiConnection, reportApiConnection } from './apiConnection';
 import { clearSavedSession, clubAccessScope } from './authSession';
 import { navigationMode, publicEndpoint, rememberAccess } from './publicAccess';
@@ -63,17 +63,23 @@ export function cachedJson<T>(endpoint: string): T | undefined { return peekRead
 export function invalidateApiReads(endpoint = '') { invalidateReadCache(readScope() + endpoint); }
 
 // ── Fetch central ──
-async function apiFetch(endpoint: string, { semClube = false, ...options }: RequestInit & { semClube?: boolean } = {}) {
+async function apiFetch(
+  endpoint: string, { semClube = false, ...options }: RequestInit & { semClube?: boolean } = {}, retryScope = true,
+): Promise<Response> {
   const token = getToken();
   const clubeId = getClubeId();
   const scope = readScope();
-  const assertContext = () => {
-    if (readScope() !== scope) throw new DOMException('O clube ou a sessão foi alterado durante a solicitação', 'AbortError');
+  const method = (options.method || 'GET').toUpperCase();
+  const retryInCurrentScope = () => {
+    if (retryScope && method === 'GET' && !options.signal?.aborted && getToken() === token && getClubeId() === clubeId) {
+      return apiFetch(endpoint, { ...options, semClube }, false);
+    }
+    throw new DOMException('O clube ou a sessão foi alterado durante a solicitação', 'AbortError');
   };
-  const target = !options.method || options.method.toUpperCase() === 'GET' ? publicEndpoint(endpoint, clubeId) : endpoint;
+  const target = method === 'GET' ? publicEndpoint(endpoint, clubeId) : endpoint;
   const connection = waitForApiConnection(`${BASE_URL}${endpoint}`, options.signal);
   if (connection) await connection;
-  assertContext();
+  if (readScope() !== scope) return retryInCurrentScope();
   const headers = new Headers(options.headers || {});
   headers.set('x-request-id', novoRequestId());
   if (!headers.has('Content-Type') && options.method && !['GET', 'DELETE'].includes(options.method)) {
@@ -83,19 +89,18 @@ async function apiFetch(endpoint: string, { semClube = false, ...options }: Requ
   if (clubeId && !semClube) headers.set('x-clube-id', String(clubeId));
   if (semClube) headers.delete('x-clube-id');
 
-  const method = (options.method || 'GET').toUpperCase();
   const lifetime = readLifetime(endpoint);
   const res = method === 'GET' && lifetime > 0 && !options.headers && options.cache !== 'no-store'
     ? await cachedRead(
       scope + endpoint,
-      signal => fetchJsonResponse(`${BASE_URL}${target}`, { ...options, headers, signal }),
+      signal => fetchRecoverableJsonResponse(`${BASE_URL}${target}`, { ...options, headers, signal }),
       lifetime,
       options.signal,
     )
-    : await fetchJsonResponse(`${BASE_URL}${target}`, { ...options, headers });
-  reportApiConnection(`${BASE_URL}${target}`);
+    : await fetchRecoverableJsonResponse(`${BASE_URL}${target}`, { ...options, headers });
+  if (!isTemporaryServerError(res.status)) reportApiConnection(`${BASE_URL}${target}`);
+  if (readScope() !== scope) return retryInCurrentScope();
   if (res.ok && method !== 'GET' && !/^\/partidas\/\d+\/palpite$/.test(endpoint) && !endpoint.startsWith('/notificacoes') && endpoint !== '/usuarios/me/notificacoes') invalidateReadCache(`${BASE_URL}:${token || ''}:`);
-  assertContext();
   if (res.status === 401 && token && getToken() === token && !endpoint.startsWith('/auth/')) {
     rememberAccess();
     invalidateReadCache();
@@ -454,6 +459,11 @@ export async function fetchPartidas(params?: { categoria_id?: number; mes?: numb
   if (params?.status) q.append('status', params.status);
   if (params?.competicao_id) q.append('competicao_id', String(params.competicao_id));
   return requestList<Partida>(`/partidas?${q}`);
+}
+export type GrupoAgendaWeb = 'ao_vivo' | 'pendentes' | 'agenda' | 'finalizadas' | 'canceladas' | 'preparacao';
+export type PartidaAgendaWeb = Partida & { grupo_agenda: GrupoAgendaWeb; posicao: number; total_grupo: number; revisao_grupo?: string };
+export function fetchAgendaWeb(params: URLSearchParams, signal?: AbortSignal) {
+  return requestList<PartidaAgendaWeb>(`/partidas/agenda?${params}`, { signal });
 }
 export async function criarPartida(dados: Partial<Partida> & { mandante_id: number; visitante_id: number; data: string; categoria_id: number }) {
   let res: Response;

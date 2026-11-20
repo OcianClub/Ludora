@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { EntradaLog, NivelLog } from '@ludora/shared-types';
 import { useLocation } from 'react-router-dom';
@@ -23,6 +23,11 @@ const NIVEIS = [
   { value: 'audit', label: 'Auditoria (ações do painel)' },
 ];
 const ordem: Record<NivelLog, number> = { info: 0, audit: 0, warn: 1, error: 2 };
+const alturaLinha = 33;
+const alturaData = 33;
+const margemJanela = 10 * alturaLinha;
+const formatarData = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+const formatarHorario = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
 export default function LogsPage() {
   const { usuario } = useAdminAuth();
@@ -60,6 +65,18 @@ export default function LogsPage() {
   const pausadoRef = useRef(false);
   const fila = useRef<EntradaLog[]>([]);
   const consoleRef = useRef<HTMLDivElement>(null);
+  const colunasRef = useRef<HTMLDivElement>(null);
+  const [janela, setJanela] = useState({ topo: 0, altura: 600 });
+
+  useEffect(() => {
+    const container = consoleRef.current;
+    if (!container) return;
+    const medir = () => setJanela({ topo: container.scrollTop, altura: container.clientHeight });
+    medir();
+    const observer = new ResizeObserver(medir);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [ampliado]);
 
   function alternarPausa() {
     pausadoRef.current = !pausadoRef.current;
@@ -100,44 +117,79 @@ export default function LogsPage() {
     return () => { ativo = false; parar(); clearInterval(timer); fila.current = []; };
   }, [revisao]);
 
-  const http = useMemo(() => new Map(entradas.map(e => [e.id, interpretarHttp(e)])), [entradas]);
+  const metadados = useMemo(() => new WeakMap<EntradaLog, { http: ReturnType<typeof interpretarHttp>; instante: number; dia: string }>(), []);
+  const registros = useMemo(() => entradas.map(entrada => {
+    let meta = metadados.get(entrada);
+    if (!meta) {
+      const data = new Date(entrada.ts);
+      meta = {
+        http: interpretarHttp(entrada),
+        instante: data.getTime(),
+        dia: Number.isFinite(data.getTime()) ? formatarData.format(data) : 'Data indisponível',
+      };
+      metadados.set(entrada, meta);
+    }
+    return { entrada, ...meta };
+  }), [entradas, metadados]);
   const temFiltros = !!(texto || nivel || periodo !== 'live' || metodo || statusHttp || lentas);
   const visiveis = useMemo(() => {
     const busca = texto.trim().toLowerCase();
-    return entradas.filter(e => {
+    return registros.filter(({ entrada: e, instante, http: campos }) => {
       if (context?.correlacao && e.correlacao !== context.correlacao) return false;
-      if (context?.rota && (e.caminho !== context.rota || !(Math.abs(Date.parse(e.ts) - Date.parse(context.horario ?? '')) <= 5 * 60_000))) return false;
+      if (context?.rota && (e.caminho !== context.rota || !(Math.abs(instante - Date.parse(context.horario ?? '')) <= 5 * 60_000))) return false;
       if (nivel === 'audit') { if (e.tipo !== 'audit') return false; }
       else if (nivel && ordem[e.nivel] < ordem[nivel as NivelLog]) return false;
       if (!dentroDoPeriodo(e.ts, periodo, agora)) return false;
-      const campos = http.get(e.id);
       if (metodo && campos?.metodo !== metodo) return false;
       if (statusHttp && (!campos || Math.floor(campos.status / 100).toString() !== statusHttp)) return false;
       if (lentas && classeDuracao(e.ms, limites.lenta, limites.critica) === 'normal') return false;
       return !busca || e.mensagem.toLowerCase().includes(busca);
-    }).sort((a, b) => ((new Date(a.ts).getTime() - new Date(b.ts).getTime()) || a.id - b.id) * (descendente ? -1 : 1));
-  }, [entradas, nivel, texto, periodo, agora, descendente, http, metodo, statusHttp, lentas, limites, context]);
+    }).sort((a, b) => ((a.instante - b.instante) || a.entrada.id - b.entrada.id) * (descendente ? -1 : 1));
+  }, [registros, nivel, texto, periodo, agora, descendente, metodo, statusHttp, lentas, limites, context]);
 
-  useEffect(() => { seguir.current = true; setNovos(0); }, [nivel, texto, periodo, descendente, metodo, statusHttp, lentas]);
+  const layout = useMemo(() => {
+    let offset = 0;
+    const linhas = visiveis.map((item, index) => {
+      const iniciaDia = index === 0 || item.dia !== visiveis[index - 1].dia;
+      const topo = offset;
+      offset += alturaLinha + (iniciaDia ? alturaData : 0);
+      return { ...item, iniciaDia, topo, fim: offset };
+    });
+    return { linhas, altura: offset };
+  }, [visiveis]);
+  const topo = Math.max(0, janela.topo - (colunasRef.current?.offsetHeight ?? 0));
+  const inicio = quebrar ? 0 : Math.max(0, layout.linhas.findIndex(linha => linha.fim > topo - margemJanela));
+  let fim = inicio;
+  while (fim < layout.linhas.length && (quebrar || layout.linhas[fim].topo < topo + janela.altura + margemJanela)) fim++;
+  const acima = quebrar ? 0 : layout.linhas[inicio]?.topo ?? 0;
+  const abaixo = quebrar ? 0 : layout.altura - (layout.linhas[fim - 1]?.fim ?? 0);
+  const layoutAnterior = useRef(layout);
 
-  useEffect(() => {
+  useLayoutEffect(() => { seguir.current = true; setNovos(0); }, [nivel, texto, periodo, descendente, metodo, statusHttp, lentas]);
+
+  useLayoutEffect(() => {
     const console = consoleRef.current;
+    const anterior = layoutAnterior.current;
+    layoutAnterior.current = layout;
     if (!seguir.current) {
-      const quantidade = visiveis.filter(e => !idsAnteriores.current.has(e.id)).length;
+      const quantidade = visiveis.filter(({ entrada }) => !idsAnteriores.current.has(entrada.id)).length;
       if (quantidade) setNovos(n => Math.min(LIMITE_LOGS, n + quantidade));
+      if (console && !quebrar && anterior !== layout) {
+        const linha = anterior.linhas.find(item => item.fim > topo);
+        const destino = linha && layout.linhas.find(item => item.entrada.id === linha.entrada.id);
+        if (linha && destino) console.scrollTop = janela.topo + destino.topo - linha.topo;
+      }
     }
-    idsAnteriores.current = new Set(visiveis.map(e => e.id));
+    idsAnteriores.current = new Set(visiveis.map(({ entrada }) => entrada.id));
     if (console && !pausado && seguir.current) console.scrollTop = descendente ? 0 : console.scrollHeight;
-  }, [visiveis, pausado, descendente, ampliado]);
-
-  const data = (ts: string) => new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-  const horario = (ts: string) => new Date(ts).toLocaleTimeString('pt-BR', { hour12: false });
+    if (console) setJanela({ topo: console.scrollTop, altura: console.clientHeight });
+  }, [layout, visiveis, pausado, descendente, ampliado, quebrar]);
 
   async function compartilhar(exportar: boolean, registro?: EntradaLog) {
     if (exportando || !visiveis.length) return;
     setExportando(true); setErro('');
     try {
-      const ids = registro ? [registro.id] : visiveis.map(e => e.id);
+      const ids = registro ? [registro.id] : visiveis.map(({ entrada }) => entrada.id);
       const resultado = exportar ? await window.ludora.logs.exportar(ids) : await window.ludora.logs.copiar(ids);
       if (resultado.ok) setAviso(`${resultado.total} registros ${exportar ? 'exportados' : 'copiados'}.`);
       else if (!('cancelado' in resultado && resultado.cancelado)) setErro(resultado.erro || 'Não foi possível concluir.');
@@ -183,22 +235,25 @@ export default function LogsPage() {
       {erro && <div className="notice-error" role="alert">{erro} <Btn size="sm" variant="ghost" loading={loading} onClick={() => setRevisao(n => n + 1)}>Tentar novamente</Btn></div>}
       <div ref={consoleRef} className={`log-console${quebrar ? ' log-wrap' : ''}`} role="log" aria-label="Registros da API" aria-live="off" tabIndex={0} onScroll={e => {
         const el = e.currentTarget;
+        setJanela({ topo: el.scrollTop, altura: el.clientHeight });
         seguir.current = descendente ? el.scrollTop < 24 : el.scrollHeight - el.clientHeight - el.scrollTop < 24;
         if (seguir.current) setNovos(0);
       }}>
-        <div className="desktop-log-columns" aria-hidden="true"><span>Horário</span><span>Nível</span><span>Método</span><span>Rota / mensagem</span><span>Status</span><span>Duração</span></div>
+        <div ref={colunasRef} className="desktop-log-columns" aria-hidden="true"><span>Horário</span><span>Nível</span><span>Método</span><span>Rota / mensagem</span><span>Status</span><span>Duração</span></div>
         {!entradas.length && loading && <LoadingSkeleton kind="table" label="Carregando histórico de logs" count={6} />}
         {!loading && visiveis.length === 0 && <p className="log-vazio">{context ? 'Nenhum registro correspondente no histórico disponível. Logs antigos podem já ter saído do histórico.' : temFiltros ? 'Nenhum registro corresponde aos filtros.' : estado === 'conectado' ? 'Aguardando registros…' : 'Sem conexão em tempo real com a API.'}</p>}
-        {visiveis.map((e, index) => <div key={e.id}>
-          {(index === 0 || data(visiveis[index - 1].ts) !== data(e.ts)) && <div className="desktop-log-day">{data(e.ts)}</div>}
-          <button type="button" className={`log-linha nivel-${e.nivel}`} onClick={() => setSelecionado(e)} aria-label={`Detalhes: ${e.mensagem}`}>
-            <time dateTime={e.ts} title={e.ts}>{horario(e.ts)}</time>
+        {acima > 0 && <div style={{ height: acima }} aria-hidden="true"/>}
+        {layout.linhas.slice(inicio, fim).map(({ entrada: e, dia, instante, iniciaDia, http }) => <div key={e.id}>
+          {iniciaDia && <div className="desktop-log-day" style={quebrar ? undefined : { height: alturaData, boxSizing: 'border-box' }}>{dia}</div>}
+          <button type="button" className={`log-linha nivel-${e.nivel}`} style={quebrar ? undefined : { height: alturaLinha, boxSizing: 'border-box' }} onClick={() => setSelecionado(e)} aria-label={`Detalhes: ${e.mensagem}`}>
+            <time dateTime={e.ts} title={e.ts}>{Number.isFinite(instante) ? formatarHorario.format(instante) : '—'}</time>
             <span className="log-nivel">{e.tipo === 'audit' ? 'AUDIT' : e.nivel.toUpperCase()}</span>
-            <span className={`log-method method-${http.get(e.id)?.metodo.toLowerCase()}`}>{http.get(e.id)?.metodo || '—'}</span>
-            <span className="log-msg">{http.get(e.id)?.rota || e.mensagem}</span>
-            <span className={`log-http http-${Math.floor((http.get(e.id)?.status || 0) / 100)}`}>{http.get(e.id)?.status || '—'}</span>
+            <span className={`log-method method-${http?.metodo.toLowerCase()}`}>{http?.metodo || '—'}</span>
+            <span className="log-msg">{http?.rota || e.mensagem}</span>
+            <span className={`log-http http-${Math.floor((http?.status || 0) / 100)}`}>{http?.status || '—'}</span>
             <span className={`log-ms duration-${classeDuracao(e.ms, limites.lenta, limites.critica)}`}>{e.ms !== undefined ? `${e.ms} ms` : '—'}</span>
           </button></div>)}
+        {abaixo > 0 && <div style={{ height: abaixo }} aria-hidden="true"/>}
       </div>
       <footer className="desktop-log-status"><span role="status"><i className={`rt-dot rt-${estado}`} aria-hidden="true"/>{pausado ? 'Pausado' : 'Acompanhando'} · {visiveis.length} de {entradas.length} registros</span>
         <div>{novos > 0 && <Btn variant="ghost" size="sm" onClick={() => { seguir.current = true; setNovos(0); if (consoleRef.current) consoleRef.current.scrollTop = descendente ? 0 : consoleRef.current.scrollHeight; }}>Novos registros {descendente ? '↑' : '↓'} · {novos}</Btn>}

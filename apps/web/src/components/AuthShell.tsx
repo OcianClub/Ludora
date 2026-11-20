@@ -1,31 +1,20 @@
 import { ReactNode, useEffect, useRef } from 'react';
 import { Brand } from './Brand';
-import { Icon } from './Icon';
 import { ThemeOptions } from './ThemeOptions';
+import { AuthStory, MobileAuthStory, type RegistrationStep } from './auth/AuthStory';
 
-export function AuthShell({ title, subtitle, children, back, progress, footer, navigation, intent }: {
-  intent?: "login" | "register";
+export function AuthShell({ title, subtitle, children, back, progress, footer, invite, intent, registerStep = 1 }: {
+  intent?: 'login' | 'register';
+  registerStep?: RegistrationStep;
   title: string;
   subtitle: string;
   children: ReactNode;
   back?: ReactNode;
   progress?: ReactNode;
   footer?: ReactNode;
-  navigation?: ReactNode;
+  invite?: ReactNode;
 }) {
-  const story = intent === 'register' ? {
-    eyebrow: 'SEU PRÓXIMO PASSO NO FUTSAL',
-    lines: ['Entre no jogo.', 'Faça parte.', 'Viva o Ludora.'],
-    description: 'Crie sua conta e conecte-se ao seu clube. Acompanhe partidas e participe da equipe com o acesso que receber.',
-  } : intent === 'login' ? {
-    eyebrow: 'SEU CLUBE, DENTRO E FORA DA QUADRA',
-    lines: ['Seu clube.', 'Seu jogo.', 'Tudo conectado.'],
-    description: 'Acesse seu clube para organizar a rotina, acompanhar partidas e consultar o Scout dos atletas.',
-  } : {
-    eyebrow: 'GESTÃO ESPORTIVA PARA CLUBES',
-    lines: ['Seu clube.', 'Seu jogo.', 'Mais conectado.'],
-    description: 'Organize seu clube, acompanhe as partidas e descubra o desempenho de cada atleta em um só lugar.',
-  };
+  const storyStep = intent === 'register' ? registerStep : undefined;
   const heading = useRef<HTMLHeadingElement>(null);
   const shell = useRef<HTMLElement>(null);
   const footerElement = useRef<HTMLDivElement>(null);
@@ -87,30 +76,21 @@ export function AuthShell({ title, subtitle, children, back, progress, footer, n
     };
   }, [hasFooter]);
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [title]);
-  return <main className="auth-page" ref={shell}>
-    <section className="auth-story" aria-label="Ludora">
-      <Brand />
-      <div className="auth-story-content">
-        <span className="eyebrow">{story.eyebrow}</span>
-        <h2>{story.lines[0]}<br />{story.lines[1]}<br /><span>{story.lines[2]}</span></h2>
-        <p>{story.description}</p>
-        <div className="auth-pitch" aria-hidden="true"><span className="pitch-circle" /><span className="pitch-goal left" /><span className="pitch-goal right" /><span className="pitch-ball"><Icon name="ball" size={28} /></span></div>
-        <div className="auth-story-features" aria-label="Recursos do Ludora"><span>Gestão do clube</span><span>Partidas</span><span>Scout de atletas</span></div>
-      </div>
-      <span className="auth-story-footer">FUTSAL CONECTA. LUDORA APROXIMA.</span>
-    </section>
+  return <main className={`auth-page${intent ? ' auth-page--access' : ''}`} ref={shell}>
+    <AuthStory step={storyStep} />
     <section className="auth-panel">
       <div className={`auth-card${hasFooter ? ' auth-card--footer' : ''}`}>
-        <div className={`access-topbar${back || navigation ? ' has-navigation' : ''}`}>
+        <div className={`access-topbar${back ? ' has-navigation' : ''}`}>
           <div className="access-mobile-brand"><Brand /></div>
-          {back || <span />}
-          {navigation}
+          {back}
           <ThemeOptions />
         </div>
         {progress}
         <div className="auth-heading"><h1 tabIndex={-1} ref={heading}>{title}</h1><p>{subtitle}</p></div>
         {children}
         {hasFooter && <div className="auth-footer" ref={footerElement}>{footer}</div>}
+        {invite}
+        {storyStep && <MobileAuthStory step={storyStep} />}
       </div>
     </section>
   </main>;

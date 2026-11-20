@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Text,
   TextInput,
+  Pressable,
   TouchableOpacity,
   View,
   type AccessibilityState,
@@ -164,14 +165,13 @@ export const AppButton = memo(function AppButton({
         ? colors.tituloErro
         : colors.textoSecundario;
   return (
-    <TouchableOpacity
+    <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel || label}
       accessibilityState={{ disabled: !!blocked, busy: !!busy }}
       onPress={onPress}
       disabled={blocked}
-      activeOpacity={0.8}
-      style={[
+      style={({ pressed }) => [
         s.button,
         variant === "primary"
           ? s.primary
@@ -180,6 +180,7 @@ export const AppButton = memo(function AppButton({
             : null,
         blocked && s.disabled,
         style,
+        pressed && { backgroundColor: variant === "primary" ? colors.acaoPrimariaHover : colors.superficieNeutra },
       ]}
     >
       {busy ? (
@@ -202,6 +203,6 @@ export const AppButton = memo(function AppButton({
       {!busy && icon && trailingIcon && (
         <Icon name={icon} size={16} color={color} />
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 });

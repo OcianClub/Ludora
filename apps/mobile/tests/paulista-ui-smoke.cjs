@@ -37,12 +37,20 @@ export function CarrosselSubs(p){const subs=p.tipoFiltro==='INICIACAO'?SUBS_INIC
 `);
 fs.writeFileSync(backend,`
 import {paulistaFixture} from '../../apps/mobile/tests/paulista.fixture';
-export const BASE_URL='/isolated';window.fixture={requests:[],fail:false,delay:0};
+export const BASE_URL='/isolated';window.fixture={requests:[],fail:false,delay:0,revisao:'1'};
 export async function apiFetch(url,opts={}){window.fixture.requests.push({url,method:opts.method||'GET'});if(window.fixture.delay)await new Promise(r=>setTimeout(r,window.fixture.delay));if(window.fixture.fail)throw Error('isolated offline');const data=paulistaFixture().map(evento=>({
   ...evento,
   equipesClube:url.includes('/clubes/2/')?[9]:evento.equipesClube,
   jogos:evento.jogos.map(jogo=>jogo.id==='semi'?{...jogo,local:'Ginásio Municipal'}:jogo),
-}));return new Response(JSON.stringify(data));}
+}));
+const publicacao=evento=>({evento,revisao:window.fixture.revisao});
+const alvo=new URL(url,location.href);
+if(alvo.pathname.endsWith('/catalogo')){
+  const eventos=data.map(({id,ano,divisao,categoria})=>({id,ano,divisao,categoria,revisao:window.fixture.revisao}));
+  return Response.json({eventos,inicial:alvo.searchParams.has('incluirInicial')?publicacao(data[0]):undefined});
+}
+const evento=data.find(e=>alvo.pathname.endsWith('/eventos/'+e.id));
+return evento?Response.json(publicacao(evento)):new Response(null,{status:404});}
 `);
 fs.writeFileSync(entry,`import React from 'react';import {createRoot} from 'react-dom/client';import Screen from '../../apps/mobile/src/screens/PaulistaScreen';createRoot(document.getElementById('root')).render(<Screen/>);`);
 (async()=>{
@@ -63,6 +71,7 @@ try{for(const width of [320,360,390,600,900])for(const role of ['guest','manager
 const page=await browser.newPage({viewport:{width,height:840}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.goto(`${url}/?${role}`);
 try{await page.getByText('Eliminado na semifinal',{exact:true}).waitFor({timeout:10000});}catch(e){console.error(errors,await page.locator('body').innerText());throw e;}
+assert.deepEqual(await page.evaluate(()=>window.fixture.requests.map(r=>r.url)),['/publico/clubes/1/paulista/catalogo?incluirInicial=1'],'cold open loads just the catalog and its initial event in one request');
 // The very first overview render must already have compact rows and a centered score.
 const trajectory=page.getByRole('button',{name:/^Ver partida:/}).first();
 const trajectoryBox=await trajectory.boundingBox();assert.ok(trajectoryBox.height<=70,'trajectory does not stretch during the first layout');
@@ -81,7 +90,7 @@ await page.getByRole('button',{name:'BASE',exact:true}).click();
 await page.getByText('Nenhuma participação publicada para SUB-12 na temporada 2026.',{exact:true}).waitFor();
 await page.getByRole('button',{name:'INICIACAO',exact:true}).click();
 await page.getByText('Eliminado na semifinal',{exact:true}).waitFor();
-assert.equal(await page.evaluate(()=>window.fixture.requests.length),1,'switches reuse the club publication');
+assert.deepEqual(await page.evaluate(()=>window.fixture.requests.map(r=>r.url)),['/publico/clubes/1/paulista/catalogo?incluirInicial=1','/publico/clubes/1/paulista/eventos/800'],'only a different published season requests details');
 const pagerBeforeTabs=await page.evaluate(()=>window.pagerRenders);
 if (width <= 390) {
   await page.getByRole('tab', {name:'Jogos',exact:true}).click();
@@ -120,7 +129,7 @@ if (width <= 390) {
 }
 await page.getByRole('tab',{name:'Classificação',exact:true}).click();await page.getByRole('button',{name:'Localizar meu clube',exact:true}).waitFor();
 assert.equal(await page.evaluate(()=>window.pagerRenders),pagerBeforeTabs,'tab navigation does not rerender native category pager');
-assert.equal(await page.evaluate(()=>window.fixture.requests.length),1,'tab navigation does not request publication again');
+assert.equal(await page.evaluate(()=>window.fixture.requests.length),2,'tab navigation does not request publication again');
 const row=page.getByLabel('12º, Ocian, seu clube',{exact:true});
 assert.deepEqual(await row.evaluate(e=>[getComputedStyle(e).backgroundColor,getComputedStyle(e).borderLeftColor]),['rgb(20, 30, 47)','rgb(14, 120, 255)']);
 assert.equal(await page.getByText('Chave Ouro',{exact:true}).count(),1);assert.equal(await page.getByText('Chave Bronze',{exact:true}).count(),1);
@@ -155,7 +164,20 @@ await page.evaluate(()=>{window.fixture.delay=500;window.fixture.fail=true;});
 await page.getByRole('button',{name:'Atualizar dados',exact:true}).click();await page.getByText('Última atualização não concluída',{exact:true}).waitFor();
 assert.equal(await page.evaluate(()=>window.fixture.requests.length),2,'explicit refresh bypasses the recent publication');
 assert.equal(await page.getByText('Eliminado na semifinal',{exact:true}).count(),1,'refresh failure preserves publication');
-await page.screenshot({path:path.join(output,'refresh-error.png'),fullPage:true});await page.close();count++;
+await page.screenshot({path:path.join(output,'refresh-error.png'),fullPage:true});
+const atualizar=async()=>{
+  await page.getByRole('button',{name:'Opções do campeonato',exact:true}).click();
+  await page.getByRole('button',{name:'Atualizar dados',exact:true}).click();
+};
+await page.evaluate(()=>{window.fixture.fail=false;window.fixture.delay=0;});
+await atualizar();
+await page.getByText('Última atualização não concluída',{exact:true}).waitFor({state:'hidden'});
+assert.equal(await page.evaluate(()=>window.fixture.requests.length),3,'same revision only refreshes the catalog');
+await page.evaluate(()=>{window.fixture.revisao='2';});
+await atualizar();
+await page.waitForFunction(()=>window.fixture.requests.length===5);
+assert.deepEqual(await page.evaluate(()=>window.fixture.requests.slice(-2).map(r=>r.url)),['/publico/clubes/1/paulista/catalogo','/publico/clubes/1/paulista/eventos/900'],'changed revision reloads the selected event');
+await page.close();count++;
 const race=await browser.newPage({viewport:{width:360,height:840}});await race.goto(`${url}/?guest`);await race.getByText('Eliminado na semifinal',{exact:true}).waitFor();
 await race.getByRole('button',{name:/Ver partida:/}).first().click();await race.getByText('Partida oficial',{exact:true}).waitFor();
 await race.evaluate(()=>{window.fixture.delay=500;window.switchClub(2);});

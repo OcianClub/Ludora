@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { typography } from '@ludora/design-tokens';
+import { typography, radius } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 
@@ -71,11 +71,11 @@ content: {
     marginBottom: 10
   },
   btnContinuar: {
-    backgroundColor: colors.primaria,
+    backgroundColor: colors.acaoPrimaria,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: radius.control,
     width: '100%'
   },
   txtBtn: {

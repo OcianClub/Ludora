@@ -35,6 +35,7 @@ export default function LoginPage() {
 
   return (
     <AuthShell intent="login" title="Bem-vindo de volta" subtitle="Acesse sua conta para continuar com seu clube."
+      invite={<InviteCard />}
       footer={<>
         <button className="btn btn-primary auth-btn" type="submit" form="login-form" disabled={access.busy} aria-busy={access.busy}>
           {access.busy ? 'Entrando…' : 'Entrar'}
@@ -49,13 +50,14 @@ export default function LoginPage() {
           <AuthField label="E-mail" name="email" type="email" autoComplete="email" maxLength={254}
             placeholder="email@exemplo.com" value={email} onChange={e => { setEmail(e.target.value); access.setError(''); }}
             onBlur={() => access.blur('email')} error={access.feedback('email', erroEmail(email))} />
-          <AuthField label="Senha" name="senha" type="password" icon="password" autoComplete="current-password"
-            placeholder="Digite sua senha" value={senha} onChange={e => { setSenha(e.target.value); access.setError(''); }}
-            error={access.feedback('senha', senha ? '' : 'Informe sua senha para entrar.')}
-            action={<Link className="access-text-link" to="/recuperar-senha" state={{ email, convite: state?.convite }}>Esqueceu sua senha?</Link>} />
+          <div className="access-password">
+            <AuthField label="Senha" name="senha" type="password" icon="password" autoComplete="current-password"
+              placeholder="Digite sua senha" value={senha} onChange={e => { setSenha(e.target.value); access.setError(''); }}
+              error={access.feedback('senha', senha ? '' : 'Informe sua senha para entrar.')} />
+            <Link className="access-text-link" to="/recuperar-senha" state={{ email, convite: state?.convite }}>Esqueceu sua senha?</Link>
+          </div>
         </fieldset>
       </form>
-      <InviteCard />
     </AuthShell>
   );
 }

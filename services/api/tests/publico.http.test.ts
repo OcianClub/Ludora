@@ -22,11 +22,25 @@ test('consulta pública HTTP: escopo, rascunhos e ações de gestão', async t =
     visitante: { id: 30, nome: 'Outro nome antigo', escudo: null, clube_representado_id: 3, clubeRepresentado: clubes[1] },
     participantes: [{ id: 1, clube_id: 2, categoria_id: 7, time_id: 20, pronta: publicada, publicada_em: publicada ? new Date() : null, categoria, clube: clubes[0] }] });
   let lineupCalls = 0, eventCalls = 0;
+  let equipesVinculadas = [20];
+  let detalhePaulistaConsultas = 0;
+  const publicacao = { id: 925, ano: 2026, divisao: 'A2', categoria: 'SUB-7', verificadoEm: null, hash: 'snapshot-local',
+    diario: true, segredo: 'interno', payload: { fonte: 'https://eventos.admfutsal.com.br/evento/925', equipes: [{ id: 20, nome: 'Ocian', escudo: null }], jogos: [], classificacao: [], fasesExcluidas: ['Fase não homologada'] } };
   const banco: any = {
     $queryRaw: async () => [{ ...row(), grupo_agenda: 'ao_vivo', posicao: 1, total_grupo: 1, cpf: 'NUNCA EXPOR', auditoria: ['privado'] }],
-    fpfsVinculo: { findMany: async () => [{ equipeId: 20 }] },
-    fpfsEvento: { findMany: async () => [{ id: 925, ano: 2026, divisao: 'A2', categoria: 'SUB-7', verificadoEm: null,
-      diario: true, segredo: 'interno', payload: { fonte: 'https://eventos.admfutsal.com.br/evento/925', equipes: [{ id: 20, nome: 'Ocian', escudo: null }], jogos: [], classificacao: [], fasesExcluidas: ['Fase não homologada'] } }] },
+    fpfsVinculo: { findMany: async ({ where }: any) => where.clubeId === 2 ? equipesVinculadas.map(equipeId => ({ equipeId })) : [] },
+    fpfsEvento: {
+      findMany: async ({ select }: any) => select.payload ? [publicacao] : [new Proxy(publicacao, {
+        get(target, key) {
+          assert.notEqual(key, 'payload', 'O catálogo deve trabalhar apenas com os metadados');
+          return Reflect.get(target, key);
+        }
+      })],
+      findFirst: async ({ where }: any) => {
+        detalhePaulistaConsultas++;
+        return where.id === 925 && where.times.some.equipeId.in.includes(20) ? publicacao : null;
+      },
+    },
     clube: { findUnique: async ({ where }: any) => clubes.find(c => c.id === where.id) || null, findMany: async () => clubes },
     categoria: { findMany: async ({ where }: any) => { assert.equal(where.clube_id, 2); return [categoria]; } },
     time: { findMany: async () => [] },
@@ -87,7 +101,30 @@ test('consulta pública HTTP: escopo, rascunhos e ações de gestão', async t =
       assert.deepEqual(rows[0].equipesClube, [20]); assert.equal(rows[0].fonte, 'https://eventos.admfutsal.com.br/evento/925');
       assert.deepEqual(rows[0].fasesExcluidas, ['Fase não homologada']);
       assert.doesNotMatch(JSON.stringify(rows), /segredo|diario|pendencias|retroativos|auditoria/);
-    } finally { if (anterior === undefined) delete process.env.PAULISTA_ENABLED; else process.env.PAULISTA_ENABLED = anterior; }
+      const caminho = base + '/publico/clubes/2/paulista';
+      const catalogo = await (await fetch(caminho + '/catalogo')).json();
+      const [item] = catalogo.eventos;
+      assert.deepEqual(Object.keys(item).sort(), ['ano', 'categoria', 'divisao', 'id', 'revisao']);
+      assert.equal(detalhePaulistaConsultas, 0);
+      const abertura = await (await fetch(caminho + '/catalogo?incluirInicial=1')).json();
+      assert.deepEqual(abertura.eventos, catalogo.eventos);
+      assert.deepEqual(abertura.inicial, { evento: rows[0], revisao: item.revisao });
+      assert.equal(detalhePaulistaConsultas, 1);
+      const detalhe = await (await fetch(caminho + '/eventos/925')).json();
+      assert.deepEqual(detalhe, abertura.inicial);
+      assert.equal((await fetch(caminho + '/eventos/invalido')).status, 400);
+      assert.equal((await fetch(caminho + '/eventos/999')).status, 404);
+      assert.equal((await fetch(base + '/publico/clubes/3/paulista/eventos/925')).status, 404);
+      equipesVinculadas = [20, 30];
+      const revisado = await (await fetch(caminho + '/catalogo')).json();
+      assert.notEqual(revisado.eventos[0].revisao, item.revisao);
+      equipesVinculadas = [];
+      assert.deepEqual(await (await fetch(caminho + '/catalogo?incluirInicial=1')).json(), { eventos: [] });
+      assert.equal((await fetch(caminho + '/eventos/925')).status, 404);
+    } finally {
+      equipesVinculadas = [20];
+      if (anterior === undefined) delete process.env.PAULISTA_ENABLED; else process.env.PAULISTA_ENABLED = anterior;
+    }
   });
   await t.test('escalação publicada e eventos são somente leitura, sem cadastro pessoal', async () => {
     publicada = true; status = 'AO_VIVO';

@@ -12,8 +12,8 @@
   color: var(--texto);
   background: var(--fundo-card);
   border: 1px solid var(--borda);
-  border-radius: 10px;
-  box-shadow: 0 12px 30px #0003;
+  border-radius: var(--radius-overlay);
+  box-shadow: var(--sombra-overlay);
 }
 .responsive-popover-wide[role="dialog"] { width: min(400px, calc(100vw - 24px)); }
 .responsive-popover:focus { outline: none; }
@@ -33,7 +33,7 @@ dialog.modal.responsive-sheet {
   max-width: none;
   max-height: var(--responsive-sheet-height, calc(100dvh - 16px));
   margin: 0;
-  border-radius: 16px 16px 0 0;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   border-bottom: 0;
   resize: none;
 }

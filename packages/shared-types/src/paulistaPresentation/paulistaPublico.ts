@@ -1,10 +1,5 @@
-import type { PainelPaulista, SnapshotPaulista } from '../paulista';
-
-export type EventoPublicoPaulista = Pick<SnapshotPaulista, 'id' | 'ano' | 'divisao' | 'categoria' | 'fonte' | 'equipes' | 'jogos' | 'classificacao'> & {
-  equipesClube: number[];
-  verificadoEm: string | null;
-  fasesExcluidas?: string[];
-};
+import type { EventoPublicoPaulista, PainelPaulista } from '../paulista';
+export type { EventoPublicoPaulista } from '../paulista';
 export type ClubePaulistaPublico = { id: number; nome: string; escudo?: string | null };
 
 // Adapta somente a publicação oficial para os componentes de consulta existentes.

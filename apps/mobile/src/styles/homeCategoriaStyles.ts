@@ -1,19 +1,7 @@
 import { StyleSheet } from 'react-native';
-import { typography, liveBadgeColors } from '@ludora/design-tokens';
+import { typography, liveBadgeColors, radius } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 import { MARGEM_TELA } from './layout';
-
-// Escala local da Home: superfícies amplas, elementos compactos e controles.
-// Evita repetir o raio de um card em um selo ou escudo pequeno.
-const radius = {
-  surface: 10,
-  compact: 8,
-  crest: 12,
-  control: 10,
-  tile: 4,
-  smallCrest: 6,
-  badge: 3,
-} as const;
 
 export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   pageContainer: { flex: 1, backgroundColor: colors.fundo },
@@ -39,7 +27,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderRadius: 4,
     backgroundColor: liveBadgeColors.indicador,
   },
-  mainCard: { backgroundColor: colors.card, padding: 16, borderRadius: radius.surface, borderWidth: 1, borderColor: colors.borda, marginBottom: 28 },
+  mainCard: { backgroundColor: colors.card, padding: 16, borderRadius: radius.card, borderWidth: 1, borderColor: colors.borda, marginBottom: 28 },
   mainCardAoVivo: { borderColor: colors.primaria },
   matchHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'space-between', marginBottom: 16 },
   eyebrow: { flexShrink: 1, color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.medium, fontSize: 11, letterSpacing: 0 },
@@ -47,7 +35,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   venueText: { color: colors.texto, fontFamily: typography.fontFamily.corpo.medium, fontSize: 12 },
   teamsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   team: { flex: 1, alignItems: 'center', gap: 10, minWidth: 0 },
-  crestBox: { width: 50, height: 50, borderRadius: radius.crest, backgroundColor: colors.cardSecundario, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borda },
+  crestBox: { width: 50, height: 50, borderRadius: radius.overlay, backgroundColor: colors.cardSecundario, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borda },
   crest: { width: 37, height: 37 },
   crestInitial: { color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 24 },
   teamName: { color: colors.texto, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 14, textAlign: 'center', lineHeight: 20 },
@@ -63,16 +51,16 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   metaStrong: { color: colors.texto, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 14 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   secondaryText: { color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.regular, fontSize: 12, lineHeight: 19 },
-  primaryButton: { minHeight: 44, backgroundColor: colors.primaria, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center', padding: 12 },
+  primaryButton: { minHeight: 44, backgroundColor: colors.acaoPrimaria, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center', padding: 12 },
   primaryButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   primaryButtonText: { flexShrink: 1, color: colors.textoSobrePrimaria, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 14, textAlign: 'center' },
   textButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 10 },
-  emptyCard: { borderRadius: radius.surface, backgroundColor: colors.card, padding: 24, alignItems: 'center', gap: 12, marginBottom: 28, borderWidth: 1, borderColor: colors.borda },
+  emptyCard: { borderRadius: radius.card, backgroundColor: colors.card, padding: 24, alignItems: 'center', gap: 12, marginBottom: 28, borderWidth: 1, borderColor: colors.borda },
   emptyDescription: { color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.regular, fontSize: 13, lineHeight: 20, textAlign: 'center' },
   cardTitle: { color: colors.texto, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 14, lineHeight: 21 },
-  preparationCard: { padding: 16, borderRadius: radius.compact, backgroundColor: colors.card, gap: 16, marginBottom: 28 },
+  preparationCard: { padding: 16, borderRadius: radius.control, backgroundColor: colors.card, gap: 16, marginBottom: 28 },
   preparationHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  preparationIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderRadius: radius.tile },
+  preparationIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderRadius: radius.counter },
   historyTitleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   historySummary: { paddingHorizontal: 10, paddingTop: 14, paddingBottom: 12, gap: 10 },
   historySummaryTop: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
@@ -83,7 +71,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   formLetter: { fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 12 },
   formSummaryText: { color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.regular, fontSize: 11, lineHeight: 17 },
   formLegend: { color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.regular, fontSize: 11, lineHeight: 17 },
-  historyList: { backgroundColor: colors.card, borderRadius: radius.surface, borderWidth: 1, borderColor: colors.linha, overflow: 'hidden', marginBottom: 16 },
+  historyList: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.linha, overflow: 'hidden', marginBottom: 16 },
   historyAllButton: { minHeight: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   historyAllText: { color: colors.primaria, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 13 },
   historyDate: { color: colors.texto, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 14, lineHeight: 21 },
@@ -91,7 +79,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   historyCompetition: { color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.regular, fontSize: 11 },
   historyResult: { maxWidth: 58, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 10, paddingHorizontal: 5, paddingVertical: 5, borderRadius: radius.badge, overflow: 'hidden' },
   historyTeamRow: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 28 },
-  historyCrestBox: { width: 21, height: 21, alignItems: 'center', justifyContent: 'center', borderRadius: radius.smallCrest, backgroundColor: colors.cardSecundario },
+  historyCrestBox: { width: 21, height: 21, alignItems: 'center', justifyContent: 'center', borderRadius: radius.badge, backgroundColor: colors.cardSecundario },
   historyCrest: { width: 16, height: 16 },
   historyInitial: { color: colors.texto, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 11 },
   historyTeamName: { color: colors.textoSecundario, fontFamily: typography.fontFamily.corpo.regular, fontSize: 11, lineHeight: 19 },
@@ -99,7 +87,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   historyGoals: { color: colors.texto, fontFamily: typography.fontFamily.titulo.semiBold, fontSize: 17, lineHeight: 28, height: 28, textAlign: 'center', fontVariant: ['tabular-nums'] },
   crestHighlight: { borderColor: colors.primaria },
   section: { minWidth: 0 },
-  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.cardClaro, padding: 10, borderRadius: radius.compact },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.cardClaro, padding: 10, borderRadius: radius.control },
   pendingEmpty: { paddingLeft: 48, paddingRight: 12 },
   pendingHeading: { paddingHorizontal: 12, alignItems: 'flex-start' },
   pendingItem: { gap: 12, paddingHorizontal: 12, paddingVertical: 12, minHeight: 68 },
@@ -109,7 +97,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   pendingCountSlot: { minWidth: 28, alignItems: 'center' },
   pendingChevron: { width: 16, alignItems: 'center' },
   pendingNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 12 },
-  pendingCount: { color: colors.textoSobrePrimaria, backgroundColor: colors.primaria, overflow: 'hidden', borderRadius: 6, minWidth: 28, textAlign: 'center', fontSize: 12, lineHeight: 18, paddingHorizontal: 7, paddingVertical: 4, fontFamily: typography.fontFamily.corpo.semiBold },
+  pendingCount: { color: colors.textoSobrePrimaria, backgroundColor: colors.acaoPrimaria, overflow: 'hidden', borderRadius: radius.badge, minWidth: 28, textAlign: 'center', fontSize: 12, lineHeight: 18, paddingHorizontal: 7, paddingVertical: 4, fontFamily: typography.fontFamily.corpo.semiBold },
   agendaGroup: { gap: 12 },
   historyRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.borda },
   historyHeader: { backgroundColor: colors.cardClaro, borderTopWidth: 0 },

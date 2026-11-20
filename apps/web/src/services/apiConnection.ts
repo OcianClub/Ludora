@@ -1,4 +1,4 @@
-import { RequestError } from './http';
+import { isTemporaryServerError, RequestError, waitBeforeRetry } from './http';
 
 export type ConnectionState = 'idle' | 'connecting' | 'slow' | 'ready' | 'error';
 
@@ -28,22 +28,40 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
     pending = (async () => {
       await Promise.resolve();
       try {
-        const response = await fetch(`${baseUrl.replace(/\/$/, '')}/health`, {
-          signal: controller.signal,
-          cache: 'no-store',
-          credentials: 'omit',
-        });
-        if (!response.ok || (await response.json())?.status !== 'ok') throw new Error();
-        readyAt = Date.now();
-        lastError = undefined;
-        update('ready');
+        const isReady = () => state === 'ready';
+        let retryDelay = 1_000;
+        while (!isReady()) {
+          controller.signal.throwIfAborted();
+          const response = await fetch(`${baseUrl.replace(/\/$/, '')}/health`, {
+            signal: controller.signal,
+            cache: 'no-store',
+            credentials: 'omit',
+          }).catch(error => {
+            if (controller.signal.aborted || globalThis.navigator?.onLine === false || !(error instanceof TypeError)) throw error;
+            return undefined;
+          });
+          controller.signal.throwIfAborted();
+          if (response?.ok && !response.headers.get('content-type')?.includes('text/html')) {
+            if ((await response.json())?.status !== 'ok') throw new Error();
+            readyAt = Date.now();
+            lastError = undefined;
+            update('ready');
+            return;
+          }
+          if (response && !response.ok && !isTemporaryServerError(response.status)) throw new Error();
+          // O proxy pode devolver HTML ou recusar a conexão enquanto a instância inicia.
+          if (isReady()) return;
+          await waitBeforeRetry(retryDelay, controller.signal);
+          retryDelay = Math.min(retryDelay * 2, 3_000);
+        }
       } catch {
         // Uma resposta de outra consulta já pode ter confirmado a conexão.
         if (state === 'ready') return;
         failedAt = Date.now();
         lastError = new RequestError(
-          controller.signal.aborted ? 'O servidor demorou para responder. Tente conectar novamente.' :
-            'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
+          globalThis.navigator?.onLine === false ? 'Seu dispositivo está sem internet. Reconecte-se à rede e tente novamente.' :
+            controller.signal.aborted ? 'O servidor ainda não respondeu. Aguarde um instante e tente novamente.' :
+            'O servidor não respondeu como esperado. Tente novamente em instantes.',
           controller.signal.aborted ? 'timeout' : 'network',
         );
         update('error');

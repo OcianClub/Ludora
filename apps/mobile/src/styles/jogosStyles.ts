@@ -101,11 +101,6 @@ export const createStyles = (colors: ThemeColors, tema: keyof typeof interfaceCo
       borderRadius: 5,
       overflow: 'hidden',
     },
-    preparedBadge: { color: '#63DECD', backgroundColor: '#203338' },
-    scheduledBadge: { color: '#D4BFFF', backgroundColor: '#302B40' },
-    winBadge: { color: '#FFFFFF', backgroundColor: colors.primaria },
-    lossBadge: { color: '#FFFFFF', backgroundColor: '#C82947' },
-    drawBadge: { color: '#241A0C', backgroundColor: '#F0B84E' },
     cardDetails: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -116,7 +111,7 @@ export const createStyles = (colors: ThemeColors, tema: keyof typeof interfaceCo
       borderColor: colors.borda,
       borderRadius: 8,
     },
-    cardDetailsLive: { backgroundColor: colors.primaria, borderColor: colors.primaria },
+    cardDetailsLive: { backgroundColor: colors.acaoPrimaria, borderColor: colors.acaoPrimaria },
     cardDetailsText: { color: colors.primaria, fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 13 },
     cardDetailsLiveText: { color: colors.textoSobrePrimaria },
     agendaHeading: {
@@ -171,7 +166,7 @@ export const createStyles = (colors: ThemeColors, tema: keyof typeof interfaceCo
       borderRadius: 2,
     },
     dateBarHoje: {
-      backgroundColor: colors.primaria,
+      backgroundColor: colors.acaoPrimaria,
       width: 4,
     },
     dateText: {

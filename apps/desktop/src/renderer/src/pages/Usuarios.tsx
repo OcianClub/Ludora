@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { ClubeResumo, UsuarioGlobal, VisaoGlobal } from '@ludora/shared-types';
+import type { UsuarioGlobal } from '@ludora/shared-types';
 import { Btn, DesktopState, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { Toast } from '@web/components/Toast';
 import { CollectionFilterButton, CollectionFilterDialog, CollectionSearch } from '@web/components/CollectionToolbar';
@@ -12,7 +12,7 @@ import { ordenarUsuarios, proximaOrdem, type OrdemUsuario } from '../../../share
 import { Icon } from '@web/components/Icon';
 import CadastroPendente from '../components/CadastroPendente';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
-import { removerVinculo, requestJson, revogarSessoes } from '../services/api';
+import { fetchOpcoesClubes, obterVisaoRecente, removerVinculo, requestJson, revogarSessoes, type OpcaoClube } from '../services/api';
 import { DesktopToggle } from '../components/DesktopToggle';
 import { AccountIdentity } from '../components/AccountIdentity';
 import { UsuarioClubeEditor } from '../components/UsuarioClubeEditor';
@@ -38,7 +38,7 @@ export default function UsuariosPage() {
   const aba = admin && params.get('aba') === 'cadastro' ? 'cadastro' : 'contas';
   const [ordem, setOrdem] = useState<OrdemUsuario>(null);
   const [usuarios, setUsuarios] = useState<UsuarioGlobal[] | null>(null);
-  const [clubes, setClubes] = useState<ClubeResumo[]>([]);
+  const [clubes, setClubes] = useState<OpcaoClube[]>(() => obterVisaoRecente()?.clubes ?? []);
   const [erroClubes, setErroClubes] = useState('');
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
@@ -62,7 +62,15 @@ export default function UsuariosPage() {
     for (const [k, v] of Object.entries(patch)) { if (v) next.set(k, v); else next.delete(k); }
     setParams(next, { replace });
   }
-  useEffect(() => { void requestJson<Pick<VisaoGlobal, 'clubes'>>('/admin/overview').then(v => setClubes(v.clubes)).catch(e => setErroClubes(e.message)); }, [refresh]);
+  useEffect(() => {
+    let ativo = true;
+    void fetchOpcoesClubes().then(v => {
+      if (ativo) { setClubes(v); setErroClubes(''); }
+    }).catch(e => {
+      if (ativo) { setClubes([]); setErroClubes(e.message); }
+    });
+    return () => { ativo = false; };
+  }, [refresh]);
   useEffect(() => {
     if (aba === 'cadastro') return;
     let atual = true;

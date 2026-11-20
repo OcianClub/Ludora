@@ -17,10 +17,42 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
   const competicoes=[{id:1,nome:'[DEMO] Copa Ocian Base',tipo:'BASE',ano:2026,clube_id:2},{id:2,nome:'[DEMO] Copa Ocian Iniciação',tipo:'INICIACAO',ano:2026,clube_id:2}];
   decorate?.({ clubes, usuario, categorias, times, jogadores, partidas, competicoes });
   const shared=partidas.find(p=>p.id===106);
-  Object.assign(shared,{somente_leitura:true,clube_origem_id:3,categoria_id:99,categoria:{...shared.categoria,id:99,clube_id:3}});
+  if(shared) Object.assign(shared,{somente_leitura:true,clube_origem_id:3,categoria_id:99,categoria:{...shared.categoria,id:99,clube_id:3}});
+  function agenda(query) {
+    const normalizar = valor => valor.normalize('NFD').replace(/\p{Diacritic}/gu,'').trim().toUpperCase();
+    const busca=normalizar(query.get('busca')||'');
+    const categoria=query.get('categoria_nome');
+    const exibida=query.get('categoria_exibida');
+    const grupos=new Map();
+    for (const p of partidas) {
+      const nome=p.categoria.nome.toUpperCase();
+      if (categoria && categoria.toUpperCase()!==nome || !busca && exibida && exibida.toUpperCase()!==nome) continue;
+      if (busca && !normalizar(`${p.mandante.nome} ${p.visitante.nome} ${p.local}`).includes(busca)) continue;
+      if (query.get('mando') && p.emCasa!==(query.get('mando')==='casa')) continue;
+      if (query.get('organizadas') && (p.organizador_id??p.clube_origem_id??p.categoria.clube_id)!==2) continue;
+      if (query.get('de') && p.data.slice(0,10)<query.get('de') || query.get('ate') && p.data.slice(0,10)>query.get('ate')) continue;
+      const situacao={FINALIZADA:'finalizadas',CANCELADA:'canceladas',AO_VIVO:'ao_vivo'}[p.status]
+        || (`${p.data.slice(0,10)}T${p.horario||'23:59'}`<query.get('agora')?'pendentes':'agenda');
+      for (const grupo of [situacao,...(query.get('preparacao')===p.status?['preparacao']:[])]) {
+        if (query.get('grupo') && query.get('grupo')!==grupo) continue;
+        const chave=nome+':'+grupo;
+        if (!grupos.has(chave)) grupos.set(chave,[]);
+        grupos.get(chave).push({...p,grupo_agenda:grupo});
+      }
+    }
+    const apos=Number(query.get('apos')||0);
+    return [...grupos.values()].flatMap(rows=>{
+      const desc=['pendentes','finalizadas','canceladas'].includes(rows[0].grupo_agenda);
+      rows.sort((a,b)=>(desc?-1:1)*(a.data.localeCompare(b.data)||(a.horario||'23:59').localeCompare(b.horario||'23:59'))||a.id-b.id);
+      const limite=!exibida||exibida.toUpperCase()===rows[0].categoria.nome.toUpperCase()?12:1;
+      return rows.slice(apos,apos+limite).map((p,i)=>({...p,posicao:apos+i+1,total_grupo:rows.length}));
+    });
+  }
   await page.route('http://localhost:3000/**',async route=>{
     const pathname=new URL(route.request().url()).pathname;
     const query=new URL(route.request().url()).searchParams;
+    if (/^(?:\/publico\/clubes\/\d+)?\/partidas\/agenda$/.test(pathname))
+      return route.fulfill({json:agenda(query)});
     const publicClub = pathname.match(/^\/publico\/clubes\/(\d+)(?:\/(categorias|times|partidas(?:\/home)?|competicoes))?$/);
     if (publicClub) {
       const club = clubes.find(item => item.id === Number(publicClub[1]));
@@ -35,6 +67,8 @@ exports.install = async function install(page, { role = 'ADMIN', playerCount = 8
       mandante:p.mandante,visitante:p.visitante,clube_ids:[...new Set([p.mandante.clube_representado_id,p.visitante.clube_representado_id].filter(Boolean))],
     }))});
     if(pathname==='/locais/sugestoes') return route.fulfill({json:{items:[{id:'local:demo',label:'Ginásio de demonstração',source:'local'}],providerEnabled:false,unavailable:false}});
+    if(pathname==='/partidas/organizacao/contexto') return route.fulfill({json:{recentes:[],ultimoLocalCasa:null}});
+    if(pathname==='/partidas/organizacao/conflitos') return route.fulfill({json:{conflitos:[],duplicidade:null}});
     if(pathname==='/jogadores') {
       let rows=jogadores.filter(j=>(!query.get('fase')||categorias.find(c=>c.id===j.categoria_id)?.tipo===query.get('fase'))&&(!query.get('categoria_id')||j.categoria_id===Number(query.get('categoria_id')))&&j.nome.toLowerCase().includes((query.get('busca')||'').toLowerCase())&&(!query.get('posicao')||j.posicao===query.get('posicao'))&&(!query.get('camisa')||(query.get('camisa')==='missing'?j.numCamisa==null:j.numCamisa!=null)));
       if(query.get('resumo')==='true')return route.fulfill({json:categorias.map(c=>{const group=rows.filter(j=>j.categoria_id===c.id);return {categoria_id:c.id,total:group.length,semCamisa:group.filter(j=>j.numCamisa==null).length};})});

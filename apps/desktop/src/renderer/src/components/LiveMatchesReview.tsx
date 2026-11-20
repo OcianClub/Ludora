@@ -67,10 +67,11 @@ function Lembrete({ partida }: { partida: PartidaRevisao }) {
   </div>;
 }
 
-export function LiveMatchesReview({ open, onClose, partidas, consultadoEm }: { open: boolean; onClose: () => void; partidas: PartidaRevisao[]; consultadoEm?: string }) {
-  return <Modal open={open} title="Revisar partidas" className="overview-review-dialog" onClose={onClose}>
-    <div className="overview-review-intro"><p className="overview-modal-note">Partidas atrasadas ultrapassaram o horário previsto sem início. Nas partidas ao vivo, o prazo conta desde o início registrado.</p>
+export function LiveMatchesReview({ open, title, description, onClose, partidas, consultadoEm }: { open: boolean; title?: string; description?: string; onClose: () => void; partidas: PartidaRevisao[]; consultadoEm?: string }) {
+  return <Modal open={open} title={title ?? "Revisar partidas"} className="overview-review-dialog" onClose={onClose}>
+    <div className="overview-review-intro"><p className="overview-modal-note">{description}</p>
     {consultadoEm && <small className="overview-modal-note">Consulta: {data(consultadoEm)}</small>}</div>
+    {!partidas.length && <p className="overview-modal-note" role="status">Nenhuma partida pendente nesta lista.</p>}
     <ul className="overview-old-matches">{partidas.map(p => <li key={p.id}>
       <div className="overview-review-match-main">
       <div className="overview-review-teams"><span><ClubBadge src={p.mandante.escudo} name={p.mandante.nome} size={32}/><strong>{p.mandante.nome}</strong></span><span aria-hidden="true">×</span><span><ClubBadge src={p.visitante.escudo} name={p.visitante.nome} size={32}/><strong>{p.visitante.nome}</strong></span></div>

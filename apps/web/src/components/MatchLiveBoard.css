@@ -152,7 +152,7 @@
   border: 0;
   border-radius: 7px;
   color: #fff;
-  background: var(--primaria);
+  background: var(--acao-primaria);
 }
 .live-goal-add:hover:not(:disabled) {
   filter: brightness(1.12);
@@ -753,8 +753,8 @@
   border-radius: 50%;
 }
 .live-player-options > button[aria-pressed='true'] .live-player-choice {
-  border-color: var(--primaria);
-  background: var(--primaria);
+  border-color: var(--acao-primaria);
+  background: var(--acao-primaria);
   color: #fff;
 }
 .live-event-player-list { min-width: 0; }
@@ -780,7 +780,7 @@
   background: var(--fundo-card-sec);
 }
 .live-event-dialog .live-player-options .lineup-shirt.is-starter {
-  background: var(--primaria);
+  background: var(--acao-primaria);
   color: #fff;
 }
 .live-own-goal {
@@ -1651,3 +1651,8 @@
 @media (max-width:480px) {
   .live-finish-actions .btn { width:100%; min-width:0; }
 }
+
+.live-viewed-score { margin:0; text-align:center; font-size:13px; font-weight:600; }
+.live-time-caption { display:grid; justify-items:center; gap:4px; text-align:center; }
+.live-time-caption > span { display:grid; justify-items:center; gap:4px; }
+.live-time-stepper .live-time-caption > button { width:auto; min-height:36px; padding-inline:12px; }

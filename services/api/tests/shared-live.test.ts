@@ -38,6 +38,7 @@ test("súmula compartilhada: eventos, autoria, repetição e autorização pós-
     });
   }
   mock(prisma, "$transaction", async (fn: any) => fn(prisma));
+  mock(prisma.avisoPartidaPendente, "createMany", async () => ({ count: 1 }));
   mock(prisma.partida, "findUnique", async () => p);
   mock(prisma.partida, "findUniqueOrThrow", async () => ({
     ...p,

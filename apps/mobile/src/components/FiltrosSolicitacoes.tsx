@@ -2,26 +2,21 @@ import { RadioOption } from './ui/RadioOption';
 import { AppSheet } from "./ui/AppSheet";
 import { AppButton } from "./ui/Controls";
 import { useMemo, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
-import { Icon } from "@ludora/icons";
+import { Text, View } from "react-native";
 import { useTheme } from "../contexts/ThemeContext";
 import { createStyles } from "../styles/filtrosJogosStyles";
 
-type Direcao = "todas" | "recebidas" | "enviadas";
 type Props = {
   todas: boolean;
-  direcao: Direcao;
   pendentes: number;
-  paraResponder: number;
   onFechar: () => void;
-  onAplicar: (todas: boolean, direcao: Direcao) => void;
+  onAplicar: (todas: boolean) => void;
 };
 
 export function FiltrosSolicitacoes(props: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [todas, setTodas] = useState(props.todas);
-  const [direcao, setDirecao] = useState(props.direcao);
   function opcao(label: string, selecionada: boolean, onPress: () => void) {
     return <RadioOption key={label} label={label} selected={selecionada} onPress={onPress} />;
   }
@@ -38,13 +33,12 @@ export function FiltrosSolicitacoes(props: Props) {
             variant="ghost"
             onPress={() => {
               setTodas(true);
-              setDirecao("todas");
             }}
           />
           <AppButton
             label="Aplicar filtros"
             variant="primary"
-            onPress={() => props.onAplicar(todas, direcao)}
+            onPress={() => props.onAplicar(todas)}
           />
         </>
       }
@@ -60,24 +54,6 @@ export function FiltrosSolicitacoes(props: Props) {
             setTodas(false),
           )}
           {opcao("Todas as situações", todas, () => setTodas(true))}
-        </View>
-      </View>
-      <View
-        style={styles.chipSection}
-        accessibilityRole="radiogroup"
-        accessibilityLabel="Solicitações"
-      >
-        <Text style={styles.label}>Solicitações</Text>
-        <View style={{ gap: 4 }}>
-          {opcao("Todas", direcao === "todas", () => setDirecao("todas"))}
-          {opcao(
-            `Para responder · ${props.paraResponder}`,
-            direcao === "recebidas",
-            () => setDirecao("recebidas"),
-          )}
-          {opcao("Enviadas", direcao === "enviadas", () =>
-            setDirecao("enviadas"),
-          )}
         </View>
       </View>
     </AppSheet>

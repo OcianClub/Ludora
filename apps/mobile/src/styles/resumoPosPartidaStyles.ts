@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { typography } from '@ludora/design-tokens';
+import { typography, radius } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 export const createStyles = (colors: ThemeColors) =>
@@ -87,8 +87,8 @@ export const createStyles = (colors: ThemeColors) =>
       gap: 4,
     },
     botao: {
-      backgroundColor: colors.primaria,
-      borderRadius: 10,
+      backgroundColor: colors.acaoPrimaria,
+      borderRadius: radius.control,
       padding: 14,
       minHeight: 48,
       alignItems: 'center',

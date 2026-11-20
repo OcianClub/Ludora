@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { typography, liveBadgeColors } from '@ludora/design-tokens';
+import { typography, liveBadgeColors, radius } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 export const createStyles = (colors: ThemeColors) =>
@@ -177,8 +177,8 @@ export const createStyles = (colors: ThemeColors) =>
     stepBtn: {
       width: 28,
       height: 28,
-      borderRadius: 6,
-      backgroundColor: colors.primaria,
+      borderRadius: radius.control,
+      backgroundColor: colors.acaoPrimaria,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -435,8 +435,8 @@ export const createStyles = (colors: ThemeColors) =>
       textAlign: 'center',
     },
     finalizarBtn: {
-      backgroundColor: colors.primaria,
-      borderRadius: 10,
+      backgroundColor: colors.acaoPrimaria,
+      borderRadius: radius.control,
       paddingVertical: 16,
       alignItems: 'center',
       justifyContent: 'center',
@@ -550,7 +550,7 @@ export const createStyles = (colors: ThemeColors) =>
       width: 32,
       height: 32,
       borderRadius: 8,
-      backgroundColor: colors.primaria,
+      backgroundColor: colors.acaoPrimaria,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -582,8 +582,8 @@ export const createStyles = (colors: ThemeColors) =>
       letterSpacing: 0.5,
     },
     saveStatBtn: {
-      backgroundColor: colors.primaria,
-      borderRadius: 12,
+      backgroundColor: colors.acaoPrimaria,
+      borderRadius: radius.control,
       paddingVertical: 16,
       alignItems: 'center',
       justifyContent: 'center',
@@ -822,7 +822,7 @@ export const createStyles = (colors: ThemeColors) =>
       width: 28,
       height: 28,
       borderRadius: 14,
-      backgroundColor: colors.primaria,
+      backgroundColor: colors.acaoPrimaria,
       zIndex: 10,
       marginHorizontal: -20,
     },

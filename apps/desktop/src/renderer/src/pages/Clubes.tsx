@@ -6,7 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ClubeResumo, PlanoClube, VisaoGlobal } from '@ludora/shared-types';
 import { Btn, DesktopState, Input, LoadingSkeleton, Modal } from '../components/AdminUI';
 import { AdminIcon } from '../components/AdminIcon';
-import { criarClube, fetchVisaoGlobal } from '../services/api';
+import { criarClube, ErroApiDesktop, fetchVisaoGlobal, obterVisaoRecente } from '../services/api';
 import { CandidatosClube } from '../components/CandidatosClube';
 import { ReaproveitarTime, subCasca } from '../components/ReaproveitarTime';
 import { ClubSettingsSection } from '@web/components/ClubSettingsSection';
@@ -28,7 +28,7 @@ const ETAPAS = ['Identidade', 'Configuração', 'Revisão'];
 
 export default function ClubesPage() {
   const navigate = useNavigate();
-  const [clubes, setClubes] = useState<ClubeResumo[] | null>(null);
+  const [clubes, setClubes] = useState<ClubeResumo[] | null>(() => obterVisaoRecente()?.clubes ?? null);
   const [erro, setErro] = useState('');
   const [aberto, setAberto] = useState(false);
   const { usuario } = useAdminAuth();
@@ -60,7 +60,13 @@ export default function ClubesPage() {
   const carregar = useCallback(() => {
     const atual = ++pedido.current;
     setErro('');
-    fetchVisaoGlobal().then((v: VisaoGlobal) => {if(vivo.current && atual === pedido.current)setClubes(v.clubes);}).catch(e => {if(vivo.current && atual === pedido.current)setErro(e.message);});
+    fetchVisaoGlobal().then((v: VisaoGlobal) => {
+      if (vivo.current && atual === pedido.current) setClubes(v.clubes);
+    }).catch(e => {
+      if (!vivo.current || atual !== pedido.current) return;
+      if (e instanceof ErroApiDesktop && [401, 403].includes(e.status)) setClubes(null);
+      setErro(e.message);
+    });
   }, []);
   useEffect(carregar, [carregar]);
   useEffect(() => {

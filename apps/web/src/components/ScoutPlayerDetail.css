@@ -2,8 +2,8 @@
   width: min(980px, calc(100vw - 48px));
   max-width: 980px;
   background: var(--fundo);
-  --athlete-assists: var(--scout-playmaker-texto);
-  --athlete-saves: var(--scout-keeper-texto);
+  --athlete-assists: var(--scout-metrica-assistencias);
+  --athlete-saves: var(--scout-metrica-defesas);
 }
 .athlete-sheet .modal-body {
   padding: 22px;
@@ -240,7 +240,7 @@
   border-radius: 2px;
 }
 .athlete-color-goals {
-  background: var(--primaria);
+  background: var(--scout-metrica-gols);
 }
 .athlete-color-assists {
   background: var(--athlete-assists);

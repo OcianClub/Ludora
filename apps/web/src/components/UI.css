@@ -2,8 +2,8 @@
 .card {
   background: var(--fundo-card);
   border: 1px solid var(--borda);
-  border-radius: 10px;
-  padding: 20px;
+  border-radius: var(--radius-card);
+  padding: var(--space-lg);
 }
 
 /* ── Btn ── */
@@ -11,14 +11,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   font-weight: 600;
   border: 1px solid transparent;
   transition: all 0.12s;
   white-space: nowrap;
 }
-.btn-primary { background: var(--primaria); color: #fff; }
-.btn-primary:hover { background: var(--primaria-hover); }
+.btn-primary { background: var(--acao-primaria); color: var(--texto-sobre-primaria); }
+.btn-primary:hover:not(:disabled) { background: var(--acao-primaria-hover); }
 .btn-ghost { background: transparent; border-color: var(--borda); color: var(--texto-sec); }
 .btn-ghost:hover { border-color: var(--primaria); color: var(--primaria); }
 :where([data-theme="light"]) .btn-ghost:hover:where(:not(:disabled)) { background-color: var(--card-hover-claro); }
@@ -29,12 +29,12 @@
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ── Field ── */
-.field { display: flex; flex-direction: column; gap: 5px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
 .field-label { font-size: 12px; font-weight: 500; color: var(--texto); }
 .field-input {
   background: var(--fundo-card);
   border: 1px solid var(--borda);
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   padding: 9px 12px;
   color: var(--texto);
   font-size: 13px;
@@ -52,13 +52,13 @@ select.field-input option { background: var(--fundo-card-sec); }
 .status-badge {
   display: inline-block;
   padding: 2px 9px;
-  border-radius: 20px;
+  border-radius: var(--radius-badge);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
 }
-.status-agendada   { background: var(--agendada-fundo-claro, var(--fundo-botao)); color: var(--agendada-texto-claro, var(--primaria)); }
-.status-preparada  { background: var(--preparada-fundo-claro, var(--fundo-atencao)); color: var(--preparada-texto-claro, var(--titulo-atencao)); }
+.status-agendada { background: var(--status-agendada-fundo); color: var(--status-agendada-texto); }
+.status-preparada { background: var(--status-preparada-fundo); color: var(--status-preparada-texto); }
 .status-ao-vivo,
 .home-live {
   display: inline-flex;
@@ -81,8 +81,8 @@ select.field-input option { background: var(--fundo-card-sec); }
   border-radius: 50%;
   background: var(--ao-vivo-indicador);
 }
-.status-finalizada { background: var(--fundo-card-sec); color: var(--texto-sec); }
-.status-cancelada  { background: var(--fundo-erro); color: var(--titulo-erro); }
+.status-finalizada { background: var(--status-finalizada-fundo); color: var(--status-finalizada-texto); }
+.status-cancelada { background: var(--status-cancelada-fundo); color: var(--status-cancelada-texto); }
 
 /* ── Papel Badge ── */
 .papel-badge {
@@ -111,7 +111,8 @@ select.field-input option { background: var(--fundo-card-sec); }
   padding: 0;
   background: var(--fundo-card);
   border: 1px solid var(--borda);
-  border-radius: 12px;
+  border-radius: var(--radius-overlay);
+  box-shadow: var(--sombra-overlay);
   width: calc(100% - 32px); max-width: 500px;
   max-height: 90vh;
   max-height: 90dvh;
@@ -272,3 +273,8 @@ tr:hover td { background: var(--linha-hover-claro, var(--fundo-card-sec)); }
 .btn-spinner { width: 1em; height: 1em; flex: none; border: 2px solid currentColor; border-inline-end-color: transparent; border-radius: 50%; animation: btn-spin .7s linear infinite; }
 @keyframes btn-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .btn-spinner { animation: none; } }
+
+.btn:focus-visible { outline:2px solid var(--primaria); outline-offset:2px; }
+@media (max-width:600px) {
+  .field-input:is(input, textarea):not([type="checkbox"], [type="radio"]) { font-size:16px !important; }
+}

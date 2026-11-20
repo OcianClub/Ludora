@@ -13,7 +13,7 @@
 .desktop-user-name strong > span { min-width:0; overflow:hidden; text-overflow:ellipsis; }
 .desktop-user-data-table .desktop-user-name .desktop-self-chip { flex-shrink:0; padding:3px 5px; border-radius:4px; background:var(--superficie-neutra); color:var(--texto); font-size:10px; font-weight:600; }
 .desktop-user-data-table .desktop-user-line[data-self="true"] > td { background:color-mix(in srgb,var(--fundo-card) 60%,var(--fundo)); }
-.desktop-user-data-table .desktop-user-line[data-self="true"]:is(:hover,:focus-within) > td { background:color-mix(in srgb,var(--fundo-card) 82%,var(--fundo)); }
+.desktop-user-data-table .desktop-user-line[data-self="true"]:is(:hover,:focus-within) > td { background:var(--table-row-hover,var(--fundo-card-sec)); }
 .desktop-user-data-table .desktop-user-name small, .desktop-user-data-table .desktop-user-clubs, .desktop-user-data-table .desktop-user-role small { font-size:12px; color:var(--texto-sec); }
 .desktop-user-data-table .desktop-user-name :is(strong,small), .desktop-user-data-table .desktop-user-clubs span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .desktop-user-data-table .desktop-user-clubs { display:grid; gap:4px; }

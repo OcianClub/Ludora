@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
+import './MatchActionsMenu.css';
 
-export function MatchActionsMenu({ disabled, onEdit, onDelete, onRemove, onResponsibility }: {
-  disabled: boolean; onEdit?: () => void; onDelete?: () => void; onRemove?:()=>void; onResponsibility?: () => void;
+export function MatchActionsMenu({ disabled, onEdit, onDelete, onRemove, onResponsibility, onRepeat }: {
+  disabled: boolean; onEdit?: () => void; onDelete?: () => void; onRemove?:()=>void; onResponsibility?: () => void; onRepeat?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
@@ -43,6 +44,7 @@ export function MatchActionsMenu({ disabled, onEdit, onDelete, onRemove, onRespo
         items[next]?.focus();
       }
     }}>
+      {onRepeat && <button type="button" role="menuitem" onClick={() => { close(true); onRepeat(); }}><Icon name="copy" size={17}/>Organizar novo confronto</button>}
       {onEdit && <button type="button" role="menuitem" onClick={() => { close(true); onEdit(); }}><Icon name="edit" size={17}/>Editar partida</button>}
       {onResponsibility && <button type="button" role="menuitem" onClick={() => { close(true); onResponsibility(); }}><Icon name="team" size={17}/>Responsável pela súmula</button>}
       {onDelete && <button type="button" role="menuitem" className="match-actions-delete" onClick={() => { close(true); onDelete(); }}><Icon name="trash" size={17}/>Cancelar partida</button>}

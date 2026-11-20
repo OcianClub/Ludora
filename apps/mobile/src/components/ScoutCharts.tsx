@@ -9,7 +9,7 @@ import Svg, {
   TSpan,
 } from "react-native-svg";
 import { useTheme } from "@/src/contexts/ThemeContext";
-import { typography } from "@ludora/design-tokens";
+import { scoutMetricColors, typography } from "@ludora/design-tokens";
 import { createStyles } from "@/src/styles/contextoAtletaScoutStyles";
 import { radarScout, jogosGraficoScout } from "@/src/utils/graficosScout";
 import type {
@@ -97,7 +97,7 @@ export const ScoutRadar = memo(function ScoutRadar({
         })}
       </Svg>
       <Text style={s.descricao}>
-        Escala: 0–{maximo} eventos. Volume de registros, não nota de desempenho.
+        Escala do período: 0–{maximo} registros.
       </Text>
     </View>
   );
@@ -109,20 +109,20 @@ export const ScoutRecentChart = memo(function ScoutRecentChart({
   partidas: PartidaScout[];
   onSelect: (id: number) => void;
 }) {
-  const { colors, tema } = useTheme();
+  const { colors } = useTheme();
   const s = useMemo(() => createStyles(colors), [colors]);
   const jogos = useMemo(() => jogosGraficoScout(partidas), [partidas]);
   const metrics = [
-    { key: "gols", label: "Gols", color: colors.primaria },
+    { key: "gols", label: "Gols", color: scoutMetricColors.gols },
     {
       key: "assistencias",
       label: "Assist.",
-      color: tema === "dark" ? "#A58ADD" : "#7850B2",
+      color: scoutMetricColors.assistencias,
     },
     {
       key: "defesas",
       label: "Defesas",
-      color: tema === "dark" ? "#2DBCA7" : "#087F72",
+      color: scoutMetricColors.defesas,
     },
   ] as const;
   const max = Math.max(1, ...jogos.map((j) => j.total));

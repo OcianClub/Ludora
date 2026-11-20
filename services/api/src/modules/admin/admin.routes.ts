@@ -174,6 +174,9 @@ export function criarAdminRoutes(io: Server) {
   }));
 
   // ── Clubes ────────────────────────────────────────────────────────────────
+  tecnico.get('/admin/clubes/opcoes', exigirAcessoTecnico, rota(async (_req, res) => {
+    res.json(await prisma.clube.findMany({ select: { id: true, nome: true, escudo: true, cidade: true, estado: true }, orderBy: { id: 'asc' } }));
+  }));
   tecnico.get('/admin/clubes/:id/resumo', exigirAcessoTecnico, rota(async (req, res) => {
     const id = idDe(req.params.id, 'Clube');
     const [clube, jogadores, partidas] = await Promise.all([

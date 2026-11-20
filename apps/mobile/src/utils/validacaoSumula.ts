@@ -1,4 +1,5 @@
 import type { EquipePartida, EventoPartida, GestaoPartida } from '../services/partidasCompartilhadas';
+import { golsRegistradosNoPeriodo } from '../../../../packages/shared-types/src/matchTimeline';
 import { timeAutor } from './sumulaPartida';
 export function podeControlarAoVivo(data: GestaoPartida) {
   return data.partida.status === 'AO_VIVO' && data.podeSumula;
@@ -33,7 +34,7 @@ export function ultimoLance(data: GestaoPartida) {
   return data.eventos.find(e => e.id === gol) || ultimo;
 }
 export function placarDoPeriodo(data: GestaoPartida, periodo: number) {
-  return [data.partida.mandante_id, data.partida.visitante_id].map(id => data.eventos.filter(e => e.tipo === 'GOL' && e.periodo === periodo && e.time_id === id).length);
+  return golsRegistradosNoPeriodo(data.eventos, periodo, data.partida.mandante_id, data.partida.visitante_id);
 }
 export function trocaValida(equipe: EquipePartida | undefined, sai?: number, entra?: number) {
   if (!equipe?.publicada_em || !sai || !entra || sai === entra) return false;

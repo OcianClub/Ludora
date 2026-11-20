@@ -23,3 +23,19 @@ export function acontecimentosPartida<E extends EventoCronologico>(eventos: read
 export function nomeNaSubstituicao(jogador: SubstituicaoPartida['sai']) {
   return `${jogador.numCamisa ? `#${String(jogador.numCamisa).padStart(2, '0')} · ` : ''}${jogador.nome}`;
 }
+
+export function golsRegistradosNoPeriodo(
+  eventos: readonly { tipo: string; time_id?: number | null; periodo: number }[],
+  periodo: number,
+  mandante: number,
+  visitante: number,
+): [number, number] {
+  let casa = 0;
+  let fora = 0;
+  for (const evento of eventos) {
+    if (evento.tipo !== 'GOL' || evento.periodo !== periodo) continue;
+    if (evento.time_id === mandante) casa++;
+    if (evento.time_id === visitante) fora++;
+  }
+  return [casa, fora];
+}

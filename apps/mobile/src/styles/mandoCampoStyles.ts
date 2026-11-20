@@ -21,8 +21,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.card,
   },
   btnAtivo: {
-    borderColor: colors.primaria,
-    backgroundColor: colors.primaria,
+    borderColor: colors.acaoPrimaria,
+    backgroundColor: colors.acaoPrimaria,
   },
   txt: {
     fontFamily: typography.fontFamily.corpo.semiBold,

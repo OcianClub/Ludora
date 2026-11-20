@@ -49,7 +49,7 @@ async function main() {
   assert.equal(resumo.ultimaResposta.motivo, 'Confirmed the fix with the customer.');
   assert.equal(resumo.historico, undefined);
   const avisos = await req('USUARIO', '/suporte/avisos');
-  assert.deepEqual(avisos.body.filter((aviso: { chamadoId: string }) => aviso.chamadoId === id), [{ id: resumo.ultimaResposta.id, chamadoId: id }]);
+  assert.deepEqual(avisos.body.filter((aviso: { chamadoId: string }) => aviso.chamadoId === id), [], 'Chamados resolvidos saem dos avisos ativos');
   assert.equal((await req('SUPERADMIN', '/suporte/avisos')).body.some((aviso: { chamadoId: string }) => aviso.chamadoId === id), false);
   assert.equal((await req('SUPERADMIN', '/suporte/' + id)).status, 404);
 

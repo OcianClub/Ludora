@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { typography } from '@ludora/design-tokens';
+import { typography, radius } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 export const createStyles = (colors: ThemeColors) => StyleSheet.create({
@@ -136,8 +136,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     gap: 6,
   },
   categoryBadge: {
-    backgroundColor: colors.primaria,
-    borderRadius: 6,
+    backgroundColor: colors.acaoPrimaria,
+    borderRadius: radius.badge,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
@@ -185,8 +185,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
   primaryButton: {
     width: '100%',
     height: 56,
-    borderRadius: 10,
-    backgroundColor: colors.primaria,
+    borderRadius: radius.control,
+    backgroundColor: colors.acaoPrimaria,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -281,7 +281,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: colors.primaria,
+    backgroundColor: colors.acaoPrimaria,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,

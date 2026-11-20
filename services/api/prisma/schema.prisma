@@ -169,6 +169,7 @@ model Evento {
   partida       Partida    @relation(fields: [partida_id], references: [id], onDelete: Cascade)
 
   @@index([partida_id])
+  @@index([jogador_id, partida_id])
 }
 
 // ── MODELOS INALTERADOS ESTRUTURALMENTE ──
@@ -263,6 +264,7 @@ model Partida {
   mandante              Time                  @relation("Mandante", fields: [mandante_id], references: [id])
   visitante             Time                  @relation("Visitante", fields: [visitante_id], references: [id])
   notificacoes          Notificacao[]
+  avisos_pendentes       AvisoPartidaPendente[]
 
   @@index([data])
   @@index([categoria_id])
@@ -345,6 +347,7 @@ model EscalacaoPartida {
 
   @@unique([partida_id, jogador_id])
   @@unique([partida_id, time_id, numCamisa])
+  @@index([jogador_id, partida_id])
 }
 
 model ParticipantePartida {
@@ -364,6 +367,7 @@ model ParticipantePartida {
   @@unique([partida_id, clube_id])
   @@unique([partida_id, time_id])
   @@index([categoria_id])
+  @@index([clube_id, partida_id])
 }
 
 model PropostaPartida {
@@ -421,6 +425,20 @@ model Notificacao {
   @@index([usuario_id, clube_id, lida])
   @@index([partida_id])
   @@index([criada_em])
+}
+
+model AvisoPartidaPendente {
+  chave       String          @id
+  partida_id  Int
+  clube_id    Int
+  tipo        TipoNotificacao
+  titulo      String
+  corpo       String
+  criada_em   DateTime        @default(now())
+  partida     Partida         @relation(fields: [partida_id], references: [id], onDelete: Cascade)
+
+  @@index([criada_em, chave])
+  @@index([partida_id])
 }
 
 model DispositivoPush {

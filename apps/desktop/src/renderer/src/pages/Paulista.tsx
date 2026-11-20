@@ -80,9 +80,10 @@ export default function PaulistaAdmin() {
     setPainel(null); setHistorico([]); setDetalhando(false);
     if (!evento?.versao) return;
     setDetalhando(true);
-    void Promise.all([requestJson<Painel>(path), requestJson<typeof historico>(`${path}/historico`)]).then(([p, h]) => {
-      if (atual) { setPainel(p); setHistorico(h); }
-    }).catch(e => { if (atual) setErro(e.message); }).finally(() => { if (atual) setDetalhando(false); });
+    void requestJson<Painel>(path).then(p => { if (atual) setPainel(p); })
+      .catch(e => { if (atual) setErro(e.message); }).finally(() => { if (atual) setDetalhando(false); });
+    void requestJson<typeof historico>(`${path}/historico`).then(h => { if (atual) setHistorico(h); })
+      .catch(e => { if (atual) setErro(`Histórico: ${e.message}`); });
     return () => { atual = false; };
   }, [path, evento?.versao, resumo]);
   useEffect(() => {

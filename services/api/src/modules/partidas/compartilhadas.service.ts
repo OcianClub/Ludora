@@ -49,7 +49,7 @@ export async function partida(tx: Banco, id: number, ctx: Contexto, editar = fal
   return { p, equipe, pode };
 }
 export async function auditar(tx: Banco, ctx: Contexto, id: number, acao: string, dados: Prisma.InputJsonValue = {}) {
-  await tx.auditoriaPartida.create({ data: { partida_id: id, usuario_id: ctx.usuarioId, clube_id: ctx.clubeId, acao, dados } });
+  return tx.auditoriaPartida.create({ data: { partida_id: id, usuario_id: ctx.usuarioId, clube_id: ctx.clubeId, acao, dados } });
 }
 export async function excluirNaoIniciada(tx: Banco, ctx: Contexto, id:number, versao?:unknown) {
   await tx.$queryRaw`SELECT id FROM "Partida" WHERE id = ${id} FOR UPDATE`;

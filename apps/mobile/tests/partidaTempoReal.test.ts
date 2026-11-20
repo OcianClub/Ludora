@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { criarSincronizador } from '../src/utils/sincronizador';
 import { alterarGol } from '../src/utils/placarPartida';
+import { aplicarEventoConfirmado } from '../../../packages/shared-types/src/matchSync';
 
 function adiar<T>() {
   let resolver!: (valor: T) => void;
@@ -12,6 +13,27 @@ function adiar<T>() {
   });
   return { promessa, resolver, rejeitar };
 }
+
+test('aplica o lance uma vez e exige leitura completa se houve outra alteração na súmula', () => {
+  const atual = {
+    partida: { id: 12, status: 'AO_VIVO', versao: 7, gols_mandante: 1, gols_visitante: 0 },
+    eventos: [{ id: 20 }],
+    auditoria: [{ id: 80 }],
+  };
+  const retorno = {
+    id: 21,
+    sincronizacao: { partidaId: 12, anterior: 7, versao: 8, gols_mandante: 1, gols_visitante: 1, auditoria: { id: 81 } },
+  };
+  const atualizado = aplicarEventoConfirmado(atual, retorno);
+  assert.ok(atualizado);
+  assert.deepEqual(atualizado.partida, { ...atual.partida, versao: 8, gols_visitante: 1 });
+  assert.deepEqual(atualizado.eventos, [{ id: 21 }, { id: 20 }]);
+  assert.deepEqual(atualizado.auditoria, [{ id: 81 }, { id: 80 }]);
+  assert.equal(aplicarEventoConfirmado(atualizado, retorno), atualizado);
+  assert.equal(aplicarEventoConfirmado(atual, { id: 22, sincronizacao: { ...retorno.sincronizacao, anterior: 8, versao: 9 } }), undefined);
+  assert.equal(aplicarEventoConfirmado(atual, { ...retorno, sincronizacao: { ...retorno.sincronizacao, partidaId: 13 } }), undefined);
+  assert.equal(aplicarEventoConfirmado({ ...atual, partida: { ...atual.partida, status: 'FINALIZADA' } }, retorno), undefined);
+});
 
 test('calcula gols em casa e fora sem alterar o placar anterior e rejeita limites', () => {
   const placar = { gols_mandante: 2, gols_visitante: 1 };

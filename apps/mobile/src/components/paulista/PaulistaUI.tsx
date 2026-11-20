@@ -1,3 +1,4 @@
+import { matchResultColors, radius } from '@ludora/design-tokens';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -70,7 +71,7 @@ export function BarraCampanha({ linha }: { linha: PosicaoPaulista }) {
   </View>;
 }
 export function ResultadoOficial({ jogo, minhas }: { jogo: JogoPaulista; minhas: Set<number> }) {
-  const { colors } = useTheme(); const s = usePaulistaStyles();
+  const { colors, tema } = useTheme(); const s = usePaulistaStyles();
   const emCasa = minhas.has(jogo.mandanteId);
   const comPerspectiva = emCasa !== minhas.has(jogo.visitanteId);
   const finalizada = temResultado(jogo);
@@ -82,7 +83,12 @@ export function ResultadoOficial({ jogo, minhas }: { jogo: JogoPaulista; minhas:
   else if (finalizada) label = 'Finalizada';
   else if (jogo.ocorrencia === 'WO') label = 'W.O.';
   else if (jogo.ocorrencia === 'ADIADA') label = 'Adiada';
-  return <View style={{ backgroundColor: saldo === null ? colors.cardSecundario : saldo > 0 ? colors.primaria : saldo < 0 ? ERRO_PARTIDA : colors.amarelo, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 5, alignSelf: 'center' }}><Text style={[s.tiny, { color: saldo === 0 ? '#171717' : saldo === null ? colors.texto : '#fff', fontFamily: 'Inter_600SemiBold', fontSize: 10 }]}>{label}</Text></View>;
+  const paleta = saldo === null
+    ? { fundo: colors.superficieNeutra, texto: colors.textoSecundario }
+    : matchResultColors[tema][saldo > 0 ? 'V' : saldo < 0 ? 'D' : 'E'];
+  return <View style={{ backgroundColor: paleta.fundo, borderRadius: radius.badge, paddingHorizontal: 6, paddingVertical: 5, alignSelf: 'center' }}>
+    <Text style={[s.tiny, { color: paleta.texto, fontFamily: 'Inter_600SemiBold', fontSize: 10 }]}>{label}</Text>
+  </View>;
 }
 export function ConfrontoOficial({ jogo, equipes, minhas, onPress }: { jogo: JogoPaulista; equipes: Map<number, EquipePaulista>; minhas: Set<number>; onPress?: () => void }) {
   const s = usePaulistaStyles(), { colors } = useTheme();

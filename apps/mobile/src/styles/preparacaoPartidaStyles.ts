@@ -103,7 +103,7 @@ export function createStyles(colors: ThemeColors) {
     },
     time: {
       color: "#fff",
-      backgroundColor: colors.primaria,
+      backgroundColor: colors.acaoPrimaria,
       fontSize: 25,
       fontFamily: "Oswald_600SemiBold",
       fontWeight: "700",
@@ -159,7 +159,7 @@ export function createStyles(colors: ThemeColors) {
       alignItems: "center",
       justifyContent: "center",
     },
-    activeStepNumber: { backgroundColor: colors.primaria },
+    activeStepNumber: { backgroundColor: colors.acaoPrimaria },
     stepText: { color: colors.textoSecundario, fontSize: 12 },
     activeStepText: { color: colors.texto, fontWeight: "600" },
     details: {
@@ -183,7 +183,7 @@ export function createStyles(colors: ThemeColors) {
       gap: 7,
     },
     primaryButton: {
-      backgroundColor: colors.primaria,
+      backgroundColor: colors.acaoPrimaria,
       borderColor: colors.primaria,
     },
     buttonText: {

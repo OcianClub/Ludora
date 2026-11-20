@@ -840,7 +840,7 @@
 
 .alunos-filter-group button[aria-pressed="true"] {
   border-color: transparent;
-  background: var(--primaria);
+  background: var(--acao-primaria);
   color: #fff;
 }
 

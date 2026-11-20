@@ -24,6 +24,7 @@ import SumulaPartida from "./SumulaPartida";
 import { criarFilaConsulta } from "../utils/filaConsulta";
 import { receberPalpite } from '../services/palpitePartida';
 import { useSessao } from '../contexts/SessaoContext';
+import { aplicarEventoConfirmado, type EventoConfirmado } from '../../../../packages/shared-types/src/matchSync';
 
 export default function PartidaCompartilhada({
   id,
@@ -85,6 +86,17 @@ export default function PartidaCompartilhada({
     void atualizarSolicitacoes();
     void refresh(true).catch((e) => setError(e.message));
   }
+  function aplicarConfirmacao(evento: EventoConfirmado<GestaoPartida>) {
+    const atual = snapshot.current;
+    if (!atual || !mounted.current || scope.current !== `${clubId}:${id}:${autenticado}`) return;
+    const novo = aplicarEventoConfirmado(atual, evento);
+    if (novo && novo !== atual) {
+      snapshot.current = novo;
+      setData(novo);
+      setError('');
+    }
+    return novo;
+  }
   useEffect(() => {
     mounted.current = true;
     setLoading(true);
@@ -97,26 +109,34 @@ export default function PartidaCompartilhada({
     let active = true,
       socket: ReturnType<typeof io> | undefined;
     let timer: ReturnType<typeof setTimeout>;
+    let exigeCompleta = false;
+    let versaoPendencia: number | undefined;
     async function load() {
       try {
         if (!clubId) return;
         const token = await SecureStore.getItemAsync("userToken");
         if (!active) return;
         socket = io(token ? BASE_URL : `${BASE_URL}/publico`, { auth: token ? { token, clubeId: clubId } : { clubeId: clubId } });
-        const sync = () => {
+        const sync = (versaoIncremental?: number) => {
+          if (versaoIncremental === undefined) exigeCompleta = true;
+          else versaoPendencia = Math.max(versaoPendencia ?? 0, versaoIncremental);
           clearTimeout(timer);
           timer = setTimeout(() => {
+            const consultar = exigeCompleta || (versaoPendencia ?? 0) > (snapshot.current?.partida.versao ?? -1);
+            exigeCompleta = false;
+            versaoPendencia = undefined;
+            if (!consultar) return;
             if (active && AppState.currentState === "active")
               void refresh(true).catch((e) => {
                 if (active) setError(e.message);
               });
-          }, 60);
+          }, exigeCompleta ? 80 : 250);
         };
-        socket.on("partida_atualizada", (p: { id: number }) => {
-          if (p.id === id) sync();
+        socket.on("partida_atualizada", (p: { id: number; versaoIncremental?: number }) => {
+          if (p.id === id) sync(p.versaoIncremental);
         });
         socket.on('partidas_alteradas', (p: { partida_id: number }) => { if (p.partida_id === id) sync(); });
-        socket.on('placar_atualizado', (p: { id: number }) => { if (p.id === id) sync(); });
+        socket.on('placar_atualizado', (p: { id: number; versaoIncremental?: number }) => { if (p.id === id) sync(p.versaoIncremental); });
         socket.on('evento_partida', (p: { partida_id: number }) => { if (p.partida_id === id) sync(); });
         socket.on('elenco_atualizado', () => sync());
         socket.on('palpite_atualizado', receberPalpite);
@@ -149,14 +169,18 @@ export default function PartidaCompartilhada({
         if (active) setLoading(false);
       });
     void load();
+    let ultimaConsultaPeriodica = Date.now();
     const interval = setInterval(() => {
       if (active && AppState.currentState === "active") {
+        if (socket?.connected && Date.now() - ultimaConsultaPeriodica < 59_000) return;
+        ultimaConsultaPeriodica = Date.now();
         void refresh().catch(() => undefined);
         void atualizarSolicitacoes();
       }
     }, 12000);
     const appState = AppState.addEventListener("change", (state) => {
       if (state === "active" && active) {
+        ultimaConsultaPeriodica = Date.now();
         void refresh(true).catch(() => undefined);
         void atualizarSolicitacoes();
       }
@@ -248,6 +272,7 @@ export default function PartidaCompartilhada({
           connected={connected}
           onBack={onBack}
           onRefresh={() => refresh(true)}
+          onEventoConfirmado={aplicarConfirmacao}
           headerAccessory={headerAccessory}
         />
       )}

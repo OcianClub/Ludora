@@ -117,8 +117,8 @@
 .club-picker-favorite { width: 40px; height: 40px; border: 0; background: transparent; color: var(--primaria); }
 .club-picker-favorite:hover { background: var(--controle-hover-claro, var(--fundo-card-sec)); }
 .club-picker-follow { gap: 5px; width: 112px; min-height: 40px; padding: 8px; border: 1px solid var(--primaria); background: transparent; color: var(--texto); font-size: 12px; font-weight: 600; }
-.club-picker-follow:not(.is-following) { min-height: 34px; padding-block: 5px; border-color: transparent; background: var(--primaria); color: #fff; }
-.club-picker-follow:not(.is-following):hover { background: var(--primaria-hover); }
+.club-picker-follow:not(.is-following) { min-height: 34px; padding-block: 5px; border-color: transparent; background: var(--acao-primaria); color: #fff; }
+.club-picker-follow:not(.is-following):hover { background: var(--acao-primaria-hover); }
 .club-picker-follow.is-following { border-color: transparent; background: color-mix(in srgb, var(--primaria) 14%, var(--fundo-card)); }
 .club-picker-follow.is-following:hover { background: color-mix(in srgb, var(--primaria) 18%, var(--fundo-card)); }
 .club-picker-follow:disabled, .club-picker-favorite:disabled { opacity: .6; cursor: wait; }
@@ -126,8 +126,13 @@
 .club-picker-search-summary button { border: 0; padding: 6px 0; background: transparent; color: var(--primaria); }
 .club-picker-empty { display: flex; align-items: center; gap: 12px; padding: 18px; margin-top: 14px; border-radius: 10px; background: var(--fundo-card); color: var(--texto-sec); font-size: 13px; line-height: 1.6; }
 .club-picker-empty > .icon { flex-shrink: 0; }
-.club-picker-error { margin-top: 18px; color: var(--titulo-erro); font-size: 14px; }
-.club-picker-error button { border: 0; background: none; color: var(--primaria); margin-left: 10px; }
+.club-picker-error {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 18px; padding: 12px 14px; border: 1px solid var(--borda-erro);
+  border-radius: 10px; background: var(--fundo-card); color: var(--texto); font-size: 14px;
+}
+.club-picker-error > .icon { color: var(--titulo-erro); }
+.club-picker-error > span:not(.icon) { flex: 1 1 200px; }
 .club-picker-confirm .modal-body > p { color: var(--texto-sec); line-height: 1.6; }
 .club-picker-confirm .collection-dialog-actions { margin-top: 6px; }
 @media (max-width: 1000px) {

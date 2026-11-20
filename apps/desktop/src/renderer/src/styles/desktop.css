@@ -115,7 +115,7 @@
   background: var(--fundo-card-sec);
 }
 .admin-club-steps li[aria-current] { border-color: var(--primaria); color: var(--texto); }
-.admin-club-steps li[aria-current] span { background: var(--primaria); color: white; }
+.admin-club-steps li[aria-current] span { background: var(--acao-primaria); color: white; }
 .admin-club-review, .admin-club-metrics > div {
   padding: 14px;
   background: var(--fundo-card);
@@ -185,7 +185,7 @@ body.desktop-app:has(.admin-layout) { position: fixed; inset: 0; }
   overflow: hidden;
 }
 .admin-layout-collapsed { --admin-sidebar-width: 68px; }
-.admin-skip-link { position: fixed; top: 8px; left: 8px; z-index: 20000; padding: 10px 14px; border-radius: 6px; background: var(--primaria); color: #fff; transform: translateY(-160%); }
+.admin-skip-link { position: fixed; top: 8px; left: 8px; z-index: 20000; padding: 10px 14px; border-radius: 6px; background: var(--acao-primaria); color: #fff; transform: translateY(-160%); }
 .admin-skip-link:focus { transform: none; }
 .admin-sidebar {
   position: relative;
@@ -339,7 +339,7 @@ body.desktop-app:has(.admin-layout) { position: fixed; inset: 0; }
 .option-tile-grid-scroll { max-height: 230px; overflow: auto; padding: 2px; }
 .option-tile { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 9px 12px; cursor: pointer; border: 1px solid transparent; border-radius: 8px; color: var(--texto-sec); background: var(--fundo); text-align: center; transition: background-color 150ms ease, color 150ms ease, transform 150ms ease; }
 .option-tile:hover { background: var(--fundo-card-sec); color: var(--texto); }
-.option-tile:has(input:checked) { background: var(--primaria); color: #fff; }
+.option-tile:has(input:checked) { background: var(--acao-primaria); color: #fff; }
 .option-tile:has(.club-badge) { justify-content: flex-start; text-align: left; }
 .option-tile:not(:has(input:disabled)):active { transform: scale(.98); }
 .option-tile:has(input:focus-visible) { outline: 2px solid var(--primaria); outline-offset: -2px; }
@@ -425,7 +425,7 @@ body.desktop-app:has(.admin-layout) { position: fixed; inset: 0; }
 .club-crest p { margin: 5px 0; }
 .club-subs > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .club-subs button { min-height: 38px; padding: 6px 11px; border: 1px solid var(--linha); border-radius: 7px; background: var(--fundo-card); color: var(--texto-sec); }
-.club-subs button[aria-pressed="true"] { background: var(--primaria); color: white; border-color: var(--primaria); }
+.club-subs button[aria-pressed="true"] { background: var(--acao-primaria); color: white; border-color: var(--acao-primaria); }
 .club-category-list { display: grid; gap: 8px; margin-bottom: 16px; }
 .club-category-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; border: 1px solid var(--linha); border-radius: 8px; background: var(--fundo); padding: 10px; }
 .club-category-row small { display: block; color: var(--texto-sec); }
@@ -494,7 +494,7 @@ body.desktop-app:has(.admin-layout) { position: fixed; inset: 0; }
 .club-sub-group legend { font-size: 13px; color: var(--texto-sec); margin-bottom: 8px; }
 .club-sub-group > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
 .club-sub-group button { min-height: 38px; padding: 6px; border: 1px solid var(--linha); border-radius: 8px; color: var(--texto-sec); background: var(--fundo); white-space: nowrap; font-size: 13px; font-weight: 600; transition: background-color 150ms, color 150ms; }
-.club-sub-group button[aria-pressed="true"] { background: var(--primaria); border-color: var(--primaria); color: white; }
+.club-sub-group button[aria-pressed="true"] { background: var(--acao-primaria); border-color: var(--acao-primaria); color: white; }
 .club-sub-group button:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
 .desktop-club-structure .home-controls { position: static; justify-content: center; margin-block: 8px 14px; }
 .desktop-club-structure .home-category-picker { flex: 0 1 auto; border-left: 0; padding-left: 0; }

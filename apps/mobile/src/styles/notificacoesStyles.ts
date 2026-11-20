@@ -52,7 +52,7 @@ export const createStyles = (colors: ThemeColors) =>
       gap: 4,
     },
     filterButton: { minHeight: 38, paddingHorizontal: 7, flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 7 },
-    filterActive: { backgroundColor: colors.primaria },
+    filterActive: { backgroundColor: colors.acaoPrimaria },
     filterText: { fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 13, color: colors.textoSecundario },
     filterTextActive: { color: colors.textoSobrePrimaria },
     actions: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4, marginTop: 4 },

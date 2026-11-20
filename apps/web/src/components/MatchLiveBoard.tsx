@@ -1,5 +1,6 @@
 import { Toast } from './Toast';
-import { acontecimentosPartida, nomeNaSubstituicao } from '../../../../packages/shared-types/src/matchTimeline';
+import { acontecimentosPartida, golsRegistradosNoPeriodo, nomeNaSubstituicao } from '../../../../packages/shared-types/src/matchTimeline';
+import { aplicarEventoConfirmado } from '../../../../packages/shared-types/src/matchSync';
 import { createPortal } from 'react-dom';
 import { EVENT_REVIEW_MS, useDelayedMatchEvents } from '../hooks/useDelayedMatchEvents';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -29,6 +30,7 @@ import './MatchLiveBoard.css';
 type Props = {
   data: GestaoPartida;
   refresh: () => Promise<void>;
+  onSnapshot?: (data: GestaoPartida) => void;
   players?: { id: number; nome: string; numCamisa?: number; posicao?: string }[];
   onResponsibility?: () => void;
 };
@@ -90,7 +92,7 @@ export function MatchLiveBoard(props: Props) {
   return <MatchLiveSession key={`${props.data.partida.id}:${clube?.id}:${usuario?.id}`} {...props} />;
 }
 
-function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Props) {
+function MatchLiveSession({ data, refresh, onSnapshot, onResponsibility, players = [] }: Props) {
   const { clube, usuario } = useAuth();
   const p = data.partida;
   const live = p.status === 'AO_VIVO';
@@ -113,14 +115,17 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
   const [resultPeriod, setResultPeriod] = useState<number | null>(null);
   // null follows the official period; browsing past periods never sends a command.
   const [viewedPeriod, setViewedPeriod] = useState<number | null>(null);
-  const readOnlyPeriod = live && !data.podeSumula;
-  const displayedPeriod = readOnlyPeriod && viewedPeriod !== null
+  const displayedPeriod = live && viewedPeriod !== null
     ? Math.max(1, Math.min(viewedPeriod, p.periodo_atual)) : p.periodo_atual;
-  const browsingPast = readOnlyPeriod && displayedPeriod < p.periodo_atual;
+  const browsingPast = live && displayedPeriod < p.periodo_atual;
+  const operatingCurrentPeriod = live && !browsingPast && data.podeSumula;
+  const [homeGoals, awayGoals] = browsingPast
+    ? golsRegistradosNoPeriodo(data.eventos, displayedPeriod, p.mandante_id, p.visitante_id)
+    : [p.gols_mandante, p.gols_visitante];
   const finalPeriod = live ? (browsingPast ? displayedPeriod : null) : resultPeriod;
   useEffect(() => {
-    if (!readOnlyPeriod || (viewedPeriod !== null && viewedPeriod >= p.periodo_atual)) setViewedPeriod(null);
-  }, [readOnlyPeriod, viewedPeriod, p.periodo_atual]);
+    if (!live || (viewedPeriod !== null && viewedPeriod >= p.periodo_atual)) setViewedPeriod(null);
+  }, [live, viewedPeriod, p.periodo_atual]);
   function browsePeriod(offset: number) {
     const target = Math.max(1, Math.min(displayedPeriod + offset, p.periodo_atual));
     setViewedPeriod(target === p.periodo_atual ? null : target);
@@ -163,7 +168,11 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
   const delayed = useDelayedMatchEvents(p.id, `${usuario?.id}:${clube?.id}`, async (event) => {
     setUndoEvent(event);
     setFeedback(event ? `${EVENT_TYPES.find(type => type.value === event.tipo)?.label || 'Evento'} registrado na súmula.` : 'Evento revertido e súmula atualizada.');
-    await updateView();
+    const novo = event && onSnapshot && aplicarEventoConfirmado(latest.current, event);
+    if (novo) {
+      latest.current = novo;
+      onSnapshot?.(novo);
+    } else await updateView();
   }, canCorrect);
   const changing = busy || delayed.queue.length > 0;
   const scores = eventScores(data);
@@ -204,8 +213,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
   function goBackPeriod() {
     setError('');
     const target = p.periodo_atual - 1;
-    if (data.eventos.some(event => event.periodo >= target)) setPreviousPeriod(target);
-    else changePeriod(target);
+    setPreviousPeriod(target);
   }
   function requestRemoval(event: MatchEvent) {
     setRemove(event);
@@ -432,7 +440,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
             <small>{live ? data.podeSumula ? 'Seu clube está operando' : 'Você está acompanhando' : 'Registros da partida encerrada'}</small>
           </span>
         </span>
-        {(canCorrect || (live && data.podePreparar && onResponsibility)) && (
+        {!browsingPast && (canCorrect || (live && data.podePreparar && onResponsibility)) && (
           <details
             className="live-settings"
             onBlur={(event) => {
@@ -456,6 +464,9 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
                   Responsável pela súmula
                 </button>
               )}
+              {operatingCurrentPeriod && p.periodo_atual > 1 && <button type="button" disabled={changing} onClick={goBackPeriod}>
+                <Icon name="clock" size={16} />Corrigir tempo em andamento
+              </button>}
               {canCorrect && <button
                 type="button"
                 onClick={() => {
@@ -473,7 +484,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
           </details>
         )}
       </div>
-      <Toast message={delayed.queue.length ? '' : feedback} onClose={() => { setFeedback(''); setUndoEvent(null); }} action={live && undoEvent && data.podeSumula ? { label: 'Reverter', onClick: () => { requestRemoval(undoEvent); setFeedback(''); setUndoEvent(null); } } : undefined}/>
+      <Toast message={delayed.queue.length ? '' : feedback} onClose={() => { setFeedback(''); setUndoEvent(null); }} action={operatingCurrentPeriod && undoEvent ? { label: 'Reverter', onClick: () => { requestRemoval(undoEvent); setFeedback(''); setUndoEvent(null); } } : undefined}/>
       {!!delayed.queue.length && createPortal(<div className="live-review-queue" role="status" aria-label="Eventos aguardando publicação">
         {delayed.queue.map(item => {
           const type = item.operation === 'remove'
@@ -513,7 +524,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
           <div className="live-primary">
           {live ? <section
             className={`live-score-card${live ? ' is-live' : ''}`}
-            aria-label="Placar da partida"
+            aria-label={browsingPast ? `Placar do ${displayedPeriod}º tempo` : "Placar da partida"}
           >
             <div className="live-score-heading">
               <span>
@@ -524,6 +535,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
               </span>
               {live ? <span className="live-status-text"><i />AO VIVO</span> : <StatusBadge status={p.status} />}
             </div>
+            {browsingPast && <p className="live-viewed-score">Placar do {displayedPeriod}º tempo</p>}
             <div className="live-score-confrontation">
               <div className="live-team">
                 <ClubBadge src={p.mandante?.escudo} name={p.mandante?.nome} size={68} />
@@ -534,7 +546,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
               <div className="live-score-center">
                 <div className="live-score-numbers">
                   <div>
-                    {live && data.podeSumula && (
+                    {operatingCurrentPeriod && (
                       <button
                         type="button"
                         className="live-goal-add"
@@ -545,12 +557,12 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
                         <Icon name="plus" size={23} />
                       </button>
                     )}
-                    <strong>{p.gols_mandante}</strong>
-                    {live && data.podeSumula && <button type="button" className="live-goal-add live-goal-subtract" aria-label={`Subtrair gol do ${p.mandante?.nome}`} data-tooltip="Subtrair um gol" disabled={busy || (!p.gols_mandante && !delayed.queue.some(item => item.payload.tipo === 'GOL' && item.payload.time_id === p.mandante_id))} onClick={() => subtractGoal(p.mandante_id)}><Icon name="minus" size={20} /></button>}
+                    <strong>{homeGoals}</strong>
+                    {operatingCurrentPeriod && <button type="button" className="live-goal-add live-goal-subtract" aria-label={`Subtrair gol do ${p.mandante?.nome}`} data-tooltip="Subtrair um gol" disabled={busy || (!p.gols_mandante && !delayed.queue.some(item => item.payload.tipo === 'GOL' && item.payload.time_id === p.mandante_id))} onClick={() => subtractGoal(p.mandante_id)}><Icon name="minus" size={20} /></button>}
                   </div>
                   <span aria-hidden="true">·</span>
                   <div>
-                    {live && data.podeSumula && (
+                    {operatingCurrentPeriod && (
                       <button
                         type="button"
                         className="live-goal-add"
@@ -561,8 +573,8 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
                         <Icon name="plus" size={23} />
                       </button>
                     )}
-                    <strong>{p.gols_visitante}</strong>
-                    {live && data.podeSumula && <button type="button" className="live-goal-add live-goal-subtract" aria-label={`Subtrair gol do ${p.visitante?.nome}`} data-tooltip="Subtrair um gol" disabled={busy || (!p.gols_visitante && !delayed.queue.some(item => item.payload.tipo === 'GOL' && item.payload.time_id === p.visitante_id))} onClick={() => subtractGoal(p.visitante_id)}><Icon name="minus" size={20} /></button>}
+                    <strong>{awayGoals}</strong>
+                    {operatingCurrentPeriod && <button type="button" className="live-goal-add live-goal-subtract" aria-label={`Subtrair gol do ${p.visitante?.nome}`} data-tooltip="Subtrair um gol" disabled={busy || (!p.gols_visitante && !delayed.queue.some(item => item.payload.tipo === 'GOL' && item.payload.time_id === p.visitante_id))} onClick={() => subtractGoal(p.visitante_id)}><Icon name="minus" size={20} /></button>}
                   </div>
                 </div>
               </div>
@@ -581,12 +593,15 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
           </section> : <MatchResultSummary data={data} period={finalPeriod} onFeedback={setFeedback} onCorrectEvent={canCorrect || data.podeAnotarOficial ? () => openEvent('GOL') : undefined}
             onRequestCorrection={!canCorrect && !data.podeAnotarOficial && data.podePreparar ? () => { setReason(''); setError(''); setCorrectionRequest(true); } : undefined} />}
           {live && <div className="live-time-stepper" role="group" aria-label="Tempo da partida">
-            <button type="button" aria-label="Voltar tempo" disabled={readOnlyPeriod ? displayedPeriod <= 1 : changing || p.periodo_atual <= 1} onClick={readOnlyPeriod ? () => browsePeriod(-1) : goBackPeriod}><Icon name="chevronLeft" size={20} /></button>
-            <span aria-live="polite"><strong>{displayedPeriod}º tempo</strong><small>{browsingPast ? `Visualizando · Atual: ${p.periodo_atual}º tempo` : `${displayedPeriod}/${Math.max(totalTimes, p.periodo_atual)}`}</small></span>
-            <button type="button" aria-label="Avançar tempo" disabled={readOnlyPeriod ? displayedPeriod >= p.periodo_atual : changing || p.periodo_atual >= totalTimes} onClick={readOnlyPeriod ? () => browsePeriod(1) : () => changePeriod(p.periodo_atual + 1)}><Icon name="chevronRight" size={20} /></button>
+            <button type="button" aria-label="Voltar tempo" disabled={displayedPeriod <= 1} onClick={() => browsePeriod(-1)}><Icon name="chevronLeft" size={20} /></button>
+            <div className="live-time-caption">
+              <span aria-live="polite"><strong>{displayedPeriod}º tempo</strong><small>{browsingPast ? `Em consulta · jogo no ${p.periodo_atual}º tempo` : `${displayedPeriod}/${Math.max(totalTimes, p.periodo_atual)}`}</small></span>
+              {browsingPast && <Btn size="sm" variant="ghost" onClick={() => setViewedPeriod(null)}>Voltar ao vivo</Btn>}
+            </div>
+            <button type="button" aria-label="Avançar tempo" disabled={!browsingPast && (!operatingCurrentPeriod || changing || p.periodo_atual >= totalTimes)} onClick={browsingPast ? () => browsePeriod(1) : () => changePeriod(p.periodo_atual + 1)}><Icon name="chevronRight" size={20} /></button>
           </div>}
           </div>
-          {(live && data.podeSumula || !live && data.podeAnotarOficial) && (
+          {(operatingCurrentPeriod || !live && data.podeAnotarOficial) && (
             <section className="live-controls" aria-labelledby="live-actions-title">
               <div className="live-controls-heading">
                 <h2 id="live-actions-title">Registrar evento</h2>
@@ -613,7 +628,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
               </div>
             </section>
           )}
-          {!!pending.length && (data.podePreparar || data.podeSumula) && (
+          {!browsingPast && !!pending.length && (data.podePreparar || data.podeSumula) && (
             <section className="live-pending" aria-label="Autoria pendente">
               <Icon name="alert" size={21} />
               <div>
@@ -643,7 +658,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
         <div className="live-side-panel"><section className="live-timeline" aria-labelledby="live-timeline-title">
           <header>
             <h2 id="live-timeline-title" tabIndex={-1}>Acontecimentos</h2>
-            {live && data.podeSumula ? <button className="live-undo-last" type="button" disabled={changing || !lastEvent} onClick={() => requestRemoval(lastEvent)}><Icon name="undo" size={16} />Desfazer último</button> : <span>{timelineEvents.length}</span>}
+            {operatingCurrentPeriod ? <button className="live-undo-last" type="button" disabled={changing || !lastEvent} onClick={() => requestRemoval(lastEvent)}><Icon name="undo" size={16} />Desfazer último</button> : <span>{timelineEvents.length}</span>}
           </header>
           <div className="live-timeline-items" role="region" aria-label="Acontecimentos da partida" tabIndex={0}>
             {!timelineEvents.length && (
@@ -704,7 +719,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
                         </button>
                       )}
                     </div>
-                    {(canCorrect || canIdentifyGoal(data, event, clube?.id)) && (
+                    {!browsingPast && (canCorrect || canIdentifyGoal(data, event, clube?.id)) && (
                       <details
                         className="live-event-menu"
                         onToggle={(event) => placeEventMenu(event.currentTarget)}
@@ -768,7 +783,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
       <section className="live-lineups">
         <div className="live-section-heading">
           <div className="live-section-title"><h2>{live ? 'Escalação' : 'Escalação final'}</h2><small>{finalPeriod === null ? 'Acumulado da partida' : `Registros do ${finalPeriod}º tempo`}</small></div>
-          {live && data.podePreparar && mine && (
+          {live && !browsingPast && data.podePreparar && mine && (
             <Btn
               variant="ghost"
               size="sm"
@@ -789,7 +804,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
         <PublishedLineups data={finalPeriod === null ? data : { ...data, eventos: resultEvents }} statistics />
       </section>
 
-      {live && data.podeSumula && <div className="live-finish-actions">
+      {operatingCurrentPeriod && <div className="live-finish-actions">
         <Btn variant="danger" disabled={changing} onClick={() => { setError(''); setFinish(true); }}><Icon name="checkAll" size={18} />Finalizar partida</Btn>
       </div>}
       {prioritizeLineup && <MatchInsights data={data} />}
@@ -837,7 +852,7 @@ function MatchLiveSession({ data, refresh, onResponsibility, players = [] }: Pro
           </div>
         }
       >
-        <p>Já existem eventos registrados neste trecho da partida. Eles continuarão no tempo em que foram registrados.</p>
+        <p>Esta correção muda o tempo oficial para todos os participantes. Os eventos continuarão no tempo em que foram registrados.</p>
         <p className="live-period-explanation">As bolinhas passarão a mostrar as faltas cometidas no {previousPeriod}º tempo. O placar e os cartões da partida serão mantidos.</p>
         {error && <p className="notice-error" role="alert">{error}</p>}
       </Modal>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthShell } from '../components/AuthShell';
+import type { RegistrationStep } from '../components/auth/AuthStory';
 import { AccessFeedback, AccessSteps, AuthField, BackArrow, InviteCard, useAccessForm, useResendCountdown } from '../components/auth';
 import { cadastrar, solicitarCodigoCadastro } from '../services/auth';
 import { codigoValido, erroConfirmacao, erroEmail, erroNome, erroSenha, formatarCodigo, normalizarEmail } from '../utils/authValidation';
@@ -12,7 +13,7 @@ export default function RegistrarPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const invitation = location.state as { convite?: string; conviteAberto?: boolean } | null;
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<RegistrationStep>(1);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -23,7 +24,7 @@ export default function RegistrarPage() {
   const access = useAccessForm();
   const resend = useResendCountdown();
 
-  function changeStep(next: number) {
+  function changeStep(next: RegistrationStep) {
     access.reset();
     setNotice('');
     setStep(next);
@@ -63,18 +64,19 @@ export default function RegistrarPage() {
   return (
     <AuthShell
       intent="register"
+      registerStep={step}
+      invite={step === 1 ? <InviteCard /> : undefined}
       title={step === 1 ? 'Crie sua conta' : step === 2 ? 'Proteja sua conta' : 'Confirme seu e-mail'}
       subtitle={step === 1 ? 'Vamos começar pelo seu nome e e-mail.' : step === 2 ? 'Escolha uma senha para acessar o Ludora.' : 'Informe os 8 caracteres recebidos por e-mail. O código vale por 15 minutos.'}
       back={step > 1
-        ? <button type="button" className="access-back" aria-label="Voltar à etapa anterior" disabled={access.busy} onClick={() => changeStep(step - 1)}><BackArrow /></button>
-        : <Link className="access-back" to="/login" aria-label="Voltar para o login"><BackArrow /></Link>}
+        ? <button type="button" className="access-back" aria-label="Voltar à etapa anterior" disabled={access.busy} onClick={() => changeStep(step === 3 ? 2 : 1)}><BackArrow /></button>
+        : <Link className="access-back" to="/login" aria-label="Voltar para o login" state={invitation}><BackArrow /></Link>}
       progress={<AccessSteps step={step} labels={STEPS} />}
-      navigation={<Link className="access-secondary-action" to="/login">Já tenho conta</Link>}
       footer={<>
         <button className="btn btn-primary auth-btn" type="submit" form="register-form" disabled={access.busy} aria-busy={access.busy}>
           {access.busy ? 'Aguarde…' : step === 1 ? 'Continuar' : step === 2 ? 'Enviar código de confirmação' : 'Confirmar e criar conta'}
         </button>
-        <p className="auth-link">Já tem conta? <Link to="/login">Entrar</Link></p>
+        <p className="auth-link">Já tem conta? <Link to="/login" state={invitation}>Entrar</Link></p>
       </>}
     >
       <AccessFeedback message={access.error} />
@@ -108,7 +110,6 @@ export default function RegistrarPage() {
             error={access.feedback('codigo', codigoValido(codigo) ? '' : 'Informe os 8 caracteres do código recebido por e-mail.')} />}
         </fieldset>
       </form>
-      {step === 1 && <InviteCard />}
       {step === 3 && <button type="button" className="access-resend" disabled={access.busy || resend.seconds > 0} onClick={() => void access.run(sendCode)}>
         {resend.seconds ? `Reenviar código em ${resend.seconds}s` : 'Não recebeu? Reenviar código'}
       </button>}

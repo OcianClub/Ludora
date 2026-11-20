@@ -2,6 +2,8 @@ import { Prisma } from '@prisma/client';
 import type { consultarHome } from './home.service';
 import { dataHomeValida } from './home.service';
 import { FiltroDataInvalido, intervaloDataPartidas } from './filtros-data.utils';
+import { referenciasCompeticoes } from '../paulista/service';
+import type { PrismaClient } from '@prisma/client';
 
 export const LIMITES_AGENDA = { ao_vivo: 10, agenda: 10, pendentes: 5, historico: 5, finalizadas: 5, canceladas: 5 } as const;
 export type GrupoAgenda = keyof typeof LIMITES_AGENDA;
@@ -9,6 +11,13 @@ export type PartidaAgenda = Awaited<ReturnType<typeof consultarHome>>[number] & 
   grupo_agenda: GrupoAgenda;
   posicao: number;
   total_grupo: number;
+};
+const TAMANHO_PAGINA_WEB = 12;
+type GrupoAgendaWeb = GrupoAgenda | 'preparacao';
+type PartidaAgendaWeb = Omit<PartidaAgenda, 'grupo_agenda'> & {
+  grupo_agenda: GrupoAgendaWeb;
+  paulista_evento_id?: number;
+  revisao_grupo?: string;
 };
 
 export function validarFiltroAgenda(filtros: Record<string, unknown>) {
@@ -57,13 +66,19 @@ export function validarFiltroAgenda(filtros: Record<string, unknown>) {
     throw new FiltroDataInvalido('Filtros de partidas inválidos.');
   }
   const porSituacao = filtros.por_situacao === 'true';
+  const web = filtros.formato === 'web';
   const grupo = filtros.grupo;
-  if (grupo !== undefined && (typeof grupo !== 'string' || !(grupo in LIMITES_AGENDA) || !Object.prototype.hasOwnProperty.call(LIMITES_AGENDA, grupo))) {
+  if (grupo !== undefined && (typeof grupo !== 'string' ||
+    (!Object.hasOwn(LIMITES_AGENDA, grupo) && !(web && grupo === 'preparacao' && preparacao)))) {
     throw new FiltroDataInvalido('Grupo de partidas inválido.');
   }
   const categoria = filtros.categoria_nome;
+  const categoriaExibida = web ? filtros.categoria_exibida : undefined;
   if (categoria !== undefined &&
       (typeof categoria !== 'string' || !categoria.trim() || categoria.length > 60)) {
+    throw new FiltroDataInvalido('Categoria inválida.');
+  }
+  if (categoriaExibida !== undefined && (typeof categoriaExibida !== 'string' || !categoriaExibida.trim() || categoriaExibida.length > 60)) {
     throw new FiltroDataInvalido('Categoria inválida.');
   }
   const apos = filtros.apos === undefined ? 0 : Number(filtros.apos);
@@ -83,22 +98,30 @@ export function validarFiltroAgenda(filtros: Record<string, unknown>) {
     mando: mando === undefined ? null : mando === 'casa',
     grupo: grupo ?? null,
     categoria: typeof categoria === 'string' ? categoria.trim().toUpperCase().replace(/ /g, '-') : null,
+    categoriaExibida: typeof categoriaExibida === 'string' ? categoriaExibida.trim().toUpperCase().replace(/ /g, '-') : null,
+    web,
     apos,
   };
 }
 
-export async function consultarAgenda(
+async function lerAgenda(
   banco: Pick<Prisma.TransactionClient, '$queryRaw'>,
   clubeId: number,
   filtros: Record<string, unknown>
 ) {
   if (!Number.isSafeInteger(clubeId) || clubeId <= 0)
     throw new FiltroDataInvalido('Clube inválido.');
-  const { agora, intervalo, status, grupo, categoria, apos, porSituacao, busca, organizadas, preparacao, mando } = validarFiltroAgenda(filtros);
-  return banco.$queryRaw<PartidaAgenda[]>(Prisma.sql`
+  const { agora, intervalo, status, grupo, categoria, apos, porSituacao, busca, organizadas, preparacao, mando, web, categoriaExibida } = validarFiltroAgenda(filtros);
+  const nomeCategoria = Prisma.sql`UPPER(REPLACE(TRIM(COALESCE(cp.nome, c.nome)), ' ', '-'))`;
+  const nomes = Prisma.sql`CONCAT_WS(' ', m.nome, cm.nome, v.nome, cv.nome, p.local)`;
+  const buscaNormalizada = web
+    ? busca?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR') ?? null
+    : busca;
+  const conteudoBusca = web ? Prisma.sql`REGEXP_REPLACE(NORMALIZE(LOWER(${nomes}), NFD), ${'[\u0300-\u036f]'}, '', 'g')` : Prisma.sql`LOWER(${nomes})`;
+  return banco.$queryRaw<PartidaAgendaWeb[]>(Prisma.sql`
     WITH candidatas AS (
-      SELECT p.id, p.data, COALESCE(p.horario, '23:59') AS horario,
-        UPPER(REPLACE(TRIM(COALESCE(cp.nome, c.nome)), ' ', '-')) AS categoria,
+      SELECT p.id, p.versao, p.data, COALESCE(p.horario, '23:59') AS horario,
+        ${nomeCategoria} AS categoria, p.status,
         CASE WHEN p.status = 'AO_VIVO' THEN 'ao_vivo'
              WHEN p.status = 'FINALIZADA' AND ${porSituacao} THEN 'finalizadas'
              WHEN p.status = 'CANCELADA' AND ${porSituacao} THEN 'canceladas'
@@ -121,48 +144,57 @@ export async function consultarAgenda(
         ${intervalo ? Prisma.sql`AND p.data >= ${intervalo.gte} AND p.data < ${intervalo.lt}` : Prisma.empty}
         AND (${status}::text IS NULL OR p.status::text = ${status})
         AND (NOT ${organizadas} OR COALESCE(p.organizador_id, c.clube_id) = ${clubeId})
-        AND (${preparacao}::text IS NULL OR p.status::text = ${preparacao})
+        AND (${web ? null : preparacao}::text IS NULL OR p.status::text = ${web ? null : preparacao})
         AND (${mando}::boolean IS NULL OR (
           CASE WHEN pp.time_id IS NOT NULL THEN pp.time_id = p.mandante_id
             WHEN c.clube_id = ${clubeId} THEN p."emCasa"
             ELSE COALESCE(m.clube_representado_id = ${clubeId}, false) END
         ) = ${mando})
-        AND (${busca}::text IS NULL OR
-          STRPOS(LOWER(CONCAT_WS(' ', m.nome, cm.nome, v.nome, cv.nome, p.local)), LOWER(${busca}::text)) > 0)
-        AND (${categoria}::text IS NULL OR UPPER(REPLACE(TRIM(COALESCE(cp.nome, c.nome)), ' ', '-')) = ${categoria})
+        AND (${buscaNormalizada}::text IS NULL OR STRPOS(${conteudoBusca}, LOWER(${buscaNormalizada}::text)) > 0)
+        AND (${categoria}::text IS NULL OR ${nomeCategoria} = ${categoria})
+        ${web && categoriaExibida && !busca ? Prisma.sql`AND ${nomeCategoria} = ${categoriaExibida}` : Prisma.empty}
+    ), grupos AS (
+      SELECT id, versao, data, horario, categoria, grupo FROM candidatas
+      ${web && preparacao ? Prisma.sql`UNION ALL
+        SELECT id, versao, data, horario, categoria, 'preparacao' FROM candidatas WHERE status::text = ${preparacao}` : Prisma.empty}
     ), ordenadas AS (
-      SELECT id, grupo, ROW_NUMBER() OVER (
+      SELECT id, grupo, categoria, ROW_NUMBER() OVER (
         PARTITION BY categoria, grupo
         ORDER BY CASE WHEN grupo IN ('historico', 'pendentes', 'finalizadas', 'canceladas') THEN data END DESC,
           CASE WHEN grupo IN ('historico', 'pendentes', 'finalizadas', 'canceladas') THEN horario END DESC,
-          CASE WHEN grupo IN ('ao_vivo', 'agenda') THEN data END ASC,
-          CASE WHEN grupo IN ('ao_vivo', 'agenda') THEN horario END ASC,
+          CASE WHEN grupo IN ('ao_vivo', 'agenda', 'preparacao') THEN data END ASC,
+          CASE WHEN grupo IN ('ao_vivo', 'agenda', 'preparacao') THEN horario END ASC,
           id ASC
       ) AS posicao, COUNT(*) OVER (PARTITION BY categoria, grupo) AS total
-      FROM candidatas
+        ${web ? Prisma.sql`, BIT_XOR(HASHINT8(id::bigint << 32 | versao::bigint)) OVER (PARTITION BY categoria, grupo) AS revisao` : Prisma.empty}
+      FROM grupos
     ), selecionadas AS (
       SELECT * FROM ordenadas
       WHERE (${grupo}::text IS NULL OR grupo = ${grupo})
         AND posicao > ${apos}
-        AND posicao <= ${apos} + CASE grupo
+        AND posicao <= ${apos} + ${web ? Prisma.sql`CASE
+          WHEN ${categoriaExibida}::text IS NULL OR categoria = ${categoriaExibida} THEN ${TAMANHO_PAGINA_WEB}
+          ELSE 1 END` : Prisma.sql`CASE grupo
           WHEN 'finalizadas' THEN ${LIMITES_AGENDA.finalizadas}
           WHEN 'canceladas' THEN ${LIMITES_AGENDA.canceladas}
           WHEN 'historico' THEN ${LIMITES_AGENDA.historico}
           WHEN 'pendentes' THEN ${LIMITES_AGENDA.pendentes}
           WHEN 'ao_vivo' THEN ${LIMITES_AGENDA.ao_vivo}
-          ELSE ${LIMITES_AGENDA.agenda} END
+          ELSE ${LIMITES_AGENDA.agenda} END`}
     )
     SELECT s.grupo AS grupo_agenda, s.posicao::int AS posicao,
-      s.total::int AS total_grupo, p.id, p.organizador_id, p.data, p.horario, p.local, p.status,
+      s.total::int AS total_grupo, ${web ? Prisma.sql`s.revisao::text AS revisao_grupo,` : Prisma.empty}
+      p.id, p.organizador_id, p.data, p.horario, p.local, p.status,
+      p.mandante_id, p.visitante_id, COALESCE(cp.id, c.id) AS categoria_id,
       p.gols_mandante, p.gols_visitante, p.rodada, p.grupo, p.competicao_id,
       c.clube_id AS clube_origem_id, (c.clube_id <> ${clubeId}) AS somente_leitura,
       CASE WHEN pp.time_id IS NOT NULL THEN pp.time_id = p.mandante_id
         WHEN c.clube_id = ${clubeId} THEN p."emCasa"
         ELSE COALESCE(m.clube_representado_id = ${clubeId}, false) END AS "emCasa",
-      jsonb_build_object('id', m.id,
+      jsonb_build_object('id', m.id, 'clube_representado_id', m.clube_representado_id,
         'nome', CASE WHEN cm.id IS NOT NULL THEN cm.nome ELSE m.nome END,
         'escudo', CASE WHEN cm.id IS NOT NULL THEN cm.escudo ELSE m.escudo END) AS mandante,
-      jsonb_build_object('id', v.id,
+      jsonb_build_object('id', v.id, 'clube_representado_id', v.clube_representado_id,
         'nome', CASE WHEN cv.id IS NOT NULL THEN cv.nome ELSE v.nome END,
         'escudo', CASE WHEN cv.id IS NOT NULL THEN cv.escudo ELSE v.escudo END) AS visitante,
       jsonb_build_object('id', COALESCE(cp.id, c.id), 'nome', COALESCE(cp.nome, c.nome),
@@ -181,4 +213,12 @@ export async function consultarAgenda(
     LEFT JOIN "Competicao" co ON co.id = p.competicao_id
     ORDER BY s.grupo ASC, s.posicao ASC
   `);
+}
+
+export async function consultarAgenda(banco: PrismaClient, clubeId: number, filtros: Record<string, unknown>) {
+  const rows = await lerAgenda(banco, clubeId, filtros);
+  if (filtros.formato !== 'web') return rows as PartidaAgenda[];
+  const ids = [...new Set(rows.flatMap(p => p.competicao_id == null ? [] : [p.competicao_id]))];
+  const oficiais = await referenciasCompeticoes(banco, ids);
+  return rows.map(p => ({ ...p, paulista_evento_id: p.competicao_id == null ? undefined : oficiais.get(p.competicao_id) }));
 }

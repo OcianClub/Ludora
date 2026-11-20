@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { typography } from "@ludora/design-tokens";
+import { typography, radius } from "@ludora/design-tokens";
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 import { MARGEM_TELA } from './layout';
@@ -27,13 +27,13 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.linha,
   },
-  embeddedAvatar: { width: 56, height: 56, borderRadius: 28, borderWidth: 0, backgroundColor: colors.primaria },
+  embeddedAvatar: { width: 56, height: 56, borderRadius: 28, borderWidth: 0, backgroundColor: colors.acaoPrimaria },
   embeddedFields: { paddingHorizontal: 0, borderWidth: 0, gap: 12 },
   embeddedField: { paddingVertical: 0, gap: 5 },
   embeddedInput: { minHeight: 44, borderRadius: 7, backgroundColor: colors.card },
   embeddedInputText: { paddingVertical: 9 },
   embeddedLabel: { color: colors.texto },
-  embeddedSuccess: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primaria, padding: 12, borderRadius: 8, marginVertical: 12 },
+  embeddedSuccess: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.acaoPrimaria, padding: 12, borderRadius: 8, marginVertical: 12 },
   embeddedSection: { marginBottom: 12 },
   embeddedSave: { minHeight: 44, borderRadius: 7, paddingHorizontal: 18, alignSelf: 'flex-start' },
   container: {
@@ -82,7 +82,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     width: 15,
     height: 15,
     borderRadius: 10,
-    backgroundColor: colors.primaria,
+    backgroundColor: colors.acaoPrimaria,
     borderWidth: 3,
     borderColor: colors.fundo,
   },
@@ -237,8 +237,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: colors.primaria,
-    borderRadius: 10,
+    backgroundColor: colors.acaoPrimaria,
+    borderRadius: radius.control,
   },
   saveButtonText: {
     fontFamily: typography.fontFamily.corpo.semiBold,
@@ -326,7 +326,7 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 15,
-    backgroundColor: colors.primaria,
+    backgroundColor: colors.acaoPrimaria,
     borderRadius: 10,
   },
   successText: {

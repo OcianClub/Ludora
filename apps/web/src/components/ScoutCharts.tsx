@@ -90,8 +90,7 @@ export function ScoutRecordsRadar({ totals }: { totals: TotaisContextoScout }) {
         })}
       </svg>
       <figcaption>
-        Escala: 0–{maximum} eventos. Volume de registros, não nota de
-        desempenho.
+        Escala do período: 0–{maximum} registros.
       </figcaption>
     </figure>
   );

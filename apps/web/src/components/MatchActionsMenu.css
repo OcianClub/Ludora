@@ -1,0 +1,49 @@
+.match-actions-menu { position: relative; flex-shrink: 0; }
+.match-actions-trigger {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texto-sec);
+}
+.match-actions-trigger:hover, .match-actions-trigger[aria-expanded="true"] {
+  background: var(--fundo-card);
+  color: var(--texto);
+}
+.match-actions-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: 3px;
+  width: 200px;
+  padding: 6px;
+  border: 1px solid var(--borda);
+  border-radius: var(--radius-overlay);
+  background: var(--fundo-card);
+  box-shadow: var(--sombra-overlay);
+}
+.match-actions-popover button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--texto);
+  font-size: 13px;
+  text-align: left;
+}
+.match-actions-popover button:hover { background: var(--controle-hover-claro, var(--fundo-card-sec)); }
+.match-actions-popover .match-actions-delete { color: var(--titulo-erro, var(--vermelho)); }
+
+.match-actions-menu button:focus-visible { outline:2px solid var(--primaria); outline-offset:-2px; }
+.match-list-actions .match-actions-trigger { width:36px; height:44px; }
+.match-list-actions .match-actions-popover { width:max-content; max-width:min(240px, 72vw); }

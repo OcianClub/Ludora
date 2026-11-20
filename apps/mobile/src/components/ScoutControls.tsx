@@ -179,7 +179,7 @@ export function ScoutFilters({
               style={[
                 f.chip,
                 filters[key] === value && {
-                  backgroundColor: colors.primaria,
+                  backgroundColor: colors.acaoPrimaria,
                   borderColor: colors.primaria,
                 },
               ]}
@@ -232,7 +232,7 @@ export function ScoutFilters({
         <Text style={f.label}>Contribuição</Text>
         <View style={f.chipRow}>
           {(['Todos', 'Artilheiro', 'Armador', 'Paredão', 'Misto', 'Sem dados'] as PerfilScout[]).map((value) => <TouchableOpacity key={value} accessibilityRole="radio" accessibilityState={{ checked: perfil === value }}
-            onPress={() => setPerfil(value)} style={[f.chip, perfil === value && { backgroundColor: colors.primaria, borderColor: colors.primaria }]}>
+            onPress={() => setPerfil(value)} style={[f.chip, perfil === value && { backgroundColor: colors.acaoPrimaria, borderColor: colors.primaria }]}>
             <Text style={[f.optionText, perfil === value && { color: colors.textoSobrePrimaria }]}>{value === 'Sem dados' ? 'Sem perfil' : value}</Text>
           </TouchableOpacity>)}
         </View>

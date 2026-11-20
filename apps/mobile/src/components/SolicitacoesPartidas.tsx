@@ -93,9 +93,9 @@ function SolicitacoesAutenticadas({ onClose, onChanged, onOpenMatch }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
-  const [all, setAll] = useState(false);
+  const [all, setAll] = useState(true);
   const [direcao, setDirecao] = useState<"todas" | "recebidas" | "enviadas">(
-    "todas",
+    "recebidas",
   );
   const [editing, setEditing] = useState<PropostaPartida | null>(null);
   const [date, setDate] = useState(""),
@@ -106,14 +106,14 @@ function SolicitacoesAutenticadas({ onClose, onChanged, onOpenMatch }: Props) {
   const clubId = clubeAtivo?.id;
   const visiveis = items.filter(
     (p) =>
-      (all || p.status === "PENDENTE") &&
+      (direcao === "recebidas" || all || p.status === "PENDENTE") &&
       (direcao === "todas" ||
         (direcao === "recebidas"
-          ? p.respondente_id === clubId
+          ? p.status === "PENDENTE" && p.respondente_id === clubId
           : p.origem_id === clubId)),
   );
-  const filtrosAtivos = Number(!all) + Number(direcao !== "todas");
-  const resumoFiltros = `${all ? "Todas as situações" : "Pendentes"} · ${direcao === "recebidas" ? "Para responder" : direcao === "enviadas" ? "Enviadas" : "Todas as solicitações"}`;
+  const filtrosAtivos = Number(!all && direcao !== "recebidas");
+  const resumoFiltros = all && direcao !== "recebidas" ? "Todas as situações" : "Pendentes";
   const pendentesParaMim = items.filter(
     (p) => p.status === "PENDENTE" && p.respondente_id === clubId,
   ).length;
@@ -201,7 +201,7 @@ function SolicitacoesAutenticadas({ onClose, onChanged, onOpenMatch }: Props) {
           styles.button,
           label === "Cancelar proposta" && { width: "100%" },
           {
-            backgroundColor: primary ? colors.primaria : colors.cardSecundario,
+            backgroundColor: primary ? colors.acaoPrimaria : colors.cardSecundario,
             opacity: busy ? 0.5 : 1,
           },
         ]}
@@ -228,7 +228,7 @@ function SolicitacoesAutenticadas({ onClose, onChanged, onOpenMatch }: Props) {
             ? router.back()
             : router.replace("/(tabs)/jogos/jogos")
         }
-        rightAccessory={
+        rightAccessory={direcao !== "recebidas" ? (
           <IconButton
             icon="sliders-horizontal"
             variant="ghost"
@@ -237,12 +237,23 @@ function SolicitacoesAutenticadas({ onClose, onChanged, onOpenMatch }: Props) {
             onPress={() => setFiltrosAbertos(true)}
             dot={filtrosAtivos > 0}
           />
-        }
+        ) : undefined}
       />
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
+        <View accessibilityRole="tablist" style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.linha, gap: 12 }}>
+          {([['recebidas', 'Para responder'], ['enviadas', 'Enviadas'], ['todas', 'Todas']] as const).map(([value, label]) => (
+            <TouchableOpacity key={value} accessibilityRole="tab" accessibilityState={{ selected: direcao === value }}
+              onPress={() => setDirecao(value)} style={{ minHeight: 44, flexShrink: 1, justifyContent: 'center',
+                borderBottomWidth: 2, borderBottomColor: direcao === value ? colors.primaria : 'transparent' }}>
+              <Text style={[styles.listCount, direcao === value ? text : muted]}>
+                {label}{value === 'recebidas' && pendentesParaMim > 0 ? ` · ${pendentesParaMim}` : ''}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
         <View style={styles.listHeading}>
           <Text style={[styles.listCount, text]}>
             {visiveis.length}{" "}
@@ -266,12 +277,12 @@ function SolicitacoesAutenticadas({ onClose, onChanged, onOpenMatch }: Props) {
             </View>
             <Text style={[styles.emptyTitle, muted]}>
               {items.length
-                ? "Nenhuma solicitação com estes filtros"
-                : "Nenhuma solicitação por aqui"}
+                ? direcao === "recebidas" ? "Nenhuma solicitação para responder" : "Nenhuma solicitação nesta seleção"
+                : "Seu clube ainda não tem solicitações"}
             </Text>
             <Text style={[styles.emptyDescription, muted]}>
               {items.length
-                ? "Altere os filtros para consultar as demais solicitações."
+                ? "Abra Todas para consultar o histórico do clube."
                 : "Propostas de partidas e pedidos de troca da súmula aparecerão aqui."}
             </Text>
           </View>
@@ -455,13 +466,10 @@ function SolicitacoesAutenticadas({ onClose, onChanged, onOpenMatch }: Props) {
       {filtrosAbertos && (
         <FiltrosSolicitacoes
           todas={all}
-          direcao={direcao}
           pendentes={items.filter((p) => p.status === "PENDENTE").length}
-          paraResponder={pendentesParaMim}
           onFechar={() => setFiltrosAbertos(false)}
-          onAplicar={(todas, direcao) => {
+          onAplicar={todas => {
             setAll(todas);
-            setDirecao(direcao);
             setFiltrosAbertos(false);
           }}
         />

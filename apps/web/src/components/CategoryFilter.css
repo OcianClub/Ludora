@@ -71,8 +71,8 @@
   background: var(--categoria-sub-hover);
 }
 .home-controls .home-sub-strip button[aria-selected="true"] {
-  background: var(--primaria);
-  color: #fff;
+  background: var(--acao-primaria);
+  color: var(--texto-sobre-primaria);
 }
 .home-controls button:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
 .home-no-category { padding: 8px; font-size: 13px; color: var(--texto-sec); }

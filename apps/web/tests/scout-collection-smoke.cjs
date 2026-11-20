@@ -14,7 +14,8 @@ const output = path.resolve(__dirname, '../../../test-results/scout-collection')
           localStorage.setItem('ludora_token', 'visual-test-only');
           localStorage.setItem('ludora_usuario', JSON.stringify({ id: 1, nome: 'Gestor de teste' }));
           localStorage.setItem('ludora_clube', JSON.stringify({ id: 2, nome: 'Ocian', meuPapel: 'ADMIN' }));
-          localStorage.setItem('ludora_clube_id', '2'); localStorage.setItem('ludora_tema', 'dark');
+          localStorage.setItem('ludora_clube_id', '2');
+          if (!localStorage.getItem('ludora_tema')) localStorage.setItem('ludora_tema', 'dark');
         });
         const page = await context.newPage(), errors = [];
         page.on('pageerror', error => errors.push(error.message));
@@ -81,8 +82,9 @@ const output = path.resolve(__dirname, '../../../test-results/scout-collection')
         await page.getByRole('searchbox', { name: 'Buscar atleta' }).fill('');
         await page.getByRole('button', { name: 'Mais filtros', exact: true }).click();
         const filters = page.getByRole('dialog', { name: 'Filtrar elenco' });
-        await filters.getByRole('group', { name: 'Posição', exact: true }).getByRole('button', { name: 'Fixo', exact: true }).click();
-        await filters.getByRole('group', { name: 'Perfil de registros', exact: true }).getByRole('button', { name: 'Artilheiro', exact: true }).click();
+        await filters.getByRole('radio', { name: 'Fixo', exact: true }).check();
+        await filters.getByRole('combobox', { name: /Perfil de registros/ }).click();
+        await filters.getByRole('option', { name: 'Artilheiro', exact: true }).click();
         await filters.getByRole('button', { name: 'Aplicar filtros', exact: true }).click();
         assert.ok(await page.getByRole('button', { name: /^Ver ficha de/ }).count() > 0);
         assert.equal(new URL(page.url()).searchParams.get('posicao'), 'Fixo');
@@ -97,7 +99,10 @@ const output = path.resolve(__dirname, '../../../test-results/scout-collection')
         await detail.getByRole('button', { name: 'Fechar janela', exact: true }).click();
         assert.equal(profileCalls, 1, 'filtros e ordenação não repetem a consulta ao servidor');
         for (const theme of ['dark', 'light']) {
-          await page.evaluate(value => { localStorage.setItem('ludora_tema', value); window.dispatchEvent(new Event('ludora:theme-change')); scrollTo(0, 0); }, theme);
+          await page.evaluate(value => localStorage.setItem('ludora_tema', value), theme);
+          await page.reload();
+          await page.getByRole('button', { name: /^Ver ficha de/ }).first().waitFor();
+          assert.equal(await page.locator('html').getAttribute('data-theme'), theme);
           await page.mouse.move(0, 0);
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
           if ([390, 820, 1440].includes(width)) await page.screenshot({ path: path.join(output, `scout-${width}-${theme}.png`), fullPage: true });

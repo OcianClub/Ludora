@@ -6,6 +6,7 @@ import { RequestError } from '../services/http';
 import { formatMatchDate } from './MatchCard';
 import {
   resumirContextoScout,
+  progressoPerfilScout,
   formatarMediaScout,
   type ContextoScout,
   type FiltroContextoScout,
@@ -101,6 +102,8 @@ export function ScoutPlayerDetail({
   const single = context?.recorte?.tipo === 'partida';
   const match = single ? context?.partidas[0] : null;
   const totals = context?.totais;
+  const amostraPerfil = tipo === 'geral' && !filtro.ano && (!player.perfil_ml || player.perfil_ml === 'Sem dados')
+    ? progressoPerfilScout(totals) : '';
   const seasons = [
     ...new Set(
       options?.temporadas ??
@@ -295,6 +298,9 @@ export function ScoutPlayerDetail({
                     : 'partidas com registro'}
                 </span>
               </div>
+              {amostraPerfil && <p className="athlete-note athlete-sample-note"><Icon name="info" size={16} />
+                <span><strong>Ainda sem perfil</strong> · {amostraPerfil}</span>
+              </p>}
               {context.recorte?.provisorio && (
                 <p className="athlete-notice" role="status">
                   <Icon name="broadcast" size={17} />
@@ -459,7 +465,7 @@ export function ScoutPlayerDetail({
                       </section>
                     )}
                   </div>
-                  {!single && summary.poucosRegistros && (
+                  {!single && !amostraPerfil && summary.poucosRegistros && (
                     <p className="athlete-note athlete-sample-note">
                       <Icon name="info" size={16} />
                       Amostra inicial: {context.total_partidas} de 5 partidas.

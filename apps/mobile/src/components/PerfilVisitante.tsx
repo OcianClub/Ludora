@@ -1,3 +1,5 @@
+import { radius, spacing, touchTarget } from "@ludora/design-tokens";
+import { AppButton } from './ui/Controls';
 import { AccountMenu } from "./AccountMenu";
 import { useSessao } from "../contexts/SessaoContext";
 import { useNotificacoes } from "../contexts/NotificacoesContext";
@@ -33,21 +35,21 @@ export default function PerfilVisitante() {
   };
   return <View style={{ flex: 1, backgroundColor: colors.fundo }}>
     <HeaderPublico />
-    <ScrollView contentContainerStyle={{ padding: 20, gap: 22 }}>
+    <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}>
       <View style={{ gap: 10 }}>
         <Icon name="account" size={38} color={colors.primaria} />
         <Text accessibilityRole="header" style={{ color: colors.texto, fontSize: 28, fontFamily: 'Oswald_600SemiBold' }}>O Ludora também é para quem acompanha</Text>
         <Text style={{ color: colors.textoSecundario, lineHeight: 22 }}>Explore clubes, acompanhe partidas e consulte resultados sem precisar de uma conta.</Text>
       </View>
-      <View style={{ padding: 18, backgroundColor: colors.card, borderRadius: 12, gap: 14 }}>
+      <View style={{ padding: spacing.lg, backgroundColor: colors.card, borderRadius: radius.card, gap: spacing.md }}>
         <Text style={{ color: colors.texto, fontWeight: '600', fontSize: 16 }}>Entre para acompanhar do seu jeito</Text>
         <Text style={{ color: colors.textoSecundario, lineHeight: 22 }}>Salve os clubes que você segue e escolha os avisos que deseja receber. Se você faz parte da equipe do clube, entre para acessar suas funções.</Text>
-        <TouchableOpacity accessibilityRole="button" onPress={() => void entrar()} style={{ padding: 14, borderRadius: 10, backgroundColor: colors.primaria, alignItems: 'center' }}><Text style={{ color: colors.textoSobrePrimaria, fontWeight: '600' }}>Entrar</Text></TouchableOpacity>
+        <AppButton label="Entrar" variant="primary" onPress={() => void entrar()} />
         <TouchableOpacity accessibilityRole="button" onPress={() => void entrar(true)} style={{ padding: 12, alignItems: 'center' }}><Text style={{ color: colors.primaria }}>Criar conta</Text></TouchableOpacity>
       </View>
       <Text style={{ color: colors.texto, fontWeight: '600' }}>Aparência</Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        {(['system', 'light', 'dark'] as const).map((tema, i) => <TouchableOpacity key={tema} accessibilityRole="radio" accessibilityState={{ checked: preferenciaTema === tema }} onPress={() => void definirPreferenciaTema(tema)} style={{ flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8, backgroundColor: preferenciaTema === tema ? colors.primaria : colors.card }}><Text style={{ color: preferenciaTema === tema ? colors.textoSobrePrimaria : colors.texto }}>{['Sistema', 'Claro', 'Escuro'][i]}</Text></TouchableOpacity>)}
+        {(['system', 'light', 'dark'] as const).map((tema, i) => <TouchableOpacity key={tema} accessibilityRole="radio" accessibilityState={{ checked: preferenciaTema === tema }} onPress={() => void definirPreferenciaTema(tema)} style={{ flex: 1, minHeight: touchTarget, justifyContent: 'center', alignItems: 'center', borderRadius: radius.control, backgroundColor: preferenciaTema === tema ? colors.acaoPrimaria : colors.card }}><Text style={{ color: preferenciaTema === tema ? colors.textoSobrePrimaria : colors.texto }}>{['Sistema', 'Claro', 'Escuro'][i]}</Text></TouchableOpacity>)}
       </View>
       <TouchableOpacity accessibilityRole="button" onPress={() => router.navigate('/(tabs)/clubes/clubes')} style={{ padding: 12, alignItems: 'center' }}><Text style={{ color: colors.primaria }}>Continuar explorando clubes</Text></TouchableOpacity>
     </ScrollView>

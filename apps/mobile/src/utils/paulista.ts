@@ -7,7 +7,7 @@ export type { EventoPublicoPaulista };
 
 export const numeroSub = (nome: string) => Number(nome.match(/\d+/)?.[0]) || 0;
 export const categoriaPaulista = (nome: string) => `SUB-${numeroSub(nome)}`;
-export function eventoDaSelecao(eventos: EventoPublicoPaulista[], ano: number, sub: string) {
+export function eventoDaSelecao<T extends Pick<EventoPublicoPaulista, 'ano' | 'categoria'>>(eventos: T[], ano: number, sub: string) {
   return eventos.find(e => e.ano === ano && categoriaPaulista(e.categoria) === categoriaPaulista(sub));
 }
 export function snapshotDoClube(evento: EventoPublicoPaulista, clube: ClubePaulistaPublico): SnapshotPaulista {

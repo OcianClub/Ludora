@@ -6,7 +6,9 @@ export const darkColors  = {
   // Tipografia
   texto: '#F2E9D8',
   textoSecundario: '#8B8D94',
-  textoSobrePrimaria: '#F2E9D8',
+  textoSobrePrimaria: '#FFFFFF',
+  acaoPrimaria: '#146BDB',
+  acaoPrimariaHover: '#1766CC',
 
   // Layout & Cards
   card: '#14171F',
@@ -38,12 +40,14 @@ export const darkColors  = {
   bordaAtencao: '#5C4A1F',
   tituloAtencao: '#F0B84E',
   corpoAtencao: '#C7A56E',
-  iconeAtencao: '#6B4E12',
+  iconeAtencao: '#F0B84E',
 } as const;
 
 export const lightColors = {
   // Base
   primaria: '#0863D8',
+  acaoPrimaria: '#0863D8',
+  acaoPrimariaHover: '#0755BA',
   fundo: '#F2F2EF',
 
   // Tipografia
@@ -79,9 +83,9 @@ export const lightColors = {
   // Feedback de atenção
   fundoAtencao: '#FAEFD0',
   bordaAtencao: '#E8D08A',
-  tituloAtencao: '#FF7700',
+  tituloAtencao: '#A65313',
   corpoAtencao: '#7A5C1E',
-  iconeAtencao: '#FF7700',
+  iconeAtencao: '#A65313',
 
   // Interação em superfícies claras
   hover: {
@@ -99,10 +103,69 @@ export const lightColors = {
 } as const;
 
 const positionColors = {
-  amarelo: '#8B5CF6',
-  primaria: '#0863D8',
-  ciano: '#16856B',
-  laranja: '#E5484D',
+  goleiro: '#8B5CF6',
+  fixo: '#1670DA',
+  ala: '#16856B',
+  pivo: '#E5484D',
+} as const;
+
+const sharedRoleColors = {
+  TECNICO: '#A6750E',
+  OLHEIRO: '#9669CB',
+  SUPORTE: '#218C94',
+} as const;
+
+export const scoutProfileAccents = {
+  Artilheiro: '#347BE0',
+  Armador: '#9669CB',
+  Paredão: '#16856B',
+  Misto: '#A6750E',
+  'Sem dados': '#788496',
+} as const;
+
+export const scoutMetricColors = {
+  gols: '#347BE0',
+  assistencias: '#9669CB',
+  defesas: '#16856B',
+} as const;
+
+export const matchStatusLabels = {
+  AGENDADA: 'Agendada',
+  PREPARADA: 'Preparada',
+  ATRASADA: 'Atrasada',
+  AO_VIVO: 'Ao vivo',
+  FINALIZADA: 'Finalizada',
+  CANCELADA: 'Cancelada',
+} as const;
+
+export const matchStatusColors = {
+  light: {
+    AGENDADA: lightColors.statusPartida.agendada,
+    PREPARADA: lightColors.statusPartida.preparada,
+    ATRASADA: { fundo: lightColors.cardSecundario, texto: lightColors.tituloAtencao },
+    FINALIZADA: { fundo: lightColors.superficieNeutra, texto: lightColors.textoSecundario },
+    CANCELADA: { fundo: lightColors.superficieNeutra, texto: lightColors.textoSecundario },
+  },
+  dark: {
+    AGENDADA: { fundo: '#193657', texto: '#A3CCFF' },
+    PREPARADA: { fundo: '#1A3B37', texto: '#92E4D0' },
+    ATRASADA: { fundo: darkColors.cardSecundario, texto: darkColors.tituloAtencao },
+    FINALIZADA: { fundo: darkColors.superficieNeutra, texto: darkColors.textoSecundario },
+    CANCELADA: { fundo: darkColors.superficieNeutra, texto: darkColors.textoSecundario },
+  },
+} as const;
+
+export const matchResultColors = {
+  light: {
+    V: { fundo: lightColors.acaoPrimaria, texto: '#FFFFFF' },
+    D: { fundo: lightColors.statusPartida.derrota, texto: '#FFFFFF' },
+    E: { fundo: '#F4B942', texto: '#30220B' },
+  },
+  dark: {
+    V: { fundo: darkColors.acaoPrimaria, texto: '#FFFFFF' },
+    D: { fundo: '#C9344D', texto: '#FFFFFF' },
+    E: { fundo: darkColors.amarelo, texto: '#30220B' },
+  },
 } as const;
 
 export const interfaceColors = {
@@ -114,7 +177,7 @@ export const interfaceColors = {
       sub: { fundo: lightColors.card, borda: '#C8CBC4', hover: '#E1E8F2', bordaHover: '#9EAEC4' },
     },
     contador: { fundo: '#DEE4EB', texto: '#303F53', fundoAtivo: '#D4E5FE', textoAtivo: '#13498D' },
-    acordeao: { hover: '#E8E9E3', aoVivoHover: '#E7EDF5', controleHover: '#DADCD4' },
+    acordeao: { hover: '#E8E9E3', aoVivoHover: '#F7FAFD', controleHover: '#DADCD4' },
     perfilScout: {
       Artilheiro: { fundo: '#D4E5FE', texto: '#123F80' },
       Armador: { fundo: '#E9DDF8', texto: '#492873' },
@@ -129,7 +192,7 @@ export const interfaceColors = {
       BRONZE: { fundo: '#F3E2D6', texto: '#874714', destaque: '#A86A31' },
       RUBI: { fundo: '#F7E2EB', texto: '#862547', destaque: '#862547' },
     },
-    cargos: { ADMIN: lightColors.primaria, TECNICO: '#744A07', MESARIO: '#085C4D', OLHEIRO: '#57358C', TORCEDOR: lightColors.textoSecundario },
+    cargos: { ...sharedRoleColors, ADMIN: lightColors.primaria, MESARIO: '#085C4D', TORCEDOR: lightColors.textoSecundario },
   },
   dark: {
     categoria: {
@@ -154,7 +217,7 @@ export const interfaceColors = {
       BRONZE: { fundo: darkColors.fundo, texto: '#C08B60', destaque: '#C08B60' },
       RUBI: { fundo: darkColors.fundo, texto: '#D87991', destaque: '#D87991' },
     },
-    cargos: { ADMIN: darkColors.primaria, TECNICO: darkColors.amarelo, MESARIO: '#43C9AC', OLHEIRO: '#B4A0E4', TORCEDOR: darkColors.textoSecundario },
+    cargos: { ...sharedRoleColors, ADMIN: darkColors.primaria, MESARIO: '#43C9AC', TORCEDOR: darkColors.textoSecundario },
   },
 } as const;
 

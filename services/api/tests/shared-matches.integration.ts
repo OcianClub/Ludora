@@ -106,6 +106,8 @@ async function main() {
     await call('post', '/partidas/:id/eventos', a.ctx, { tipo: 'GOL', time_id: a.team.id, jogador_id: a.players[0].id, motivo: 'Revisão', versao: await version() }, id, 201);
     const { consultarContextoScout } = await import('../src/modules/jogadores/contexto-scout.service.js');
     assert.equal((await consultarContextoScout(prisma,b.players[5].id,b.club.id,null))?.total_partidas,1);
+    const { distribuirAvisosPartida } = await import('../src/services/avisos-partida.service.js');
+    await distribuirAvisosPartida(prisma, { to: () => ({ emit() {} }) } as any, async () => {});
     const results = await prisma.notificacao.findMany({where:{partida_id:id,tipo:'RESULTADO_PARTIDA'}});
     assert(results.some(n=>n.clube_id===a.club.id&&n.titulo==='Vitória!'));
     assert(results.some(n=>n.clube_id===b.club.id&&n.titulo==='Derrota'));

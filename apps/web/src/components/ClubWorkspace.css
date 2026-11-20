@@ -39,7 +39,7 @@
   background: transparent;
 }
 .layout .home-sub-strip button[aria-selected="true"] {
-  background: var(--primaria);
+  background: var(--acao-primaria);
   color: #fff;
 }
 
@@ -158,8 +158,8 @@
   white-space: nowrap;
 }
 .alunos-missing-chip[aria-pressed="true"] {
-  border-color: var(--primaria);
-  background: var(--primaria);
+  border-color: var(--acao-primaria);
+  background: var(--acao-primaria);
   color: #fff;
 }
 .alunos-page .alunos-results-bar p {
@@ -310,7 +310,7 @@
   height: 27px;
   padding-inline: 6px;
   border-radius: 6px;
-  background: var(--primaria);
+  background: var(--acao-primaria);
   color: #fff;
   font-size: 13px;
   font-weight: 600;

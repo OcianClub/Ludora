@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
-import type { ClubeResumo, MembrosDoClube, PapelClube, UsuarioGlobal } from '@ludora/shared-types';
+import type { MembrosDoClube, PapelClube, UsuarioGlobal } from '@ludora/shared-types';
+import type { OpcaoClube } from '../services/api';
 import { CollectionSearch } from '@web/components/CollectionToolbar';
 import { Btn, Modal } from './AdminUI';
 import { definirPapel, fetchMembros } from '../services/api';
@@ -12,7 +13,7 @@ import { CargoIcon, PAPEIS_CLUBE } from './CargoClube';
 
 export function UsuarioClubeEditor({ conta, clubes, vinculo, onClose, onSaved }: {
   conta: UsuarioGlobal;
-  clubes: ClubeResumo[];
+  clubes: OpcaoClube[];
   vinculo: UsuarioGlobal['clubes'][number] | null;
   onClose: () => void;
   onSaved: (vinculo: UsuarioGlobal['clubes'][number]) => void;

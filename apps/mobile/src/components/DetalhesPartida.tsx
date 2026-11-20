@@ -834,7 +834,7 @@ function DetalhesPartidaLocal({
               style={[
                 styles.headerActionBtn,
                 modoEdicao && {
-                  backgroundColor: colors.primaria,
+                  backgroundColor: colors.acaoPrimaria,
                   borderColor: colors.primaria,
                 },
               ]}
@@ -1324,7 +1324,7 @@ function DetalhesPartidaLocal({
                   <View
                     style={[
                       styles.rowIconBox,
-                      { borderRadius: 8, backgroundColor: colors.primaria },
+                      { borderRadius: 8, backgroundColor: colors.acaoPrimaria },
                     ]}
                   >
                     <Text

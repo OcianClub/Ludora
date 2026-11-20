@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { typography } from '@ludora/design-tokens';
+import { typography, radius } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 import { MARGEM_TELA } from './layout';
 
@@ -68,10 +68,10 @@ export const createStyles = (colors: ThemeColors) =>
       gap: 8,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      borderRadius: 8,
+      borderRadius: radius.control,
       borderWidth: 1,
-      borderColor: colors.primaria,
-      backgroundColor: colors.primaria,
+      borderColor: colors.acaoPrimaria,
+      backgroundColor: colors.acaoPrimaria,
     },
     categoryTriggerText: {
       flexShrink: 1,
@@ -136,8 +136,8 @@ export const createStyles = (colors: ThemeColors) =>
       borderColor: 'transparent',
     },
     mandoOptionSelected: {
-      backgroundColor: colors.primaria,
-      borderColor: colors.primaria,
+      backgroundColor: colors.acaoPrimaria,
+      borderColor: colors.acaoPrimaria,
     },
     mandoText: {
       flexShrink: 1,
@@ -211,8 +211,8 @@ export const createStyles = (colors: ThemeColors) =>
       borderColor: colors.borda,
     },
     categoryOptionSelected: {
-      backgroundColor: colors.primaria,
-      borderColor: colors.primaria,
+      backgroundColor: colors.acaoPrimaria,
+      borderColor: colors.acaoPrimaria,
     },
     categoryOptionText: {
       flexShrink: 1,
@@ -284,7 +284,7 @@ export const createStyles = (colors: ThemeColors) =>
       borderRadius: 17,
       borderWidth: 3,
       borderColor: colors.fundo,
-      backgroundColor: colors.primaria,
+      backgroundColor: colors.acaoPrimaria,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -359,8 +359,8 @@ export const createStyles = (colors: ThemeColors) =>
       gap: 10,
       paddingHorizontal: 16,
       paddingVertical: 14,
-      borderRadius: 10,
-      backgroundColor: colors.primaria,
+      borderRadius: radius.control,
+      backgroundColor: colors.acaoPrimaria,
     },
     saveText: {
       fontFamily: typography.fontFamily.corpo.semiBold,
@@ -375,7 +375,7 @@ export const createStyles = (colors: ThemeColors) =>
     },
     reviewCategory: {
       borderRadius: 10,
-      backgroundColor: colors.primaria,
+      backgroundColor: colors.acaoPrimaria,
       padding: 16,
       marginBottom: 8,
       gap: 4,
@@ -580,8 +580,8 @@ export const createStyles = (colors: ThemeColors) =>
       borderColor: 'transparent',
     },
     calendarSelected: {
-      backgroundColor: colors.primaria,
-      borderColor: colors.primaria,
+      backgroundColor: colors.acaoPrimaria,
+      borderColor: colors.acaoPrimaria,
     },
     calendarToday: {
       borderColor: colors.bordaBotao,

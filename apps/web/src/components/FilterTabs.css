@@ -42,7 +42,7 @@
   justify-content: center;
   min-width: 19px;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-counter);
   background: var(--contador-fundo);
   color: var(--contador-texto);
   font-size: 11px;

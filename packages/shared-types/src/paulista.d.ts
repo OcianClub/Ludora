@@ -23,3 +23,22 @@ export interface PainelPaulista {
   pendencias: { id: number; jogoId: string; tipo: string; estado: string; dados: any }[];
   retroativos: { id: number; acao: string; criadoEm: string; dados: any }[];
 }
+export type EventoPublicoPaulista = Pick<SnapshotPaulista, 'id' | 'ano' | 'divisao' | 'categoria' | 'fonte' | 'equipes' | 'jogos' | 'classificacao'> & {
+  equipesClube: number[];
+  verificadoEm: string | null;
+  fasesExcluidas?: string[];
+};
+
+export type EventoPaulistaCatalogo = Pick<EventoPublicoPaulista, 'id' | 'ano' | 'divisao' | 'categoria'> & {
+  revisao: string;
+};
+
+export type PublicacaoPaulistaDetalhe = {
+  revisao: string;
+  evento: EventoPublicoPaulista;
+};
+
+export type CatalogoPaulistaPublico = {
+  eventos: EventoPaulistaCatalogo[];
+  inicial?: PublicacaoPaulistaDetalhe;
+};

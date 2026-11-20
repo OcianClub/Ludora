@@ -2,8 +2,8 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'rea
 import { useListState } from '../hooks/listMemory';
 import { gerenciaCategoria } from '../utils/homeDashboard';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { BASE_URL, ApiResponseError, cachedJson, invalidateApiReads, fetchPartidas, criarPartida, fetchTimes, fetchCategorias, fetchCompeticoes, type Partida, type Time, type Categoria, type Competicao } from '../services/api';
-import { PUBLIC_MATCHES_CHANGED, subscribeClubMatches } from '../services/matchRealtime';
+import { BASE_URL, ApiResponseError, cachedJson, criarPartida, fetchTimes, fetchCategorias, fetchCompeticoes, type Partida, type Categoria, type GrupoAgendaWeb, type PartidaAgendaWeb } from '../services/api';
+import { useWebAgenda } from '../hooks/useWebAgenda';
 import { useMaintenance } from '../contexts/MaintenanceContext';
 import { readLocal, writeLocal } from '../services/localState';
 import { Btn, Modal, Input, LoadingSkeleton } from '../components/UI';
@@ -14,6 +14,7 @@ import { MatchOpponentPicker } from '../components/MatchOpponentPicker';
 import { ResponsivePanel } from '../components/ResponsivePanel';
 import { useAuth } from '../contexts/AuthContext';
 import { MatchCard, formatMatchDate } from '../components/MatchCard';
+import { MatchActionsMenu } from '../components/MatchActionsMenu';
 import { MatchListRow } from '../components/MatchListRow';
 import { Icon, type IconName } from '../components/Icon';
 import { BlockColumns } from '../components/BlockColumns';
@@ -21,7 +22,7 @@ import { FilterTabs } from '../components/FilterTabs';
 import { FilterSelect } from '../components/FilterSelect';
 import { Toggle } from '../components/Toggle';
 import { SchedulePeriodDialog } from '../components/SchedulePeriodDialog';
-import { intervaloAgenda, grupoSituacao, ordenarAgenda, rotuloDiaAgenda, agruparAgenda, type PeriodoAgenda } from '../utils/scheduleFilters';
+import { intervaloAgenda, rotuloDiaAgenda, type PeriodoAgenda } from '../utils/scheduleFilters';
 import { teamName } from '../utils/teamIdentity';
 import { matchHasOwnTeam, selectMatchTeam } from '../utils/matchTeams';
 import { CategoryFilter as HomeCategories } from '../components/CategoryFilter';
@@ -31,7 +32,7 @@ import { LocationInput } from '../components/LocationInput';
 import { InfoNotice } from '../components/InfoNotice';
 import { CollectionSearch, CollectionFilterButton, CollectionViewToggle, CollectionFilterDialog, FilterRadioGroup } from '../components/CollectionToolbar';
 import { useMatchRequests } from '../hooks/useMatchRequests';
-import { agoraPartida, horarioPassado, partidaAtrasada } from '../../../../packages/shared-types/src/matchSchedule';
+import { agoraPartida, horarioPassado } from '../../../../packages/shared-types/src/matchSchedule';
 import { useMatchOrganization } from '../hooks/useMatchOrganization';
 import { adversariosRecentes, repetirConfronto } from '../utils/matchOrganization';
 import './Partidas.css';
@@ -77,30 +78,33 @@ function readMatchDraft(key: string) {
 }
 const normalizarBusca = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
 
-function ScheduleResults({ matches, renderMatch, list, grouped, memoryKey }: {
-  memoryKey: string;
+function ScheduleResults({ matches, renderMatch, list, grouped, total, carregarMais, carregandoMais }: {
   matches: Partida[];
   renderMatch: (match: Partida) => ReactNode;
   list: boolean;
   grouped: boolean;
+  total: number;
+  carregarMais: () => void;
+  carregandoMais: boolean;
 }) {
-  const [limit, setLimit] = useListState(`${memoryKey}:limit`, 48);
   const showList = list && matches.some(match => match.status !== 'AO_VIVO');
   const groups = new Map<string, Partida[]>();
-  matches.slice(0, limit).forEach(match => {
+  matches.forEach(match => {
     const key = grouped ? match.data.slice(0, 7) : 'live';
-    groups.set(key, [...(groups.get(key) || []), match]);
+    const games = groups.get(key);
+    if (games) games.push(match);
+    else groups.set(key, [match]);
   });
   return <div className={`schedule-results${showList ? ' schedule-list' : ''}`}>
     {[...groups].map(([day, games]) => <section className="schedule-date-group" key={day}>
       {grouped && <h2>{new Date(`${day}-01T12:00:00Z`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>}
       <div className={`schedule-match-grid${showList ? ' is-list' : ''}`}>{games.map(renderMatch)}</div>
     </section>)}
-    {matches.length > limit && <Btn variant="ghost" className="schedule-show-more" onClick={() => setLimit(value => value + 48)}>Mostrar mais partidas ({matches.length - limit})</Btn>}
+    {total > matches.length && <Btn variant="ghost" className="schedule-show-more" loading={carregandoMais} onClick={carregarMais}>Mostrar mais partidas ({total - matches.length})</Btn>}
   </div>;
 }
 
-function ScheduleAccordion({ title, description, icon, matches, initialOpen = false, renderMatch, list, memoryKey }: {
+function ScheduleAccordion({ title, description, icon, matches, initialOpen = false, renderMatch, list, memoryKey, total, carregarMais, carregandoMais }: {
   memoryKey: string;
   title: string;
   description?: string;
@@ -109,10 +113,13 @@ function ScheduleAccordion({ title, description, icon, matches, initialOpen = fa
   initialOpen?: boolean;
   renderMatch: (match: Partida) => ReactNode;
   list: boolean;
+  total: number;
+  carregarMais: () => void;
+  carregandoMais: boolean;
 }) {
   const [open, setOpen] = useListState(`${memoryKey}:open`, initialOpen);
   const id = useId();
-  if (!matches.length) return null;
+  if (!total) return null;
   return <section className="schedule-section schedule-status-section">
     <h2>
       <button id={`${id}-heading`} className="schedule-section-toggle" type="button" data-live={icon === 'live' || undefined}
@@ -120,14 +127,15 @@ function ScheduleAccordion({ title, description, icon, matches, initialOpen = fa
         <span className="schedule-section-copy"><strong>
           <Icon name={icon} size={18} />
           <span className="schedule-section-title">{title}</span>
-          <span className="schedule-section-count">{matches.length}</span>
+          <span className="schedule-section-count">{total}</span>
         </strong></span>
         <span className="schedule-section-chevron"><Icon name="chevronRight" size={17} /></span>
       </button>
     </h2>
     <div id={id} hidden={!open} role="region" aria-labelledby={`${id}-heading`}>
       {open && description && <p className="schedule-status-description">{description}</p>}
-      {open && <ScheduleResults memoryKey={memoryKey} matches={matches} renderMatch={renderMatch} list={list} grouped={title !== 'Ao vivo'} />}
+      {open && <ScheduleResults matches={matches} renderMatch={renderMatch} list={list} grouped={title !== 'Ao vivo'}
+        total={total} carregarMais={carregarMais} carregandoMais={carregandoMais} />}
     </div>
   </section>;
 }
@@ -150,11 +158,17 @@ export default function PartidasPage() {
   const matchPause = pauseFor('CRIAR_PARTIDAS');
   const draftKey = podeGerenciar && usuario && clube ? `ludora:partida:${BASE_URL}:${usuario.id}:${clube.id}` : '';
   const requests = useMatchRequests();
-  const [partidas, setPartidas] = useState<Partida[]>(() => cachedJson<Partida[]>('/partidas?') || []);
-  const [times, setTimes] = useState<Time[]>(() => cachedJson<Time[]>('/times') || []);
-  const [categorias, setCategorias] = useState<Categoria[]>(() => cachedJson<Categoria[]>('/categorias') || []);
-  const [competicoes, setCompeticoes] = useState<Competicao[]>(() => cachedJson<Competicao[]>('/competicoes') || []);
-  const [loading, setLoading] = useState(() => !cachedJson('/partidas?') || !cachedJson('/categorias'));
+  const escopoAgenda = JSON.stringify([clube?.id, usuario?.id, modo, token]);
+  type Opcoes = { times: Awaited<ReturnType<typeof fetchTimes>>; competicoes: Awaited<ReturnType<typeof fetchCompeticoes>> };
+  const [opcoes, setOpcoes] = useState<{ escopo: string; valor: Opcoes }>();
+  const [categoriasEstado, setCategoriasEstado] = useState<{ escopo: string; valor: Categoria[]; erro?: string }>();
+  const categorias = categoriasEstado?.escopo === escopoAgenda ? categoriasEstado.valor : [];
+  const times = opcoes?.escopo === escopoAgenda ? opcoes.valor.times : [];
+  const competicoes = opcoes?.escopo === escopoAgenda ? opcoes.valor.competicoes : [];
+  const [opcoesCarregando, setOpcoesCarregando] = useState(false);
+  const opcoesPedido = useRef<{ escopo: string; promise: Promise<Opcoes> }>();
+  const escopoAtual = useRef(escopoAgenda);
+  escopoAtual.current = escopoAgenda;
   const [modal, setModal] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [picker, setPicker] = useState<'categoria' | 'competicao' | 'visitante' | null>(null);
@@ -195,8 +209,6 @@ export default function PartidasPage() {
   const [salvando, setSalvando] = useState(false);
   const savingRef = useRef(false);
   const [erro, setErro] = useState('');
-  const [loadError, setLoadError] = useState('');
-  const [loadWarning, setLoadWarning] = useState('');
   const [optionsWarning, setOptionsWarning] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [periodAnchor, setPeriodAnchor] = useState<HTMLButtonElement | null>(null);
@@ -211,7 +223,6 @@ export default function PartidasPage() {
   const [draftEnd, setDraftEnd] = useState('');
   const [draftSort, setDraftSort] = useState('');
   const [filterError, setFilterError] = useState('');
-  const loadVersion = useRef(0);
   const handledOpponent = useRef('');
   const requestedStatus = STATUSES.some(item => item.value === searchParams.get('status')) ? searchParams.get('status')! : '';
   const { phase, selected: selectedCategory } = useClubCategory(categorias, searchParams.get('categoria_id'), searchParams.get('fase'));
@@ -228,6 +239,22 @@ export default function PartidasPage() {
   const list = !compactViewport && searchParams.get('visualizacao') === 'lista';
   const sortCategory = searchParams.get('ordem') === 'categoria';
   const range = intervaloAgenda(period, start, end);
+  const filtroStatus = requestedStatus || 'TODAS';
+  const query = new URLSearchParams({ formato: 'web', por_situacao: 'true' });
+  if (range.inicio && range.fim) {
+    query.set('periodo', 'personalizado');
+    query.set('de', range.inicio);
+    query.set('ate', range.fim);
+  } else query.set('todos_periodos', 'true');
+  if (selectedCategory) query.set('categoria_exibida', selectedCategory.nome);
+  if (opponent.trim()) query.set('busca', opponent.trim().slice(0, 100));
+  if (mando === 'casa' || mando === 'fora') query.set('mando', mando);
+  if (onlyOrganized) query.set('organizadas', 'true');
+  if (filtroStatus === 'AGENDADA' || filtroStatus === 'PREPARADA') query.set('preparacao', filtroStatus);
+  const agenda = useWebAgenda(clube?.id, token, modo, categoriasEstado?.escopo === escopoAgenda ? query.toString() : undefined);
+  const loading = !!clube && (categoriasEstado?.escopo !== escopoAgenda || agenda.carregando);
+  const loadError = agenda.erro;
+  const loadWarning = agenda.aviso || categoriasEstado?.erro;
 
   function changeFilters(changes: Record<string, string>) {
     setSearchParams(previous => {
@@ -299,81 +326,53 @@ export default function PartidasPage() {
     if (searchParams.has('local')) changeFilters({ local: '' });
   }, [searchParams]);
 
-  function carregar(background = false, retry = false) {
-    const version = ++loadVersion.current;
-    if (!retry) { setLoadError(''); setLoadWarning(''); }
-    if (!background && !retry) setLoading(!cachedJson('/partidas?') || !cachedJson('/categorias'));
-    // Opções do formulário não bloqueiam a consulta da agenda.
-    void Promise.allSettled([fetchTimes(), fetchCompeticoes()]).then(([t, comp]) => {
-      if (version !== loadVersion.current) return;
-      if (t.status === 'fulfilled') setTimes(t.value);
-      if (comp.status === 'fulfilled') setCompeticoes(comp.value);
-      setOptionsWarning(t.status === 'rejected' || comp.status === 'rejected');
-    });
-    return Promise.allSettled([fetchPartidas(), fetchCategorias()])
-      .then(([p, c]) => {
-        if (version !== loadVersion.current) return;
-        if (p.status === 'rejected') throw p.reason;
-        setLoadError('');
-        setPartidas(p.value);
-        if (c.status === 'fulfilled') setCategorias(c.value);
-        setLoadWarning(c.status === 'fulfilled' ? '' : 'As partidas foram carregadas, mas os filtros de categoria estão temporariamente indisponíveis.');
-        return true;
-      })
-      .catch(failure => {
-        if (version !== loadVersion.current) return;
-        const message = navigator.onLine
-          ? failure instanceof Error ? failure.message : 'Não foi possível buscar as partidas agora. O servidor pode estar temporariamente indisponível.'
-          : 'Você está sem conexão. Reconecte-se à internet e tente novamente.';
-        if (background || partidas.length) setLoadWarning(message);
-        else setLoadError(message);
-        return false;
-      })
-      .finally(() => { if (version === loadVersion.current) setLoading(false); });
+  async function carregarCategorias(signal?: AbortSignal) {
+    if (!clube) return;
+    const salvo = cachedJson<Categoria[]>('/categorias');
+    if (salvo) setCategoriasEstado({ escopo: escopoAgenda, valor: salvo });
+    try {
+      const valor = await fetchCategorias(signal);
+      if (!signal?.aborted && escopoAtual.current === escopoAgenda) setCategoriasEstado({ escopo: escopoAgenda, valor });
+    } catch {
+      if (!signal?.aborted && escopoAtual.current === escopoAgenda) setCategoriasEstado({ escopo: escopoAgenda,
+        valor: salvo ?? [], erro: 'Os filtros de categoria estão temporariamente indisponíveis.' });
+    }
+  }
+  async function carregarOpcoes() {
+    if (!podeGerenciar || !clube) return;
+    if (opcoes?.escopo === escopoAgenda) return opcoes.valor;
+    if (opcoesPedido.current?.escopo !== escopoAgenda) {
+      opcoesPedido.current = { escopo: escopoAgenda, promise: Promise.all([fetchTimes(), fetchCompeticoes()])
+        .then(([times, competicoes]) => ({ times, competicoes })) };
+    }
+    const pedido = opcoesPedido.current;
+    setOpcoesCarregando(true);
+    setOptionsWarning(false);
+    try {
+      const valor = await pedido.promise;
+      if (escopoAtual.current !== escopoAgenda) return;
+      setOpcoes({ escopo: escopoAgenda, valor });
+      return valor;
+    } catch {
+      if (escopoAtual.current === escopoAgenda) setOptionsWarning(true);
+    } finally {
+      if (opcoesPedido.current === pedido) opcoesPedido.current = undefined;
+      if (escopoAtual.current === escopoAgenda) setOpcoesCarregando(false);
+    }
   }
   async function retrySchedule() {
     if (retrying) return;
     setRetrying(true);
-    try { await carregar(partidas.length > 0, true); }
+    try { await Promise.all([carregarCategorias(), agenda.recarregar(), optionsWarning ? carregarOpcoes() : undefined]); }
     finally { setRetrying(false); }
   }
   useEffect(() => {
-    setPartidas(cachedJson<Partida[]>('/partidas?') || []);
-    setCategorias(cachedJson<Categoria[]>('/categorias') || []);
-    setTimes(cachedJson<Time[]>('/times') || []);
-    setCompeticoes(cachedJson<Competicao[]>('/competicoes') || []);
-    let active = true, queued = false, background = false;
-    let running: Promise<void> | null = null;
-    const load = (force = false): Promise<void> => {
-      if (!active) return Promise.resolve();
-      if (force) invalidateApiReads('/partidas');
-      if (running) { queued ||= force; return running; }
-      running = (async () => {
-        do {
-          queued = false;
-          const loaded = await carregar(background);
-          background ||= loaded === true;
-        } while (active && queued);
-      })().finally(() => { running = null; });
-      return running;
-    };
-    const refresh = () => { if (!document.hidden) void load(true); };
-    void load();
-    const unsubscribe = clube && token && modo === 'gestao'
-      ? subscribeClubMatches(clube.id, token, refresh) : undefined;
-    window.addEventListener(PUBLIC_MATCHES_CHANGED, refresh);
-    window.addEventListener('focus', refresh);
-    window.addEventListener('online', refresh);
-    document.addEventListener('visibilitychange', refresh);
-    const poll = window.setInterval(refresh, 30_000);
-    return () => {
-      active = false; loadVersion.current++; unsubscribe?.(); clearInterval(poll);
-      window.removeEventListener(PUBLIC_MATCHES_CHANGED, refresh);
-      window.removeEventListener('focus', refresh);
-      window.removeEventListener('online', refresh);
-      document.removeEventListener('visibilitychange', refresh);
-    };
-  }, [clube?.id, token, modo]);
+    const controller = new AbortController();
+    setOptionsWarning(false);
+    setOpcoesCarregando(false);
+    void carregarCategorias(controller.signal);
+    return () => controller.abort();
+  }, [escopoAgenda, token]);
 
   function validarPartida() {
     if (!form.categoria_id) return 'Selecione a categoria da partida.';
@@ -442,13 +441,15 @@ export default function PartidasPage() {
     setPickerAnchor(target);
     setPicker(value);
   }
-  function ownTeam(categoryId: string) {
-    const own = times.filter(team => String(team.categoria_id) === categoryId && team.clube_representado_id === clube?.id);
+  function ownTeam(categoryId: string, opcoesTimes = times) {
+    const own = opcoesTimes.filter(team => String(team.categoria_id) === categoryId && team.clube_representado_id === clube?.id);
     return own.length === 1 ? own[0] : undefined;
   }
-  function openCreate() {
+  async function openCreate() {
     if (matchPause || checkingMaintenance) return;
-    const own = ownTeam(filtroCategoria);
+    const disponiveis = await carregarOpcoes();
+    if (!disponiveis) return;
+    const own = ownTeam(filtroCategoria, disponiveis.times);
     const draft = readMatchDraft(draftKey);
     activeDraftKey.current = draft ? draftKey : readMatchDraft(alternativeDraftKey) ? alternativeDraftKey : draftKey;
     const saved = draft ?? readMatchDraft(alternativeDraftKey);
@@ -459,10 +460,16 @@ export default function PartidasPage() {
     setPicker(null);
     setModal(true);
   }
-  function organizeAgain(match: Partida) {
+  async function organizeAgain(match: Partida) {
     if (!podeGerenciar || !clube || matchPause || checkingMaintenance) return;
-    const next = repetirConfronto(match, times, categorias, competicoes, clube.id);
-    if (!next) return;
+    const disponiveis = await carregarOpcoes();
+    if (!disponiveis) return;
+    const next = repetirConfronto(match, disponiveis.times, categorias, disponiveis.competicoes, clube.id);
+    if (!next) {
+      await openCreate();
+      setErro('O confronto anterior não está mais disponível. Selecione outro adversário.');
+      return;
+    }
     previousDraft.current = readMatchDraft(draftKey);
     activeDraftKey.current = previousDraft.current ? alternativeDraftKey : draftKey;
     startDraft(next);
@@ -473,13 +480,17 @@ export default function PartidasPage() {
   }
   useEffect(() => {
     const opponentId = searchParams.get('adversario_id');
-    if (searchParams.get('organizar') !== '1' || loading || checkingMaintenance || !podeGerenciar || !filtroCategoria) return;
+    if (searchParams.get('organizar') !== '1' || checkingMaintenance || !podeGerenciar || !filtroCategoria) return;
     if (matchPause) {
       changeFilters({ organizar: '', adversario_id: '' });
       return;
     }
     const key = `${clube?.id}:${opponentId || 'own'}:${filtroCategoria}`;
     if (handledOpponent.current === key) return;
+    if (opcoes?.escopo !== escopoAgenda) {
+      void carregarOpcoes();
+      return;
+    }
     handledOpponent.current = key;
     const target = times.find(time => String(time.id) === opponentId && time.clube_representado_id !== clube?.id && !time.arquivado);
     const own = target ? ownTeam(String(target.categoria_id)) : undefined;
@@ -506,7 +517,7 @@ export default function PartidasPage() {
     setModal(true);
     changeFilters({ organizar: '', adversario_id: '' });
     handledOpponent.current = '';
-  }, [searchParams, loading, times, clube?.id, podeGerenciar, filtroCategoria, draftKey, matchPause, checkingMaintenance]);
+  }, [searchParams, opcoes, escopoAgenda, podeGerenciar, filtroCategoria, draftKey, matchPause, checkingMaintenance]);
   function chooseCategory(categoryId = draftCategoryId) {
     const category = categorias.find(c => String(c.id) === categoryId);
     if (category && String(category.id) !== form.categoria_id) {
@@ -549,48 +560,29 @@ export default function PartidasPage() {
     .sort((a, b) => Number(!!b.clube_representado_id) - Number(!!a.clube_representado_id)
       || a.nome.localeCompare(b.nome, 'pt-BR'));
   const minimumDate = agoraPartida().slice(0,10);
-  const matches = useMemo(() => {
-    const teams = new Map(times.map(time => [time.id, time]));
-    const categories = new Map(categorias.map(category => [category.id, category]));
-    return partidas.map(match => ({
-      ...match,
-      mandante: match.mandante || teams.get(match.mandante_id),
-      visitante: match.visitante || teams.get(match.visitante_id),
-      categoria: match.categoria || categories.get(match.categoria_id),
-    }));
-  }, [partidas, times, categorias]);
-  const contextualMatches = useMemo(() => matches.filter(match => {
-    const day = match.data.slice(0, 10);
-    return (!opponent.trim() || normalizarBusca(`${match.mandante?.nome || ''} ${match.visitante?.nome || ''} ${match.local || ''}`).includes(normalizarBusca(opponent)))
-      && (!onlyOrganized || (match.organizador_id ?? match.clube_origem_id) === clube?.id)
-      && (!mando || match.emCasa === (mando === 'casa'))
-      && (!range.inicio || day >= range.inicio)
-      && (!range.fim || day <= range.fim);
-  }), [matches, opponent, mando, onlyOrganized, clube?.id, range.inicio, range.fim]);
-  const filtroStatus = requestedStatus || 'TODAS';
-  const searchAcrossSubs = !!opponent.trim();
-  const relevantCategories = searchAcrossSubs ? categorias : phaseCategories;
-  const resultsByCategory = useMemo(() => new Map((relevantCategories.length ? relevantCategories : [undefined]).map(category => {
-    const scoped = contextualMatches.filter(match => !category || match.categoria_id === category.id
-      || (match.categoria?.clube_id !== clube?.id && match.categoria?.nome.trim().toLowerCase() === category.nome.trim().toLowerCase()));
-    const filtered = scoped.filter(match => filtroStatus === 'TODAS' || !filtroStatus || (filtroStatus === 'ATRASADAS' ? partidaAtrasada(match) : filtroStatus === 'PROXIMAS'
-      ? grupoSituacao(match.status) === 'next' && !partidaAtrasada(match) : match.status === filtroStatus));
-    const counts = scoped.reduce((total, match) => {
-      total[partidaAtrasada(match) ? 'overdue' : grupoSituacao(match.status)]++;
-      return total;
-    }, { all: scoped.length, live: 0, overdue:0, next: 0, past: 0, cancelled: 0 });
-    const groups = agruparAgenda(filtered);
-    return [category?.id ?? 0, {
-      filtered, counts,
-      live: ordenarAgenda(groups.live, sortCategory),
-      today: ordenarAgenda(groups.today, sortCategory),
-      upcoming: ordenarAgenda(groups.upcoming, sortCategory),
-      overdue: ordenarAgenda(groups.overdue, sortCategory, true),
-      finished: ordenarAgenda(groups.finished, sortCategory, true),
-      cancelled: ordenarAgenda(groups.cancelled, sortCategory, true),
-    }];
-  })), [contextualMatches, relevantCategories, filtroStatus, sortCategory, clube?.id]);
-  const { filtered, counts } = resultsByCategory.get(selectedCategory?.id ?? 0) ?? { filtered: [], counts: { all: 0, live: 0, overdue:0, next: 0, past: 0, cancelled: 0 } };
+  const grupoSelecionado: GrupoAgendaWeb | undefined = ({
+    AO_VIVO: 'ao_vivo', ATRASADAS: 'pendentes', PROXIMAS: 'agenda', FINALIZADA: 'finalizadas',
+    CANCELADA: 'canceladas', AGENDADA: 'preparacao', PREPARADA: 'preparacao',
+  } as const)[filtroStatus as 'AO_VIVO' | 'ATRASADAS' | 'PROXIMAS' | 'FINALIZADA' | 'CANCELADA' | 'AGENDADA' | 'PREPARADA'];
+  function resumoDaCategoria(category?: Categoria) {
+    const grupos = new Map<GrupoAgendaWeb, PartidaAgendaWeb[]>();
+    const nome = (valor?: string) => valor?.trim().toUpperCase().replace(/ /g, '-');
+    for (const partida of agenda.linhas) {
+      if (category && partida.categoria_id !== category.id && nome(partida.categoria?.nome) !== nome(category.nome)) continue;
+      const linhas = grupos.get(partida.grupo_agenda);
+      if (linhas) linhas.push(partida);
+      else grupos.set(partida.grupo_agenda, [partida]);
+    }
+    const total = (grupo: GrupoAgendaWeb) => {
+      const porCategoria = new Map((grupos.get(grupo) ?? []).map(p => [nome(p.categoria?.nome), p.total_grupo]));
+      return [...porCategoria.values()].reduce((soma, quantidade) => soma + quantidade, 0);
+    };
+    const live = total('ao_vivo'), overdue = total('pendentes'), next = total('agenda'), past = total('finalizadas'), cancelled = total('canceladas');
+    const all = live + overdue + next + past + cancelled;
+    return { grupos, total, selecionadas: grupoSelecionado ? total(grupoSelecionado) : all, counts: { all, live, overdue, next, past, cancelled } };
+  }
+  const resultado = resumoDaCategoria(selectedCategory);
+  const counts = resultado.counts;
   const managesCurrentCategory = podeGerenciar && !!selectedCategory && gerenciaCategoria(clube,selectedCategory);
   const overdueTab = {id:'overdue' as const,value:'ATRASADAS',label:'Atrasadas'};
   const statusTabs = managesCurrentCategory
@@ -609,9 +601,9 @@ export default function PartidasPage() {
     const oficialId = competicoes.find(c => c.id === match.competicao_id)?.paulista_evento_id;
     if (oficialId) match = { ...match, paulista_evento_id: oficialId };
     const canRepeat = podeGerenciar && clube && match.status !== 'AO_VIVO' && !match.semPerspectiva && !matchPause && !checkingMaintenance
-      && repetirConfronto(match, times, categorias, competicoes, clube.id);
-    const repeatAction = canRepeat ? <button type="button" className="schedule-repeat-action" data-tooltip={list ? 'Organizar novo confronto' : undefined} onClick={() => organizeAgain(match)}><Icon name="copy" size={15}/><span>Organizar novo confronto</span></button> : undefined;
-    if (list && match.status !== 'AO_VIVO') return <MatchListRow key={match.id} partida={match} returnTo={returnTo} actions={repeatAction}/>;
+      && (opcoes?.escopo !== escopoAgenda || repetirConfronto(match, times, categorias, competicoes, clube.id));
+    const repeatAction = canRepeat ? <button type="button" className="schedule-repeat-action" disabled={opcoesCarregando} data-tooltip={list ? 'Organizar novo confronto' : undefined} onClick={() => void organizeAgain(match)}><Icon name="copy" size={15}/><span>Organizar novo confronto</span></button> : undefined;
+    if (list && match.status !== 'AO_VIVO') return <MatchListRow key={match.id} partida={match} returnTo={returnTo} actions={canRepeat ? <MatchActionsMenu disabled={opcoesCarregando} onRepeat={() => void organizeAgain(match)} /> : undefined}/>;
     return <MatchCard key={match.id} partida={match} returnTo={returnTo} featured={match.status === 'AO_VIVO'} actions={repeatAction}/>;
   }
 
@@ -623,47 +615,63 @@ export default function PartidasPage() {
     if (loading || loadError) return null;
     const category = phaseCategories[categoryIndex + offset];
     if (!category && (offset !== 0 || selectedCategory)) return null;
-    const result = resultsByCategory.get(category?.id ?? 0);
-    const otherSubs = offset === 0 && !!opponent.trim() && !result?.filtered.length
-      ? categorias.filter(other => other.id !== category?.id && !!resultsByCategory.get(other.id)?.filtered.length)
+    const result = resultado;
+    const otherSubs = offset === 0 && !!opponent.trim() && !result.selecionadas
+      ? categorias.filter(other => other.id !== category?.id).map(other => ({ other, total: resumoDaCategoria(other).selecionadas })).filter(item => item.total > 0)
       : [];
-    if (!result?.filtered.length) return <div className="schedule-empty">
+    if (!result.selecionadas) return <div className="schedule-empty">
       <span><Icon name="calendar" size={28} /></span>
       <div><h2>{chips.length ? 'Nenhuma partida com estes filtros' : 'Nenhuma partida nesta categoria'}</h2>
         <p>{chips.length ? 'Remova algum filtro ou altere a busca para ver outros jogos.' : 'Escolha outro sub ou aguarde as próximas partidas do clube.'}</p></div>
       {otherSubs.length > 0 && <div className="collection-suggestions" aria-label="Partidas em outros SUBs">
-        {otherSubs.map(other => <Btn key={other.id} variant="ghost" size="sm" onClick={() => changeFilters({ fase: other.tipo, categoria_id: String(other.id) })}>{other.nome.toUpperCase()} ({resultsByCategory.get(other.id)?.filtered.length})</Btn>)}
+        {otherSubs.map(({ other, total }) => <Btn key={other.id} variant="ghost" size="sm" onClick={() => changeFilters({ fase: other.tipo, categoria_id: String(other.id) })}>{other.nome.toUpperCase()} ({total})</Btn>)}
       </div>}
       {!!chips.length && <Btn variant="ghost" onClick={clearFilters}>Limpar filtros</Btn>}
     </div>;
     const managesCategory = podeGerenciar && !!category && gerenciaCategoria(clube, category);
     const pageKey = `partidas:${usuario?.id ?? 'visitante'}:${clube?.id}:${category?.id ?? 0}:${managesCategory ? 'gestao' : 'publico'}:${filterKey}`;
+    const propsGrupo = (grupo: GrupoAgendaWeb) => {
+      const matches = result.grupos.get(grupo) ?? [];
+      return {
+        matches,
+        total: result.total(grupo),
+        carregarMais: () => {
+          const categorias = new Map<string, { posicao: number; total: number }>();
+          for (const partida of matches) {
+            const nome = partida.categoria?.nome;
+            if (!nome) continue;
+            const posicao = Math.max(partida.posicao, categorias.get(nome)?.posicao ?? 0);
+            categorias.set(nome, { posicao, total: partida.total_grupo });
+          }
+          const proxima = [...categorias].find(([, dado]) => dado.posicao < dado.total);
+          if (proxima) agenda.carregarMais(grupo, proxima[0], proxima[1].posicao);
+        },
+        carregandoMais: agenda.carregandoMais,
+        renderMatch,
+        list,
+      };
+    };
     const toolbar = <div className="schedule-results-toolbar schedule-presentation-toolbar">
-      <p className="schedule-result-count" role="status">{result.filtered.length} {result.filtered.length === 1 ? 'partida' : 'partidas'}</p>
+      <p className="schedule-result-count" role="status">{result.selecionadas} {result.selecionadas === 1 ? 'partida' : 'partidas'}</p>
       {!compactViewport && filtroStatus !== 'AO_VIVO' && <CollectionViewToggle label="Visualização das partidas" value={list ? 'lista' : 'cards'} onChange={value => changeFilters({ visualizacao: value === 'lista' ? 'lista' : '' })} options={[{ value: 'cards', label: 'Cards', icon: 'grid' }, { value: 'lista', label: 'Lista', icon: 'list' }]} />}
     </div>;
     if (filtroStatus === 'TODAS') return <div className="schedule-results">
-      <ScheduleAccordion key={`live:${pageKey}`} memoryKey={`live:${pageKey}`} title="Ao vivo" icon="live" matches={result.live} initialOpen renderMatch={renderMatch} list={list} />
+      <ScheduleAccordion key={`live:${pageKey}`} memoryKey={`live:${pageKey}`} title="Ao vivo" icon="live" {...propsGrupo('ao_vivo')} initialOpen />
       {toolbar}
-      {managesCategory && <ScheduleAccordion key={`overdue:${pageKey}`} memoryKey={`overdue:${pageKey}`} title="Atrasadas" icon="alert" matches={result.overdue} initialOpen renderMatch={renderMatch} list={list}/>}
-      <ScheduleAccordion key={`next:${pageKey}`} memoryKey={`next:${pageKey}`} title="Próximas" icon="clock" matches={ordenarAgenda([...result.today, ...result.upcoming], sortCategory)} initialOpen renderMatch={renderMatch} list={list} />
-      <ScheduleAccordion key={`past:${pageKey}`} memoryKey={`past:${pageKey}`} title="Finalizadas" icon="checkAll" matches={result.finished} renderMatch={renderMatch} list={list} />
-      {!managesCategory && <ScheduleAccordion key={`overdue:${pageKey}`} memoryKey={`overdue:${pageKey}`} title="Atrasadas" description="O horário previsto passou, mas o início ainda não foi registrado." icon="clock" matches={result.overdue} renderMatch={renderMatch} list={list}/>}
-      <ScheduleAccordion key={`cancelled:${pageKey}`} memoryKey={`cancelled:${pageKey}`} title="Canceladas" icon="minus" matches={result.cancelled} renderMatch={renderMatch} list={list} />
+      {managesCategory && <ScheduleAccordion key={`overdue:${pageKey}`} memoryKey={`overdue:${pageKey}`} title="Atrasadas" icon="alert" {...propsGrupo('pendentes')} initialOpen />}
+      <ScheduleAccordion key={`next:${pageKey}`} memoryKey={`next:${pageKey}`} title="Próximas" icon="clock" {...propsGrupo('agenda')} initialOpen />
+      <ScheduleAccordion key={`past:${pageKey}`} memoryKey={`past:${pageKey}`} title="Finalizadas" icon="checkAll" {...propsGrupo('finalizadas')} />
+      {!managesCategory && <ScheduleAccordion key={`overdue:${pageKey}`} memoryKey={`overdue:${pageKey}`} title="Atrasadas" description="O horário previsto passou, mas o início ainda não foi registrado." icon="clock" {...propsGrupo('pendentes')} />}
+      <ScheduleAccordion key={`cancelled:${pageKey}`} memoryKey={`cancelled:${pageKey}`} title="Canceladas" icon="minus" {...propsGrupo('canceladas')} />
     </div>;
-    const ordered = filtroStatus === 'AO_VIVO' ? result.live
-      : filtroStatus === 'ATRASADAS' ? result.overdue
-      : filtroStatus === 'FINALIZADA' ? result.finished
-      : filtroStatus === 'CANCELADA' ? result.cancelled
-      : ordenarAgenda([...result.overdue, ...result.today, ...result.upcoming], sortCategory);
-    return <>{toolbar}<ScheduleResults key={pageKey} memoryKey={pageKey} matches={ordered} renderMatch={renderMatch} list={list} grouped={filtroStatus !== 'AO_VIVO'} /></>;
+    return <>{toolbar}<ScheduleResults key={pageKey} {...propsGrupo(grupoSelecionado!)} grouped={filtroStatus !== 'AO_VIVO'} /></>;
   }
 
   return (
     <div className="match-schedule" data-status={filtroStatus}>
       <div className="page-header">
         <div><span className="eyebrow">DENTRO DA QUADRA</span><h1 className="page-title">Partidas</h1><p className="page-sub">{podeGerenciar ? 'Gerencie, acompanhe e consulte os resultados das partidas do clube.' : 'Acompanhe a agenda, os placares e os resultados do clube.'}</p></div>
-        {podeGerenciar && <div className="schedule-header-actions"><Link className="btn btn-ghost btn-md" to="/partidas/solicitacoes"><Icon name="emailFill" size={18}/>Solicitações{requests > 0 && <span className="schedule-request-badge" aria-label={`${requests} solicitações aguardando resposta`}>{requests}</span>}</Link><Btn className="schedule-desktop-new" aria-label="Nova partida" data-tooltip="Nova partida" data-tooltip-icon-only loading={checkingMaintenance} disabled={!!matchPause} aria-describedby={matchPause ? "schedule-maintenance" : undefined} onClick={openCreate}>{!checkingMaintenance && <Icon name="plus" size={18} />}Nova partida</Btn></div>}
+        {podeGerenciar && <div className="schedule-header-actions"><Link className="btn btn-ghost btn-md" to="/partidas/solicitacoes"><Icon name="emailFill" size={18}/>Solicitações{requests > 0 && <span className="schedule-request-badge" aria-label={`${requests} solicitações aguardando resposta`}>{requests}</span>}</Link><Btn className="schedule-desktop-new" aria-label="Nova partida" data-tooltip="Nova partida" data-tooltip-icon-only loading={checkingMaintenance || opcoesCarregando} disabled={!!matchPause} aria-describedby={matchPause ? "schedule-maintenance" : undefined} onClick={openCreate}>{!checkingMaintenance && !opcoesCarregando && <Icon name="plus" size={18} />}Nova partida</Btn></div>}
       </div>
 
       <HomeCategories categories={phaseCategories} phase={phase} selected={selectedCategory}
@@ -684,7 +692,7 @@ export default function PartidasPage() {
           {podeGerenciar && <Link className="btn btn-ghost schedule-mobile-requests" aria-label="Solicitações de partidas" to="/partidas/solicitacoes"><Icon name="emailFill" size={18}/>{requests > 0 && <span className="schedule-request-badge">{requests}</span>}</Link>}
           <CollectionSearch className="schedule-mobile-search" label="Buscar partidas" placeholder="Time ou adversário" value={opponent} onChange={value => changeFilters({ busca: value })} />
           <CollectionFilterButton className="schedule-mobile-filter-button" count={chips.length} expanded={!!filterAnchor} onClick={event => openFilters(event.currentTarget, true)} />
-          {podeGerenciar && <Btn className="schedule-mobile-new" aria-label="Nova partida" data-tooltip="Nova partida" data-tooltip-icon-only loading={checkingMaintenance} disabled={!!matchPause} aria-describedby={matchPause ? "schedule-maintenance" : undefined} onClick={openCreate}>{!checkingMaintenance && <Icon name="plus" size={22}/>}<span className="schedule-mobile-new-label">Nova partida</span></Btn>}
+          {podeGerenciar && <Btn className="schedule-mobile-new" aria-label="Nova partida" data-tooltip="Nova partida" data-tooltip-icon-only loading={checkingMaintenance || opcoesCarregando} disabled={!!matchPause} aria-describedby={matchPause ? "schedule-maintenance" : undefined} onClick={openCreate}>{!checkingMaintenance && !opcoesCarregando && <Icon name="plus" size={22}/>}<span className="schedule-mobile-new-label">Nova partida</span></Btn>}
         </div>
         <div className="schedule-filter-primary">
           <CollectionSearch className="schedule-search" id="match-search" label="Buscar time, adversário ou local" placeholder="Buscar time, adversário ou local…" value={opponent} onChange={value => changeFilters({ busca: value })} />
@@ -740,7 +748,7 @@ export default function PartidasPage() {
         </div>
       </CollectionFilterDialog>
       <Modal open={modal && !reviewOpen} onClose={() => { if (!salvando) setModal(false); }} title="Organizar partida" className="schedule-create-dialog"
-        footer={<div className="schedule-create-actions"><Btn variant="ghost" type="button" onClick={() => setModal(false)}>Cancelar</Btn><Btn type="submit" form="schedule-create-form" disabled={!!matchPause || !!organization.conflito?.conflito}><Icon name="checkAll" size={17} />Organizar partida</Btn></div>}>
+        footer={<div className="schedule-create-actions"><Btn variant="ghost" type="button" onClick={() => setModal(false)}>Cancelar</Btn><Btn type="submit" form="schedule-create-form" disabled={!!matchPause || !!organization.conflito?.conflito}><Icon name="checkAll" size={17} />Revisar partida</Btn></div>}>
         <form id="schedule-create-form" onSubmit={revisarPartida} className="schedule-create-form" noValidate>
           {matchPause && <p className="maintenance-inline" role="status">Criação de partidas em manutenção. {matchPause.motivo}</p>}
           {repeatSource && <p className="schedule-repeat-note" role="note">Novo confronto a partir de {repeatSource}. Escolha uma nova data e revise os dados.</p>}
@@ -753,17 +761,17 @@ export default function PartidasPage() {
             activeDraftKey.current = draftKey;
             startDraft(draft, true);
           }}>Retomar rascunho</button></div>}
-          <div className="schedule-create-top">
-            <div className="schedule-create-club"><ClubBadge src={clube?.escudo} name={clube?.nome} size={44} /><span><strong>{clube?.nome || 'Seu clube'}</strong><small>Seu clube</small></span></div>
+          <section className="schedule-create-matchup" aria-labelledby="matchup-title">
+          <header className="schedule-matchup-header">
+            <h3 id="matchup-title">Confronto</h3>
             <div className="schedule-create-category"><button className="schedule-create-sub" type="button" aria-label="Selecionar categoria da partida" aria-describedby={categoryValueId} aria-haspopup="dialog" aria-expanded={picker === 'categoria'} onClick={event => openPicker('categoria', event.currentTarget)}><span id={categoryValueId}>{formCategory?.nome.toUpperCase() || 'Selecionar'}</span><Icon name="chevronRight" size={17} /></button></div>
-          </div>
-
-          <section className="schedule-create-matchup" aria-labelledby="matchup-title"><h3 id="matchup-title">Confronto</h3><div>
+          </header>
+          <div>
             <div className="schedule-create-team schedule-fixed-team" data-selected={!!fixedTeam} aria-label={`Seu clube: ${clube?.nome || 'Clube atual'}`}>
               <ClubBadge src={fixedTeam?.escudo || fixedTeam?.clubeRepresentado?.escudo || clube?.escudo} name={fixedTeam?.nome || clube?.nome} size={48} />
-              <small>SEU CLUBE</small>
+              <small>Seu clube</small>
               <strong>{teamName(fixedTeam?.nome || clube?.nome || 'Seu clube')}</strong>
-              <span className="schedule-create-fixed"><Icon name="shield" size={13} />{form.emCasa === 'true' ? 'Mandante' : 'Visitante'} · fixo</span>
+              <span className="schedule-create-fixed">{form.emCasa === 'true' ? 'Mandante' : 'Visitante'}</span>
             </div>
             <button className="schedule-create-team" data-selected={!!selectedOpponent} type="button" aria-label={`Selecionar adversário${selectedOpponent ? `: ${teamName(selectedOpponent.nome)}` : ''}`} aria-haspopup="dialog" aria-expanded={picker === 'visitante'} onClick={event => {
               if (!form.categoria_id) { openPicker('categoria', event.currentTarget); return; }
@@ -771,18 +779,22 @@ export default function PartidasPage() {
               openPicker('visitante', event.currentTarget);
             }}>
               {selectedOpponent ? <ClubBadge src={selectedOpponent.escudo || selectedOpponent.clubeRepresentado?.escudo} name={selectedOpponent.nome} size={48} /> : <span className="schedule-create-add"><Icon name="plus" size={26} /></span>}
-              <small>ADVERSÁRIO</small><strong>{selectedOpponent ? teamName(selectedOpponent.nome) : 'Selecionar time'}</strong>
-              {selectedOpponent && <span className="schedule-create-change"><Icon name="switchClub" size={13} />Trocar adversário</span>}
+              <small>Adversário</small><strong>{selectedOpponent ? teamName(selectedOpponent.nome) : 'Selecionar time'}</strong>
+              <span className="schedule-create-fixed">{form.emCasa === 'true' ? 'Visitante' : 'Mandante'}</span>
             </button>
             <span className="schedule-create-vs" aria-hidden="true">VS</span>
           </div></section>
           {!fixedTeam && form.categoria_id && <InfoNotice title="Time do clube indisponível">Vincule exatamente um time do {clube?.nome} a esta categoria em Times para organizar a partida.</InfoNotice>}
+          <div className="schedule-match-settings">
           <div className="field"><span className="field-label">Competição</span><button className="schedule-create-competition" type="button" aria-haspopup="dialog" aria-expanded={picker === 'competicao'} onClick={event => openPicker('competicao', event.currentTarget)}><Icon name="trophy" size={21} /><span>{formCompetition?.nome || (form.competicao_id === 'amistoso' ? 'Amistoso' : 'Selecionar competição')}</span><Icon name="chevronRight" size={17} /></button></div>
           <fieldset className="schedule-venue-choice"><legend>Mando de campo</legend><div>
             <button type="button" aria-pressed={form.emCasa === 'true'} onClick={() => changeVenue(true)}><Icon name="home" size={17} />Em casa</button>
             <button type="button" aria-pressed={form.emCasa !== 'true'} onClick={() => changeVenue(false)}><Icon name="bus" size={17} />Fora</button>
           </div></fieldset>
-          <InfoNotice title={form.emCasa === 'true' ? 'Seu clube é o mandante' : 'Seu clube é o visitante'}>{form.emCasa === 'true' ? 'O adversário será o visitante. Para jogar na casa dele, escolha Fora.' : 'O adversário será o mandante. Seu clube continua selecionado à esquerda.'}</InfoNotice>
+          </div>
+          {formCompetition && <Input label="Rodada · opcional" type="number" min="1" step="1" value={form.rodada} onChange={e => { setForm(f => ({ ...f, rodada: e.target.value })); setErro(''); }} />}
+          <section className="schedule-match-agenda" aria-labelledby="match-agenda-title">
+          <h3 id="match-agenda-title">Data e local</h3>
           <div className="schedule-create-date">
             <MatchDateField quickDates min={minimumDate} value={form.data} onChange={data => { setForm(f => ({ ...f, data })); setErro(''); }}/>
             <MatchTimeField value={form.horario} onChange={horario => { setForm(f => ({ ...f, horario })); setErro(''); }}/>
@@ -794,7 +806,7 @@ export default function PartidasPage() {
           </div>}
           <LocationInput value={form.local} onChange={local => setForm(f => ({ ...f, local }))}/>
           {form.emCasa === 'true' && organization.contexto?.ultimoLocalCasa && form.local.trim() !== organization.contexto.ultimoLocalCasa.local && <button className="schedule-location-shortcut" type="button" onClick={() => setForm(f => ({ ...f, local: organization.contexto!.ultimoLocalCasa!.local }))}><Icon name="location" size={16}/><span>Usar local do último jogo em casa<small>{organization.contexto.ultimoLocalCasa.local}</small></span></button>}
-          {formCompetition && <Input label="Rodada · opcional" type="number" min="1" step="1" value={form.rodada} onChange={e => { setForm(f => ({ ...f, rodada: e.target.value })); setErro(''); }} />}
+          </section>
           {erro && <p className="schedule-create-error" role="alert">{erro}</p>}
         </form>
       </Modal>

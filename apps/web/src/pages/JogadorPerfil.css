@@ -48,9 +48,9 @@
 .player-game-teams .club-badge { border-radius:5px; }
 .player-game-match a:hover strong { color:var(--primaria); }
 .player-result { display:inline-flex; align-items:center; padding:5px 7px; border-radius:4px; font-size:10px; font-weight:600; white-space:nowrap; }
-.player-result-vitoria { background:var(--primaria); color:#fff; }
-.player-result-derrota { background:var(--derrota-claro, #E5485D); color:#fff; }
-.player-result-empate { background:var(--resultado-empate); color:#30220B; }
+.player-result-vitoria { background:var(--resultado-v-fundo); color:var(--resultado-v-texto); }
+.player-result-derrota { background:var(--resultado-d-fundo); color:var(--resultado-d-texto); }
+.player-result-empate { background:var(--resultado-e-fundo); color:var(--resultado-e-texto); }
 .player-individual-numbers { display:flex; flex-wrap:wrap; gap:9px; font-size:11px; color:var(--texto-sec); }
 .player-game-footer { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:16px; }
 .player-game-registers { min-width:0; }

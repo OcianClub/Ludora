@@ -7,6 +7,7 @@ import { prisma } from '../../lib/prisma';
 import { notificarPartidaPublica } from '../../realtime/publico';
 import { exigirClubePublico, exigirGestorDoClube } from '../../middlewares/permissoes.middleware';
 import { criarNotificacoesDoClube, enviarPushParaUsuarios } from '../../services/notificacoes.service';
+import { enfileirarAvisoPartida } from '../../services/avisos-partida.service';
 import { processarMachineLearning } from '../../services/scout-ia.service';
 import { publicacaoPartida, retroativo, FalhaPaulista } from '../paulista/service';
 import { FluxoInvalido, exigirHorarioFuturo, excluirNaoIniciada, acesso, auditar, bloquearDuplicidade, criarOficial, exigir, incluirPartida, inteiro, partida, podeCorrigirSumula, tocar, transacao, validarDados, validarDataHorario, validarEquipe, type Contexto, type PartidaCompleta } from './compartilhadas.service';
@@ -35,25 +36,14 @@ export function criarCompartilhadasRoutes(io: Server) {
       res.status(500).json({ error: 'Não foi possível concluir a operação. Atualize e tente novamente.' });
     }
   };
-  async function transmitir(id: number, resultado = false, golTimeId?: number) {
+  async function transmitir(id: number, versaoEvento?: number) {
     const p = await prisma.partida.findUniqueOrThrow({ where: { id }, include: incluirPartida });
     notificarPartidaPublica(io, p);
     for (const equipe of p.participantes) {
-      io.to(`clube:${equipe.clube_id}`).emit('partida_atualizada', { id, versao: p.versao, status: p.status });
-      io.to(`clube:${equipe.clube_id}`).emit('placar_atualizado', { id, gols_mandante: p.gols_mandante, gols_visitante: p.gols_visitante });
+      const versaoIncremental = versaoEvento === p.versao ? versaoEvento : undefined;
+      io.to(`clube:${equipe.clube_id}`).emit('partida_atualizada', { id, versao: p.versao, status: p.status, versaoIncremental });
+      io.to(`clube:${equipe.clube_id}`).emit('placar_atualizado', { id, gols_mandante: p.gols_mandante, gols_visitante: p.gols_visitante, versaoIncremental });
     }
-    await Promise.all(p.participantes.map(async equipe => {
-      const time = equipe.time_id === p.mandante_id ? p.mandante : p.visitante;
-      if (resultado || golTimeId === equipe.time_id) {
-        const pro = equipe.time_id === p.mandante_id ? p.gols_mandante : p.gols_visitante;
-        const contra = equipe.time_id === p.mandante_id ? p.gols_visitante : p.gols_mandante;
-        await criarNotificacoesDoClube({ io, clubeId: equipe.clube_id, partidaId: id,
-          tipo: resultado ? 'RESULTADO_PARTIDA' : 'GOL_PARTIDA',
-          titulo: resultado ? pro > contra ? 'Vitória!' : pro < contra ? 'Derrota' : 'Empate!' : `Gol do ${time.nome}!`,
-          corpo: `${p.mandante.nome} ${p.gols_mandante} x ${p.gols_visitante} ${p.visitante.nome}`,
-          dados: { partidaId: id, clubeId: equipe.clube_id } }).catch(() => console.error('Não foi possível notificar o resultado da partida.'));
-      }
-    }));
   }
   async function avisoProposta(id: string, acao = 'CRIAR', autorId?: number) {
     const p = await prisma.propostaPartida.findUniqueOrThrow({ where: { id } });
@@ -387,14 +377,16 @@ export function criarCompartilhadasRoutes(io: Server) {
       if (req.body.status_anterior) exigir(req.body.status_anterior === p.status, 'A partida mudou. Atualize.', 409);
       await tocar(tx, p, req.body.versao);
       await auditar(tx, ctx, id, `STATUS_${next}`, { motivo: String(req.body.motivo || '').slice(0, 500) });
-      return tx.partida.update({ where: { id }, data: { status: next } });
+      const atual = await tx.partida.update({ where: { id }, data: { status: next } });
+      if (next === 'FINALIZADA') await enfileirarAvisoPartida(tx, { ...p, ...atual });
+      return atual;
     });
-    await transmitir(id, next === 'FINALIZADA');
+    await transmitir(id);
     if (next === 'AO_VIVO') await agendamento(id, 'Partida iniciada');
     if (next === 'CANCELADA') await agendamento(id, 'Partida cancelada');
     if (next === 'FINALIZADA') {
       const equipes = await prisma.participantePartida.findMany({ where: { partida_id: id } });
-      for (const e of equipes) void processarMachineLearning(e.clube_id).catch(() => console.error('Falha ao atualizar scout.'));
+      for (const e of equipes) void processarMachineLearning(e.clube_id, id).catch(() => console.error('Falha ao atualizar scout.'));
     }
     res.json(p);
   }));
@@ -522,20 +514,29 @@ export function criarCompartilhadasRoutes(io: Server) {
       const e = await tx.evento.create({ data: { partida_id: id, tipo, time_id: timeId, jogador_id: jogadorId, gol_contra: contra,
         criado_por_id: ctx.usuarioId, periodo: req.body.periodo == null ? p.periodo_atual : inteiro(req.body.periodo, 1, 10), minuto: req.body.minuto == null || req.body.minuto === '' ? null : inteiro(req.body.minuto, 0, 200) }, include: { jogador: { select: { nome: true } } } });
       if (tipo === 'CARTAO_VERMELHO') await aplicarExpulsao(tx, p, ctx, e);
-      if (tipo === 'GOL') await tx.partida.update({ where: { id }, data: timeId === p.mandante_id ? { gols_mandante: { increment: 1 } } : { gols_visitante: { increment: 1 } } });
+      const placar = tipo === 'GOL'
+        ? await tx.partida.update({ where: { id }, data: timeId === p.mandante_id ? { gols_mandante: { increment: 1 } } : { gols_visitante: { increment: 1 } } })
+        : p;
+      if (tipo === 'GOL') await enfileirarAvisoPartida(tx, { ...p, ...placar }, { id: e.id, timeId });
       const assistencia = assistente ? await tx.evento.create({ data: { partida_id: id, tipo: 'ASSISTENCIA', time_id: timeId, jogador_id: assistente,
         criado_por_id: ctx.usuarioId, periodo: e.periodo, minuto: e.minuto } }) : null;
-      await auditar(tx, ctx, id, 'EVENTO_REGISTRADO', { evento_id: e.id, assistencia_evento_id: assistencia?.id || null,
+      const auditoria = await auditar(tx, ctx, id, 'EVENTO_REGISTRADO', { evento_id: e.id, assistencia_evento_id: assistencia?.id || null,
         request_id: requestId || null, assinatura, evento: json(e), motivo: String(req.body.motivo || '').slice(0, 500) });
-      return { evento: e, repetido: false };
+      const podeAplicarDelta = req.body.retorno_incremental === true && !!requestId && p.status === 'AO_VIVO'
+        && !assistencia && tipo !== 'CARTAO_VERMELHO';
+      return { evento: e, repetido: false, sincronizacao: podeAplicarDelta ? {
+        partidaId: id, anterior: p.versao, versao: p.versao + 1,
+        gols_mandante: placar.gols_mandante, gols_visitante: placar.gols_visitante, auditoria,
+      } : undefined };
     });
-    if (!evento.repetido) await transmitir(id, false, evento.evento.tipo === 'GOL' ? evento.evento.time_id! : undefined);
+    if (!evento.repetido) await transmitir(id, evento.sincronizacao?.versao);
     if (!evento.repetido && String(req.body.motivo || '').trim()) {
       await agendamento(id, 'Súmula corrigida');
       const equipes = await prisma.participantePartida.findMany({ where: { partida_id: id } });
       for (const e of equipes) void processarMachineLearning(e.clube_id).catch(() => undefined);
     }
-    res.status(evento.repetido ? 200 : 201).json(evento.evento);
+    res.status(evento.repetido ? 200 : 201).json(evento.sincronizacao
+      ? { ...evento.evento, sincronizacao: evento.sincronizacao } : evento.evento);
   }));
   router.patch('/partidas/:id/eventos/:eventoId', exigirGestorDoClube, tratar(async (req, res) => {
     const ctx = contexto(req), id = inteiro(req.params.id);

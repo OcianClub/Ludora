@@ -1,3 +1,4 @@
+import { radius } from '@ludora/design-tokens';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Modal,
@@ -104,7 +105,7 @@ const styles = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "#0009" },
   sheet: {
     width: "100%", maxWidth: 640, maxHeight: '100%', alignSelf: "center", flexShrink: 1,
-    borderWidth: 1, borderTopLeftRadius: 16, borderTopRightRadius: 16, overflow: "hidden",
+    borderWidth: 1, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, overflow: "hidden",
   },
   scroll: { flexGrow: 0, flexShrink: 1 },
   body: { padding: 16, paddingBottom: 24, gap: 18 },

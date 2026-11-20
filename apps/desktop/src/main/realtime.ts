@@ -6,7 +6,7 @@ import { lerApiUrl } from './config';
 const LIMITE_HISTORICO = 1000;
 
 type Saida = {
-  aoEntrada(entrada: EntradaLog): void;
+  aoEntrada(entradas: EntradaLog[]): void;
   aoMudarEstado(estado: EstadoTempoReal): void;
 };
 
@@ -14,6 +14,8 @@ let socket: Socket | null = null;
 let estado: EstadoTempoReal = 'parado';
 let historico: EntradaLog[] = [];
 let saida: Saida | null = null;
+let lote: EntradaLog[] = [];
+let timer: ReturnType<typeof setTimeout> | undefined;
 
 function mudarEstado(novo: EstadoTempoReal) {
   estado = novo;
@@ -21,11 +23,21 @@ function mudarEstado(novo: EstadoTempoReal) {
 }
 
 function guardar(entradas: EntradaLog[]) {
-  historico = [...historico, ...entradas].slice(-LIMITE_HISTORICO);
+  historico.push(...entradas);
+  if (historico.length > LIMITE_HISTORICO) historico.splice(0, historico.length - LIMITE_HISTORICO);
+}
+
+function enviarLote() {
+  clearTimeout(timer);
+  timer = undefined;
+  if (!lote.length) return;
+  const entradas = lote;
+  lote = [];
+  saida?.aoEntrada(entradas);
 }
 
 export function obterHistorico(): HistoricoLogs {
-  return { estado, entradas: historico };
+  return { estado, entradas: [...historico] };
 }
 
 /**
@@ -53,13 +65,16 @@ export function iniciarLogs(token: string, destino: Saida) {
 
   // Ao (re)conectar a API reenvia os últimos registros: substitui, não duplica.
   socket.on('snapshot', (entradas: EntradaLog[]) => {
+    enviarLote();
     historico = [];
     guardar(entradas);
-    entradas.forEach(entrada => destino.aoEntrada(entrada));
+    destino.aoEntrada(entradas);
   });
   socket.on('log', (entrada: EntradaLog) => {
     guardar([entrada]);
-    destino.aoEntrada(entrada);
+    lote.push(entrada);
+    if (lote.length >= 100) enviarLote();
+    else timer ??= setTimeout(enviarLote, 50);
   });
 }
 
@@ -67,6 +82,9 @@ export function pararLogs() {
   socket?.removeAllListeners();
   socket?.disconnect();
   socket = null;
+  clearTimeout(timer);
+  timer = undefined;
+  lote = [];
   if (estado !== 'parado') {
     estado = 'parado';
     saida?.aoMudarEstado('parado');

@@ -29,6 +29,7 @@ export default function SelecionarClubePage() {
   const [clubes, setClubes] = useState<Clube[]>(() => cachedJson<Clube[]>('/clubes') || []);
   const [loading, setLoading] = useState(() => !cachedJson('/clubes'));
   const [erro, setErro] = useState('');
+  const [erroConsulta, setErroConsulta] = useState('');
   const accessNotice = (location.state as { message?: string } | null)?.message;
   const [seguindoId, setSeguindoId] = useState<number | null>(null);
   const [busca, setBusca] = useState('');
@@ -39,9 +40,11 @@ export default function SelecionarClubePage() {
   useEffect(() => {
     let ativo = true;
     setLoading(!cachedJson('/clubes'));
-    setErro('');
+    setErroConsulta('');
     fetchClubes().then(result => { if (ativo) setClubes(result); })
-      .catch(() => { if (ativo) setErro('Não foi possível carregar os clubes. Verifique sua conexão e tente novamente.'); })
+      .catch(() => { if (ativo) setErroConsulta(navigator.onLine === false
+        ? 'Seu dispositivo está sem internet. Reconecte-se à rede para atualizar a lista.'
+        : 'A lista de clubes não pôde ser atualizada. Tente novamente em instantes.'); })
       .finally(() => { if (ativo) setLoading(false); });
     return () => { ativo = false; };
   }, [tentativa, token]);
@@ -139,7 +142,8 @@ export default function SelecionarClubePage() {
     <main className="selecionar-body" data-tooltip-disabled>
       <div className="selecionar-intro"><h1>Encontre o seu clube</h1><p>Acesse clubes, acompanhe partidas e salve seus favoritos.</p></div>
       {accessNotice && <p className="editor-description" role="status">{accessNotice}</p>}
-      {erro && <div className="club-picker-error" role="alert"><span>{erro}</span>{!clubes.length && <button type="button" onClick={() => setTentativa(value => value + 1)}>Tentar novamente</button>}</div>}
+      {erroConsulta && <div className="club-picker-error" role="alert"><Icon name="alert" size={19}/><span>{erroConsulta}</span><button className="btn btn-ghost btn-sm" type="button" onClick={() => setTentativa(value => value + 1)}>Tentar novamente</button></div>}
+      {erro && !confirmarSaida && <div className="club-picker-error" role="alert"><Icon name="alert" size={19}/><span>{erro}</span></div>}
       {loading ? <ClubRowsSkeleton /> : <>
         {!query && gerenciados.length > 0 && <section className="club-picker-section" aria-labelledby="clubs-roles">
           <h2 id="clubs-roles" className="club-picker-section-title">Com cargo <span>{gerenciados.length}</span></h2>
@@ -154,7 +158,7 @@ export default function SelecionarClubePage() {
           <h2 id="clubs-discover" className="club-picker-section-title">Descobrir</h2>
           <CollectionSearch label="Buscar clube" placeholder="Buscar clube por nome ou cidade..." value={busca} onChange={setBusca}/>
           {query && <div className="club-picker-search-summary" role="status"><span>{resultados.length} {resultados.length === 1 ? 'clube encontrado' : 'clubes encontrados'}</span><button type="button" onClick={() => setBusca('')}>Limpar busca</button></div>}
-          {resultados.length ? <div className="club-picker-grid">{resultados.map(item => card(item, true))}</div> : !erro && <div className="club-picker-empty"><Icon name="shield" size={24}/><p>{!clubes.length ? 'Ainda não há clubes cadastrados no Ludora.' : query ? 'Nenhum clube encontrado. Tente outro nome ou cidade.' : 'Você já acompanha todos os clubes disponíveis. Novos clubes aparecerão aqui.'}</p></div>}
+          {resultados.length ? <div className="club-picker-grid">{resultados.map(item => card(item, true))}</div> : !erroConsulta && !erro && <div className="club-picker-empty"><Icon name="shield" size={24}/><p>{!clubes.length ? 'Ainda não há clubes cadastrados no Ludora.' : query ? 'Nenhum clube encontrado. Tente outro nome ou cidade.' : 'Você já acompanha todos os clubes disponíveis. Novos clubes aparecerão aqui.'}</p></div>}
         </section>
       </>}
 

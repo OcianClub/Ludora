@@ -53,13 +53,23 @@ const base = process.env.LUDORA_WEB_TEST_URL || 'http://127.0.0.1:5187';
       await page.waitForRequest(req=>req.url().includes('/organizacao/conflitos?')&&req.url().includes('18%3A30'));
       await form.getByLabel('Horário',{exact:true}).fill('19:15');
       await page.waitForFunction(()=>!document.querySelector('.schedule-availability'));
-      assert.ok(await form.getByRole('button',{name:'Organizar partida',exact:true}).isEnabled());
+      assert.ok(await form.getByRole('button',{name:'Revisar partida',exact:true}).isEnabled());
       previewFails=true;
       await form.getByLabel('Horário',{exact:true}).fill('19:20');
       await form.getByText(/Não foi possível conferir agora/).waitFor();
-      assert.ok(await form.getByRole('button',{name:'Organizar partida',exact:true}).isEnabled(),'Failed preview does not block server validation');
-      await form.getByRole('button',{name:'Organizar partida',exact:true}).click();
-      await page.getByRole('dialog',{name:'Revisar partida',exact:true}).waitFor();
+      assert.ok(await form.getByRole('button',{name:'Revisar partida',exact:true}).isEnabled(),'Failed preview does not block server validation');
+      await form.getByRole('button',{name:'Revisar partida',exact:true}).click();
+      const review = page.getByRole('dialog',{name:'Revisar partida',exact:true});
+      await review.waitFor();
+      if (width > 760) {
+        await review.getByRole('button', { name: 'Voltar e editar' }).click();
+        await form.getByRole('button', { name: 'Cancelar', exact: true }).click();
+        await page.getByRole('button', { name: 'Lista', exact: true }).click();
+        const row = page.locator('.match-list-row').first();
+        await row.getByRole('button', { name: 'Ações da partida' }).click();
+        await row.getByRole('menuitem', { name: 'Organizar novo confronto' }).click();
+        await form.waitFor();
+      }
       assert.deepEqual(errors,[]);
       console.log(`PASS ${width}px ${theme}: repetir confronto, preservar rascunho, ignorar resposta antiga e falha de consulta sem bloqueio`);
       await context.close();

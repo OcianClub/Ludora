@@ -4,7 +4,7 @@ import { Image, Text, View } from "react-native";
 import { MatchCardLayout } from "./MatchCardLayout";
 import { SinalAoVivo } from "./SinalAoVivo";
 import { Icon } from "@ludora/icons";
-import { lightColors } from "@ludora/design-tokens";
+import { liveBadgeColors, matchResultColors, matchStatusColors, matchStatusLabels, radius, spacing } from "@ludora/design-tokens";
 import { useTheme } from "@/src/contexts/ThemeContext";
 import { createStyles } from "@/src/styles/jogosStyles";
 import { type PartidaAgendaBase } from "@/src/utils/agendaJogos";
@@ -87,16 +87,12 @@ export const CartaoJogo = memo(function CartaoJogo({
     const timer=setInterval(()=>setRelogio(new Date()),60000);
     return()=>clearInterval(timer);
   },[partida.id,partida.data,partida.horario,partida.status,atrasada]);
-  const situacao = atrasada ? "Atrasada" : resultado
+  const status = atrasada ? "ATRASADA" : partida.status;
+  const situacao = resultado
     ? { V: "Vitória", E: "Empate", D: "Derrota" }[resultado]
-    : {
-        AGENDADA: "Agendada",
-        PREPARADA: "Preparada",
-        CANCELADA: "Cancelada",
-      }[partida.status];
-  const statusClaro = partida.status === "AGENDADA" ? lightColors.statusPartida.agendada
-    : partida.status === "PREPARADA" ? lightColors.statusPartida.preparada
-    : null;
+    : matchStatusLabels[status as keyof typeof matchStatusLabels] || status;
+  const paleta = matchStatusColors[tema];
+  const badge = resultado ? matchResultColors[tema][resultado] : paleta[status as keyof typeof paleta];
   const data = new Date(partida.data.slice(0, 10) + "T12:00:00");
   const dia = formatarData
     .format(data)
@@ -128,37 +124,19 @@ export const CartaoJogo = memo(function CartaoJogo({
         <Text style={styles.catText}>{partida.categoria?.nome.toUpperCase()}</Text>
       </View>}
       badges={<>
-          {aoVivo && (
-            <View accessible accessibilityLabel="Ao vivo">
-              <SinalAoVivo />
-            </View>
-          )}
-          {atrasada && <View style={{flexDirection:'row',alignItems:'center',gap:5,minHeight:23,paddingVertical:3,paddingHorizontal:6,borderRadius:6,backgroundColor:colors.cardSecundario,flexShrink:1}}><Icon name="clock-outline" size={14} color={tema==='light'?'#A65313':colors.tituloAtencao}/><Text style={{color:tema==='light'?'#A65313':colors.tituloAtencao,fontFamily:'Inter_600SemiBold',fontSize:10,lineHeight:13,letterSpacing:.3,flexShrink:1}}>{situacao}</Text></View>}
-          {!!situacao && !atrasada && (
-            <Text
-              style={[
-                styles.cardStatusBadge,
-                partida.status === "PREPARADA" && styles.preparedBadge,
-                partida.status === "AGENDADA" && styles.scheduledBadge,
-                resultado === "V" && styles.winBadge,
-                resultado === "D" && styles.lossBadge,
-                resultado === "E" && styles.drawBadge,
-                tema === "light" && statusClaro && { color: statusClaro.texto, backgroundColor: statusClaro.fundo },
-                atrasada && {color:colors.tituloAtencao,backgroundColor:colors.fundoAtencao},
-                tema === "light" && resultado === "D" && { backgroundColor: lightColors.statusPartida.derrota },
-              ]}
-            >
-              {situacao}
-            </Text>
-          )}
+          {aoVivo && <View style={[styles.cardStatusBadge, { backgroundColor: liveBadgeColors.fundo, borderRadius: radius.badge,
+            flexDirection: 'row', alignItems: 'center', gap: spacing.xs }]}>
+            <SinalAoVivo size={14} color={liveBadgeColors.indicador} />
+            <Text style={{ color: liveBadgeColors.texto, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>{situacao}</Text>
+          </View>}
+          {!aoVivo && badge && <View style={[styles.cardStatusBadge, { backgroundColor: badge.fundo, borderRadius: radius.badge,
+            flexDirection: 'row', alignItems: 'center', gap: spacing.xs }]}>
+            {atrasada && <Icon name="clock-outline" size={14} color={badge.texto} />}
+            <Text style={{ color: badge.texto, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>{situacao}</Text>
+          </View>}
           <View style={styles.badge}>
-            <Icon
-              name={partida.emCasa ? "home-outline" : "bus"}
-              size={12}
-              color={colors.texto}
-            />
-            <Text style={styles.badgeText}>
-              {partida.emCasa ? "Casa" : "Fora"}
+            <Icon name={partida.emCasa ? "home-outline" : "bus"} size={14} color={colors.textoSecundario}/>
+            <Text style={styles.badgeText}>{partida.emCasa ? "Casa" : "Fora"}
             </Text>
           </View>
       </>}

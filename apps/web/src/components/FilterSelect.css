@@ -11,7 +11,7 @@
   gap: 10px;
   padding: 6px 8px 6px 12px;
   border: 1px solid var(--borda);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--fundo-card);
   color: var(--texto);
   font-size: 13px;
@@ -26,6 +26,7 @@
 .schedule-select-trigger:is(:hover, [aria-expanded="true"]) {
   background: var(--superficie-neutra);
 }
+.schedule-select-trigger:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
 .schedule-select-trigger[aria-expanded="true"] {
   border-color: var(--texto-sec);
 }
@@ -35,7 +36,7 @@
   height: 28px;
   flex-shrink: 0;
   place-items: center;
-  border-radius: 6px;
+  border-radius: var(--radius-badge);
   background: var(--superficie-neutra);
   color: var(--texto-sec);
 }
@@ -56,12 +57,12 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   display: grid;
-  gap: 3px;
-  padding: 6px;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
   border: 1px solid var(--borda);
-  border-radius: 10px;
+  border-radius: var(--radius-overlay);
   background: var(--fundo-card);
-  box-shadow: 0 8px 24px #0003;
+  box-shadow: var(--sombra-overlay);
 }
 .schedule-select-options [role="option"] {
   display: flex;
@@ -70,7 +71,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 9px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-badge);
   color: var(--texto);
   font-size: 13px;
   cursor: pointer;

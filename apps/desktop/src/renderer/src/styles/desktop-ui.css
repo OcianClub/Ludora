@@ -1,6 +1,6 @@
 /* Base visual exclusiva do Electron, inclusive para componentes compartilhados. */
 .desktop-app {
-  --desktop-status-warning: var(--amarelo);
+  --desktop-status-warning: var(--titulo-atencao);
   --desktop-status-success: #43c998;
   --desktop-status-error: var(--titulo-erro);
   --desktop-status-escalated: #a58adb;
@@ -15,7 +15,6 @@
   --desktop-modal-control: #14171F;
 }
 :root[data-theme="light"] .desktop-app {
-  --desktop-status-warning: #A65313;
   --desktop-status-warning-accent: #DA8337;
   --desktop-status-success: #006b37;
   --desktop-status-success-accent: #008744;

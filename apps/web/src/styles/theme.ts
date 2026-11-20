@@ -1,4 +1,5 @@
-import { darkColors, interfaceColors, lightColors, liveBadgeColors } from '../../../../packages/design-tokens/src/colors';
+import { radius, spacing } from '../../../../packages/design-tokens/src/layout';
+import { darkColors, interfaceColors, lightColors, liveBadgeColors, matchResultColors, matchStatusColors, scoutMetricColors, scoutProfileAccents } from '../../../../packages/design-tokens/src/colors';
 import { lightPositionStrokeWidth } from '../../../../packages/design-tokens/src/positions';
 
 // Traduz os tokens compartilhados para os nomes já usados no CSS do web.
@@ -10,15 +11,9 @@ export function getThemePreference(): ThemePreference {
   } catch { return 'system'; }
 }
 const lightTokens = {
-  'primaria-hover': lightColors.hover.primaria,
   'card-hover-claro': lightColors.hover.card,
   'linha-hover-claro': lightColors.hover.linhaTabela,
   'controle-hover-claro': lightColors.hover.controle,
-  'agendada-fundo-claro': lightColors.statusPartida.agendada.fundo,
-  'agendada-texto-claro': lightColors.statusPartida.agendada.texto,
-  'preparada-fundo-claro': lightColors.statusPartida.preparada.fundo,
-  'preparada-texto-claro': lightColors.statusPartida.preparada.texto,
-  'derrota-claro': lightColors.statusPartida.derrota,
   'position-stroke': String(lightPositionStrokeWidth),
 };
 
@@ -52,6 +47,7 @@ function interfaceTokens(theme: keyof typeof interfaceColors) {
     const { fundo, texto } = palette.perfilScout[profile];
     tokens[`scout-${name}-fundo`] = fundo;
     tokens[`scout-${name}-texto`] = texto;
+    tokens[`scout-${name}-destaque`] = scoutProfileAccents[profile];
   }
   for (const [name, color] of Object.entries(palette.posicoes)) tokens[`posicao-${name}`] = color;
   for (const [name, color] of Object.entries(palette.cargos)) tokens[`cargo-${name.toLowerCase()}`] = color;
@@ -60,6 +56,17 @@ function interfaceTokens(theme: keyof typeof interfaceColors) {
     tokens[`paulista-${name.toLowerCase()}-fundo`] = fundo;
     tokens[`paulista-${name.toLowerCase()}-destaque`] = destaque;
   }
+  for (const [name, color] of Object.entries(scoutMetricColors)) tokens[`scout-metrica-${name}`] = color;
+  for (const [name, { fundo, texto }] of Object.entries(matchStatusColors[theme])) {
+    tokens[`status-${name.toLowerCase()}-fundo`] = fundo;
+    tokens[`status-${name.toLowerCase()}-texto`] = texto;
+  }
+  for (const [name, { fundo, texto }] of Object.entries(matchResultColors[theme])) {
+    tokens[`resultado-${name.toLowerCase()}-fundo`] = fundo;
+    tokens[`resultado-${name.toLowerCase()}-texto`] = texto;
+  }
+  for (const [name, value] of Object.entries(radius)) tokens[`radius-${name}`] = `${value}px`;
+  for (const [name, value] of Object.entries(spacing)) tokens[`space-${name}`] = `${value}px`;
   return tokens;
 }
 
@@ -71,6 +78,11 @@ export function applyTheme(preference = getThemePreference()) {
   const tokens = {
     ...interfaceTokens(light ? 'light' : 'dark'),
     primaria: colors.primaria, fundo: colors.fundo,
+    'acao-primaria': colors.acaoPrimaria, 'acao-primaria-hover': colors.acaoPrimariaHover,
+    'primaria-hover': light ? lightColors.hover.primaria : '#1A85FF',
+    'partida-hover': light ? interfaceColors.light.acordeao.aoVivoHover : colors.cardClaro,
+    'sombra-overlay': light ? '0 12px 30px #21232826' : '0 12px 30px #0006',
+    'sombra-card-hover': light ? '0 4px 14px #21232812' : '0 4px 14px #0004',
     'fundo-card': colors.card, 'fundo-card-sec': colors.cardSecundario,
     'fundo-card-claro': colors.cardClaro,
     'superficie-neutra': light ? lightColors.superficieNeutra : darkColors.cardSecundario,
@@ -88,6 +100,7 @@ export function applyTheme(preference = getThemePreference()) {
     'titulo-atencao': colors.tituloAtencao,
     'corpo-atencao': colors.corpoAtencao,
     'icone-atencao': colors.iconeAtencao,
+    'atencao-destaque': light ? '#FF7700' : colors.iconeAtencao,
     'resultado-empate': light ? '#F4B942' : colors.amarelo,
     'ao-vivo-fundo': liveBadgeColors.fundo,
     'ao-vivo-borda': liveBadgeColors.borda,

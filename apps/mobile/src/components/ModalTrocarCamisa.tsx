@@ -1,3 +1,4 @@
+import { radius, touchTarget } from "@ludora/design-tokens";
 import { Icon } from '@ludora/icons';
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
@@ -127,13 +128,13 @@ const createStyles = (colors: ThemeColors) => ({
 
   btnRow: { flexDirection: 'row' as const, gap: 10, width: '100%' as const },
   btnCancel: {
-    flex: 1, paddingVertical: 13, borderRadius: 12,
-    borderWidth: 1, borderColor: '#2a2a2a', alignItems: 'center' as const,
+    flex: 1, minHeight: touchTarget, paddingVertical: 13, borderRadius: radius.control,
+    borderWidth: 1, borderColor: colors.borda, alignItems: 'center' as const,
   },
   btnCancelTxt: { fontFamily: 'Creato-Bold', color: colors.textoSecundario, fontSize: 13 },
   btnConfirm: {
-    flex: 1, paddingVertical: 13, borderRadius: 12,
-    backgroundColor: colors.primaria, alignItems: 'center' as const,
+    flex: 1, minHeight: touchTarget, paddingVertical: 13, borderRadius: radius.control,
+    backgroundColor: colors.acaoPrimaria, alignItems: 'center' as const,
     flexDirection: 'row' as const, justifyContent: 'center' as const, gap: 6,
   },
   btnConfirmTxt: { fontFamily: 'Creato-Bold', color: '#FFF', fontSize: 13, letterSpacing: 0.5 },

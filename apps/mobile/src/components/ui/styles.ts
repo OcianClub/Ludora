@@ -1,10 +1,9 @@
 import { StyleSheet } from "react-native";
-import { typography } from "@ludora/design-tokens";
+import { radius, spacing, touchTarget, typography } from "@ludora/design-tokens";
 import type { ThemeColors } from "../../contexts/ThemeContext";
 
-// Base visual do Scout. Área de toque é complementada por hitSlop nos ícones.
-export const CONTROL_SIZE = 40;
-export const CONTROL_RADIUS = 8;
+export const CONTROL_SIZE = touchTarget;
+export const CONTROL_RADIUS = radius.control;
 export const createControlStyles = (c: ThemeColors) =>
   StyleSheet.create({
     search: {
@@ -14,7 +13,7 @@ export const createControlStyles = (c: ThemeColors) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      paddingHorizontal: 12,
+      paddingHorizontal: spacing.md,
       backgroundColor: c.card,
       borderWidth: 1,
       borderColor: c.borda,
@@ -60,7 +59,7 @@ export const createControlStyles = (c: ThemeColors) =>
       borderRadius: 9,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: c.primaria,
+      backgroundColor: c.acaoPrimaria,
       borderWidth: 1,
       borderColor: c.fundo,
     },
@@ -88,7 +87,7 @@ export const createControlStyles = (c: ThemeColors) =>
       paddingVertical: 10,
       borderRadius: CONTROL_RADIUS,
     },
-    primary: { backgroundColor: c.primaria },
+    primary: { backgroundColor: c.acaoPrimaria },
     secondary: { borderWidth: 1, borderColor: c.borda },
     buttonText: {
       flexShrink: 1,
@@ -105,8 +104,8 @@ export const createControlStyles = (c: ThemeColors) =>
     modalHeader: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
-      padding: 16,
+      gap: spacing.md,
+      padding: spacing.lg,
       borderBottomWidth: 1,
       borderBottomColor: c.linha,
     },
@@ -157,7 +156,7 @@ export const createFilterStyles = (c: ThemeColors) =>
       borderColor: c.linha,
       backgroundColor: c.card,
     },
-    chipActive: { backgroundColor: c.primaria, borderColor: c.primaria },
+    chipActive: { backgroundColor: c.acaoPrimaria, borderColor: c.acaoPrimaria },
     optionText: {
       fontFamily: typography.fontFamily.corpo.medium,
       fontSize: 12,

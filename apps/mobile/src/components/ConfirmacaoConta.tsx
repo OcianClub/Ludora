@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, type IconName } from '@ludora/icons';
-import { typography } from '@ludora/design-tokens';
+import { typography, radius, spacing } from '@ludora/design-tokens';
 import { useTheme, type ThemeColors } from '@/src/contexts/ThemeContext';
 
 type Props = {
@@ -63,17 +63,17 @@ export function ConfirmacaoConta({
               <Text style={styles.warningText}>Esta ação é permanente.</Text>
             </View>}
             <View style={styles.actions}>
-              <TouchableOpacity
-                style={[styles.confirmButton, destrutivo && styles.confirmDanger, carregando && styles.busy]}
+              <Pressable
+                style={({ pressed }) => [styles.confirmButton, destrutivo && styles.confirmDanger, carregando && styles.busy,
+                  pressed && { backgroundColor: destrutivo ? colors.cardSecundario : colors.acaoPrimariaHover }]}
                 onPress={onConfirmar}
                 disabled={carregando}
-                activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: carregando, busy: carregando }}
               >
                 {carregando && <ActivityIndicator size="small" color={corAcao} />}
                 <Text style={[styles.confirmText, { color: corAcao }]}>{carregando ? carregandoTexto : confirmarTexto}</Text>
-              </TouchableOpacity>
+              </Pressable>
               <TouchableOpacity style={styles.cancelButton} onPress={fechar} disabled={carregando} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ disabled: carregando }}>
                 <Text style={styles.cancelText}>Cancelar</Text>
               </TouchableOpacity>
@@ -88,8 +88,8 @@ export function ConfirmacaoConta({
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.5)' },
-  sheet: { backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '100%', flexShrink: 1, overflow: 'hidden' },
-  content: { paddingHorizontal: 24, paddingTop: 18 },
+  sheet: { backgroundColor: colors.card, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, maxHeight: '100%', flexShrink: 1, overflow: 'hidden' },
+  content: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
   icon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.fundoBotao },
   iconDanger: { backgroundColor: colors.fundoErro },
@@ -98,8 +98,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   description: { fontFamily: typography.fontFamily.corpo.regular, fontSize: 14, lineHeight: 22, color: colors.textoSecundario },
   warning: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
   warningText: { flex: 1, fontFamily: typography.fontFamily.corpo.medium, fontSize: 13, color: colors.tituloErro },
-  actions: { marginTop: 26, gap: 6 },
-  confirmButton: { minHeight: 52, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.primaria, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  actions: { marginTop: spacing.xl, gap: spacing.sm },
+  confirmButton: { minHeight: 52, borderRadius: radius.control, paddingHorizontal: spacing.lg, paddingVertical: 14, backgroundColor: colors.acaoPrimaria, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   confirmDanger: { backgroundColor: colors.fundoErro, borderWidth: 1, borderColor: colors.bordaErro },
   busy: { opacity: 0.7 },
   confirmText: { fontFamily: typography.fontFamily.corpo.semiBold, fontSize: 15, textAlign: 'center' },

@@ -1,20 +1,18 @@
 import { Router, type RequestHandler } from 'express';
-import { getUsuarioId } from '../../auth/jwt';
+import { getIdentidadeInterna, tokenDaRequisicao } from '../../auth/jwt';
 import { prisma } from '../../lib/prisma';
 import { papelPlataformaEfetivo } from './admin.rules';
 
 // Reconsulta o banco em cada requisição para respeitar mudanças de cargo.
 export const exigirEquipe: RequestHandler = async (req, res, next) => {
   try {
-    const id = await getUsuarioId(req, true);
-    if (!id) { res.status(401).json({ error: 'Entre para continuar.' }); return; }
-    const usuario = await prisma.usuario.findUnique({
-      where: { id }, select: { id: true, nome: true, email: true, papel_plataforma: true },
-    });
-    if (!usuario || papelPlataformaEfetivo(usuario) === 'USUARIO') {
+    const usuario = await getIdentidadeInterna(tokenDaRequisicao(req), true);
+    if (!usuario) { res.status(401).json({ error: 'Entre para continuar.' }); return; }
+    const papel = papelPlataformaEfetivo(usuario);
+    if (papel === 'USUARIO') {
       res.status(403).json({ error: 'Acesso restrito aos funcionários Ludora.' }); return;
     }
-    res.locals.funcionario = { ...usuario, papel_plataforma: papelPlataformaEfetivo(usuario) };
+    res.locals.funcionario = { ...usuario, papel_plataforma: papel };
     (req as any).usuarioId = usuario.id;
     next();
   } catch {

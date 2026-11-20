@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { setTimeout as esperar } from 'node:timers/promises';
 import type { RequestHandler } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
@@ -14,7 +15,8 @@ export function pistasStack(stack: unknown) {
 export async function registrarFalha(input: { servico: string; rota: string; correlacao: string; clubeId?: number; status: number; stack?: unknown; versao?: unknown }) {
   const rota = rotaSegura(input.rota);
   const chave = fingerprint(input.servico, rota, String(input.status));
-  for (let tentativa = 0; tentativa < 3; tentativa++) {
+  const maxTentativas = 5;
+  for (let tentativa = 0; tentativa < maxTentativas; tentativa++) {
     try {
       return await prisma.$transaction(async tx => {
         const anterior = await tx.suporteChamado.findUnique({ where: { fingerprint: chave } });
@@ -51,7 +53,9 @@ export async function registrarFalha(input: { servico: string; rota: string; cor
         return chamado.id;
       }, { isolationLevel: 'Serializable' });
     } catch (error) {
-      if (tentativa === 2 || !['P2034', 'P2002'].includes((error as any).code)) throw error;
+      if (tentativa === maxTentativas - 1 || !(error instanceof Prisma.PrismaClientKnownRequestError)
+        || !['P2034', 'P2002'].includes(error.code)) throw error;
+      await esperar(20 * 2 ** tentativa + Math.random() * 20);
     }
   }
 }

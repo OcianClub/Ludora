@@ -7,7 +7,14 @@ import { ConsultasEmAndamento } from '../../../shared/inflight';
 
 const consultas = new ConsultasEmAndamento();
 let sessaoAtual = 0;
-export const limparConsultas = () => { sessaoAtual++; consultas.limpar(); };
+let revisao = 0;
+let visaoRecente: { dados: VisaoGlobal; ate: number } | undefined;
+const invalidar = () => { revisao++; consultas.limpar(); visaoRecente = undefined; };
+export const limparConsultas = () => { sessaoAtual++; invalidar(); };
+export const obterVisaoRecente = () => visaoRecente && visaoRecente.ate > Date.now() ? visaoRecente.dados : undefined;
+export class ErroApiDesktop extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
 
 // Mesma ideia do requestJson de apps/web/src/services/api.ts, mas a requisição
 // sai pelo processo principal (IPC). Aqui não há BASE_URL, token nem CORS.
@@ -17,13 +24,16 @@ export async function requestJson<T>(
 ): Promise<T> {
   const sessaoPedido = sessaoAtual;
   const metodo = options.method ?? 'GET';
-  if (metodo !== 'GET') consultas.limpar();
+  if (metodo !== 'GET') invalidar();
   const consultar = () => window.ludora.api.requisicao<T & { error?: string }>(metodo, endpoint, options.body);
   const resposta = await (metodo === 'GET' && options.body === undefined
     ? consultas.executar(endpoint, consultar) : consultar());
-  if (metodo !== 'GET') consultas.limpar();
+  if (metodo !== 'GET') invalidar();
   if (sessaoPedido !== sessaoAtual) throw new Error('A sessão mudou. Consulte os dados novamente.');
-  if (!resposta.ok) throw new Error(resposta.data?.error || 'Não foi possível concluir a solicitação');
+  if (!resposta.ok) {
+    if ([401, 403].includes(resposta.status)) invalidar();
+    throw new ErroApiDesktop(resposta.data?.error || 'Não foi possível concluir a solicitação', resposta.status);
+  }
   return resposta.data;
 }
 
@@ -34,7 +44,21 @@ const qs = (params: Record<string, string | number | undefined>) => {
   return texto ? `?${texto}` : '';
 };
 
-export const fetchVisaoGlobal = () => requestJson<VisaoGlobal>('/admin/overview');
+export async function fetchVisaoGlobal() {
+  const pedido = revisao;
+  const dados = await requestJson<VisaoGlobal>('/admin/overview');
+  if (pedido === revisao) visaoRecente = { dados, ate: Date.now() + 20_000 };
+  return dados;
+}
+export type OpcaoClube = Pick<ClubeResumo, 'id' | 'nome' | 'escudo' | 'cidade' | 'estado'>;
+export async function fetchOpcoesClubes(): Promise<OpcaoClube[]> {
+  try {
+    return await requestJson('/admin/clubes/opcoes');
+  } catch (erro) {
+    if (erro instanceof ErroApiDesktop && erro.status === 404) return (await fetchVisaoGlobal()).clubes;
+    throw erro;
+  }
+}
 
 export const criarClube = (dados: NovoClube) =>
   requestJson<ClubeResumo>('/admin/clubes', { method: 'POST', body: dados });

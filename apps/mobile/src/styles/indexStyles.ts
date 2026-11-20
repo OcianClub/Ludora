@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { typography } from '@ludora/design-tokens';
+import { typography, radius } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 import { MARGEM_TELA } from './layout';
 
@@ -122,8 +122,8 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
 
   // BOTÃO VER DETALHES
   btnDetalhes: {
-    backgroundColor: colors.primaria,
-    borderRadius: 10,
+    backgroundColor: colors.acaoPrimaria,
+    borderRadius: radius.control,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',

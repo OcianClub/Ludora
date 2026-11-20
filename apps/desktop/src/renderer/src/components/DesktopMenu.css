@@ -1,10 +1,11 @@
 .desktop-menu-selection-dot { width: 8px; height: 8px; flex: 0 0 8px; margin-left: auto; border-radius: 50%; background: var(--primaria); }
 .desktop-menu { position: relative; min-width: 0; }
-.desktop-menu-popover { position: absolute; top: calc(100% + 6px); right: 0; width: 250px; max-height: min(480px, 70dvh); overflow-y: auto; display: grid; gap: 3px; z-index: 30; padding: 6px; border: 1px solid var(--borda); border-radius: 9px; background: var(--fundo-card); box-shadow: 0 12px 30px #0003; }
-.desktop-menu-popover button { display: flex; gap: 10px; align-items: center; width: 100%; min-height: 38px; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--texto); text-align: left; font: 12px/1.4 var(--font-corpo); cursor: pointer; }
+.desktop-menu-popover { position: absolute; top: calc(100% + 6px); right: 0; width: 250px; max-height: min(480px, 70dvh); overflow-y: auto; display: grid; gap: 3px; z-index: 30; padding: 6px; border: 1px solid var(--borda); border-radius: var(--radius-overlay); background: var(--fundo-card); box-shadow: var(--sombra-overlay); }
+.desktop-menu-popover button { display: flex; gap: 10px; align-items: center; width: 100%; min-height: 38px; padding: 8px 10px; border: 0; border-radius: var(--radius-badge); background: transparent; color: var(--texto); text-align: left; font: 12px/1.4 var(--font-corpo); cursor: pointer; }
 .desktop-menu-popover button > :last-child:not(:first-child) { flex-shrink: 0; }
 .desktop-menu-popover button[role^="menuitem"] > .icon:last-child:not(:first-child) { margin-left: auto; color: var(--primaria); }
-.desktop-menu-popover button:hover, .desktop-menu-popover button:focus-visible { background: var(--superficie-neutra); outline: none; }
+.desktop-menu-popover button:hover { background: var(--superficie-neutra); }
+.desktop-menu-popover button:focus-visible { background: var(--superficie-neutra); outline:2px solid var(--primaria); outline-offset:-2px; }
 .desktop-menu-popover button:disabled { opacity: .4; cursor: default; }
 .desktop-menu-popover hr { margin: 6px 3px; border: 0; border-top: 1px solid var(--linha); }
 .desktop-menu-label { display: block; padding: 8px 10px 4px; font-size: 10px; color: var(--texto-sec); text-transform: uppercase; letter-spacing: .7px; }

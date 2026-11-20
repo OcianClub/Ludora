@@ -68,7 +68,7 @@ async function main() {
     await partida.getByRole('button', { name: 'Data', exact: true }).click();
     await web.getByRole('dialog', { name: 'Data da partida' }).getByRole('group', { name: 'Dias do mês' }).locator('button:enabled').first().click();
     await partida.getByLabel('Horário', { exact: true }).fill('1745');
-    await partida.getByRole('button', { name: 'Organizar partida', exact: true }).click();
+    await partida.getByRole('button', { name: 'Revisar partida', exact: true }).click();
     const revisao = web.getByRole('dialog', { name: 'Revisar partida' });
     await revisao.waitFor();
     const response = web.waitForResponse(r => r.url().endsWith('/partidas') && r.request().method() === 'POST');

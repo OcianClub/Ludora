@@ -50,7 +50,7 @@ export function publicEndpoint(endpoint: string, clubId: number | null) {
   if (match) return `/publico/partidas/${match[1]}${clubId ? `?clube_id=${clubId}` : ''}`;
   if (!clubId) return endpoint;
   const prefix = `/publico/clubes/${clubId}`;
-  if (['/categorias', '/times', '/partidas', '/partidas/home', '/competicoes'].includes(path)) return prefix + path + (query ? `?${query}` : '');
+  if (['/categorias', '/times', '/partidas', '/partidas/home', '/partidas/agenda', '/competicoes'].includes(path)) return prefix + path + (query ? `?${query}` : '');
   if (/^\/competicoes\/\d+\/classificacao$/.test(path)) return prefix + path;
   return endpoint;
 }

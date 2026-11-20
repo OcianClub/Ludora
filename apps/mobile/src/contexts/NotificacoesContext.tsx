@@ -25,7 +25,10 @@ type NotificacoesContextData = {
   versaoNotificacoes: number;
   atualizarNaoLidas: () => Promise<void>;
   alterarNotificacoes: (ativa: boolean) => Promise<boolean>;
+  assinarMudancasHome: (callback: (mudanca: MudancaHome) => void) => () => void;
 };
+
+export type MudancaHome = 'partidas' | 'atrasadas' | 'propostas' | 'elenco' | 'reconexao';
 
 const NotificacoesContext = React.createContext<NotificacoesContextData | null>(null);
 
@@ -83,6 +86,11 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
   const clubeAtualId = useRef(clubeAtivo?.id);
   clubeAtualId.current = clubeAtivo?.id;
   const contadorPedido = useRef(0);
+  const assinantesHome = useRef(new Set<(mudanca: MudancaHome) => void>());
+  const assinarMudancasHome = useCallback((callback: (mudanca: MudancaHome) => void) => {
+    assinantesHome.current.add(callback);
+    return () => { assinantesHome.current.delete(callback); };
+  }, []);
 
   useEffect(() => {
     if (carregandoClubeAtivo) return;
@@ -123,7 +131,10 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
     }
 
     const resultado = await fetchNotificacoes(1, clubeAtivo.id);
-    if (clubeAtualId.current === clubeAtivo.id && pedido === contadorPedido.current) setContagem({ clubeId: clubeAtivo.id, total: resultado.totalNaoLidas });
+    if (clubeAtualId.current === clubeAtivo.id && pedido === contadorPedido.current) {
+      setContagem(anterior => anterior.clubeId === clubeAtivo.id && anterior.total === resultado.totalNaoLidas
+        ? anterior : { clubeId: clubeAtivo.id, total: resultado.totalNaoLidas });
+    }
   }, [clubeAtivo?.id, clubeAtivo?.papel, autenticado]);
 
   useEffect(() => {
@@ -176,8 +187,11 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
     let ativo = true;
     let jaConectou = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const sinalizarHome = (mudanca: MudancaHome) => {
+      if (!ativo || AppState.currentState !== 'active') return;
+      for (const callback of assinantesHome.current) callback(mudanca);
+    };
     const atualizar = () => {
-      invalidarConsultasRecentes();
       clearTimeout(timer);
       timer = setTimeout(() => {
         if (!ativo || AppState.currentState !== 'active') return;
@@ -200,18 +214,34 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
 
       socket.on('notificacao_criada', atualizar);
       socket.on('notificacoes_atualizadas', atualizar);
-      socket.on('partida_atualizada', invalidarConsultasRecentes);
-      socket.on('placar_atualizado', invalidarConsultasRecentes);
+      socket.on('partida_atualizada', (evento?: { atrasada?: boolean; status?: string }) => {
+        invalidarConsultasRecentes();
+        sinalizarHome('partidas');
+        // Alterações de calendário/status podem remover uma pendência já exibida.
+        if (evento?.atrasada || evento?.status !== 'AO_VIVO') sinalizarHome('atrasadas');
+      });
+      socket.on('placar_atualizado', () => {
+        invalidarConsultasRecentes();
+        sinalizarHome('partidas');
+      });
+      socket.on('elenco_atualizado', () => sinalizarHome('elenco'));
+      socket.on('solicitacao_partida', () => sinalizarHome('propostas'));
       socket.on('connect', () => {
-        if (jaConectou) atualizar();
+        if (jaConectou) {
+          atualizar();
+          sinalizarHome('reconexao');
+        }
         jaConectou = true;
       });
     };
 
     const fallback = setInterval(() => {
       if (!ativo || AppState.currentState !== 'active') return;
-      setVersaoNotificacoes(v => v + 1);
       void atualizarNaoLidas().catch(() => undefined);
+      if (!socket?.connected) {
+        setVersaoNotificacoes(v => v + 1);
+        sinalizarHome('reconexao');
+      }
     }, 30000);
     void conectar().catch(() => undefined);
     return () => {
@@ -248,6 +278,7 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
     versaoNotificacoes,
     atualizarNaoLidas,
     alterarNotificacoes,
+    assinarMudancasHome,
   }), [
     totalNaoLidas,
     notificacoesAtivas,
@@ -255,6 +286,7 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
     versaoNotificacoes,
     atualizarNaoLidas,
     alterarNotificacoes,
+    assinarMudancasHome,
   ]);
 
   return (

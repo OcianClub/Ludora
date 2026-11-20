@@ -7,6 +7,7 @@ import { prisma } from './lib/prisma';
 import { criarSocketServer } from './realtime/socket';
 import { iniciarPaulistaDiario } from './modules/paulista/routes';
 import { iniciarAvisosAtraso } from './modules/partidas/atrasos';
+import { iniciarAvisosPartida } from './services/avisos-partida.service';
 
 const io = criarSocketServer();
 const app = criarApp(io);
@@ -21,9 +22,11 @@ server.keepAliveTimeout = 5_000;
 let pararAtualizacao: (() => void) | undefined;
 let pararPaulista: (() => void) | undefined;
 let pararAtrasos: (() => void) | undefined;
+let pararAvisosPartida: (() => void) | undefined;
 
 server.listen(PORT, '0.0.0.0', () => {
   if (process.env.NODE_ENV !== 'test') pararAtrasos = iniciarAvisosAtraso(prisma,io);
+  if (process.env.NODE_ENV !== 'test') pararAvisosPartida = iniciarAvisosPartida(prisma, io);
   if (process.env.NODE_ENV !== 'test') pararPaulista = iniciarPaulistaDiario(io);
   if (process.env.NODE_ENV !== 'test' && process.env.ATUALIZACAO_TEMPORADA !== 'false') pararAtualizacao = iniciarAtualizacaoTemporada();
   console.log(`Core Service rodando na porta ${PORT}`);
@@ -37,6 +40,7 @@ async function encerrar(signal: string) {
   pararAtualizacao?.();
   pararPaulista?.();
   pararAtrasos?.();
+  pararAvisosPartida?.();
 
   console.log(`Recebido ${signal}; encerrando API...`);
 

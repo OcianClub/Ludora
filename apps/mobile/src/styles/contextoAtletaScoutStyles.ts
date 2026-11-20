@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { typography } from "@ludora/design-tokens";
+import { typography, radius } from "@ludora/design-tokens";
 import type { ThemeColors } from "@/src/contexts/ThemeContext";
 export const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
@@ -226,8 +226,8 @@ export const createStyles = (c: ThemeColors) =>
       minHeight: 40,
       paddingHorizontal: 16,
       paddingVertical: 10,
-      backgroundColor: c.primaria,
-      borderRadius: 7,
+      backgroundColor: c.acaoPrimaria,
+      borderRadius: radius.control,
       justifyContent: "center",
       alignItems: "center",
     },

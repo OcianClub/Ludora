@@ -11,6 +11,7 @@ import { useTheme } from "@/src/contexts/ThemeContext";
 import { obterContextoScout } from "@/src/services/mlService";
 import {
   formatarMediaScout,
+  progressoPerfilScout,
   resumirContextoScout,
   type ContextoScout,
   type FiltroContextoScout,
@@ -69,10 +70,12 @@ export function ContextoAtletaScout({
   jogadorId,
   clubeId,
   consultaLocal,
+  perfil,
 }: {
   jogadorId: number;
   clubeId: number;
   consultaLocal: boolean;
+  perfil?: string | null;
 }) {
   const { colors } = useTheme();
   const s = useMemo(() => createStyles(colors), [colors]);
@@ -183,6 +186,8 @@ export function ContextoAtletaScout({
   const match =
     contexto?.recorte?.tipo === "partida" ? contexto.partidas[0] : null;
   const totals = contexto?.totais;
+  const amostraPerfil = tipo === "geral" && !filtro.ano && (!perfil || perfil === "Sem dados")
+    ? progressoPerfilScout(totals) : "";
   const title =
     tipo === "partida"
       ? "Nesta partida"
@@ -382,6 +387,9 @@ export function ContextoAtletaScout({
                 registro
               </Text>
             </View>
+            {!!amostraPerfil && <View style={s.avisoContainer}>
+              <Text style={s.descricao}>Ainda sem perfil · {amostraPerfil}</Text>
+            </View>}
             {contexto.recorte?.provisorio && (
               <View style={s.avisoContainer}>
                 <Text style={s.descricao}>
@@ -538,7 +546,7 @@ export function ContextoAtletaScout({
                         )}
                       </View>
                     </View>
-                    {summary.poucosRegistros && (
+                    {!amostraPerfil && summary.poucosRegistros && (
                       <Text style={s.descricao}>
                         Amostra inicial: {contexto.total_partidas} de 5
                         partidas. Evite conclusões com poucos registros.

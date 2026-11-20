@@ -281,3 +281,13 @@ export function observacoesContextoScout(contexto: ContextoScout) {
   }
   return observacoes;
 }
+
+export function progressoPerfilScout(totais?: TotaisContextoScout) {
+  if (!totais) return '';
+  const eventos = totais.gols + totais.assistencias + totais.defesas;
+  const requisitos = [
+    totais.convocacoes < 5 ? `${totais.convocacoes} de 5 convocações` : '',
+    eventos < 3 ? `${eventos} de 3 gols, assistências ou defesas` : '',
+  ].filter(Boolean);
+  return requisitos.join(' · ');
+}

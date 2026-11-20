@@ -73,12 +73,16 @@ test('indisponibilidade tem prazo e uma nova tentativa pode recuperar', async t 
 });
 
 test('HTML do proxy e status inválido não são confundidos com API pronta', async t => {
-  const fetch = t.mock.method(globalThis, 'fetch', async () => new Response('<html>iniciando</html>'));
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const fetch = t.mock.method(globalThis, 'fetch', async () => new Response('<html>iniciando</html>', { headers: { 'Content-Type': 'text/html' } }));
   const connection = createApiConnection('https://api.onrender.com');
-  await assert.rejects(connection.wait(), error => error.kind === 'network');
-  assert.equal(connection.getState(), 'error');
+  const pending = assert.rejects(connection.wait(), error => error.kind === 'network');
+  await flush();
+  assert.equal(connection.getState(), 'connecting');
   fetch.mock.mockImplementation(async () => new Response('{"status":"offline"}'));
-  await assert.rejects(connection.wait());
+  t.mock.timers.tick(3_000);
+  await pending;
+  assert.equal(connection.getState(), 'error');
 });
 
 test('após inatividade a próxima ação confere conexão; não existe intervalo em segundo plano', async t => {
@@ -111,12 +115,12 @@ test('login aguarda conexão antes de enviar credenciais e não repete POST', as
   assert.deepEqual(calls.map(call => call.method), ['GET', 'POST']);
 });
 
-test('falha no health não bloqueia o login nem repete a sondagem em cada requisição', async t => {
+test('health indisponível permanentemente não bloqueia o login', async t => {
   let probes = 0;
   t.mock.method(globalThis, 'fetch', async url => {
     if (url.endsWith('/health')) {
       probes++;
-      throw new TypeError('Failed to fetch');
+      return new Response('Not Found', { status: 404 });
     }
     return new Response('{"token":"teste"}');
   });
@@ -128,7 +132,7 @@ test('falha no health não bloqueia o login nem repete a sondagem em cada requis
 });
 
 test('sucesso da consulta real recupera erro do health sem reenviar a operação', async t => {
-  t.mock.method(globalThis, 'fetch', async () => { throw new TypeError('offline'); });
+  t.mock.method(globalThis, 'fetch', async () => new Response('Not Found', { status: 404 }));
   configureApiConnection('https://actual.onrender.com');
   await flush();
   assert.equal(getApiConnectionState(), 'error');
@@ -136,6 +140,46 @@ test('sucesso da consulta real recupera erro do health sem reenviar a operação
   assert.equal(getApiConnectionState(), 'error');
   reportApiConnection('https://actual.onrender.com/usuarios');
   assert.equal(getApiConnectionState(), 'ready');
+});
+
+test('login espera o proxy do Render e recupera uma falha temporária da API', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async url => {
+    requests.push(url);
+    const count = requests.filter(call => call === url).length;
+    if (url.endsWith('/health')) {
+      if (count === 1) throw new TypeError('Failed to fetch');
+      return count === 2 ? new Response('Starting', { status: 503 }) : healthy();
+    }
+    return count === 1 ? new Response('Starting', { status: 503 }) : new Response('{"token":"teste"}');
+  });
+  configureApiConnection('https://recover.onrender.com');
+  const result = authRequest('https://recover.onrender.com/auth/login', { method: 'POST' });
+  await flush();
+  t.mock.timers.tick(3_000);
+  await flush();
+  assert.equal(getApiConnectionState(), 'connecting');
+  t.mock.timers.tick(3_000);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(requests.map(url => new URL(url).pathname), ['/health', '/health', '/health', '/auth/login']);
+  t.mock.timers.tick(600);
+  assert.deepEqual(await result, { token: 'teste' });
+});
+
+test('consulta de sessão repete erro transitório em local, sem repetir operação de escrita ou 401', async t => {
+  const urls = [];
+  t.mock.method(globalThis, 'fetch', async url => {
+    urls.push(url);
+    if (url.endsWith('/auth/login')) return new Response('{"error":"Credenciais inválidas"}', { status: 401 });
+    if (url.endsWith('/usuarios/me') && urls.filter(call => call === url).length === 2) return new Response('{"id":1}');
+    return new Response('Starting', { status: 503 });
+  });
+  configureApiConnection('http://localhost:3000');
+  await assert.rejects(authRequest('http://localhost:3000/auth/login', { method: 'POST' }), { status: 401 });
+  await assert.rejects(authRequest('http://localhost:3000/auth/registrar', { method: 'POST' }), { status: 503 });
+  assert.deepEqual(await authRequest('http://localhost:3000/usuarios/me'), { id: 1 });
+  assert.deepEqual(urls.map(url => new URL(url).pathname), ['/auth/login', '/auth/registrar', '/usuarios/me', '/usuarios/me']);
 });
 
 test('confirmação real não volta a lenta nem falha quando a sondagem antiga termina', async t => {

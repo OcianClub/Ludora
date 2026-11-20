@@ -55,6 +55,57 @@ async function main() {
       assert.equal(login.status, 200);
       const { token } = await login.json() as { token: string };
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+      if (papel === 'USUARIO') {
+        const acesso = await prisma.usuarioClube.findFirstOrThrow({ where: { usuario_id: usuario.id }, orderBy: { clube_id: 'desc' } });
+        const categoria = await prisma.categoria.create({ data: { nome: 'sub-7', clube_id: acesso.clube_id, tipo: 'INICIACAO' } });
+        const mandante = await prisma.time.create({ data: { nome: 'Mandante', categoria_id: categoria.id, clube_representado_id: acesso.clube_id } });
+        const visitante = await prisma.time.create({ data: { nome: 'Visitante', categoria_id: categoria.id } });
+        await prisma.partida.createMany({ data: Array.from({ length: 13 }, (_, index) => ({
+          data: new Date(Date.UTC(2099, 0, index + 1)), horario: '19:00', status: 'PREPARADA' as const,
+          local: 'Ginásio', categoria_id: categoria.id, mandante_id: mandante.id, visitante_id: visitante.id,
+        })) });
+        const query = new URLSearchParams({ formato: 'web', por_situacao: 'true', todos_periodos: 'true',
+          categoria_exibida: 'SUB-7', agora: '2098-01-01T12:00', busca: 'ginasio', preparacao: 'PREPARADA' });
+        const agenda = `http://127.0.0.1:3018/publico/clubes/${acesso.clube_id}/partidas/agenda?${query}`;
+        const primeira = await fetch(agenda);
+        assert.equal(primeira.status, 200);
+        const linhas = await primeira.json();
+        assert.equal(linhas.length, 24);
+        assert.ok(linhas.every((p: { total_grupo: number }) => p.total_grupo === 13));
+        const mais = await fetch(agenda + '&grupo=preparacao&categoria_nome=SUB-7&apos=12');
+        const pagina = await mais.json();
+        assert.equal(mais.status, 200);
+        assert.equal(pagina.length, 1);
+        assert.equal(pagina[0].posicao, 13);
+        const revisao = pagina[0].revisao_grupo;
+        assert.equal(typeof revisao, 'string');
+        assert.equal(revisao, linhas.find((p: { grupo_agenda: string }) => p.grupo_agenda === 'preparacao').revisao_grupo);
+        await prisma.partida.update({ where: { id: pagina[0].id }, data: { local: 'Ginásio central', versao: { increment: 1 } } });
+        const atualizadas = await (await fetch(agenda)).json();
+        assert.notEqual(atualizadas.find((p: { grupo_agenda: string }) => p.grupo_agenda === 'preparacao').revisao_grupo, revisao);
+        const partida = await prisma.partida.update({ where: { id: pagina[0].id }, data: {
+          status: 'AO_VIVO', sumula_clube_id: acesso.clube_id,
+          participantes: { create: { clube_id: acesso.clube_id, categoria_id: categoria.id, time_id: mandante.id, pronta: true } },
+        } });
+        const postarGol = () => fetch(`http://127.0.0.1:3018/partidas/${partida.id}/eventos`, {
+          method: 'POST', headers: { ...headers, 'x-clube-id': String(acesso.clube_id) },
+          body: JSON.stringify({ tipo: 'GOL', time_id: mandante.id, autor_pendente: true, versao: partida.versao,
+            request_id: 'sala-teste-um-gol', retorno_incremental: true }),
+        });
+        const gol = await postarGol();
+        assert.equal(gol.status, 201);
+        const confirmado = await gol.json();
+        assert.equal(confirmado.sincronizacao.versao, partida.versao + 1);
+        assert.equal(confirmado.sincronizacao.gols_mandante, 1);
+        assert.equal((await postarGol()).status, 200, 'Reenvio confirma o mesmo lance');
+        assert.equal(await prisma.avisoPartidaPendente.count({ where: { partida_id: partida.id } }), 1);
+        assert.equal(await prisma.notificacao.count({ where: { partida_id: partida.id } }), 0, 'Resposta antecede a distribuição');
+        const { distribuirAvisosPartida } = await import('../src/services/avisos-partida.service.js');
+        const worker = () => distribuirAvisosPartida(prisma, io, async () => {});
+        await Promise.all([worker(), worker()]);
+        assert.equal(await prisma.notificacao.count({ where: { partida_id: partida.id, tipo: 'GOL_PARTIDA' } }), 1);
+        assert.equal(await prisma.avisoPartidaPendente.count({ where: { partida_id: partida.id } }), 0);
+      }
       for (const endpoint of ['/admin/equipe/me', '/admin/equipe/diagnostico']) {
         const r = await fetch('http://127.0.0.1:3018' + endpoint, { headers });
         assert.equal(r.status, papel === 'USUARIO' ? 403 : 200, `${papel} ${endpoint}`);

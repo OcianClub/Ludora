@@ -6,7 +6,7 @@ import { Icon, type IconName } from '@web/components/Icon';
 import { CollectionSearch, CollectionViewToggle } from '@web/components/CollectionToolbar';
 import { DesktopMenu, DesktopMenuRadioItem, DesktopMenuLabel, DesktopMenuSeparator, DesktopMenuItem } from '../components/DesktopMenu';
 import { AdminIcon, type AdminIconName } from '../components/AdminIcon';
-import { fetchVisaoGlobal, requestJson } from '../services/api';
+import { ErroApiDesktop, fetchVisaoGlobal, obterVisaoRecente, requestJson } from '../services/api';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { ServicesDiagnostic } from '../components/ServicesDiagnostic';
 import { LiveMatchesReview } from '../components/LiveMatchesReview';
@@ -19,7 +19,7 @@ export default function VisaoPage() {
   const { usuario } = useAdminAuth();
   const superadmin = usuario?.papel_plataforma === 'SUPERADMIN';
   const desenvolvimento = usuario?.papel_plataforma === 'DESENVOLVEDOR';
-  const [dados, setDados] = useState<VisaoGlobal | null>(null);
+  const [dados, setDados] = useState<VisaoGlobal | null>(() => superadmin ? obterVisaoRecente() ?? null : null);
   const [operacao, setOperacao] = useState<ResumoOperacional | null>(null);
   const [erro, setErro] = useState('');
   const [erroOperacao, setErroOperacao] = useState(false);
@@ -27,7 +27,7 @@ export default function VisaoPage() {
   const [modo, setModo] = useState('tabela');
   const [filtros, setFiltros] = useState({ status: '', plano: '' });
   const [ordem, setOrdem] = useState<PlatformClubSort>(null);
-  const [revisar, setRevisar] = useState(false);
+  const [revisar, setRevisar] = useState<'atrasadas' | 'antigas' | 'semInicio' | null>(null);
   const [atualizando, setAtualizando] = useState(false);
   const [atualizado, setAtualizado] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -35,12 +35,19 @@ export default function VisaoPage() {
   const carregar = useCallback(async () => {
     const id = ++sequencia.current;
     setAtualizando(true); setErro(''); setErroOperacao(false);
-    const [principal, resumo] = await Promise.allSettled([fetchVisaoGlobal(), requestJson<ResumoOperacional>('/admin/overview/operacao')]);
+    await Promise.allSettled([
+      fetchVisaoGlobal().then(valor => {
+        if (id === sequencia.current) { setDados(valor); setAtualizado(new Date().toISOString()); }
+      }).catch(erro => {
+        if (id !== sequencia.current) return;
+        if (erro instanceof ErroApiDesktop && [401, 403].includes(erro.status)) setDados(null);
+        setErro('Não foi possível atualizar os totais e clubes.');
+      }),
+      requestJson<ResumoOperacional>('/admin/overview/operacao').then(valor => {
+        if (id === sequencia.current) setOperacao(valor);
+      }).catch(() => { if (id === sequencia.current) setErroOperacao(true); }),
+    ]);
     if (id !== sequencia.current) return;
-    if (principal.status === 'fulfilled') { setDados(principal.value); setAtualizado(new Date().toISOString()); }
-    else setErro('Não foi possível atualizar os totais e clubes.');
-    if (resumo.status === 'fulfilled') setOperacao(resumo.value);
-    else setErroOperacao(true);
     setAtualizando(false);
   }, []);
   useEffect(() => { if (superadmin) void carregar(); return () => { sequencia.current++; }; }, [carregar, superadmin]);
@@ -87,13 +94,27 @@ export default function VisaoPage() {
     { to: '/paulista', title: 'Federação', detail: 'Conferir sincronização e divergências', state: !atuais?.federacao ? 'Consulta indisponível' : atuais.federacao.erroRotina || atuais.federacao.falhas ? 'Falha na atualização' : atuais.federacao.pendencias ? `${numero(atuais.federacao.pendencias)} pendências` : 'Sem pendências identificadas', health: !atuais?.federacao ? 'unknown' : atuais.federacao.erroRotina || atuais.federacao.falhas || atuais.federacao.pendencias ? 'warning' : 'good', icon: 'trophy' },
   ];
   const totalItems: [string, number, IconName][] = [['Clubes ativos', clubes.filter(c => c.ativo).length, 'shield'], ['Contas da plataforma', totais.usuarios, 'user'], ['Jogadores', totais.jogadores, 'team'], ['Partidas cadastradas', totais.partidas, 'ball']];
+  const filas = [
+    { id: 'antigas', label: 'Ao vivo há mais de 24 horas', acao: 'Revisar encerramentos', detalhe: 'Confira se a súmula já pode ser encerrada.', icon: 'clock' },
+    { id: 'atrasadas', label: 'Partidas atrasadas', acao: 'Ver atrasadas', detalhe: 'O horário passou sem registro do início.', icon: 'clock' },
+    { id: 'semInicio', label: 'Ao vivo sem horário de início', acao: 'Ver sem registro', detalhe: 'A duração dessas partidas é desconhecida.', icon: 'info' },
+  ] as const;
+  const filasComPartidas = filas.filter(fila => atuais?.[fila.id]?.length);
+  const filaSelecionada = filas.find(fila => fila.id === revisar);
   return <div className="desktop-overview overview-v2">
     <header className="page-header"><div><span className="ticket-kicker">Plataforma Ludora</span><h1 className="page-title">Visão global</h1><p className="page-sub">Operação, serviços e clubes em um só lugar.</p></div><div className="overview-refresh"><small>{atualizado && `Totais consultados às ${new Date(atualizado).toLocaleTimeString('pt-BR')}`}</small><Btn variant="ghost" disabled={atualizando} onClick={() => { setRefreshKey(n => n + 1); void carregar(); }}><Icon name="refresh" size={16}/>{atualizando ? 'Atualizando…' : 'Atualizar'}</Btn></div></header>
     {erro && <p className="overview-error" role="alert">{erro} Os últimos dados continuam visíveis.</p>}
     {erroOperacao && <p className="overview-error" role="alert">Não foi possível consultar a operação. As contagens de atenção não estão disponíveis.</p>}
-    {!!atuais?.atrasadas?.length && <div className="overview-review" role="status"><Icon name="clock" size={22}/><div><strong>{numero(atuais.atrasadas.length)} {atuais.atrasadas.length===1?'partida atrasada':'partidas atrasadas'}</strong><p>O horário passou sem registro do início. Avise o organizador para iniciar, reagendar ou cancelar.</p></div><Btn variant="ghost" onClick={()=>setRevisar(true)}>Revisar partidas<Icon name="chevronRight" size={15}/></Btn></div>}
-    {!!atuais?.antigas?.length && <div className="overview-review" role="status"><Icon name="clock" size={22}/><div><strong>{numero(atuais.antigas.length)} {atuais.antigas.length === 1 ? 'partida está' : 'partidas estão'} há mais de 24 horas ao vivo</strong><p>Revise o encerramento para atualizar a súmula e o Scout.</p>{atuais.consultadoEm && <small>Conferido às {new Date(atuais.consultadoEm).toLocaleTimeString('pt-BR')}</small>}</div><Btn variant="ghost" onClick={() => setRevisar(true)}>Revisar partidas<Icon name="chevronRight" size={15}/></Btn></div>}
-    {!!atuais?.semInicio?.length && <div className="overview-untracked"><Icon name="info" size={16}/><span>{numero(atuais.semInicio.length)} partidas ao vivo sem registro do início. A duração não pode ser confirmada.</span><button type="button" onClick={() => setRevisar(true)}>Consultar partidas</button></div>}
+    {filasComPartidas.length > 0 && <section className="overview-triage" aria-labelledby="overview-triage-title">
+      <h2 id="overview-triage-title">Precisa de atenção</h2>
+      <ul>
+        {filasComPartidas.map(fila => <li key={fila.id} className="overview-review">
+          <Icon name={fila.icon} size={20}/>
+          <div><strong>{fila.label} <span className="overview-triage-count">{numero(atuais?.[fila.id]?.length ?? 0)}</span></strong><p>{fila.detalhe}</p></div>
+          <Btn variant="ghost" onClick={() => setRevisar(fila.id)}>{fila.acao}<Icon name="chevronRight" size={15}/></Btn>
+        </li>)}
+      </ul>
+    </section>}
     {atuais && atuais.antigas === null && <p className="overview-error" role="status">Não foi possível conferir o início das partidas ao vivo.</p>}
     <div className="desktop-shortcuts overview-attention" aria-label="Operação da plataforma">{attention.map(a => <Link key={a.to} to={a.to} data-health={a.health}><span className="desktop-shortcut-icon"><AdminIcon name={a.icon} size={21}/></span><span><strong>{a.title}</strong><em>{a.state}</em><small>{a.detail}</small></span><Icon name="chevronRight" size={16}/></Link>)}</div>
     <div className="overview-now-grid"><DesktopSection title="Agora" className="overview-now"><dl><div><dt><i className="overview-live-dot"/>Partidas ao vivo</dt><dd>{numero(totais.partidasAoVivo)}</dd></div><div><dt>Conexões Web e App</dt><dd>{numero(conexoes.principal)}</dd></div></dl><p>Conexões nesta instância da API; não representam usuários únicos.</p></DesktopSection><ServicesDiagnostic compact refreshKey={refreshKey}/></div>
@@ -115,6 +136,7 @@ export default function VisaoPage() {
       <p className="overview-club-count" role="status"><strong>{filtrados.length} {filtrados.length === 1 ? 'clube' : 'clubes'}</strong><span>{filtrados.length !== clubes.length ? `de ${clubes.length} cadastrados · ` : ''}{clubes.filter(c => !c.ativo).length} indisponíveis</span></p>
       {!filtrados.length ? <DesktopState icon="search" title="Nenhum clube encontrado" description="Experimente outro nome ou município."/> : modo === 'tabela' ? <PlatformClubTable clubes={filtrados} ordem={ordem} onSort={ordenar}/> : <PlatformClubCards clubes={filtrados}/>}
     </section>
-    <LiveMatchesReview open={revisar} onClose={() => setRevisar(false)} partidas={[...(atuais?.atrasadas ?? []), ...(atuais?.antigas ?? []), ...(atuais?.semInicio ?? [])]} consultadoEm={atuais?.consultadoEm}/>
+    <LiveMatchesReview open={!!filaSelecionada} title={filaSelecionada?.label} description={filaSelecionada?.detalhe}
+      onClose={() => setRevisar(null)} partidas={revisar ? atuais?.[revisar] ?? [] : []} consultadoEm={atuais?.consultadoEm}/>
   </div>;
 }

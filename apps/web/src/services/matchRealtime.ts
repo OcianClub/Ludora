@@ -27,7 +27,7 @@ export function subscribePublicClub(clubId: number) {
 }
 
 export type RealtimeState = 'connecting' | 'connected' | 'disconnected' | 'error';
-type ScoreUpdate = Pick<Partida, 'id' | 'gols_mandante' | 'gols_visitante'>;
+type ScoreUpdate = Pick<Partida, 'id' | 'gols_mandante' | 'gols_visitante'> & { versaoIncremental?: number };
 
 interface MatchRealtimeOptions {
   baseUrl: string;
@@ -35,7 +35,7 @@ interface MatchRealtimeOptions {
   clubId: number;
   matchId: number;
   onScore: (match: ScoreUpdate) => void;
-  onRefresh: () => void;
+  onRefresh: (versaoIncremental?: number) => void;
   onStateChange: (state: RealtimeState) => void;
   onRoster?: (change: RosterChange) => void;
   onPoll?: (value: unknown) => void;
@@ -80,9 +80,9 @@ export function subscribeToMatch(options: MatchRealtimeOptions): () => void {
     invalidateMatches();
     if (event.partida_id === matchId) onRefresh();
   });
-  socket.on('partida_atualizada', (match: {id:number}) => {
+  socket.on('partida_atualizada', (match: {id:number; versaoIncremental?: number}) => {
     invalidateMatches();
-    if (match.id === matchId) onRefresh();
+    if (match.id === matchId) onRefresh(match.versaoIncremental);
   });
 
   onStateChange('connecting');

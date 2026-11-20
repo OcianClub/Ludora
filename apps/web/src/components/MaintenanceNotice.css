@@ -1,5 +1,5 @@
 .maintenance-notice { position: relative; flex: none; --maintenance-accent: var(--titulo-atencao, #F0B84E); }
-:root[data-theme="light"] .maintenance-notice { --maintenance-accent: var(--titulo-atencao); }
+:root[data-theme="light"] .maintenance-notice-sidebar { --maintenance-accent: var(--atencao-destaque); }
 .maintenance-notice-trigger {
   display: grid; place-items: center; width: 36px; height: 36px;
   color: var(--maintenance-accent); border: 0; background: transparent; border-radius: 8px; cursor: pointer;
@@ -28,7 +28,7 @@
 }
 .maintenance-notice-sidebar .maintenance-notice-trigger > .icon { flex: none; }
 .maintenance-notice-sidebar .maintenance-notice-trigger > span:not(.nav-icon) { color: var(--texto); }
-:root[data-theme="light"] .maintenance-notice-sidebar .maintenance-notice-trigger > span:not(.nav-icon) { color: #A65313; }
+:root[data-theme="light"] .maintenance-notice-sidebar .maintenance-notice-trigger > span:not(.nav-icon) { color: var(--titulo-atencao); }
 .maintenance-notice-sidebar .maintenance-notice-panel {
   position: fixed;
   inset-inline: var(--sidebar-width) auto;

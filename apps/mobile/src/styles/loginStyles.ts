@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { typography } from '@ludora/design-tokens';
+import { typography, radius } from '@ludora/design-tokens';
 import type { ThemeColors } from '@/src/contexts/ThemeContext';
 
 export const createStyles = (colors: ThemeColors) =>
@@ -205,8 +205,8 @@ export const createStyles = (colors: ThemeColors) =>
     primaryButton: {
       width: '100%',
       height: 56,
-      borderRadius: 10,
-      backgroundColor: colors.primaria,
+      borderRadius: radius.control,
+      backgroundColor: colors.acaoPrimaria,
       alignItems: 'center',
       justifyContent: 'center',
     },

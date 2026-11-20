@@ -26,7 +26,7 @@ const ponte: LudoraBridge = {
   },
   logs: {
     historico: () => ipcRenderer.invoke(CANAIS.logsHistorico),
-    aoReceber: ouvinte => escutar<EntradaLog>(CANAIS.logsEntrada, ouvinte),
+    aoReceber: ouvinte => escutar<EntradaLog[]>(CANAIS.logsEntrada, entradas => entradas.forEach(ouvinte)),
     aoMudarEstado: ouvinte => escutar<EstadoTempoReal>(CANAIS.logsEstado, ouvinte),
     copiar: ids => ipcRenderer.invoke(CANAIS.logsCopiar, ids),
     exportar: ids => ipcRenderer.invoke(CANAIS.logsExportar, ids),

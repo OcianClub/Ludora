@@ -8,6 +8,41 @@ export class RequestError extends Error {
   }
 }
 
+export function waitBeforeRetry(ms: number, signal?: AbortSignal | null): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(signal.reason); return; }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    function abort() {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    }
+    signal?.addEventListener('abort', abort, { once: true });
+  });
+}
+
+export function isTemporaryServerError(status: number) {
+  return [500, 502, 503, 504].includes(status);
+}
+
+export async function fetchRecoverableJsonResponse(
+  url: string, options: RequestInit, timeout?: number, retryLogin = false,
+): Promise<Response> {
+  const method = (options.method ?? 'GET').toUpperCase();
+  if (method !== 'GET' && method !== 'HEAD' && !retryLogin) return fetchJsonResponse(url, options, timeout);
+
+  try {
+    const result = await fetchJsonResponse(url, options, timeout);
+    if (!isTemporaryServerError(result.status)) return result;
+  } catch (error) {
+    if (!(error instanceof RequestError) || error.kind === 'response' || globalThis.navigator?.onLine === false) throw error;
+  }
+  await waitBeforeRetry(600, options.signal);
+  return fetchJsonResponse(url, options, timeout);
+}
+
 export async function fetchJsonResponse(
   url: string,
   options: RequestInit = {},

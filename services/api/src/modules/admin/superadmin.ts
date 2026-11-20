@@ -1,8 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import type { Server } from 'socket.io';
 
-import { getUsuarioId, getUsuarioIdPeloToken } from '../../auth/jwt';
-import { prisma } from '../../lib/prisma';
+import { getIdentidadeInterna, tokenDaRequisicao } from '../../auth/jwt';
 import { agendarExpiracaoTokenVerificado } from '../../realtime/sessoes';
 import {
   BufferLogs,
@@ -23,34 +22,21 @@ export interface SuperAdmin {
   papel_plataforma: 'SUPERADMIN';
 }
 
-async function carregarUsuarioInterno(usuarioId: number | null) {
-  if (!usuarioId) return null;
-  return prisma.usuario.findUnique({ where: { id: usuarioId }, select: { id: true, nome: true, email: true, papel_plataforma: true } });
-}
-
-// Lido a cada chamada (barato) para respeitar o .env já carregado por config/env.
-export async function carregarSuperAdmin(usuarioId: number | null): Promise<SuperAdmin | null> {
-  const usuario = await carregarUsuarioInterno(usuarioId);
-  if (!usuario || papelPlataformaEfetivo(usuario) !== 'SUPERADMIN') return null;
-  return { id: usuario.id, nome: usuario.nome, email: usuario.email, papel_plataforma: 'SUPERADMIN' };
-}
-
 export async function exigirSuperAdmin(req: Request, res: Response, next: NextFunction) {
   try {
-    const usuarioId = await getUsuarioId(req);
-    if (!usuarioId) return res.status(401).json({ error: 'Não autorizado' });
-
-    const admin = await carregarSuperAdmin(usuarioId);
-    if (!admin) {
+    const usuario = await getIdentidadeInterna(tokenDaRequisicao(req));
+    if (!usuario) return res.status(401).json({ error: 'Não autorizado' });
+    if (papelPlataformaEfetivo(usuario) !== 'SUPERADMIN') {
       logs.registrar({
         nivel: 'warn',
         tipo: 'audit',
         mensagem: 'Acesso negado ao painel Super Admin',
-        usuarioId,
+        usuarioId: usuario.id,
         caminho: limparCaminho(req.originalUrl),
       });
       return res.status(403).json({ error: 'Acesso restrito à equipe Ludora' });
     }
+    const admin: SuperAdmin = { ...usuario, papel_plataforma: 'SUPERADMIN' };
 
     (req as any).usuarioId = admin.id;
     (req as any).superAdmin = admin;
@@ -94,7 +80,7 @@ export function registrarNamespaceAdmin(io: Server) {
     try {
       const cabecalho = String(socket.handshake.headers.authorization || '');
       const token = String(socket.handshake.auth?.token || cabecalho.replace(/^Bearer\s+/i, ''));
-      const usuario = await carregarUsuarioInterno(await getUsuarioIdPeloToken(token));
+      const usuario = await getIdentidadeInterna(token);
       const papel = usuario && papelPlataformaEfetivo(usuario);
       if (!usuario || (papel !== 'SUPERADMIN' && papel !== 'DESENVOLVEDOR')) return next(new Error('Não autorizado'));
       socket.data.funcionario = { ...usuario, papel };

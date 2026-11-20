@@ -48,7 +48,7 @@
 }
 
 .team-insights-stats > div:nth-child(1) strong {
-  background: var(--primaria);
+  background: var(--acao-primaria);
   color: #fff;
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { StatusBanco, StatusSistema } from '@ludora/shared-types';
 import { Btn, DesktopSection, DesktopState, LoadingSkeleton } from '../components/AdminUI';
 import { AdminIcon } from '../components/AdminIcon';
@@ -29,19 +29,23 @@ export default function BancoPage() {
   const [carregando, setCarregando] = useState(true);
   const [consultadoEm, setConsultadoEm] = useState<Date | null>(null);
   const [busca, setBusca] = useState('');
+  const sequencia = useRef(0);
 
   const carregar = useCallback(async () => {
+    const id = ++sequencia.current;
     setCarregando(true); setErro('');
-    const [b, s] = await Promise.allSettled([fetchStatusBanco(), fetchStatusSistema()]);
-    if (b.status === 'fulfilled') setBanco(b.value);
-    if (s.status === 'fulfilled') setSistema(s.value);
+    const [b, s] = await Promise.allSettled([
+      fetchStatusBanco().then(valor => { if (id === sequencia.current) setBanco(valor); }),
+      fetchStatusSistema().then(valor => { if (id === sequencia.current) setSistema(valor); }),
+    ]);
+    if (id !== sequencia.current) return;
     setErro([
       b.status === 'rejected' ? `Banco: ${b.reason instanceof Error ? b.reason.message : 'consulta indisponível'}` : '',
       s.status === 'rejected' ? `Servidor e integrações: ${s.reason instanceof Error ? s.reason.message : 'consulta indisponível'}` : '',
     ].filter(Boolean).join(' · '));
     setConsultadoEm(new Date()); setCarregando(false);
   }, []);
-  useEffect(() => { void carregar(); }, [carregar]);
+  useEffect(() => { void carregar(); return () => { sequencia.current++; }; }, [carregar]);
 
   const pendentes = banco?.migracoes.pendentes;
   const falhas = banco?.migracoes.falhas ?? [];

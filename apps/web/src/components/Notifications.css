@@ -114,7 +114,7 @@
   font-weight: 500;
 }
 .notification-tabs button[aria-pressed="true"] {
-  background: var(--primaria);
+  background: var(--acao-primaria);
   color: #fff;
 }
 .notification-unread-count {

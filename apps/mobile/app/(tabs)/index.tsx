@@ -35,7 +35,7 @@ import HomeCategoria, {
 } from '@/src/components/HomeCategoria';
 import { ErroCarregamento } from '@/src/components/ErroCarregamento';
 import { useClubeAtivo } from '@/src/contexts/ClubeAtivoContext';
-import { useNotificacoes } from '@/src/contexts/NotificacoesContext';
+import { useNotificacoes, type MudancaHome } from '@/src/contexts/NotificacoesContext';
 import { criarControleRequisicoes } from '@/src/utils/request';
 import { resumirPartidas } from '@/src/utils/resumoPartidas';
 import { consultarComCopiaLocal } from '@/src/services/cacheConsultas';
@@ -90,12 +90,12 @@ export default function Home() {
   const [partidasGlobais, setPartidasGlobais] = useState<Partida[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
-  const [revisao, setRevisao] = useState(0);
+  const revalidarPendencias = useRef<() => void>(() => {});
 
   const subsAtuais = faseAtiva === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
 
   const { clubeAtivo, podeGerenciar } = useClubeAtivo();
-  const { versaoNotificacoes } = useNotificacoes();
+  const { assinarMudancasHome } = useNotificacoes();
 
   const carregarDadosDoClube = useCallback(async (revalidar = false) => {
     medicaoTela.current = iniciarMedicaoCarregamento('home:estado-pronto');
@@ -133,7 +133,6 @@ export default function Home() {
       if (!controle.atual(pedido)) return;
       setPartidasGlobais(resultado.dados);
       setConsultaLocal(resultado.origem === 'local' ? resultado.salvoEm : null);
-      setRevisao((valor) => valor + 1);
       clubeCarregadoId.current = clubeAtivo.id;
       if (podeGerenciar && !scoutPreparado.current.has(clubeAtivo.id)) {
         const clubeId = clubeAtivo.id;
@@ -203,20 +202,21 @@ export default function Home() {
           consultaLocalRef.current !== null &&
           AppState.currentState === 'active'
         )
-          void carregarDadosDoClube();
+          void carregarDadosDoClube().then(() => revalidarPendencias.current());
       }, 30_000);
       return () => {
         appState.remove();
         clearInterval(intervalo);
         controle.invalidar();
       };
-    }, [carregarDadosDoClube, controle, versaoNotificacoes])
+    }, [carregarDadosDoClube, controle])
   );
 
   const atualizarHome = useCallback(async () => {
     setAtualizando(true);
     try {
       await carregarDadosDoClube(true);
+      revalidarPendencias.current();
     } finally {
       setAtualizando(false);
     }
@@ -264,40 +264,79 @@ export default function Home() {
   );
 
   const clubeId = clubeAtivo?.id;
-  useEffect(() => {
-    if (!clubeId || !podeGerenciar || consultaLocal !== null || revisao === 0) return;
-    let ativa = true;
+  useFocusEffect(useCallback(() => {
+    if (!clubeId || !podeGerenciar) return;
+    const id = clubeId;
     const controller = new AbortController();
+    const mudancas = new Set<MudancaHome>();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let executando = false;
     const consultar = async <T,>(endpoint: string): Promise<T> => {
       const resposta = await apiFetch(endpoint, {
         headers: { 'x-clube-id': String(clubeId) },
         signal: controller.signal,
+        revalidar: true,
       });
       if (!resposta.ok) throw new Error('Falha ao consultar pendências.');
       return resposta.json();
     };
-    void Promise.allSettled([
-      fetchClubes(),
-      fetchCategorias(clubeId),
-      consultar<NonNullable<PendenciasHome['camisas']>>('/jogadores?resumo=true'),
-      consultar<NonNullable<PendenciasHome['propostas']>>('/partidas/solicitacoes'),
-      consultar<NonNullable<PendenciasHome['atrasadas']>>('/partidas/atrasadas'),
-    ]).then(([clubes, categorias, camisas, propostas, atrasadas]) => {
-      if (!ativa) return;
-      setPendencias({
-        clubeId,
-        acesso: clubes.status === 'fulfilled' ? clubes.value.find(clube => clube.id === clubeId) : undefined,
-        categorias: categorias.status === 'fulfilled' ? categorias.value : [],
-        camisas: camisas.status === 'fulfilled' ? camisas.value : null,
-        propostas: propostas.status === 'fulfilled' ? propostas.value : null,
-        atrasadas: atrasadas.status === 'fulfilled' ? atrasadas.value : undefined,
-      });
+    async function atualizar() {
+      executando = true;
+      try {
+        while (mudancas.size && !controller.signal.aborted && AppState.currentState !== 'background' && AppState.currentState !== 'inactive') {
+          const tudo = mudancas.has('reconexao');
+          const partidas = mudancas.has('partidas');
+          const propostas = tudo || mudancas.has('propostas');
+          const camisas = tudo || mudancas.has('elenco');
+          const atrasadas = tudo || mudancas.has('atrasadas');
+          mudancas.clear();
+          const [clubes, categorias, novasCamisas, novasPropostas, novasAtrasadas] = await Promise.allSettled([
+            tudo ? fetchClubes() : undefined,
+            tudo ? fetchCategorias(clubeId) : undefined,
+            camisas ? consultar<NonNullable<PendenciasHome['camisas']>>('/jogadores?resumo=true') : undefined,
+            propostas ? consultar<NonNullable<PendenciasHome['propostas']>>('/partidas/solicitacoes') : undefined,
+            atrasadas ? consultar<NonNullable<PendenciasHome['atrasadas']>>('/partidas/atrasadas') : undefined,
+            partidas ? carregarDadosDoClube(true) : undefined,
+          ]);
+          if (controller.signal.aborted) return;
+          if (!(tudo || camisas || propostas || atrasadas)) continue;
+          setPendencias(atual => {
+            const anterior = atual?.clubeId === id ? atual : null;
+            return {
+              clubeId: id,
+              acesso: tudo && clubes.status === 'fulfilled' ? clubes.value?.find(clube => clube.id === clubeId) : anterior?.acesso,
+              categorias: tudo && categorias.status === 'fulfilled' ? categorias.value ?? [] : anterior?.categorias ?? [],
+              camisas: camisas && novasCamisas.status === 'fulfilled' ? novasCamisas.value ?? null : anterior?.camisas ?? null,
+              propostas: propostas && novasPropostas.status === 'fulfilled' ? novasPropostas.value ?? null : anterior?.propostas ?? null,
+              atrasadas: atrasadas && novasAtrasadas.status === 'fulfilled' ? novasAtrasadas.value : anterior?.atrasadas,
+            };
+          });
+        }
+      } finally { executando = false; }
+    }
+    function agendar(mudanca: MudancaHome) {
+      if (controller.signal.aborted) return;
+      mudancas.add(mudanca);
+      if (executando || timer) return;
+      timer = setTimeout(() => { timer = undefined; void atualizar(); }, 250);
+    }
+    const cancelar = assinarMudancasHome(mudanca => {
+      if (mudanca === 'reconexao') agendar('partidas');
+      agendar(mudanca);
     });
+    const appState = AppState.addEventListener('change', estado => {
+      if (estado === 'active') agendar('reconexao');
+    });
+    revalidarPendencias.current = () => agendar('reconexao');
+    agendar('reconexao');
     return () => {
-      ativa = false;
+      cancelar();
+      appState.remove();
+      clearTimeout(timer);
       controller.abort();
+      revalidarPendencias.current = () => {};
     };
-  }, [clubeId, consultaLocal, podeGerenciar, revisao]);
+  }, [clubeId, podeGerenciar, carregarDadosDoClube, assinarMudancasHome]));
 
   const dadosGestao = pendencias?.clubeId === clubeId ? pendencias : null;
   const temAcessoCategoria = useCallback(

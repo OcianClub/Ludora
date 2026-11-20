@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import type { ClubeResumo } from '@ludora/shared-types';
+import type { OpcaoClube } from '../services/api';
 import { Btn, DesktopSection, DesktopState, Input, LoadingSkeleton, Modal, Spinner } from './AdminUI';
 import { Toast } from '@web/components/Toast';
 import { CollectionSearch } from '@web/components/CollectionToolbar';
@@ -24,7 +24,7 @@ const motivosDispensa = [
   { value: 'OUTRO', label: 'Outro', texto: '' },
 ];
 
-export default function CadastroPendente({ resumos = [] }: { resumos?: readonly ClubeResumo[] }) {
+export default function CadastroPendente({ resumos = [] }: { resumos?: readonly OpcaoClube[] }) {
   const grupo = useId();
   const montado = useRef(true);
   const envioEmCurso = useRef(false);

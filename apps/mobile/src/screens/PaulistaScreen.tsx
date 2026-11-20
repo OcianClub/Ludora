@@ -8,7 +8,7 @@ import { agendaProvisoria } from '../../../../packages/shared-types/src/paulista
 import { useClubeAtivo, type ClubeAtivo } from '../contexts/ClubeAtivoContext';
 import { useSessao } from '../contexts/SessaoContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { usePaulistaPublicacao } from '../hooks/usePaulistaPublicacao';
+import { usePaulistaCatalogo, usePaulistaPublicacao } from '../hooks/usePaulistaPublicacao';
 import { useCategoryPagerMotion } from '../hooks/useCategoryPagerMotion';
 import { categoriaPaulista, estadoJogo, eventoDaSelecao, fonteOficialValida, hojePaulista, nomeOficial, numeroSub, resumoClube, snapshotDoClube, type EventoPublicoPaulista } from '../utils/paulista';
 import { HeaderClube } from '../components/HeaderClube';
@@ -29,12 +29,27 @@ const normalizarBusca = (texto: string) => texto.trim().normalize('NFD').replace
 
 type Aba = 'visao' | 'jogos' | 'classificacao' | 'chaveamento';
 const ABAS: { id: Aba; nome: string }[] = [{ id: 'visao', nome: 'Visão geral' }, { id: 'jogos', nome: 'Jogos' }, { id: 'classificacao', nome: 'Classificação' }, { id: 'chaveamento', nome: 'Chaveamento' }];
+
+function prepararPublicacao(evento: EventoPublicoPaulista, clube: ClubeAtivo, hoje: string) {
+  const snapshot = snapshotDoClube(evento, clube);
+  const minhas = new Set(evento.equipesClube);
+  return {
+    snapshot,
+    minhas,
+    resumo: resumoClube(snapshot, minhas, hoje),
+    equipes: new Map(snapshot.equipes.map(e => [e.id, e])),
+  };
+}
+
+type ModeloPaulista = ReturnType<typeof prepararPublicacao>;
+const SEM_PUBLICACAO = { snapshot: null, resumo: null, equipes: new Map(), minhas: new Set<number>() };
+
 export default function PaulistaScreen() {
   const { colors } = useTheme();
   const { clubeAtivo } = useClubeAtivo();
   const { autenticado } = useSessao();
-  const publicacao = usePaulistaPublicacao(clubeAtivo?.id, autenticado);
-  const { eventos } = publicacao;
+  const catalogo = usePaulistaCatalogo(clubeAtivo?.id, autenticado);
+  const { eventos } = catalogo;
   const [selecao, setSelecao] = useState<{ clubeId: number; ano?: number; sub: string }>();
   const ultimaAba = useRef<Aba>('visao');
   const lembrarAba = useCallback((aba: Aba) => { ultimaAba.current = aba; }, []);
@@ -47,6 +62,20 @@ export default function PaulistaScreen() {
   const ano = selecaoAtiva?.ano && anos.includes(selecaoAtiva.ano)
     ? selecaoAtiva.ano : inicial?.ano ?? new Date().getFullYear();
   const sub = selecaoAtiva?.sub ?? (inicial ? categoriaPaulista(inicial.categoria) : 'SUB-7');
+  const selecionado = eventoDaSelecao(eventos, ano, sub);
+  const publicacao = usePaulistaPublicacao(clubeAtivo?.id, selecionado, catalogo.consultadoEm, catalogo.inicial);
+  const { evento } = publicacao;
+  const hoje = hojePaulista();
+  const modelos = useMemo(() => new WeakMap<EventoPublicoPaulista, ModeloPaulista>(),
+    [clubeAtivo?.id, clubeAtivo?.nome, clubeAtivo?.escudo, hoje]);
+  const modelo = useMemo(() => {
+    if (!evento || !clubeAtivo) return undefined;
+    const existente = modelos.get(evento);
+    if (existente) return existente;
+    const preparado = prepararPublicacao(evento, clubeAtivo, hoje);
+    modelos.set(evento, preparado);
+    return preparado;
+  }, [evento, clubeAtivo, hoje, modelos]);
   const tipo = numeroSub(sub) <= 10 ? 'INICIACAO' : 'BASE';
   const subs = tipo === 'INICIACAO' ? SUBS_INICIACAO : SUBS_BASE;
   const subIndex = Math.max(0, subs.findIndex(item => item.title === sub));
@@ -102,16 +131,17 @@ export default function PaulistaScreen() {
                 clubeAtivo={clubeAtivo}
                 sub={title}
                 ano={ano}
-                evento={eventoDaSelecao(eventos, ano, title)}
+                evento={evento}
+                modelo={modelo}
                 opcoesTemporada={opcoesTemporada}
                 abaInicial={ultimaAba.current}
                 escolherAno={escolherAno}
                 lembrarAba={lembrarAba}
-                carregando={publicacao.carregando}
-                recebida={publicacao.recebida}
-                atualizando={publicacao.atualizando}
-                erro={publicacao.erro}
-                atualizar={publicacao.atualizar}
+                carregando={catalogo.carregando || (publicacao.carregando && !catalogo.erro)}
+                recebida={selecionado ? !!evento : catalogo.recebida}
+                atualizando={catalogo.atualizando || publicacao.atualizando}
+                erro={publicacao.erro || catalogo.erro}
+                atualizar={catalogo.atualizar}
               />}</View>
             ))}
           </CategoryPager>
@@ -131,14 +161,15 @@ type PaulistaSubPageProps = {
   sub: string;
   ano: number;
   evento?: EventoPublicoPaulista;
+  modelo?: ModeloPaulista;
   opcoesTemporada: { value: string; label: string }[];
   abaInicial: Aba;
   escolherAno: (value: string, sub: string) => void;
   lembrarAba: (aba: Aba) => void;
-} & Pick<ReturnType<typeof usePaulistaPublicacao>, 'carregando' | 'recebida' | 'atualizando' | 'erro' | 'atualizar'>;
+} & Pick<ReturnType<typeof usePaulistaCatalogo>, 'carregando' | 'recebida' | 'atualizando' | 'erro' | 'atualizar'>;
 
 const PaulistaSubPage = memo(function PaulistaSubPage({
-  clubeAtivo, sub, ano, evento, opcoesTemporada, abaInicial, escolherAno, lembrarAba,
+  clubeAtivo, sub, ano, evento, modelo, opcoesTemporada, abaInicial, escolherAno, lembrarAba,
   carregando, recebida, atualizando, erro, atualizar,
 }: PaulistaSubPageProps) {
   const { colors } = useTheme();
@@ -155,15 +186,16 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
   const [jogoSelecionado, setJogoSelecionado] = useState<{ id: string; scope: string } | null>(null);
   const [linkErro, setLinkErro] = useState('');
   const scroll = useRef<ScrollView>(null);
+  const tabScroll = useRef<ScrollView>(null);
+  const tabOffsets = useRef<Partial<Record<Aba, number>>>({});
   const visited = useRef(new Set<Aba>());
   visited.current.add(aba);
   const scrollY = useRef(0);
   const [showTop, setShowTop] = useState(false);
-  const snapshot = useMemo(() => evento ? snapshotDoClube(evento, clubeAtivo) : null, [evento, clubeAtivo.id, clubeAtivo.nome, clubeAtivo.escudo]);
-  const minhas = useMemo(() => new Set(evento?.equipesClube || []), [evento]);
-  const resumo = useMemo(() => snapshot ? resumoClube(snapshot, minhas, hojePaulista()) : null, [snapshot, minhas]);
+  const headerHeight = useRef(0);
+  const [abasFixas, setAbasFixas] = useState(false);
+  const { snapshot, minhas, resumo, equipes } = modelo ?? SEM_PUBLICACAO;
   const chave = resumo?.chaves[0];
-  const equipes = useMemo(() => new Map(snapshot?.equipes.map(e => [e.id, e])), [snapshot]);
   const buscaAdiada = useDeferredValue(busca);
   const jogos = useMemo(() => {
     if (!resumo) return [];
@@ -183,6 +215,7 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
   }, [scope]);
   useLayoutEffect(() => {
     scroll.current?.scrollTo({ y: 0, animated: false });
+    tabScroll.current?.scrollTo({ x: tabOffsets.current[aba] ?? 0, animated: false });
   }, [aba]);
   useLayoutEffect(() => {
     if (snapshot && faseJogo && !resumo?.jogos.some(jogo => jogo.faseId === faseJogo)) {
@@ -196,8 +229,8 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
   }
   const localizar = useCallback((view: View) => { view.measureInWindow((_x, y) => scroll.current?.scrollTo({ y: Math.max(0, scrollY.current + y - insets.top - 170), animated: true })); }, [insets.top]);
   return <>
-    <ScrollView ref={scroll} onScroll={e => { scrollY.current = e.nativeEvent.contentOffset.y; const visible = scrollY.current > 700; setShowTop(old => old === visible ? old : visible); }} scrollEventThrottle={32} refreshControl={<RefreshControl refreshing={atualizando && !carregando} onRefresh={atualizar} tintColor={colors.primaria} />} contentContainerStyle={{ padding: 12, paddingBottom: Math.max(insets.bottom, 16) + 24, gap: 18 }}>
-      <View style={[s.between, { alignItems: 'flex-start', gap: 5 }]}>
+    <ScrollView ref={scroll} stickyHeaderIndices={[1]} onScroll={e => { scrollY.current = e.nativeEvent.contentOffset.y; setAbasFixas(scrollY.current > headerHeight.current + 8); const visible = scrollY.current > 700; setShowTop(old => old === visible ? old : visible); }} scrollEventThrottle={32} refreshControl={<RefreshControl refreshing={atualizando && !carregando} onRefresh={atualizar} tintColor={colors.primaria} />} contentContainerStyle={{ padding: 12, paddingBottom: Math.max(insets.bottom, 16) + 24 }}>
+      <View onLayout={event => { headerHeight.current = event.nativeEvent.layout.height; }} style={[s.between, { alignItems: 'flex-start', gap: 8, marginBottom: 12 }]}>
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.8} style={[s.title, { fontSize: width < 350 ? 20 : 23, lineHeight: 32 }]}>Campeonato Paulista</Text>{!!evento?.divisao && <Text style={s.tiny}>Divisão {evento.divisao}</Text>}</View>
         <View style={[s.row, { alignItems: 'flex-start', gap: 2 }]}>
           <MenuSelecao label="Selecionar temporada" compact value={String(ano)} options={opcoesTemporada} onChange={value => escolherAno(value, sub)} />
@@ -208,7 +241,29 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
           </AnchoredMenu>
         </View>
       </View>
-      <View accessibilityRole="tablist" style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.linha }}>{ABAS.map(a => <TouchableOpacity key={a.id} accessibilityRole="tab" accessibilityLabel={a.nome} aria-selected={aba === a.id} onPress={() => trocarAba(a.id)} style={{ flex: 1, minWidth: 0, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: aba === a.id ? colors.primaria : 'transparent' }}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.88} style={[s.tiny, { color: aba === a.id ? colors.texto : colors.textoSecundario, fontFamily: aba === a.id ? 'Inter_600SemiBold' : 'Inter_400Regular', fontSize: width < 350 ? 10 : 11 }]}>{a.nome}</Text></TouchableOpacity>)}</View>
+      <View style={{ backgroundColor: colors.fundo, borderBottomWidth: 1, borderBottomColor: colors.linha }}>
+        {abasFixas && <Text style={[s.tiny, { paddingHorizontal: 8, paddingTop: 6 }]}>
+          {sub} · {ABAS.find(item => item.id === aba)?.nome}
+        </Text>}
+        <ScrollView ref={tabScroll} horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ flexGrow: 1 }}>
+          <View accessibilityRole="tablist" style={{ flexDirection: 'row', flexGrow: 1 }}>
+            {ABAS.map(item => <TouchableOpacity key={item.id} accessibilityRole="tab" accessibilityLabel={item.nome}
+              accessibilityState={{ selected: aba === item.id }} onPress={() => trocarAba(item.id)}
+              onLayout={event => {
+                const x = event.nativeEvent.layout.x;
+                tabOffsets.current[item.id] = x;
+                if (aba === item.id) tabScroll.current?.scrollTo({ x, animated: false });
+              }}
+              style={{ flexGrow: 1, minHeight: 44, paddingHorizontal: width < 360 ? 10 : 8, alignItems: 'center', justifyContent: 'center',
+                borderBottomWidth: 2, borderBottomColor: aba === item.id ? colors.primaria : 'transparent' }}>
+              <Text style={[s.text, { color: aba === item.id ? colors.texto : colors.textoSecundario,
+                fontFamily: aba === item.id ? 'Inter_600SemiBold' : 'Inter_400Regular', fontSize: 12 }]}>{item.nome}</Text>
+            </TouchableOpacity>)}
+          </View>
+        </ScrollView>
+      </View>
+      <View style={{ gap: 16, paddingTop: 16 }}>
       {!!linkErro && <Text accessibilityRole="alert" style={s.muted}>{linkErro}</Text>}
       {carregando ? <PaulistaSkeleton aba={aba} /> : erro && !recebida ? <ErroCarregamento titulo="Não foi possível carregar o campeonato" descricao={erro} onTentarNovamente={atualizar} /> : <>
         {!!erro && <ErroCarregamento compacto titulo="Última atualização não concluída" descricao="Os últimos dados continuam visíveis. Confira sua conexão e tente novamente." onTentarNovamente={atualizar} />}
@@ -241,6 +296,7 @@ const PaulistaSubPage = memo(function PaulistaSubPage({
           {visited.current.has('chaveamento') && <View style={{ display: aba === 'chaveamento' ? 'flex' : 'none' }}><PaulistaBracket key={scope} snapshot={snapshot} chave={chave} equipes={equipes} minhas={minhas} onOpen={setDetalhe} onLocate={localizar} /></View>}
         </>}
       </>}
+      </View>
     </ScrollView>
     <ScrollToTop visible={showTop} onPress={() => scroll.current?.scrollTo({ y: 0, animated: true })} />
     {filtros && <AppSheet title="Filtrar jogos" onClose={() => setFiltros(false)}><MenuSelecao label="Selecionar etapa" value={faseJogo} options={[{ value: '', label: 'Todas as etapas' }, ...[...new Map((resumo?.jogos || []).map(j => [j.faseId, j.fase]))].map(([value, label]) => ({ value, label: nomeOficial(label) }))]} onChange={value => { setFaseJogo(value); setLimite(20); setFiltros(false); }} /></AppSheet>}

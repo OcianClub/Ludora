@@ -1,3 +1,4 @@
+import { radius, spacing } from "@ludora/design-tokens";
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,8 +25,8 @@ export function AnchoredMenu({ label, trigger, children, width = 248, triggerSty
       style={triggerStyle}>{trigger(!!rect)}</Pressable>
     <Modal visible={!!rect} transparent animationType="none" onRequestClose={close} statusBarTranslucent navigationBarTranslucent>
       <Pressable accessibilityRole="button" accessibilityLabel="Fechar menu" style={{ flex: 1 }} onPress={close} />
-      {!!rect && <View accessibilityViewIsModal style={{ position: 'absolute', left, width: menuWidth, ...(above ? { bottom: viewport.height - rect.y + 6 } : { top: below }), maxHeight: height, borderRadius: 9, borderWidth: 1, borderColor: colors.borda, backgroundColor: colors.card, padding: 5, elevation: 16, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12 }}>
-        <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={{ maxHeight: height - 12 }} contentContainerStyle={{ gap: 3 }}>{children(close)}</ScrollView>
+      {!!rect && <View accessibilityViewIsModal style={{ position: 'absolute', left, width: menuWidth, ...(above ? { bottom: viewport.height - rect.y + 6 } : { top: below }), maxHeight: height, borderRadius: radius.overlay, borderWidth: 1, borderColor: colors.borda, backgroundColor: colors.card, padding: spacing.xs, elevation: 16, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={{ maxHeight: height - spacing.xs * 2 }} contentContainerStyle={{ gap: spacing.xs }}>{children(close)}</ScrollView>
       </View>}
     </Modal>
   </>;

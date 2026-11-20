@@ -148,8 +148,8 @@
   cursor: pointer;
 }
 .invite-category-group button[aria-pressed="true"] {
-  border-color: var(--primaria);
-  background: var(--primaria);
+  border-color: var(--acao-primaria);
+  background: var(--acao-primaria);
   color: #fff;
 }
 .invite-scope {

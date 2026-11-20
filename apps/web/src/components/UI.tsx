@@ -1,20 +1,14 @@
 import React from 'react';
+import { matchStatusLabels } from '../../../../packages/design-tokens/src/colors';
 import { Icon, IconName } from './Icon';
 import './UI.css';
 export { LoadingSkeleton } from './LoadingSkeleton';
 
 // ── Badge de status de partida ──
-const STATUS_MAP: Record<string, { label: string; cls: string }> = {
-  AGENDADA:   { label: 'Agendada',   cls: 'status-agendada' },
-  PREPARADA:  { label: 'Preparada',  cls: 'status-preparada' },
-  AO_VIVO:    { label: 'Ao Vivo',    cls: 'status-ao-vivo' },
-  FINALIZADA: { label: 'Finalizada', cls: 'status-finalizada' },
-  CANCELADA:  { label: 'Cancelada',  cls: 'status-cancelada' },
-};
-
 export function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_MAP[status] || { label: status, cls: '' };
-  return <span className={`status-badge ${s.cls}`}>{s.label}</span>;
+  const label = matchStatusLabels[status as keyof typeof matchStatusLabels];
+  const modifier = label ? `status-${status.toLowerCase().replace(/_/g, '-')}` : '';
+  return <span className={`status-badge ${modifier}`}>{label || status}</span>;
 }
 
 // ── Badge de papel ──

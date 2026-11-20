@@ -1,3 +1,4 @@
+import { radius, touchTarget } from "@ludora/design-tokens";
 import { StyleSheet } from "react-native";
 import type { ThemeColors } from "../contexts/ThemeContext";
 import { MARGEM_TELA } from "./layout";
@@ -32,9 +33,9 @@ export function createStyles(c: ThemeColors) {
     name: { color: c.texto, fontSize: 12, fontWeight: "600", flexShrink: 1 },
     link: { color: c.primaria, fontSize: 12, fontWeight: "500" },
     iconButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 8,
+      width: touchTarget,
+      height: touchTarget,
+      borderRadius: radius.control,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -83,12 +84,12 @@ export function createStyles(c: ThemeColors) {
     },
     scoreSmall: { fontSize: 32, lineHeight: 40 },
     scoreAction: {
-      width: 35,
-      height: 35,
-      borderRadius: 7,
+      width: touchTarget,
+      height: touchTarget,
+      borderRadius: radius.control,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: c.primaria,
+      backgroundColor: c.acaoPrimaria,
     },
     subtract: { backgroundColor: c.cardSecundario },
     dotLive: {
@@ -251,7 +252,7 @@ export function createStyles(c: ThemeColors) {
       flexDirection: "row",
       gap: 6,
     },
-    primary: { backgroundColor: c.primaria, borderColor: c.primaria },
+    primary: { backgroundColor: c.acaoPrimaria, borderColor: c.acaoPrimaria },
     buttonText: {
       color: c.texto,
       fontSize: 12,

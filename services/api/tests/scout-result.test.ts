@@ -29,7 +29,7 @@ test('Scout agrega eventos no banco, conta escalações e transmite chave sem da
   replace(prisma.jogador, 'findMany', async (args: any) => { consulta = args; return [1, 2, 3].map(id => ({ id, categoria_id: 7, posicao: 'Alas', _count: { escalacoes: 8 } })); });
   replace(prisma.evento, 'groupBy', async (args: any) => { agrupar = args; return [{ jogador_id: 1, tipo: 'GOL', _count: { _all: 42 } }]; });
   replace(axios, 'post', async (_url: string, payload: any, options: any) => { enviado = payload; config = options; return { data: [1, 2, 3].map(resultado) }; });
-  replace(prisma.jogador, 'update', (args: any) => { escritas.push(args); return Promise.resolve({}); });
+  replace(prisma.jogador, 'updateMany', (args: any) => { escritas.push(args); return Promise.resolve({ count: 1 }); });
   replace(prisma, '$transaction', async (ops: any[]) => Promise.all(ops));
   await processarMachineLearning(7);
   assert.equal(consulta.where.categoria.clube_id, 7);
@@ -47,6 +47,16 @@ test('Scout agrega eventos no banco, conta escalações e transmite chave sem da
   assert.equal(escritas.length, 3);
   assert.equal(escritas[0].data.nota_geral, null);
   assert.equal(escritas[0].data.scores_ml.versao, 2);
+  escritas.length = 0;
+  replace(prisma.jogador, 'findMany', async (args: any) => {
+    if (args.distinct) return [{ categoria_id: 7 }];
+    assert.deepEqual(args.where.categoria_id, { in: [7] });
+    return [1, 2, 3].map(id => ({ id, categoria_id: 7, posicao: 'Alas', _count: { escalacoes: 8 },
+      perfil_ml: 'Armador', nota_geral: null, scores_ml: { ...resultado(id), calculado_em: '2026-11-10T10:00:00Z' } }));
+  });
+  await processarMachineLearning(7, 100);
+  assert.equal(escritas.length, 0, 'A categoria afetada reaproveita perfis que não mudaram');
+  replace(prisma.jogador, 'findMany', async () => [1, 2, 3].map(id => ({ id, categoria_id: 7, posicao: 'Alas', _count: { escalacoes: 8 } })));
   escritas.length = 0;
   replace(axios, 'post', async () => ({ data: [resultado(999), resultado(2), resultado(3)] }));
   await processarMachineLearning(7);

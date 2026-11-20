@@ -13,6 +13,20 @@ import { ativo, desfazerVinculo, FalhaPaulista, importar, json, painel, registra
 import { rankingCalculado, sugestoes } from './rules';
 import type { SnapshotPaulista } from '../../../../../packages/shared-types/src/paulista';
 import { candidatosCascas, confirmarCandidato, executarCiclo, resumoAdministrativo, revisarPendencia } from './operations';
+
+const rankings = new Map<number, { versao: number; resultado: ReturnType<typeof rankingCalculado> }>();
+function rankingOficial(snapshot: SnapshotPaulista, versao: number) {
+  const salvo = rankings.get(snapshot.id);
+  if (salvo?.versao === versao) return salvo.resultado;
+  const resultado = rankingCalculado(snapshot);
+  rankings.delete(snapshot.id);
+  rankings.set(snapshot.id, { versao, resultado });
+  if (rankings.size > 64) {
+    const primeiro = rankings.keys().next().value;
+    if (primeiro !== undefined) rankings.delete(primeiro);
+  }
+  return resultado;
+}
 const limite = limitarRequisicoes({ janelaMs: 60_000, limite: 5, prefixo: 'paulista-fonte', porEmail: false });
 const habilitado: RequestHandler = (_req, res, next) => ativo() ? next() : res.status(503).json({ error: 'Piloto Paulista desativado nesta API. A aba Competições do clube continua disponível.' });
 const rota = (h: RequestHandler): RequestHandler => async (req, res, next) => {
@@ -102,7 +116,7 @@ export function criarPaulistaRoutes(io: Server) {
     const jogosDoClube = new Set(p.snapshot.jogos.filter(j => j.mandanteId === equipe.equipeId || j.visitanteId === equipe.equipeId).map(j => j.id));
     const pendencias = membro ? p.pendencias.filter(v => jogosDoClube.has(v.jogoId)) : [];
     const pausa = await buscarPausa(['AGENDA_OFICIAL', 'SINCRONIZAR_PAULISTA'], { eventoId: p.snapshot.id });
-    res.json({ ...p, pendencias, calculado: rankingCalculado(p.snapshot), manutencao: pausa ? pausaPublica(pausa) : null });
+    res.json({ ...p, pendencias, calculado: rankingOficial(p.snapshot, p.evento.versao), manutencao: pausa ? pausaPublica(pausa) : null });
   }));
   r.post('/paulista/jogos/:id/retroativo', exigirGestorDoClube, habilitado, rota(async (req, res) => {
     res.status(201).json(await retroativo(prisma, String(req.params.id), (req as any).clubeId, (req as any).usuarioId, req.body));

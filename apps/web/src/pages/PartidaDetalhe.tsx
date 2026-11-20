@@ -176,6 +176,10 @@ export default function PartidaDetalhePage() {
     let initialized = false;
     let refreshQueued = false;
     let refreshTimer: number | null = null;
+    let estadoRealtime: RealtimeState = 'connecting';
+    let ultimaConsultaPeriodica = Date.now();
+    let versaoPendencia: number | undefined;
+    let exigeCompleta = false;
     async function refresh() {
       if (!initialized) return;
       if (refreshing) { refreshQueued = true; return; }
@@ -192,12 +196,24 @@ export default function PartidaDetalhePage() {
         if (active && refreshQueued) { refreshQueued = false; void refresh(); }
       }
     }
-    const scheduleRefresh = () => {
+    const scheduleRefresh = (versao?: number) => {
+      if (versao === undefined) exigeCompleta = true;
+      else versaoPendencia = Math.max(versaoPendencia ?? 0, versao);
       if (refreshTimer !== null) window.clearTimeout(refreshTimer);
-      refreshTimer = window.setTimeout(() => { refreshTimer = null; void refresh(); }, 60);
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+        const consultar = exigeCompleta || (versaoPendencia ?? 0) > appliedSnapshot.current.version;
+        exigeCompleta = false;
+        versaoPendencia = undefined;
+        if (consultar) void refresh();
+      }, exigeCompleta ? 80 : 250);
     };
-    const poll = window.setInterval(() => { if (!document.hidden) void refresh(); }, 15000);
-    const resume = () => { if (!document.hidden) { invalidateApiReads('/jogadores'); void refresh(); } };
+    const poll = window.setInterval(() => {
+      if (document.hidden || (estadoRealtime === 'connected' && Date.now() - ultimaConsultaPeriodica < 59_000)) return;
+      ultimaConsultaPeriodica = Date.now();
+      void refresh();
+    }, 15000);
+    const resume = () => { if (!document.hidden) { ultimaConsultaPeriodica = Date.now(); invalidateApiReads('/jogadores'); void refresh(); } };
     document.addEventListener('visibilitychange', resume);
     void (async () => {
       try {
@@ -209,7 +225,8 @@ export default function PartidaDetalhePage() {
         setEtapa(readPreparationStep(data, preparationKey));
         if (!['AGENDADA', 'PREPARADA'].includes(data.partida.status)) rememberPreparationStep(preparationKey, null);
         if (clube) unsubscribe = subscribeToMatch({ baseUrl: BASE_URL, token: token || '', clubId: clube.id, matchId: Number(id),
-          onScore: scheduleRefresh, onRefresh: scheduleRefresh, onStateChange: setRealtimeState,
+          onScore: placar => scheduleRefresh(placar.versaoIncremental), onRefresh: scheduleRefresh,
+          onStateChange: estado => { estadoRealtime = estado; setRealtimeState(estado); },
           onPoll: value => window.dispatchEvent(new CustomEvent(MATCH_POLL_CHANGED, { detail: value })),
           onReconnect: () => {
             window.dispatchEvent(new CustomEvent(MATCH_POLL_REFRESH, { detail: Number(id) }));
@@ -710,6 +727,7 @@ export default function PartidaDetalhePage() {
       </div>}
 
       {gestao && partidaEmAndamento && <MatchOperations data={gestao} refresh={() => atualizarDados()}
+        onSnapshot={data => aplicarGestao(data)}
         players={jogadores}
         onResponsibility={!gestao.paulista && gestao.equipes.length > 1 ? () => { setTransferError(''); setResponsibilityOpen(true); } : undefined}/>}
       {gestao && !podeGerenciar && !partidaEmAndamento && <PublishedLineups data={gestao}/>}

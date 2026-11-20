@@ -136,7 +136,7 @@ export const createStyles = (colors: ThemeColors) =>
       marginLeft: 2,
       backgroundColor: colors.cardSecundario,
     },
-    seguirAtivo: { backgroundColor: colors.primaria },
+    seguirAtivo: { backgroundColor: colors.acaoPrimaria },
     seguirText: {
       fontFamily: typography.fontFamily.corpo.semiBold,
       color: colors.texto,
