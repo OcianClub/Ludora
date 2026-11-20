@@ -6,7 +6,7 @@ O Ludora é um sistema de gestão e acompanhamento de clubes de futebol e futsal
 
 Uma conta pode participar de vários clubes, com cargos e categorias diferentes em cada um. Web e aplicativo compartilham a mesma API e o mesmo banco; o desktop atende à operação interna da equipe Ludora.
 
-[Acessar o web](https://ludora-nine.vercel.app/) · [Baixar APK — última release](https://github.com/OcianClub/Ludora/releases/latest) · [Release v1.1.0](https://github.com/OcianClub/Ludora/releases/tag/v1.1.0) · [Documentação técnica](docs/referencia-tecnica.md)
+[Acessar o web](https://ludora-nine.vercel.app/) · [Baixar APK — última release](https://github.com/OcianClub/Ludora/releases/latest) · [Documentação técnica](docs/referencia-tecnica.md)
 
 ## Sumário
 
