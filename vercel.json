@@ -5,6 +5,7 @@
   "buildCommand": "corepack pnpm --filter @ludora/web run build",
   "outputDirectory": "apps/web/dist",
   "rewrites": [
+    { "source": "/_ludora/api-health", "destination": "https://ludora-pgho.onrender.com/health" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

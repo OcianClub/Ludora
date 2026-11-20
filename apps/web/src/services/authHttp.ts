@@ -22,10 +22,17 @@ export async function authRequest<T>(
   uncertainWrite = false,
 ): Promise<T> {
   try {
-    const connection = waitForApiConnection(url, options.signal);
-    if (connection) await connection;
-    const retryLogin = options.method === 'POST' && url.endsWith('/auth/login');
-    const response = await fetchRecoverableJsonResponse(url, options, timeout, retryLogin);
+    const method = (options.method ?? 'GET').toUpperCase();
+    const isRead = method === 'GET' || method === 'HEAD';
+    if (!isRead) {
+      const connection = waitForApiConnection(url, options.signal);
+      if (connection) await connection;
+    }
+    const retryLogin = method === 'POST' && url.endsWith('/auth/login');
+    const response = await fetchRecoverableJsonResponse(
+      url, options, timeout, retryLogin,
+      isRead ? () => waitForApiConnection(url, options.signal) : undefined,
+    );
     if (!isTemporaryServerError(response.status)) reportApiConnection(url);
     const body = await response.json().catch(() => null);
     if (!response.ok) {

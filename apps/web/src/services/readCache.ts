@@ -65,7 +65,7 @@ export function cachedRead(key: string, load: (signal: AbortSignal) => Promise<R
     const controller = new AbortController();
     current.controller = controller;
     entries.set(key, current);
-    const timeout = setTimeout(() => controller.abort(new DOMException('A consulta demorou para responder', 'TimeoutError')), 20_000);
+    // A camada HTTP define os prazos das tentativas e da espera pelo Render.
     current.pending = (async () => {
       const result = await load(controller.signal);
       const body = await result.text();
@@ -80,7 +80,6 @@ export function cachedRead(key: string, load: (signal: AbortSignal) => Promise<R
       }
       return snapshot;
     })().finally(() => {
-      clearTimeout(timeout);
       current.pending = undefined;
       if (entries.get(key) === current && !current.value) entries.delete(key);
       trimCache();

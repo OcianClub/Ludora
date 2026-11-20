@@ -77,8 +77,12 @@ async function apiFetch(
     throw new DOMException('O clube ou a sessão foi alterado durante a solicitação', 'AbortError');
   };
   const target = method === 'GET' ? publicEndpoint(endpoint, clubeId) : endpoint;
-  const connection = waitForApiConnection(`${BASE_URL}${endpoint}`, options.signal);
-  if (connection) await connection;
+  const url = `${BASE_URL}${target}`;
+  const isRead = method === 'GET' || method === 'HEAD';
+  if (!isRead) {
+    const connection = waitForApiConnection(url, options.signal);
+    if (connection) await connection;
+  }
   if (readScope() !== scope) return retryInCurrentScope();
   const headers = new Headers(options.headers || {});
   headers.set('x-request-id', novoRequestId());
@@ -89,16 +93,15 @@ async function apiFetch(
   if (clubeId && !semClube) headers.set('x-clube-id', String(clubeId));
   if (semClube) headers.delete('x-clube-id');
 
+  const load = (signal = options.signal) => fetchRecoverableJsonResponse(
+    url, { ...options, headers, signal }, undefined, false,
+    isRead ? () => waitForApiConnection(url, signal) : undefined,
+  );
   const lifetime = readLifetime(endpoint);
   const res = method === 'GET' && lifetime > 0 && !options.headers && options.cache !== 'no-store'
-    ? await cachedRead(
-      scope + endpoint,
-      signal => fetchRecoverableJsonResponse(`${BASE_URL}${target}`, { ...options, headers, signal }),
-      lifetime,
-      options.signal,
-    )
-    : await fetchRecoverableJsonResponse(`${BASE_URL}${target}`, { ...options, headers });
-  if (!isTemporaryServerError(res.status)) reportApiConnection(`${BASE_URL}${target}`);
+    ? await cachedRead(scope + endpoint, load, lifetime, options.signal)
+    : await load();
+  if (!isTemporaryServerError(res.status)) reportApiConnection(url);
   if (readScope() !== scope) return retryInCurrentScope();
   if (res.ok && method !== 'GET' && !/^\/partidas\/\d+\/palpite$/.test(endpoint) && !endpoint.startsWith('/notificacoes') && endpoint !== '/usuarios/me/notificacoes') invalidateReadCache(`${BASE_URL}:${token || ''}:`);
   if (res.status === 401 && token && getToken() === token && !endpoint.startsWith('/auth/')) {

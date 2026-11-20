@@ -29,6 +29,7 @@ export function isTemporaryServerError(status: number) {
 
 export async function fetchRecoverableJsonResponse(
   url: string, options: RequestInit, timeout?: number, retryLogin = false,
+  beforeRetry?: () => Promise<void> | undefined,
 ): Promise<Response> {
   const method = (options.method ?? 'GET').toUpperCase();
   if (method !== 'GET' && method !== 'HEAD' && !retryLogin) return fetchJsonResponse(url, options, timeout);
@@ -40,6 +41,7 @@ export async function fetchRecoverableJsonResponse(
     if (!(error instanceof RequestError) || error.kind === 'response' || globalThis.navigator?.onLine === false) throw error;
   }
   await waitBeforeRetry(600, options.signal);
+  await beforeRetry?.();
   return fetchJsonResponse(url, options, timeout);
 }
 

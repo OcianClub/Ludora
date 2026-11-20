@@ -2,9 +2,10 @@ import { isTemporaryServerError, RequestError, waitBeforeRetry } from './http';
 
 export type ConnectionState = 'idle' | 'connecting' | 'slow' | 'ready' | 'error';
 
-export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter = 4_000) {
+export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter = 4_000, healthUrl = `${baseUrl.replace(/\/$/, '')}/health`) {
   let state: ConnectionState = 'idle';
   let pending: Promise<void> | undefined;
+  let activeProbe: AbortController | undefined;
   let readyAt = 0;
   let failedAt = 0;
   let lastError: RequestError | undefined;
@@ -23,6 +24,7 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
     }
     update('connecting');
     const controller = new AbortController();
+    activeProbe = controller;
     const slow = setTimeout(() => { if (state === 'connecting') update('slow'); }, slowAfter);
     const deadline = setTimeout(() => controller.abort(), timeout);
     pending = (async () => {
@@ -32,7 +34,7 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
         let retryDelay = 1_000;
         while (!isReady()) {
           controller.signal.throwIfAborted();
-          const response = await fetch(`${baseUrl.replace(/\/$/, '')}/health`, {
+          const response = await fetch(healthUrl, {
             signal: controller.signal,
             cache: 'no-store',
             credentials: 'omit',
@@ -69,6 +71,7 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
       } finally {
         clearTimeout(slow);
         clearTimeout(deadline);
+        activeProbe = undefined;
         pending = undefined;
       }
     })();
@@ -95,6 +98,7 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
       readyAt = Date.now();
       lastError = undefined;
       update('ready');
+      activeProbe?.abort();
     },
     getError: () => lastError,
     wait,
@@ -118,14 +122,15 @@ export function createApiConnection(baseUrl: string, timeout = 90_000, slowAfter
 let configured: ReturnType<typeof createApiConnection> | undefined;
 let apiBase = '';
 
-export function configureApiConnection(baseUrl: string) {
+export function configureApiConnection(baseUrl: string, origin = globalThis.location?.origin) {
   configured = undefined;
   apiBase = '';
   try {
     if (!new URL(baseUrl).hostname.endsWith('.onrender.com')) return;
   } catch { return; }
   apiBase = baseUrl.replace(/\/$/, '');
-  configured = createApiConnection(apiBase);
+  const useVercelHealth = origin === 'https://ludora-nine.vercel.app' && apiBase === 'https://ludora-pgho.onrender.com';
+  configured = createApiConnection(apiBase, undefined, undefined, useVercelHealth ? '/_ludora/api-health' : undefined);
   void configured.prepare().catch(() => undefined);
 }
 

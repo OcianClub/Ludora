@@ -33,6 +33,18 @@ test('primeiro acesso compartilha a conexão, aguarda o despertar e não cria po
   assert.equal(calls, 1);
 });
 
+test('produção usa a rota do Vercel para sondar o Render ao abrir uma página', async t => {
+  const urls = [];
+  t.mock.method(globalThis, 'fetch', async url => {
+    urls.push(url);
+    return healthy();
+  });
+  configureApiConnection('https://ludora-pgho.onrender.com', 'https://ludora-nine.vercel.app');
+  await flush();
+  assert.deepEqual(urls, ['/_ludora/api-health']);
+  assert.equal(getApiConnectionState(), 'ready');
+});
+
 test('cancelar uma tela não cancela a conexão das demais', async t => {
   let finish;
   t.mock.method(globalThis, 'fetch', () => new Promise(resolve => { finish = resolve; }));
@@ -46,6 +58,43 @@ test('cancelar uma tela não cancela a conexão das demais', async t => {
   finish(healthy());
   await second;
   assert.equal(connection.getState(), 'ready');
+});
+
+test('consulta de sessão carrega enquanto o health ainda está pendente', async t => {
+  let probeSignal;
+  t.mock.method(globalThis, 'fetch', (url, options) => {
+    if (url.endsWith('/health')) {
+      probeSignal = options.signal;
+      return new Promise((_, reject) => {
+        probeSignal.addEventListener('abort', () => reject(probeSignal.reason), { once: true });
+      });
+    }
+    return Promise.resolve(new Response('{"id":1}'));
+  });
+  configureApiConnection('https://session.onrender.com');
+  assert.deepEqual(await authRequest('https://session.onrender.com/usuarios/me'), { id: 1 });
+  assert.equal(probeSignal.aborted, true);
+  assert.equal(getApiConnectionState(), 'ready');
+});
+
+test('consulta transitória espera o despertar antes da segunda tentativa', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let wake;
+  let reads = 0;
+  t.mock.method(globalThis, 'fetch', (url) => {
+    if (url.endsWith('/health')) return new Promise(resolve => { wake = resolve; });
+    reads++;
+    return Promise.resolve(reads === 1 ? new Response('Starting', { status: 503 }) : new Response('{"id":1}'));
+  });
+  configureApiConnection('https://cold-read.onrender.com');
+  const result = authRequest('https://cold-read.onrender.com/usuarios/me');
+  await new Promise(resolve => setImmediate(resolve));
+  t.mock.timers.tick(600);
+  await flush();
+  assert.equal(reads, 1);
+  wake(healthy());
+  assert.deepEqual(await result, { id: 1 });
+  assert.equal(reads, 2);
 });
 
 test('sessão de tela já cancelada não inicia acesso ao servidor', async t => {

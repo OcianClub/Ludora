@@ -12,3 +12,7 @@ reorganizar-ludora.sh
 __pycache__/
 *.pyc
 apps/mobile/.eas-inspect/
+
+# O EAS no Windows usa estas regras da raiz ao preparar o pacote.
+/apps/mobile/android/
+/apps/mobile/ios/
