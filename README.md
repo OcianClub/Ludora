@@ -1,5 +1,3 @@
-<img src="logo-final.png" alt="Ludora — gestão e acompanhamento esportivo" width="680" />
-
 # Ludora
 
 **Clubes, atletas, torneios e partidas conectados em uma plataforma web, mobile e desktop.**
