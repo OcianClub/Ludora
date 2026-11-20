@@ -46,6 +46,8 @@ const output = path.resolve(__dirname, '../../../test-results/home-roles');
           ];
           await page.route('**/jogadores/perfis?**', route => {
             calls.push(route.request().url());
+            if (role === 'ANONIMO') return route.fulfill({ status: 401, json: { error: 'Sessão obrigatória' } });
+            if (role === 'RESTRITO') return route.fulfill({ status: 403, json: { error: 'Categoria fora do escopo' } });
             return route.fulfill({ status: profilesFail ? 503 : 200, json: profilesFail ? { error: 'offline' } : profiles });
           });
           await page.route('**/partidas/home?**', route => route.fulfill({ json: rows }));
@@ -61,7 +63,7 @@ const output = path.resolve(__dirname, '../../../test-results/home-roles');
             if (pathname.endsWith('/times')) return route.fulfill({ json: [] });
             return route.fallback();
           });
-          await page.goto(base + '/dashboard');
+          await page.goto(base + (role === 'ANONIMO' ? '/clubes/2' : '/dashboard'));
           await page.locator('.home-match-cta').waitFor();
           if (manager) {
             await page.getByRole('link', { name: /Solicitações de partida/ }).waitFor();
@@ -73,13 +75,18 @@ const output = path.resolve(__dirname, '../../../test-results/home-roles');
             assert.equal(await page.locator('.home-highlights').count(), 0);
             assert.match(await page.locator('.home-upcoming-match').first().getAttribute('aria-label'), /Continuar preparação/);
           } else {
-            await page.locator('.home-highlight-leaders').waitFor();
             assert.equal(await page.locator('.home-pending').count(), 0);
             assert.equal(await page.locator('.home-match-cta').innerText(), 'Acompanhar ao vivo');
             assert.doesNotMatch(await page.locator('.home-upcoming').innerText(), /Preparada|Agendada|Equipe confirmada/);
-            assert.equal(await page.locator('.home-highlight-leaders a').count(), 2);
-            assert.match(await page.locator('.home-highlight-leaders').innerText(), /atleta empatado/);
-            assert.ok(calls.every(url => url.includes('categoria_id=1')));
+            if (['ANONIMO', 'RESTRITO'].includes(role)) {
+              assert.equal(await page.locator('.home-highlights').count(), 0);
+              assert.deepEqual(calls, []);
+            } else {
+              await page.locator('.home-highlight-leaders').waitFor();
+              assert.equal(await page.locator('.home-highlight-leader').count(), 2);
+              assert.match(await page.locator('.home-highlight-leaders').innerText(), /atleta empatado/);
+              assert.ok(calls.every(url => url.includes('categoria_id=1')));
+            }
           }
           assert.equal(await page.locator('.home-stale-live').count(), 1);
           const ball = page.locator('.history-summary-result').first();

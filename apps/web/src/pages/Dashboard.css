@@ -396,9 +396,9 @@
   display: grid;
   gap: 10px;
 }
-.home-highlight-leaders a {
+.home-highlight-leader {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto 16px;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 14px 12px;
@@ -406,10 +406,7 @@
   border-radius: 8px;
   background: color-mix(in srgb, var(--fundo-card) 75%, var(--fundo-card-sec));
 }
-.home-highlight-leaders a:hover {
-  background: color-mix(in srgb, var(--fundo-card) 45%, var(--fundo-card-sec));
-}
-.home-highlight-leaders a > .icon {
+.home-highlight-leader > .icon {
   color: var(--primaria);
   justify-self: center;
 }
@@ -931,7 +928,7 @@
   .home-highlights-card {
     padding: 16px;
   }
-  .home-highlight-leaders a {
+  .home-highlight-leader {
     padding: 11px 10px;
     gap: 9px;
   }

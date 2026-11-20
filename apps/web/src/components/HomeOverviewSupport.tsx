@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useClubPending } from '../contexts/ClubPendingContext';
-import { fetchJogadoresPerfis, requestJson, type Categoria, type HomePartida, type PerfilJogador } from '../services/api';
+import { ApiResponseError, fetchJogadoresPerfis, requestJson, type Categoria, type HomePartida, type PerfilJogador } from '../services/api';
 import type { PropostaPartida } from '../services/sharedMatches';
 import { destaquesCategoria, nomeCategoria, podePrepararHome } from '../utils/homeDashboard';
 import { Icon, type IconName } from './Icon';
@@ -88,38 +88,44 @@ export function HomePending({ category, matches, refreshKey }: {
 }
 
 export function useHomeHighlights(categoryId: number, enabled: boolean, refreshKey: number) {
-  const { clube } = useAuth();
+  const { clube, usuario, token } = useAuth();
   const [retry, setRetry] = useState(0);
   const [state, setState] = useState<{ key: string; players: PerfilJogador[] | null; error: boolean } | null>(null);
-  const key = `${clube?.id}:${categoryId}`;
+  const key = `${usuario?.id}:${clube?.id}:${categoryId}`;
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
     let active = true;
     fetchJogadoresPerfis(categoryId, controller.signal)
       .then(players => { if (active) setState({ key, players, error: false }); })
-      .catch(() => { if (active) setState(previous => ({ key, players: previous?.key === key ? previous.players : null, error: true })); });
+      .catch(error => {
+        if (!active) return;
+        if (error instanceof ApiResponseError && [401, 403].includes(error.status)) {
+          setState({ key, players: null, error: false });
+          return;
+        }
+        setState(previous => ({ key, players: previous?.key === key ? previous.players : null, error: true }));
+      });
     return () => { active = false; controller.abort(); };
-  }, [key, enabled, retry, refreshKey]);
+  }, [key, token, enabled, retry, refreshKey]);
   const current = state?.key === key ? state : null;
   const leaders = useMemo(() => destaquesCategoria(current?.players || []), [current?.players]);
   return { leaders, loading: !current, error: current?.error, retry: () => setRetry(value => value + 1) };
 }
 
-export function HomeHighlights({ category, highlights }: {
-  category: Categoria;
+export function HomeHighlights({ highlights }: {
   highlights: ReturnType<typeof useHomeHighlights>;
 }) {
   return <section className="home-highlights" aria-labelledby="home-highlights-title">
-    <div className="home-section-heading"><h2 id="home-highlights-title">Destaques da categoria</h2><Link to={`/elenco?categoria_id=${category.id}`}>Ver Scout<Icon name="chevronRight" size={15} /></Link></div>
+    <div className="home-section-heading"><h2 id="home-highlights-title">Destaques da categoria</h2></div>
     <div className="home-highlights-card">
       {highlights.loading ? <div className="home-highlights-loading home-placeholder" role="status" aria-label="Carregando destaques" />
         : highlights.leaders.length ? <div className="home-highlight-leaders">
-          {highlights.leaders.map(leader => <Link key={leader.campo} to={`/elenco?categoria_id=${category.id}&ordem=${leader.campo === 'totalGols' ? 'goals' : 'assists'}`}>
+          {highlights.leaders.map(leader => <div className="home-highlight-leader" key={leader.campo}>
             <Icon name={leader.campo === 'totalGols' ? 'ball' : 'switchClub'} size={22} />
             <span className="home-highlight-copy"><small>{leader.campo === 'totalGols' ? 'Mais gols' : 'Mais assistências'}</small><strong data-tooltip={leader.jogador.nome} data-tooltip-overflow>{leader.jogador.nome}</strong>{leader.empatados > 0 && <small>+{leader.empatados} {leader.empatados === 1 ? 'atleta empatado' : 'atletas empatados'}</small>}</span>
-            <b>{leader.valor}</b><Icon name="chevronRight" size={16} />
-          </Link>)}
+            <b>{leader.valor}</b>
+          </div>)}
         </div> : null}
       {highlights.error && <p className="home-highlight-error" role="status">Não foi possível atualizar os destaques. <button type="button" onClick={highlights.retry}>Tentar novamente</button></p>}
     </div>

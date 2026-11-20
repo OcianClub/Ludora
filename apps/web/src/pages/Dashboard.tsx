@@ -29,13 +29,16 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
   podeGerenciar: boolean;
   refreshKey: number;
 }) {
-  const { clube } = useAuth();
+  const { clube, clubeSelecionado, token, podeEntrarGestao } = useAuth();
   const { principal, aoVivo, historico, seguintes, outrasCategoriasComAgenda } = useMemo(
     () => resumoCategoria(matches, current.nome, hojeCalendario()),
     [matches, current.nome],
   );
-  const highlights = useHomeHighlights(current.id, !podeGerenciar, refreshKey);
-  const hasHighlights = !podeGerenciar && (highlights.loading || highlights.error || highlights.leaders.length > 0);
+  // A leitura de perfis exige sessão e respeita as categorias de cargos de gestão.
+  const podeConsultarDestaques = !!token && !podeGerenciar
+    && (!podeEntrarGestao || gerenciaCategoria(clubeSelecionado, current));
+  const highlights = useHomeHighlights(current.id, podeConsultarDestaques, refreshKey);
+  const hasHighlights = podeConsultarDestaques && (highlights.loading || highlights.error || highlights.leaders.length > 0);
   const hasExtras = aoVivo.length > 1;
   const featuredUpcoming = principal && ['AGENDADA', 'PREPARADA'].includes(principal.status);
   const upcomingDays = useMemo(() => {
@@ -98,7 +101,7 @@ const HomeCategoryPanel = memo(function HomeCategoryPanel({ current, matches, po
               </div>}
             </div>
           </section>
-          {hasHighlights && <HomeHighlights category={current} highlights={highlights} />}
+          {hasHighlights && <HomeHighlights highlights={highlights} />}
         </div>
       </div>
 
